@@ -60,17 +60,17 @@ export function Footer() {
                 )}
               </li>
             ))}
-            <li>
-              <Link to="/admin" className="text-zinc-700 hover:text-[#b90014] transition-colors text-[10px] uppercase tracking-widest">Admin Dashboard</Link>
-            </li>
           </ul>
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto px-8 pt-8 border-t border-zinc-900 text-center">
+      <div className="max-w-7xl mx-auto px-8 pt-8 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-4">
         <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-[0.3em]">
           © 2024 ABSOLUTE SOCCER. ALL RIGHTS RESERVED.
         </p>
+        <Link to="/admin" className="text-zinc-600 hover:text-zinc-400 transition-colors text-[10px] font-bold uppercase tracking-widest">
+          Admin Dashboard
+        </Link>
       </div>
     </footer>
   );
