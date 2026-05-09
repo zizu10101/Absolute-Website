@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
+import { supabase } from '../supabase';
+import { useAuth } from './AuthContext';
 
 export interface ColorVariant {
   name: string;
@@ -42,6 +44,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const { user } = useAuth();
+
   const mergeProducts = (newProducts: Product[]) => {
     setProducts(prev => {
       const productMap = new Map(prev.map(p => [p.id, p]));
@@ -75,7 +79,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
     };
     init();
-  }, []);
+  }, [user]);
 
   const LIST_FIELDS = 'id,name,price,category,submenu,submenus,image,images,isNewArrival,isOnSale,isFeatured,salePrice,colors';
 
@@ -83,7 +87,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const response = await fetch(`/api/products?isFeatured=true&limit=8&fields=${LIST_FIELDS}`);
-      if (!response.ok) throw new Error(`Featured fetch failed: ${response.statusText}`);
+      
+      // If we get index.html (SPA fallback), handle it
+      const contentType = response.headers.get('content-type');
+      if (!response.ok || (contentType && contentType.includes('text/html'))) {
+        throw new Error('API unavailable or returned HTML');
+      }
+      
       const result = await response.json();
       const featuredData = result.data || [];
       
@@ -91,7 +101,19 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         mergeProducts(featuredData);
       }
     } catch (e) {
-      console.error('Featured fetch error:', e);
+      console.warn('Featured fetch from API failed, trying direct Supabase:', e);
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select(LIST_FIELDS)
+          .eq('isFeatured', true)
+          .limit(8);
+        
+        if (error) throw error;
+        if (data) mergeProducts(data as any);
+      } catch (supabaseErr) {
+        console.error('Direct Supabase featured fetch also failed:', supabaseErr);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -101,7 +123,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const response = await fetch('/api/products?limit=1000');
-      if (!response.ok) throw new Error(`Admin fetch failed: ${response.statusText}`);
+      
+      const contentType = response.headers.get('content-type');
+      if (!response.ok || (contentType && contentType.includes('text/html'))) {
+        throw new Error('API unavailable');
+      }
+      
       const result = await response.json();
       const data = result.data || [];
       
@@ -109,7 +136,18 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         mergeProducts(data);
       }
     } catch (e) {
-      console.error('Failed to fetch products', e);
+      console.warn('Admin fetch from API failed, trying direct Supabase:', e);
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .limit(1000);
+        
+        if (error) throw error;
+        if (data) mergeProducts(data as any);
+      } catch (supabaseErr) {
+        console.error('Direct Supabase admin fetch also failed:', supabaseErr);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -124,13 +162,30 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       params.append('limit', '40');
       
       const response = await fetch(`/api/products?${params.toString()}`);
-      if (!response.ok) throw new Error(`Category fetch failed: ${response.statusText}`);
+      
+      const contentType = response.headers.get('content-type');
+      if (!response.ok || (contentType && contentType.includes('text/html'))) {
+        throw new Error('API unavailable');
+      }
+      
       const result = await response.json();
       const allFetched = result.data || [];
       
       mergeProducts(allFetched);
     } catch (e) {
-      console.error('Categorized fetch error:', e);
+      console.warn('Categorized fetch from API failed, trying direct Supabase:', e);
+      try {
+        let query = supabase.from('products').select(LIST_FIELDS);
+        if (category && category.toLowerCase() !== 'all') {
+          query = query.ilike('category', category);
+        }
+        const { data, error } = await query.limit(40);
+        
+        if (error) throw error;
+        if (data) mergeProducts(data as any);
+      } catch (supabaseErr) {
+        console.error('Direct Supabase categorized fetch also failed:', supabaseErr);
+      }
     } finally {
       setIsLoading(false);
     }

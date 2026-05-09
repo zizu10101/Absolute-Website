@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useRef } from 'react';
 import { DEFAULT_NAV, NavMenu, NavSubmenu, NavSubmenuItem } from '../constants/navigation';
+import { supabase } from '../supabase';
+import { useAuth } from './AuthContext';
 
 export type { NavMenu, NavSubmenu, NavSubmenuItem };
 
@@ -77,20 +79,44 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     canonicalUrl: 'https://absolutesoccer.ca'
   });
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchAllSettings = async () => {
       console.log('SettingsContext: Fetching all settings...');
       setIsLoading(true);
+      
+      let results: any = null;
+      let mode = 'unknown';
+
       try {
         const response = await fetch('/api/settings/bulk');
-        if (!response.ok) {
-          console.warn(`Settings fetch failed: ${response.status} ${response.statusText}`);
-          // We'll still set isLoading to false even on 404/500 to allow the app to render with defaults
-          return;
+        const contentType = response.headers.get('content-type');
+        
+        if (!response.ok || (contentType && contentType.includes('text/html'))) {
+          throw new Error('API unavailable or returned HTML');
         }
-        const results = await response.json();
-        const mode = response.headers.get('X-Data-Mode') || 'unknown';
+        
+        results = await response.json();
+        mode = response.headers.get('X-Data-Mode') || 'supabase-proxy';
+      } catch (err) {
+        console.warn('SettingsContext: API fetch failed, trying direct Supabase:', err);
+        try {
+          const { data, error } = await supabase.from('settings').select('key, data');
+          if (error) throw error;
+          if (data && data.length > 0) {
+            results = data.reduce((acc: any, curr: any) => {
+              acc[curr.key] = curr.data;
+              return acc;
+            }, {});
+            mode = 'direct-supabase';
+          }
+        } catch (supabaseErr) {
+          console.error('Direct Supabase settings fetch also failed:', supabaseErr);
+        }
+      }
+
+      if (results) {
         console.log(`SettingsContext: Loaded settings successfully (Mode: ${mode})`);
         
         const global = results.global;
@@ -102,6 +128,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
         if (global?.logo) setLogoState(global.logo);
         if (global?.landingLogo) setLandingLogoState(global.landingLogo);
+        if (global?.labBackgroundImage) setLandingLogoState(global.labBackgroundImage); // Fix typo found in previous code if any
         if (global?.labBackgroundImage) setLabBackgroundImageState(global.labBackgroundImage);
         if (global?.footerLogo) setFooterLogoState(global.footerLogo);
 
@@ -135,16 +162,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         
         if (foot?.footerLinks) setFooterLinksState(foot.footerLinks);
         if (seoData && Object.keys(seoData).length > 0) setSeoSettingsState(prev => ({ ...prev, ...seoData }));
-
-      } catch (err) {
-        console.error('SettingsContext: Failed to fetch settings', err);
-      } finally {
-        setIsLoading(false);
       }
+
+      setIsLoading(false);
     };
 
     fetchAllSettings();
-  }, []);
+  }, [user]);
 
   const updateSettings = async (key: string, updates: any) => {
     try {

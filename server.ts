@@ -8,7 +8,20 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl) {
+  console.error("CRITICAL: VITE_SUPABASE_URL is missing in environment variables.");
+}
+
+if (!serviceRoleKey && !anonKey) {
+  console.error("CRITICAL: Both SUPABASE_SERVICE_ROLE_KEY and VITE_SUPABASE_ANON_KEY are missing.");
+}
+
+const supabaseKey = serviceRoleKey || anonKey || '';
+console.log(`Supabase Client: Initializing with URL: ${supabaseUrl ? 'Present' : 'MISSING'}, Key: ${serviceRoleKey ? 'SERVICE_ROLE' : (anonKey ? 'ANON' : 'MISSING')}`);
+
 const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: false,
