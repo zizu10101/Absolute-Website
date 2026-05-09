@@ -80,11 +80,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const fetchAllSettings = async () => {
+      console.log('SettingsContext: Fetching all settings...');
       setIsLoading(true);
       try {
         const response = await fetch('/api/settings/bulk');
-        if (!response.ok) throw new Error(`Settings fetch failed: ${response.statusText}`);
+        if (!response.ok) {
+          console.warn(`Settings fetch failed: ${response.status} ${response.statusText}`);
+          // We'll still set isLoading to false even on 404/500 to allow the app to render with defaults
+          return;
+        }
         const results = await response.json();
+        const mode = response.headers.get('X-Data-Mode') || 'unknown';
+        console.log(`SettingsContext: Loaded settings successfully (Mode: ${mode})`);
         
         const global = results.global;
         const slider = results.slider;

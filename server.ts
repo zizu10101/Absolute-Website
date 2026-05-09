@@ -131,15 +131,33 @@ async function startServer() {
       // Add pagination
       query = query.range(from, to).order('id', { ascending: true });
 
-      // Apply timeout to the query (increased to 5s to reduce false positives)
-      const { data, count, error } = await withTimeout<any>(query, 5000);
+      // Apply timeout to the query (increased to 10s to reduce false positives)
+      let { data, count, error } = await withTimeout<any>(query, 10000);
+      let mode = 'supabase';
       
-      if (error) {
-        console.error("Supabase Query Error:", JSON.stringify(error, null, 2));
-        return res.status(500).json({ 
-          error: error.message || "Supabase query error",
-          code: error.code || "UNKNOWN"
-        });
+      if (error || !data || data.length === 0) {
+        if (error) {
+          console.error("Supabase Query Error, falling back to local data:", JSON.stringify(error, null, 2));
+        } else if (!data || data.length === 0) {
+          console.log("Supabase returned no data, checking if products exist in DB...");
+        }
+        
+        const localProducts = await getLocalProducts();
+        
+        if (localProducts && localProducts.length > 0) {
+          // Filter local products to match parameters as best as possible
+          let filtered = [...localProducts];
+          if (category && category !== 'all' && category !== 'All') {
+            filtered = filtered.filter(p => p.category?.toLowerCase() === category.toLowerCase());
+          }
+          if (isFeatured) {
+            filtered = filtered.filter(p => p.isFeatured);
+          }
+          
+          data = filtered.slice(from, from + limit);
+          count = filtered.length;
+          mode = 'local-fallback';
+        }
       }
       
       const resultData = {
@@ -148,10 +166,13 @@ async function startServer() {
         page,
         limit,
         totalPages: count ? Math.ceil(count / limit) : (data ? Math.ceil(data.length / limit) : 0),
-        mode: 'supabase'
+        mode
       };
 
-      apiCache.set(cacheKey, { data: resultData, timestamp: Date.now() });
+      // Only cache if we actually have data to show
+      if (resultData.data && resultData.data.length > 0) {
+        apiCache.set(cacheKey, { data: resultData, timestamp: Date.now() });
+      }
 
       // Return the live data from Supabase
       res.setHeader('Cache-Control', 'public, max-age=300');
@@ -217,24 +238,33 @@ async function startServer() {
       }
 
       // Try to fetch all settings in one go
-      const { data, error } = await withTimeout<any>(
+      let { data, error } = await withTimeout<any>(
         supabase.from('settings').select('key, data'),
-        5000
-      );
-
-      if (!error && data) {
-        const settingsMap = data.reduce((acc: any, curr: any) => {
+        10000
+      ).catch(e => ({ data: null, error: e }));
+      
+      let settingsMap: any = null;
+      let mode = 'supabase';
+      
+      if (!error && data && data.length > 0) {
+        settingsMap = data.reduce((acc: any, curr: any) => {
           acc[curr.key] = curr.data;
           return acc;
         }, {});
+      } else {
+        console.error("Bulk settings fetch error or empty, falling back to local data:", error?.message || error);
+        settingsMap = await getLocalSettings();
+        mode = 'local-fallback';
+      }
         
+      if (settingsMap && Object.keys(settingsMap).length > 0) {
         apiCache.set(cacheKey, { data: settingsMap, timestamp: Date.now() });
         
         res.setHeader('Cache-Control', 'public, max-age=1800');
+        res.setHeader('X-Data-Mode', mode);
         return res.json(settingsMap);
       }
 
-      if (error) throw error;
       return res.json({});
     } catch (error: any) {
       console.error("Bulk settings fetch error:", error.message || error);

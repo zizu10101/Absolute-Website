@@ -53,15 +53,25 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Pre-fetch some initial products to speed up first interactions
     const init = async () => {
-      await fetchFeaturedProducts();
+      console.log('ProductContext: Initializing products...');
+      try {
+        await fetchFeaturedProducts();
+      } catch (e) {
+        console.error('Initial featured products fetch failed:', e);
+      }
+      
       // Also fetch a small batch of all products to have some local cache
       try {
         const response = await fetch(`/api/products?limit=20&fields=${LIST_FIELDS}`);
-        if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
+        if (!response.ok) {
+          console.warn(`Initial product batch fetch failed: ${response.status} ${response.statusText}`);
+          return;
+        }
         const result = await response.json();
+        console.log(`ProductContext: Fetched ${result.data?.length || 0} initial products (Mode: ${result.mode || 'unknown'})`);
         if (result.data) mergeProducts(result.data);
       } catch (e) {
-        console.error('Initial product fetch error:', e);
+        console.error('Initial product batch fetch error:', e);
       }
     };
     init();
