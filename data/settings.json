@@ -1,0 +1,28 @@
+{
+  "global": {
+    "logo": "",
+    "landingLogo": "",
+    "labBackgroundImage": "",
+    "footerLogo": ""
+  },
+  "slider": {
+    "sliderImages": []
+  },
+  "homeCategories": [
+    { "name": "Footwear", "image": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=600&h=800" },
+    { "name": "Clubs", "image": "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=600&h=800" },
+    { "name": "Apparel", "image": "https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&q=80&w=600&h=800" },
+    { "name": "Equipment", "image": "https://images.unsplash.com/photo-1431324155629-1a6eda1eed2e?auto=format&fit=crop&q=80&w=600&h=800" }
+  ],
+  "navigation": {
+    "navigationMenus": []
+  },
+  "footer": {
+    "footerLinks": []
+  },
+  "seo": {
+    "title": "Soccer Performance Hub",
+    "description": "Elite soccer gear, custom uniforms, and technical training equipment.",
+    "keywords": "soccer cleats, football jerseys, custom uniforms, soccer equipment"
+  }
+}

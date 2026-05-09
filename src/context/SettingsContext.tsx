@@ -1,0 +1,250 @@
+import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useRef } from 'react';
+import { DEFAULT_NAV, NavMenu, NavSubmenu, NavSubmenuItem } from '../constants/navigation';
+
+export type { NavMenu, NavSubmenu, NavSubmenuItem };
+
+export interface FooterLink {
+  label: string;
+  path: string;
+}
+
+interface HomeCategory {
+  name: string;
+  description: string;
+  image: string;
+  path: string;
+}
+
+export interface SliderImage {
+  url: string;
+  title?: string;
+  link?: string;
+}
+
+export interface SEO {
+  title: string;
+  description: string;
+  keywords: string;
+  ogImage: string;
+  ogTitle: string;
+  ogDescription: string;
+  twitterCard: 'summary' | 'summary_large_image';
+  canonicalUrl: string;
+}
+
+interface SettingsContextType {
+  sliderImages: SliderImage[];
+  setSliderImages: (images: SliderImage[]) => Promise<void>;
+  logo: string;
+  setLogo: (logo: string) => Promise<void>;
+  landingLogo: string;
+  setLandingLogo: (logo: string) => Promise<void>;
+  labBackgroundImage: string;
+  setLabBackgroundImage: (image: string) => Promise<void>;
+  footerLogo: string;
+  setFooterLogo: (logo: string) => Promise<void>;
+  homeCategories: HomeCategory[];
+  setHomeCategories: (categories: HomeCategory[]) => Promise<void>;
+  navigationMenus: NavMenu[];
+  setNavigationMenus: (menus: NavMenu[]) => Promise<void>;
+  footerLinks: FooterLink[];
+  setFooterLinks: (links: FooterLink[]) => Promise<void>;
+  seoSettings: SEO;
+  setSeoSettings: (seo: SEO) => Promise<void>;
+  setGlobalSettings: (settings: { logo?: string; landingLogo?: string; labBackgroundImage?: string; footerLogo?: string }) => Promise<void>;
+  resetSettings: () => Promise<void>;
+}
+
+const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+
+export function SettingsProvider({ children }: { children: ReactNode }) {
+  const [sliderImages, setSliderImagesState] = useState<SliderImage[]>([]);
+  const [logo, setLogoState] = useState<string>('/logo.svg');
+  const [landingLogo, setLandingLogoState] = useState<string>('/logo.svg');
+  const [labBackgroundImage, setLabBackgroundImageState] = useState<string>('https://images.unsplash.com/photo-1551854838-212c50b4c184?q=80&w=2000&auto=format&fit=crop');
+  const [footerLogo, setFooterLogoState] = useState<string>('/logo.svg');
+  const [homeCategories, setHomeCategoriesState] = useState<HomeCategory[]>([]);
+  const [footerLinks, setFooterLinksState] = useState<FooterLink[]>([]);
+  const [navigationMenus, setNavigationMenusState] = useState<NavMenu[]>(DEFAULT_NAV);
+  const [seoSettings, setSeoSettingsState] = useState<SEO>({
+    title: 'Absolute Soccer | Mississauga\'s Premier Soccer Destination',
+    description: 'Elite soccer footwear, apparel, and equipment. Professional uniform engineering and custom team gear.',
+    keywords: 'soccer, mississauga, soccer shop, custom uniforms, soccer cleats, jerseys',
+    ogImage: 'https://assets.cdn.filesafe.space/By2ouDwVDtWabLH4FJkE/media/69d71beda7dcb4cff069ed87.png',
+    ogTitle: 'Absolute Soccer',
+    ogDescription: 'Elite performance soccer gear and custom uniform engineering.',
+    twitterCard: 'summary_large_image',
+    canonicalUrl: 'https://absolutesoccer.ca'
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAllSettings = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/settings/bulk');
+        if (!response.ok) throw new Error(`Settings fetch failed: ${response.statusText}`);
+        const results = await response.json();
+        
+        const global = results.global;
+        const slider = results.slider;
+        const home = results.homeCategories;
+        const nav = results.navigation;
+        const foot = results.footer;
+        const seoData = results.seo;
+
+        if (global?.logo) setLogoState(global.logo);
+        if (global?.landingLogo) setLandingLogoState(global.landingLogo);
+        if (global?.labBackgroundImage) setLabBackgroundImageState(global.labBackgroundImage);
+        if (global?.footerLogo) setFooterLogoState(global.footerLogo);
+
+        if (slider?.sliderImages) setSliderImagesState(slider.sliderImages);
+        if (home?.homeCategories) setHomeCategoriesState(home.homeCategories);
+        
+        if (nav?.navigationMenus) {
+          if (nav.navigationMenus.length > 0) {
+            const merged = DEFAULT_NAV.map(defaultItem => {
+              const serverItem = nav.navigationMenus.find((s: any) => s.label.toUpperCase() === defaultItem.label.toUpperCase());
+              if (serverItem) {
+                const submenus = (serverItem.submenus && serverItem.submenus.length > 0) 
+                  ? serverItem.submenus 
+                  : defaultItem.submenus;
+                return { ...defaultItem, ...serverItem, submenus };
+              }
+              return defaultItem;
+            });
+
+            nav.navigationMenus.forEach((serverItem: any) => {
+              if (!merged.find(m => m.label.toUpperCase() === serverItem.label.toUpperCase())) {
+                merged.push(serverItem);
+              }
+            });
+
+            setNavigationMenusState(merged);
+          } else {
+            setNavigationMenusState(DEFAULT_NAV);
+          }
+        }
+        
+        if (foot?.footerLinks) setFooterLinksState(foot.footerLinks);
+        if (seoData && Object.keys(seoData).length > 0) setSeoSettingsState(prev => ({ ...prev, ...seoData }));
+
+      } catch (err) {
+        console.error('SettingsContext: Failed to fetch settings', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAllSettings();
+  }, []);
+
+  const updateSettings = async (key: string, updates: any) => {
+    try {
+      await fetch(`/api/settings/${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      
+      // Sync local state
+      if (key === 'global') {
+        if (updates.logo) setLogoState(updates.logo);
+        if (updates.landingLogo) setLandingLogoState(updates.landingLogo);
+        if (updates.labBackgroundImage) setLabBackgroundImageState(updates.labBackgroundImage);
+        if (updates.footerLogo) setFooterLogoState(updates.footerLogo);
+      } else if (key === 'slider') {
+        if (updates.sliderImages) setSliderImagesState(updates.sliderImages);
+      } else if (key === 'homeCategories') {
+        if (updates.homeCategories) setHomeCategoriesState(updates.homeCategories);
+      } else if (key === 'navigation') {
+        if (updates.navigationMenus) setNavigationMenusState(updates.navigationMenus);
+      } else if (key === 'footer') {
+        if (updates.footerLinks) setFooterLinksState(updates.footerLinks);
+      } else if (key === 'seo') {
+        setSeoSettingsState(prev => ({ ...prev, ...updates }));
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const setGlobalSettings = async (settings: { logo?: string; landingLogo?: string; labBackgroundImage?: string; footerLogo?: string }) => {
+    await updateSettings('global', settings);
+  };
+
+  const setSliderImages = async (images: SliderImage[]) => {
+    await updateSettings('slider', { sliderImages: images });
+  };
+
+  const setLogo = async (newLogo: string) => {
+    await updateSettings('global', { logo: newLogo });
+  };
+
+  const setLandingLogo = async (newLogo: string) => {
+    await updateSettings('global', { landingLogo: newLogo });
+  };
+
+  const setLabBackgroundImage = async (image: string) => {
+    await updateSettings('global', { labBackgroundImage: image });
+  };
+
+  const setFooterLogo = async (newLogo: string) => {
+    await updateSettings('global', { footerLogo: newLogo });
+  };
+
+  const setHomeCategories = async (categories: HomeCategory[]) => {
+    await updateSettings('homeCategories', { homeCategories: categories });
+  };
+
+  const setFooterLinks = async (links: FooterLink[]) => {
+    await updateSettings('footer', { footerLinks: links });
+  };
+
+  const setNavigationMenus = async (menus: NavMenu[]) => {
+    await updateSettings('navigation', { navigationMenus: menus });
+  };
+
+  const setSeoSettings = async (seo: SEO) => {
+    await updateSettings('seo', seo);
+  };
+
+  const resetSettings = async () => {
+    window.location.reload(); 
+  };
+
+  const value = useMemo(() => ({ 
+    sliderImages, 
+    setSliderImages, 
+    logo, 
+    setLogo, 
+    landingLogo,
+    setLandingLogo,
+    labBackgroundImage,
+    setLabBackgroundImage,
+    footerLogo,
+    setFooterLogo,
+    homeCategories, 
+    setHomeCategories,
+    footerLinks,
+    setFooterLinks,
+    navigationMenus,
+    setNavigationMenus,
+    seoSettings,
+    setSeoSettings,
+    resetSettings,
+    setGlobalSettings
+  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings]);
+
+  return (
+    <SettingsContext.Provider value={value}>
+      {!isLoading && children}
+    </SettingsContext.Provider>
+  );
+}
+
+export const useSettings = () => {
+  const context = useContext(SettingsContext);
+  if (!context) throw new Error('useSettings must be used within a SettingsProvider');
+  return context;
+};

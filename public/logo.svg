@@ -1,0 +1,16 @@
+<svg viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- AS Monogram -->
+  <path d="M180 150L250 30L320 150H280L250 90L220 150H180Z" fill="black"/>
+  <path d="M260 40L420 40L300 150L240 150L310 90L260 90V40Z" fill="black"/>
+  <path d="M310 90L380 90L330 140L280 140L310 90Z" fill="#B90014"/>
+  
+  <!-- ABSOLUTE SOCCER Text -->
+  <text x="250" y="210" fill="black" font-family="Arial" font-size="42" font-weight="900" text-anchor="middle" style="letter-spacing: 12px;">ABSOLUTE</text>
+  <text x="220" y="260" fill="black" font-family="Arial" font-size="36" font-weight="900" text-anchor="middle" style="letter-spacing: 10px;">SOCCER</text>
+  
+  <!-- MISSISSAUGA Stamp -->
+  <g transform="translate(340, 230) rotate(-5)">
+    <rect x="0" y="0" width="140" height="35" fill="none" stroke="#B90014" stroke-width="3"/>
+    <text x="70" y="24" fill="#B90014" font-family="Arial" font-size="16" font-weight="900" text-anchor="middle">MISSISSAUGA</text>
+  </g>
+</svg>
