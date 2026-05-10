@@ -269,7 +269,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   return (
     <SettingsContext.Provider value={value}>
-      {!isLoading && children}
+      {children}
     </SettingsContext.Provider>
   );
 }

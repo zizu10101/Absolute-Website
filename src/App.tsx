@@ -4,12 +4,12 @@
  */
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Fragment } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Meta } from './components/Meta';
 import { HomePage } from './pages/HomePage';
 import { AdminLogin } from './pages/AdminLogin';
-import { ProductProvider } from './context/ProductContext';
+import { ProductProvider, useProducts } from './context/ProductContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { AuthProvider } from './context/AuthContext';
 import { ProductGridPage } from './pages/ProductGridPage';
@@ -18,6 +18,30 @@ import { CustomizationPage } from './pages/CustomizationPage';
 import { CustomLabPage } from './pages/CustomLabPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ContactUsPage } from './pages/ContactUsPage';
+
+function LoadingScreen() {
+  return (
+    <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
+      <img src="/logo.svg" alt="Loading" className="w-24 h-24 animate-spin" />
+    </div>
+  );
+}
+
+function AppContent() {
+  const { isLoading: productsLoading } = useProducts();
+  const { isLoading: settingsLoading } = useSettings();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!productsLoading && !settingsLoading) {
+      setIsLoading(false);
+    }
+  }, [productsLoading, settingsLoading]);
+
+  if (isLoading) return <LoadingScreen />;
+
+  return <AppRoutes />;
+}
 
 function AppRoutes() {
   const { navigationMenus } = useSettings();
@@ -87,7 +111,7 @@ export default function App() {
       <ProductProvider>
         <SettingsProvider>
           <BrowserRouter>
-            <AppRoutes />
+            <AppContent />
           </BrowserRouter>
         </SettingsProvider>
       </ProductProvider>
