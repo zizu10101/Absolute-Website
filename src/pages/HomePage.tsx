@@ -128,9 +128,16 @@ export function HomePage() {
             homeCategories.length === 4 ? 'md:grid-cols-2 lg:grid-cols-4' :
             'md:grid-cols-3'
           } gap-8`}>
-            {homeCategories.map((category) => (
+            {homeCategories.map((category, index) => (
               <Link key={category.name} to={category.path} className="group relative block aspect-[3/4] overflow-hidden bg-zinc-100">
-                <img src={category.image} alt={category.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" referrerPolicy="no-referrer" />
+                <img 
+                  src={category.image} 
+                  alt={category.name} 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                  referrerPolicy="no-referrer"
+                  loading={index < 2 ? "eager" : "lazy"}
+                  fetchpriority={index < 2 ? "high" : "auto"}
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-8">
                   <h3 className="text-white text-4xl font-black uppercase tracking-widest font-headline italic leading-none">{category.name}</h3>
                   <span className="text-white font-bold text-sm uppercase tracking-widest mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-4 group-hover:translate-y-0">

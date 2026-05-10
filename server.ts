@@ -188,7 +188,7 @@ async function startServer() {
       }
 
       // Return the live data from Supabase
-      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.setHeader('Cache-Control', 'public, max-age=60');
       return res.json(resultData);
     } catch (error: any) {
       console.error("Error fetching products:", error.message || error);
@@ -273,7 +273,7 @@ async function startServer() {
       if (settingsMap && Object.keys(settingsMap).length > 0) {
         apiCache.set(cacheKey, { data: settingsMap, timestamp: Date.now() });
         
-        res.setHeader('Cache-Control', 'public, max-age=1800');
+        res.setHeader('Cache-Control', 'public, max-age=60');
         res.setHeader('X-Data-Mode', mode);
         return res.json(settingsMap);
       }

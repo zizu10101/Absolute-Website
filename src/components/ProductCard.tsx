@@ -38,6 +38,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               alt={product.name} 
               className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
               referrerPolicy="no-referrer"
+              loading="lazy"
             />
           ) : (
             <div className="w-full h-full bg-zinc-200" />
