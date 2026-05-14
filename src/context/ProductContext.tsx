@@ -213,7 +213,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(productData)
       });
       if (!response.ok) {
-        const errorData = await response.json();
+        const text = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(text);
+        } catch (e) {
+          throw new Error(`Server returned error: ${response.status} ${text.substring(0, 50)}`);
+        }
         throw new Error(errorData.error || 'Failed to add product');
       }
       const newProduct = await response.json();

@@ -104,6 +104,9 @@ async function startServer() {
   // Log all requests
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.url}`);
+    if (req.method === 'POST') {
+      console.log('Request Body:', JSON.stringify(req.body).substring(0, 500));
+    }
     next();
   });
 
