@@ -229,8 +229,8 @@ async function startServer() {
     console.log('Inserting product:', productData.name);
     const { data, error } = await supabase.from('products').insert([productData]).select().single();
     if (error) {
-      console.error('Supabase Insert Error:', error);
-      return res.status(500).json({ error: error.message });
+      console.error('Supabase Insert Error DETAILED:', JSON.stringify(error, null, 2));
+      return res.status(500).json({ error: error.message, details: error.details, code: error.code });
     }
     res.json(data);
   });
