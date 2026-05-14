@@ -101,6 +101,12 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+  // Log all requests
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+  });
+
   // API - Health Check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", mode: "supabase" });
@@ -209,6 +215,10 @@ async function startServer() {
       console.error(`Error fetching product ${req.params.id}:`, error);
       res.status(404).json({ error: "Product not found" });
     }
+  });
+
+  app.post("/api/test-route", (req, res) => {
+    res.json({ message: "Test route works" });
   });
 
   app.post("/api/products", async (req, res) => {
@@ -628,6 +638,11 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  app.post("*", (req, res) => {
+    console.log("Unmatched POST request:", req.url);
+    res.status(404).json({ error: "Route not found" });
+  });
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);

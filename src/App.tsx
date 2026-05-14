@@ -99,7 +99,7 @@ function AppRoutes() {
           <Route path="contact-us" element={<ContactUsPage />} />
           <Route path="product/:id" element={<ProductDetailPage />} />
         </Route>
-        <Route path="admin" element={<AdminLogin />} />
+        <Route path="/admin" element={<AdminLogin />} />
       </Routes>
     </>
   );
