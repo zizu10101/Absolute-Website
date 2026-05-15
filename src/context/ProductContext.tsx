@@ -222,8 +222,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(productData)
       });
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to add product');
+        const contentType = response.headers.get('content-type');
+        let errorMessage = 'Failed to add product';
+        if (contentType && contentType.includes('application/json')) {
+          const err = await response.json();
+          errorMessage = err.error || errorMessage;
+        } else {
+          errorMessage = await response.text();
+        }
+        throw new Error(errorMessage);
       }
       const newProduct = await response.json();
       setProducts(prev => [...prev, { ...productData as any, ...newProduct }]);
@@ -241,8 +248,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(updatedProduct)
       });
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to update product');
+        const contentType = response.headers.get('content-type');
+        let errorMessage = 'Failed to update product';
+        if (contentType && contentType.includes('application/json')) {
+          const err = await response.json();
+          errorMessage = err.error || errorMessage;
+        } else {
+          errorMessage = await response.text();
+        }
+        throw new Error(errorMessage);
       }
       const data = await response.json();
       setProducts(prev => prev.map(p => p.id === (data?.id || updatedProduct.id) ? { ...updatedProduct, ...data } : p));
@@ -256,8 +270,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     try {
       const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to delete product');
+        const contentType = response.headers.get('content-type');
+        let errorMessage = 'Failed to delete product';
+        if (contentType && contentType.includes('application/json')) {
+          const err = await response.json();
+          errorMessage = err.error || errorMessage;
+        } else {
+          errorMessage = await response.text();
+        }
+        throw new Error(errorMessage);
       }
       setProducts(prev => prev.filter(p => p.id !== id));
     } catch (e) {
