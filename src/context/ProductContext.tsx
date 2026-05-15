@@ -216,12 +216,17 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const addProduct = async (productData: Omit<Product, 'id'>) => {
     try {
-      const { data, error } = await supabase.from('products').insert([productData]).select().single();
-      if (error) {
-        console.error('Failed to add product directly to Supabase', error);
-        throw new Error(error.message || 'Failed to add product');
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(productData)
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to add product');
       }
-      setProducts(prev => [...prev, { ...productData as any, ...data }]);
+      const newProduct = await response.json();
+      setProducts(prev => [...prev, { ...productData as any, ...newProduct }]);
     } catch (e) {
       console.error('API POST failed:', e);
       throw e;
@@ -230,11 +235,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const updateProduct = async (updatedProduct: Product) => {
     try {
-      const { data, error } = await supabase.from('products').update(updatedProduct).eq('id', updatedProduct.id).select().single();
-      if (error) {
-        console.error('Failed to update product directly in Supabase', error);
-        throw new Error(error.message || 'Failed to update product');
+      const response = await fetch(`/api/products/${updatedProduct.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedProduct)
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to update product');
       }
+      const data = await response.json();
       setProducts(prev => prev.map(p => p.id === (data?.id || updatedProduct.id) ? { ...updatedProduct, ...data } : p));
     } catch (e) {
       console.error('API PUT failed:', e);
@@ -244,13 +254,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const deleteProduct = async (id: string) => {
     try {
-      const { error } = await supabase.from('products').delete().eq('id', id);
-      if (error) {
-        console.error('Failed to delete product directly in Supabase', error);
-        throw new Error(error.message || 'Failed to delete product');
-      } else {
-        setProducts(prev => prev.filter(p => p.id !== id));
+      const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to delete product');
       }
+      setProducts(prev => prev.filter(p => p.id !== id));
     } catch (e) {
       console.error('API DELETE failed:', e);
       throw e;
