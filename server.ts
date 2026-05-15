@@ -100,6 +100,7 @@ async function withTimeout<T>(promise: Promise<T> | T, timeoutMs: number = 5000)
 async function startServer() {
   console.log("Starting server process...");
   const app = express();
+  app.get("/test", (req, res) => res.json({ test: "ok" }));
   const PORT = 3000;
 
   console.log("Configuring middlewares...");
@@ -107,11 +108,17 @@ async function startServer() {
   // 1. Log all requests immediately to see what's reaching the server
   app.use((req, res, next) => {
     const start = Date.now();
-    console.log(`>>> INCOMING: ${req.method} ${req.url}`);
+    console.log(`>>> INCOMING Match: ${req.method} ${req.url}`);
+    
+    // Register a listener to identify which route eventually handles this, if any
     res.on('finish', () => {
       const duration = Date.now() - start;
       console.log(`<<< OUTGOING: ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+      if (res.statusCode === 404) {
+        console.warn(`[WARN] 404 Not Found for: ${req.method} ${req.url}`);
+      }
     });
+
     next();
   });
 
@@ -124,6 +131,16 @@ async function startServer() {
       }
       next();
     });
+  });
+  
+  app.get("/api/debug-routes", (req, res) => {
+    const routes = (app as any)._router.stack
+      .filter((r: any) => r.route)
+      .map((r: any) => ({
+        path: r.route.path,
+        method: Object.keys(r.route.methods)[0].toUpperCase(),
+      }));
+    res.json(routes);
   });
   
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -268,6 +285,7 @@ async function startServer() {
 
   // API - Products
   registerGet("/api/products", async (req, res) => {
+    console.log(`[DEBUG] GET /api/products matched`);
     try {
       const cacheKey = req.url;
       const cachedResponse = apiCache.get(cacheKey);
@@ -361,6 +379,7 @@ async function startServer() {
 
 
   registerGet("/api/products/:id", async (req, res) => {
+    console.log(`[DEBUG] GET /api/products/${req.params.id} matched`);
     try {
       const { data, error } = await supabase.from('products').select('*').eq('id', req.params.id).single();
       if (error) throw error;
@@ -372,6 +391,7 @@ async function startServer() {
   });
 
   app.put("/api/products/:id", async (req, res) => {
+    console.log(`[DEBUG] PUT /api/products/${req.params.id} matched`);
     const id = req.params.id;
     const productData = req.body;
     console.log('Updating product:', id, productData.name);
@@ -384,6 +404,7 @@ async function startServer() {
   });
 
   app.delete("/api/products/:id", async (req, res) => {
+    console.log(`[DEBUG] DELETE /api/products/${req.params.id} matched`);
     const id = req.params.id;
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) return res.status(500).json({ error: error.message });

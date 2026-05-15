@@ -222,6 +222,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(productData)
       });
       if (!response.ok) {
+        console.error(`API POST request failed with status ${response.status} ${response.statusText}`);
         const contentType = response.headers.get('content-type');
         let errorMessage = 'Failed to add product';
         if (contentType && contentType.includes('application/json')) {
@@ -248,8 +249,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(updatedProduct)
       });
       if (!response.ok) {
+        console.error(`API PUT request failed with status ${response.status} ${response.statusText}`);
         const contentType = response.headers.get('content-type');
-        let errorMessage = 'Failed to update product';
+        let errorMessage = `Failed to update product (Status: ${response.status})`;
         if (contentType && contentType.includes('application/json')) {
           const err = await response.json();
           errorMessage = err.error || errorMessage;
@@ -270,8 +272,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     try {
       const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
       if (!response.ok) {
+        console.error(`API DELETE request failed with status ${response.status} ${response.statusText}`);
         const contentType = response.headers.get('content-type');
-        let errorMessage = 'Failed to delete product';
+        let errorMessage = `Failed to delete product (Status: ${response.status})`;
         if (contentType && contentType.includes('application/json')) {
           const err = await response.json();
           errorMessage = err.error || errorMessage;
