@@ -101,68 +101,19 @@ async function startServer() {
   console.log("Starting server process...");
   const app = express();
   app.get("/test", (req, res) => res.json({ test: "ok" }));
-  const PORT = 3000;
 
-  console.log("Configuring middlewares...");
+  // API Route Definitions
+  // (Moving all API route registrations here to ensure they are matched *before* any middleware)
   
-  // 1. Log all requests immediately to see what's reaching the server
-  app.use((req, res, next) => {
-    const start = Date.now();
-    console.log(`>>> INCOMING Match: ${req.method} ${req.url}`);
-    
-    // Register a listener to identify which route eventually handles this, if any
-    res.on('finish', () => {
-      const duration = Date.now() - start;
-      console.log(`<<< OUTGOING: ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
-      if (res.statusCode === 404) {
-        console.warn(`[WARN] 404 Not Found for: ${req.method} ${req.url}`);
-      }
-    });
-
-    next();
-  });
-
-  // 2. Parse bodies with error handling
-  app.use((req, res, next) => {
-    express.json({ limit: '50mb' })(req, res, (err) => {
-      if (err) {
-        console.error("JSON Parsing Error:", err);
-        return res.status(400).json({ error: "Invalid JSON body", message: err.message });
-      }
-      next();
-    });
+  // CORS Preflight
+  app.options("/api/*", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(200);
   });
   
-  app.get("/api/debug-routes", (req, res) => {
-    const routes = (app as any)._router.stack
-      .filter((r: any) => r.route)
-      .map((r: any) => ({
-        path: r.route.path,
-        method: Object.keys(r.route.methods)[0].toUpperCase(),
-      }));
-    res.json(routes);
-  });
-  
-  app.use(express.urlencoded({ limit: '50mb', extended: true }));
-  
-  // 3. Base health check - early
-  app.get("/ping", (req, res) => {
-    res.send("pong");
-  });
-
-  console.log("Defining API routes...");
-  
-  // LOG ALL ROUTES being defined
-  const registerPost = (path: string | string[], handler: any) => {
-    console.log(`[ROUTE] Registered POST ${path}`);
-    app.post(path, handler);
-  };
-  const registerGet = (path: string | string[], handler: any) => {
-    console.log(`[ROUTE] Registered GET ${path}`);
-    app.get(path, handler);
-  };
-
-  // IMPORTANT: Define the most critical routes FIRST
+  // Products
   app.post("/api/products", async (req, res) => {
     try {
       const productData = req.body;
@@ -197,94 +148,8 @@ async function startServer() {
       return res.status(500).json({ error: err.message || "Internal server error during product insertion" });
     }
   });
-
-  // Test route for POST
-  registerPost("/api/echo", (req, res) => {
-    res.json({ body: req.body, method: req.method, url: req.url });
-  });
-
-  // API - Settings - Defined early as they are also critical
-  registerGet("/api/settings/bulk", async (req, res) => {
-    try {
-      const cacheKey = req.url;
-      const cachedResponse = apiCache.get(cacheKey);
-      if (cachedResponse && Date.now() - cachedResponse.timestamp < CACHE_TTL) {
-        return res.json(cachedResponse.data);
-      }
-
-      let { data, error } = await withTimeout<any>(
-        supabase.from('settings').select('key, data'),
-        15000
-      ).catch(e => {
-        console.error("Supabase call FAILED in /api/settings/bulk:", e);
-        return { data: null, error: e };
-      });
-      
-      let settingsMap: any = null;
-      let mode = 'supabase';
-      
-      if (!error && data && data.length > 0) {
-        settingsMap = data.reduce((acc: any, curr: any) => {
-          acc[curr.key] = curr.data;
-          return acc;
-        }, {});
-      } else {
-        settingsMap = await getLocalSettings();
-        mode = 'local-fallback';
-      }
-        
-      if (settingsMap && Object.keys(settingsMap).length > 0) {
-        apiCache.set(cacheKey, { data: settingsMap, timestamp: Date.now() });
-        res.setHeader('Cache-Control', 'public, max-age=60');
-        res.setHeader('X-Data-Mode', mode);
-        return res.json(settingsMap);
-      }
-      return res.json({});
-    } catch (error: any) {
-      console.error("Bulk settings fetch error:", error.message || error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  registerGet("/api/settings/:key", async (req, res) => {
-    const key = req.params.key;
-    try {
-      const { data, error } = await withTimeout<any>(
-        supabase.from('settings').select('data').eq('key', key).single(),
-        10000
-      );
-      if (error && error.code !== 'PGRST116') throw error;
-      res.setHeader('Cache-Control', 'public, max-age=60');
-      return res.json(data?.data || {});
-    } catch (error: any) {
-      console.error(`Error fetching setting "${key}":`, error.message || error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  registerPost("/api/settings/:key", async (req, res) => {
-    const key = req.params.key;
-    const updateData = req.body;
-    try {
-      const { data: existing } = await supabase.from('settings').select('data').eq('key', key).single();
-      const newData = { ...(existing?.data || {}), ...updateData };
-      const { data, error } = await supabase.from('settings').upsert({ key, data: newData }).select().single();
-      if (error) throw error;
-      res.json(data.data);
-    } catch (error: any) {
-      console.error(`Error saving setting "${key}":`, error.message || error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // API - Health Check
-  registerGet("/api/health", (req, res) => {
-    console.log("Health check matched");
-    res.json({ status: "ok", mode: "supabase", env: process.env.NODE_ENV });
-  });
-
-  // API - Products
-  registerGet("/api/products", async (req, res) => {
+  
+  app.get("/api/products", async (req, res) => {
     console.log(`[DEBUG] GET /api/products matched`);
     try {
       const cacheKey = req.url;
@@ -376,9 +241,8 @@ async function startServer() {
       });
     }
   });
-
-
-  registerGet("/api/products/:id", async (req, res) => {
+  
+  app.get("/api/products/:id", async (req, res) => {
     console.log(`[DEBUG] GET /api/products/${req.params.id} matched`);
     try {
       const { data, error } = await supabase.from('products').select('*').eq('id', req.params.id).single();
@@ -409,6 +273,153 @@ async function startServer() {
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
+  });
+
+  // Settings
+  app.get("/api/settings/bulk", async (req, res) => {
+    try {
+      const cacheKey = req.url;
+      const cachedResponse = apiCache.get(cacheKey);
+      if (cachedResponse && Date.now() - cachedResponse.timestamp < CACHE_TTL) {
+        return res.json(cachedResponse.data);
+      }
+
+      let { data, error } = await withTimeout<any>(
+        supabase.from('settings').select('key, data'),
+        15000
+      ).catch(e => {
+        console.error("Supabase call FAILED in /api/settings/bulk:", e);
+        return { data: null, error: e };
+      });
+      
+      let settingsMap: any = null;
+      let mode = 'supabase';
+      
+      if (!error && data && data.length > 0) {
+        settingsMap = data.reduce((acc: any, curr: any) => {
+          acc[curr.key] = curr.data;
+          return acc;
+        }, {});
+      } else {
+        settingsMap = await getLocalSettings();
+        mode = 'local-fallback';
+      }
+        
+      if (settingsMap && Object.keys(settingsMap).length > 0) {
+        apiCache.set(cacheKey, { data: settingsMap, timestamp: Date.now() });
+        res.setHeader('Cache-Control', 'public, max-age=60');
+        res.setHeader('X-Data-Mode', mode);
+        return res.json(settingsMap);
+      }
+      return res.json({});
+    } catch (error: any) {
+      console.error("Bulk settings fetch error:", error.message || error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  app.get("/api/settings/:key", async (req, res) => {
+    const key = req.params.key;
+    try {
+      const { data, error } = await withTimeout<any>(
+        supabase.from('settings').select('data').eq('key', key).single(),
+        10000
+      );
+      if (error && error.code !== 'PGRST116') throw error;
+      res.setHeader('Cache-Control', 'public, max-age=60');
+      return res.json(data?.data || {});
+    } catch (error: any) {
+      console.error(`Error fetching setting "${key}":`, error.message || error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/settings/:key", async (req, res) => {
+    const key = req.params.key;
+    const updateData = req.body;
+    try {
+      const { data: existing } = await supabase.from('settings').select('data').eq('key', key).single();
+      const newData = { ...(existing?.data || {}), ...updateData };
+      const { data, error } = await supabase.from('settings').upsert({ key, data: newData }).select().single();
+      if (error) throw error;
+      res.json(data.data);
+    } catch (error: any) {
+      console.error(`Error saving setting "${key}":`, error.message || error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Health
+  app.get("/api/health", (req, res) => {
+    console.log("Health check matched");
+    res.json({ status: "ok", mode: "supabase", env: process.env.NODE_ENV });
+  });
+
+  const PORT = 3000;
+
+
+  console.log("Configuring middlewares...");
+  
+  // 1. Log all requests immediately to see what's reaching the server
+  app.use((req, res, next) => {
+    const start = Date.now();
+    console.log(`>>> INCOMING Match: ${req.method} ${req.url}`);
+    
+    // Register a listener to identify which route eventually handles this, if any
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      console.log(`<<< OUTGOING: ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+      if (res.statusCode === 404) {
+        console.warn(`[WARN] 404 Not Found for: ${req.method} ${req.url}`);
+      }
+    });
+
+    next();
+  });
+
+  // 2. Parse bodies with error handling
+  app.use((req, res, next) => {
+    express.json({ limit: '50mb' })(req, res, (err) => {
+      if (err) {
+        console.error("JSON Parsing Error:", err);
+        return res.status(400).json({ error: "Invalid JSON body", message: err.message });
+      }
+      next();
+    });
+  });
+  
+  app.get("/api/debug-routes", (req, res) => {
+    const routes = (app as any)._router.stack
+      .filter((r: any) => r.route)
+      .map((r: any) => ({
+        path: r.route.path,
+        method: Object.keys(r.route.methods)[0].toUpperCase(),
+      }));
+    res.json(routes);
+  });
+  
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+  
+  // 3. Base health check - early
+  app.get("/ping", (req, res) => {
+    res.send("pong");
+  });
+
+  console.log("Defining API routes...");
+  
+  // LOG ALL ROUTES being defined
+  const registerPost = (path: string | string[], handler: any) => {
+    console.log(`[ROUTE] Registered POST ${path}`);
+    app.post(path, handler);
+  };
+  const registerGet = (path: string | string[], handler: any) => {
+    console.log(`[ROUTE] Registered GET ${path}`);
+    app.get(path, handler);
+  };
+
+  // Test route for POST
+  registerPost("/api/echo", (req, res) => {
+    res.json({ body: req.body, method: req.method, url: req.url });
   });
 
   // Admin Tools - Sync local data files to Supabase
