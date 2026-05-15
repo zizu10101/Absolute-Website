@@ -6,6 +6,9 @@ import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 
 dotenv.config();
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'development';
+}
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -95,28 +98,176 @@ async function withTimeout<T>(promise: Promise<T> | T, timeoutMs: number = 5000)
 }
 
 async function startServer() {
+  console.log("Starting server process...");
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ limit: '50mb', extended: true }));
-
-  // Log all requests
+  console.log("Configuring middlewares...");
+  
+  // 1. Log all requests immediately to see what's reaching the server
   app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`);
-    if (req.method === 'POST') {
-      console.log('Request Body:', JSON.stringify(req.body).substring(0, 500));
-    }
+    const start = Date.now();
+    console.log(`>>> INCOMING: ${req.method} ${req.url}`);
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      console.log(`<<< OUTGOING: ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+    });
     next();
   });
 
+  // 2. Parse bodies with error handling
+  app.use((req, res, next) => {
+    express.json({ limit: '50mb' })(req, res, (err) => {
+      if (err) {
+        console.error("JSON Parsing Error:", err);
+        return res.status(400).json({ error: "Invalid JSON body", message: err.message });
+      }
+      next();
+    });
+  });
+  
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+  
+  // 3. Base health check - early
+  app.get("/ping", (req, res) => {
+    res.send("pong");
+  });
+
+  console.log("Defining API routes...");
+  
+  // LOG ALL ROUTES being defined
+  const registerPost = (path: string | string[], handler: any) => {
+    console.log(`[ROUTE] Registered POST ${path}`);
+    app.post(path, handler);
+  };
+  const registerGet = (path: string | string[], handler: any) => {
+    console.log(`[ROUTE] Registered GET ${path}`);
+    app.get(path, handler);
+  };
+
+  // IMPORTANT: Define the most critical routes FIRST
+  app.post("/api/products", async (req, res) => {
+    try {
+      const productData = req.body;
+      console.log('Product insertion request:', productData?.name);
+      
+      if (!productData) {
+        return res.status(400).json({ error: "No data received" });
+      }
+      
+      if (!productData.name) {
+        return res.status(400).json({ error: "Product name is required" });
+      }
+      
+      const { data, error } = await withTimeout(
+        supabase.from('products').insert([productData]).select().single(),
+        15000
+      );
+      
+      if (error) {
+        console.error('Supabase Insert Error:', JSON.stringify(error, null, 2));
+        return res.status(500).json({ 
+          error: error.message, 
+          details: error.details, 
+          code: error.code 
+        });
+      }
+      
+      console.log('Product successfully inserted in Supabase');
+      return res.json(data);
+    } catch (err: any) {
+      console.error('Exception in POST /api/products:', err);
+      return res.status(500).json({ error: err.message || "Internal server error during product insertion" });
+    }
+  });
+
+  // Test route for POST
+  registerPost("/api/echo", (req, res) => {
+    res.json({ body: req.body, method: req.method, url: req.url });
+  });
+
+  // API - Settings - Defined early as they are also critical
+  registerGet("/api/settings/bulk", async (req, res) => {
+    try {
+      const cacheKey = req.url;
+      const cachedResponse = apiCache.get(cacheKey);
+      if (cachedResponse && Date.now() - cachedResponse.timestamp < CACHE_TTL) {
+        return res.json(cachedResponse.data);
+      }
+
+      let { data, error } = await withTimeout<any>(
+        supabase.from('settings').select('key, data'),
+        15000
+      ).catch(e => {
+        console.error("Supabase call FAILED in /api/settings/bulk:", e);
+        return { data: null, error: e };
+      });
+      
+      let settingsMap: any = null;
+      let mode = 'supabase';
+      
+      if (!error && data && data.length > 0) {
+        settingsMap = data.reduce((acc: any, curr: any) => {
+          acc[curr.key] = curr.data;
+          return acc;
+        }, {});
+      } else {
+        settingsMap = await getLocalSettings();
+        mode = 'local-fallback';
+      }
+        
+      if (settingsMap && Object.keys(settingsMap).length > 0) {
+        apiCache.set(cacheKey, { data: settingsMap, timestamp: Date.now() });
+        res.setHeader('Cache-Control', 'public, max-age=60');
+        res.setHeader('X-Data-Mode', mode);
+        return res.json(settingsMap);
+      }
+      return res.json({});
+    } catch (error: any) {
+      console.error("Bulk settings fetch error:", error.message || error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  registerGet("/api/settings/:key", async (req, res) => {
+    const key = req.params.key;
+    try {
+      const { data, error } = await withTimeout<any>(
+        supabase.from('settings').select('data').eq('key', key).single(),
+        10000
+      );
+      if (error && error.code !== 'PGRST116') throw error;
+      res.setHeader('Cache-Control', 'public, max-age=60');
+      return res.json(data?.data || {});
+    } catch (error: any) {
+      console.error(`Error fetching setting "${key}":`, error.message || error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  registerPost("/api/settings/:key", async (req, res) => {
+    const key = req.params.key;
+    const updateData = req.body;
+    try {
+      const { data: existing } = await supabase.from('settings').select('data').eq('key', key).single();
+      const newData = { ...(existing?.data || {}), ...updateData };
+      const { data, error } = await supabase.from('settings').upsert({ key, data: newData }).select().single();
+      if (error) throw error;
+      res.json(data.data);
+    } catch (error: any) {
+      console.error(`Error saving setting "${key}":`, error.message || error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // API - Health Check
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", mode: "supabase" });
+  registerGet("/api/health", (req, res) => {
+    console.log("Health check matched");
+    res.json({ status: "ok", mode: "supabase", env: process.env.NODE_ENV });
   });
 
   // API - Products
-  app.get("/api/products", async (req, res) => {
+  registerGet("/api/products", async (req, res) => {
     try {
       const cacheKey = req.url;
       const cachedResponse = apiCache.get(cacheKey);
@@ -153,8 +304,8 @@ async function startServer() {
       // Add pagination
       query = query.range(from, to).order('id', { ascending: true });
 
-      // Apply timeout to the query (increased to 10s to reduce false positives)
-      let { data, count, error } = await withTimeout<any>(query, 10000);
+      // Apply timeout to the query (increased to 15s to reduce false positives)
+      let { data, count, error } = await withTimeout<any>(query, 15000);
       let mode = 'supabase';
       
       if (error || !data || data.length === 0) {
@@ -209,7 +360,7 @@ async function startServer() {
   });
 
 
-  app.get("/api/products/:id", async (req, res) => {
+  registerGet("/api/products/:id", async (req, res) => {
     try {
       const { data, error } = await supabase.from('products').select('*').eq('id', req.params.id).single();
       if (error) throw error;
@@ -218,21 +369,6 @@ async function startServer() {
       console.error(`Error fetching product ${req.params.id}:`, error);
       res.status(404).json({ error: "Product not found" });
     }
-  });
-
-  app.post("/api/test-route", (req, res) => {
-    res.json({ message: "Test route works" });
-  });
-
-  app.post("/api/products", async (req, res) => {
-    const productData = req.body;
-    console.log('Inserting product:', productData.name);
-    const { data, error } = await supabase.from('products').insert([productData]).select().single();
-    if (error) {
-      console.error('Supabase Insert Error DETAILED:', JSON.stringify(error, null, 2));
-      return res.status(500).json({ error: error.message, details: error.details, code: error.code });
-    }
-    res.json(data);
   });
 
   app.put("/api/products/:id", async (req, res) => {
@@ -252,85 +388,6 @@ async function startServer() {
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
-  });
-
-  // API - Settings
-  app.get("/api/settings/bulk", async (req, res) => {
-    try {
-      const cacheKey = req.url;
-      const cachedResponse = apiCache.get(cacheKey);
-      if (cachedResponse && Date.now() - cachedResponse.timestamp < CACHE_TTL) {
-        return res.json(cachedResponse.data);
-      }
-
-      // Try to fetch all settings in one go
-      let { data, error } = await withTimeout<any>(
-        supabase.from('settings').select('key, data'),
-        10000
-      ).catch(e => ({ data: null, error: e }));
-      
-      let settingsMap: any = null;
-      let mode = 'supabase';
-      
-      if (!error && data && data.length > 0) {
-        settingsMap = data.reduce((acc: any, curr: any) => {
-          acc[curr.key] = curr.data;
-          return acc;
-        }, {});
-      } else {
-        console.error("Bulk settings fetch error or empty, falling back to local data:", error?.message || error);
-        settingsMap = await getLocalSettings();
-        mode = 'local-fallback';
-      }
-        
-      if (settingsMap && Object.keys(settingsMap).length > 0) {
-        apiCache.set(cacheKey, { data: settingsMap, timestamp: Date.now() });
-        
-        res.setHeader('Cache-Control', 'public, max-age=60');
-        res.setHeader('X-Data-Mode', mode);
-        return res.json(settingsMap);
-      }
-
-      return res.json({});
-    } catch (error: any) {
-      console.error("Bulk settings fetch error:", error.message || error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.get("/api/settings/:key", async (req, res) => {
-    const key = req.params.key;
-    try {
-      // Apply longer timeout to settings fetch
-      const { data, error } = await withTimeout<any>(
-        supabase.from('settings').select('data').eq('key', key).single(),
-        5000
-      );
-      
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-      
-      res.setHeader('Cache-Control', 'public, max-age=1800');
-      return res.json(data?.data || {});
-    } catch (error: any) {
-      console.error(`Error fetching setting "${key}":`, error.message || error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-
-  app.post("/api/settings/:key", async (req, res) => {
-    const key = req.params.key;
-    const updateData = req.body;
-    
-    // First try to get existing data
-    const { data: existing } = await supabase.from('settings').select('data').eq('key', key).single();
-    const newData = { ...(existing?.data || {}), ...updateData };
-
-    const { data, error } = await supabase.from('settings').upsert({ key, data: newData }).select().single();
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data.data);
   });
 
   // Admin Tools - Sync local data files to Supabase
@@ -627,29 +684,73 @@ async function startServer() {
     }
   });
 
-  // Vite/Static setup
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
+  app.get("/debug", (req, res) => {
+    res.json({
+      timestamp: new Date().toISOString(),
+      env: process.env.NODE_ENV,
+      port: PORT,
+      mem: process.memoryUsage(),
+      uptime: process.uptime(),
+      supabase: {
+        url: supabaseUrl,
+        key: supabaseKey ? 'Set' : 'Missing'
+      }
     });
-    app.use(vite.middlewares);
+  });
+
+  // Debug middleware for unhandled API routes
+  app.use('/api', (req, res, next) => {
+    console.warn(`[API 404 DEBUG] No route matched for ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ 
+      error: "API Route Not Found", 
+      path: req.originalUrl, 
+      method: req.method 
+    });
+  });
+
+  // Vite/Static setup
+  const isProduction = process.env.NODE_ENV === "production";
+  console.log(`Setting up ${isProduction ? 'production' : 'development'} middleware. NODE_ENV=${process.env.NODE_ENV}`);
+  
+  if (!isProduction) {
+    try {
+      console.log("Initializing Vite dev server middleware...");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+      console.log("Vite middleware attached.");
+    } catch (viteError) {
+      console.error("Failed to initialize Vite middleware:", viteError);
+      // Fast fallback to static serving if Vite fails in dev
+      const distPath = path.join(process.cwd(), 'dist');
+      app.use(express.static(distPath));
+    }
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+    console.log(`Production mode: Serving static files from ${distPath}`);
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      // console.log(`Serving index.html from ${indexPath}`);
+      res.sendFile(indexPath);
     });
   }
 
-  app.post("*", (req, res) => {
-    console.log("Unmatched POST request:", req.url);
-    res.status(404).json({ error: "Route not found" });
+  // Final catch-all for when even the SPA fallback or Vite didn't handle it
+  app.use((req, res) => {
+    console.warn(`[FINAL 404] ${req.method} ${req.url}`);
+    res.status(404).send(`Server 404: The path ${req.url} was not found on this server.`);
   });
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`>>> SERVER READY AND LISTENING ON PORT ${PORT} <<<`);
+    console.log(`>>> Access via: http://0.0.0.0:${PORT} <<<`);
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error("FATAL: Failed to start server:", err);
+  process.exit(1);
+});

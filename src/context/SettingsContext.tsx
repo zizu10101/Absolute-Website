@@ -172,31 +172,35 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const updateSettings = async (key: string, updates: any) => {
     try {
-      await fetch(`/api/settings/${key}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      });
+      const { data: existing } = await supabase.from('settings').select('data').eq('key', key).single();
+      const newData = { ...(existing?.data || {}), ...updates };
+      const { error: supError } = await supabase.from('settings').upsert({ key, data: newData }).select().single();
+      if (supError) throw supError;
       
       // Sync local state
-      if (key === 'global') {
-        if (updates.logo) setLogoState(updates.logo);
-        if (updates.landingLogo) setLandingLogoState(updates.landingLogo);
-        if (updates.labBackgroundImage) setLabBackgroundImageState(updates.labBackgroundImage);
-        if (updates.footerLogo) setFooterLogoState(updates.footerLogo);
-      } else if (key === 'slider') {
-        if (updates.sliderImages) setSliderImagesState(updates.sliderImages);
-      } else if (key === 'homeCategories') {
-        if (updates.homeCategories) setHomeCategoriesState(updates.homeCategories);
-      } else if (key === 'navigation') {
-        if (updates.navigationMenus) setNavigationMenusState(updates.navigationMenus);
-      } else if (key === 'footer') {
-        if (updates.footerLinks) setFooterLinksState(updates.footerLinks);
-      } else if (key === 'seo') {
-        setSeoSettingsState(prev => ({ ...prev, ...updates }));
-      }
-    } catch (error) {
-      console.error(error);
+      updateLocalState(key, updates);
+    } catch (supErr) {
+      console.error(`Direct Supabase update for settings ${key} failed:`, supErr);
+      throw supErr;
+    }
+  };
+
+  const updateLocalState = (key: string, updates: any) => {
+    if (key === 'global') {
+      if (updates.logo) setLogoState(updates.logo);
+      if (updates.landingLogo) setLandingLogoState(updates.landingLogo);
+      if (updates.labBackgroundImage) setLabBackgroundImageState(updates.labBackgroundImage);
+      if (updates.footerLogo) setFooterLogoState(updates.footerLogo);
+    } else if (key === 'slider') {
+      if (updates.sliderImages) setSliderImagesState(updates.sliderImages);
+    } else if (key === 'homeCategories') {
+      if (updates.homeCategories) setHomeCategoriesState(updates.homeCategories);
+    } else if (key === 'navigation') {
+      if (updates.navigationMenus) setNavigationMenusState(updates.navigationMenus);
+    } else if (key === 'footer') {
+      if (updates.footerLinks) setFooterLinksState(updates.footerLinks);
+    } else if (key === 'seo') {
+      setSeoSettingsState(prev => ({ ...prev, ...updates }));
     }
   };
 

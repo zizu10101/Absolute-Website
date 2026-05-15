@@ -198,63 +198,62 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (local && local.description) return local;
 
       const response = await fetch(`/api/products/${id}`);
-      if (!response.ok) throw new Error('Not found');
+      if (!response.ok || (response.headers.get('content-type') && response.headers.get('content-type')!.includes('text/html'))) {
+        throw new Error('API unavailable or returned HTML');
+      }
       return await response.json();
     } catch (e) {
+      console.warn('API GET product by id failed, falling back to direct Supabase:', e);
+      try {
+        const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
+        if (data && !error) return data as Product;
+      } catch (err) {
+        console.error('Direct Supabase GET product also failed:', err);
+      }
       return products.find(p => p.id === id) || null;
     }
   };
 
   const addProduct = async (productData: Omit<Product, 'id'>) => {
     try {
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productData)
-      });
-      if (!response.ok) {
-        const text = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(text);
-        } catch (e) {
-          throw new Error(`Server returned error: ${response.status} ${text.substring(0, 50)}`);
-        }
-        throw new Error(errorData.error || 'Failed to add product');
+      const { data, error } = await supabase.from('products').insert([productData]).select().single();
+      if (error) {
+        console.error('Failed to add product directly to Supabase', error);
+        throw new Error(error.message || 'Failed to add product');
       }
-      const newProduct = await response.json();
-      setProducts(prev => [...prev, { ...productData as any, ...newProduct }]);
+      setProducts(prev => [...prev, { ...productData as any, ...data }]);
     } catch (e) {
-      console.error('Failed to add product', e);
+      console.error('API POST failed:', e);
       throw e;
     }
   };
 
   const updateProduct = async (updatedProduct: Product) => {
     try {
-      const response = await fetch(`/api/products/${updatedProduct.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedProduct)
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update product');
+      const { data, error } = await supabase.from('products').update(updatedProduct).eq('id', updatedProduct.id).select().single();
+      if (error) {
+        console.error('Failed to update product directly in Supabase', error);
+        throw new Error(error.message || 'Failed to update product');
       }
-      const data = await response.json();
-      setProducts(prev => prev.map(p => p.id === (data.id || updatedProduct.id) ? { ...updatedProduct, ...data } : p));
+      setProducts(prev => prev.map(p => p.id === (data?.id || updatedProduct.id) ? { ...updatedProduct, ...data } : p));
     } catch (e) {
-      console.error('Failed to update product', e);
+      console.error('API PUT failed:', e);
       throw e;
     }
   };
 
   const deleteProduct = async (id: string) => {
     try {
-      await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      setProducts(prev => prev.filter(p => p.id !== id));
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) {
+        console.error('Failed to delete product directly in Supabase', error);
+        throw new Error(error.message || 'Failed to delete product');
+      } else {
+        setProducts(prev => prev.filter(p => p.id !== id));
+      }
     } catch (e) {
-      console.error('Failed to delete product', e);
+      console.error('API DELETE failed:', e);
+      throw e;
     }
   };
 
