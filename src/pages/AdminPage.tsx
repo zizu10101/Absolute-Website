@@ -82,7 +82,7 @@ export function AdminPage() {
   const [dbMode, setDbMode] = useState<'supabase' | 'fallback' | 'unknown'>('unknown');
 
   useEffect(() => {
-    fetch(`${process.env.APP_URL || ''}/api/health`)
+    fetch('/api/health')
       .then(r => r.json())
       .then(data => {
         if (data.mode === 'supabase') setDbMode('supabase');
@@ -129,7 +129,7 @@ export function AdminPage() {
     setIsSyncingLocal(true);
     setLocalSyncStatus('idle');
     try {
-      const response = await fetch(`${process.env.APP_URL || ''}/api/admin/sync-local`, {
+      const response = await fetch('/api/admin/sync-local', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -175,7 +175,7 @@ export function AdminPage() {
     setLocalRestoreStatus('idle');
 
     try {
-      const response = await fetch(`${process.env.APP_URL || ''}/api/admin/sync-local`, {
+      const response = await fetch('/api/admin/sync-local', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clearExisting }) // Sending empty body or flag triggers server to read its own files
@@ -207,7 +207,7 @@ export function AdminPage() {
     setPullStatus('idle');
 
     try {
-      const response = await fetch(`${process.env.APP_URL || ''}/api/admin/pull-from-cloud`, {
+      const response = await fetch('/api/admin/pull-from-cloud', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -430,14 +430,9 @@ export function AdminPage() {
 
     try {
       console.log('AdminPage: Final product data to be added:', productData);
-      const addPromise = addProduct(productData);
       
-      // Add a timeout to the add operation to prevent indefinite "Syncing" state
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database operation timed out. Please check your connection.')), 15000)
-      );
-
-      await Promise.race([addPromise, timeoutPromise]);
+      // Perform the add
+      await addProduct(productData);
       
       console.log('AdminPage: Product added successfully');
       setAddStatus('success');
@@ -456,9 +451,12 @@ export function AdminPage() {
         colors: []
       });
       setTimeout(() => setAddStatus('idle'), 3000);
+      
+      // Optional: Refresh product list to show new item
+      fetchAdminProducts();
     } catch (error: any) {
       console.error('AdminPage: Failed to add product', error);
-      setAddErrorMessage(error.message || 'Failed to save to database.');
+      setAddErrorMessage(error.message || 'Failed to save to database. This could be due to a network error or database configuration issue.');
       setAddStatus('error');
       setTimeout(() => setAddStatus('idle'), 5000);
     }
@@ -999,7 +997,7 @@ export function AdminPage() {
                   <div className="flex items-center gap-2 px-3 py-1 rounded-full border shadow-sm transition-all bg-green-50 border-green-100 text-green-700">
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                     <span className="text-[10px] font-bold uppercase tracking-widest">
-                      Supabase (Active)
+                      Database: Supabase (Ready)
                     </span>
                   </div>
                 </div>
@@ -1011,13 +1009,13 @@ export function AdminPage() {
                   className="flex items-center gap-2 px-4 py-2 bg-[#b90014] text-white rounded-lg border border-[#b90014] hover:bg-zinc-900 transition-all text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-red-900/20"
                 >
                   {isRestoringLocal ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Zap size={14} />} 
-                  {isRestoringLocal ? 'Migrating...' : 'Migrate Real Firebase Data'}
+                  {isRestoringLocal ? 'Migrating...' : 'Migrate Real Supabase Data'}
                 </button>
                 <button 
                   onClick={handleReset}
                   className="flex items-center gap-2 px-4 py-2 bg-zinc-100 text-zinc-600 rounded-lg border border-zinc-200 hover:bg-zinc-200 transition-all text-[10px] font-bold uppercase tracking-widest"
                 >
-                  <Package size={14} /> Show Mock Products (Demo)
+                  <Package size={14} /> Restore All Local JSON Data
                 </button>
                 <button 
                   onClick={async () => {

@@ -66,7 +66,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       // Also fetch a small batch of all products to have some local cache
       try {
-        const response = await fetch(`${process.env.APP_URL || ''}/api/products?limit=20&fields=${LIST_FIELDS}`);
+        const response = await fetch(`/api/products?limit=20&fields=${LIST_FIELDS}`);
         if (!response.ok) {
           console.warn(`Initial product batch fetch failed: ${response.status} ${response.statusText}`);
           return;
@@ -86,7 +86,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const fetchFeaturedProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${process.env.APP_URL || ''}/api/products?isFeatured=true&limit=8&fields=${LIST_FIELDS}`);
+      const response = await fetch(`/api/products?isFeatured=true&limit=8&fields=${LIST_FIELDS}`);
       
       // If we get index.html (SPA fallback), handle it
       const contentType = response.headers.get('content-type');
@@ -122,7 +122,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const fetchAdminProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${process.env.APP_URL || ''}/api/products?limit=1000`);
+      const response = await fetch('/api/products?limit=1000');
       
       const contentType = response.headers.get('content-type');
       if (!response.ok || (contentType && contentType.includes('text/html'))) {
@@ -161,7 +161,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       params.append('fields', LIST_FIELDS);
       params.append('limit', '40');
       
-      const response = await fetch(`${process.env.APP_URL || ''}/api/products?${params.toString()}`);
+      const response = await fetch(`/api/products?${params.toString()}`);
       
       const contentType = response.headers.get('content-type');
       if (!response.ok || (contentType && contentType.includes('text/html'))) {
@@ -197,7 +197,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const local = products.find(p => p.id === id);
       if (local && local.description) return local;
 
-      const response = await fetch(`${process.env.APP_URL || ''}/api/products/${id}`);
+      const response = await fetch(`/api/products/${id}`);
       if (!response.ok || (response.headers.get('content-type') && response.headers.get('content-type')!.includes('text/html'))) {
         throw new Error('API unavailable or returned HTML');
       }
@@ -216,7 +216,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const addProduct = async (productData: Omit<Product, 'id'>) => {
     try {
-      const response = await fetch(`${process.env.APP_URL || ''}/api/products`, {
+      const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productData)
@@ -243,7 +243,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const updateProduct = async (updatedProduct: Product) => {
     try {
-      const response = await fetch(`${process.env.APP_URL || ''}/api/products/${updatedProduct.id}`, {
+      const response = await fetch(`/api/products/${updatedProduct.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedProduct)
@@ -270,7 +270,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const deleteProduct = async (id: string) => {
     try {
-      const response = await fetch(`${process.env.APP_URL || ''}/api/products/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
       if (!response.ok) {
         console.error(`API DELETE request failed with status ${response.status} ${response.statusText}`);
         const contentType = response.headers.get('content-type');

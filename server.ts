@@ -121,6 +121,73 @@ async function startServer() {
   app.get("/test", (req, res) => res.json({ test: "ok" }));
   app.get("/ping", (req, res) => { res.send("pong"); });
 
+  // Products - Moved earlier
+  app.post("/api/products", async (req, res) => {
+    console.log('!!! POST /api/products HIT !!!');
+    try {
+      const productData = req.body;
+      
+      if (!productData) {
+        return res.status(400).json({ error: "No data received" });
+      }
+      
+      if (!productData.name) {
+        return res.status(400).json({ error: "Product name is required" });
+      }
+
+      // Generate an ID if not present
+      if (!productData.id) {
+        productData.id = Date.now().toString();
+      }
+      
+      // Try Supabase first if configured
+      if (process.env.VITE_SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY)) {
+        try {
+          const { data, error } = await withTimeout(
+            supabase.from('products').insert([productData]).select().single(),
+            30000 // Increased to 30s
+          );
+          
+          if (!error && data) {
+            console.log('Product successfully inserted in Supabase');
+            apiCache.clear(); // Important: clear cache on change
+            return res.json(data);
+          }
+          
+          console.warn('Supabase Insert failed, falling back to local:', error?.message);
+        } catch (supabaseErr: any) {
+          console.warn('Supabase Insert exception, falling back to local:', supabaseErr.message);
+        }
+      }
+
+      // Local Fallback Persistence
+      console.log('Using local fallback for product creation...');
+      const products = await getLocalProducts();
+      
+      // Check if product with ID already exists
+      const existingIndex = products.findIndex((p: any) => p.id === productData.id);
+      if (existingIndex >= 0) {
+        products[existingIndex] = { ...products[existingIndex], ...productData };
+      } else {
+        products.push(productData);
+      }
+      
+      // Save to exported file
+      const exportedPath = path.join(process.cwd(), 'data', 'products_exported.json');
+      await fs.writeFile(exportedPath, JSON.stringify(products, null, 2));
+      
+      // Update cache
+      localProductsCache = products;
+      apiCache.clear();
+      
+      console.log('Product successfully saved to local fallback file');
+      return res.json(productData);
+    } catch (err: any) {
+      console.error('Exception in POST /api/products:', err);
+      return res.status(500).json({ error: err.message || "Internal server error during product insertion" });
+    }
+  });
+
   // 1. Log all requests immediately
   app.use((req, res, next) => {
     const start = Date.now();
@@ -139,41 +206,7 @@ async function startServer() {
   // API Route Definitions
   console.log("Defining API routes...");
   // Products
-  app.post("/api/products", async (req, res) => {
-    try {
-      const productData = req.body;
-      console.log('Product insertion request:', productData?.name);
-      
-      if (!productData) {
-        return res.status(400).json({ error: "No data received" });
-      }
-      
-      if (!productData.name) {
-        return res.status(400).json({ error: "Product name is required" });
-      }
-      
-      const { data, error } = await withTimeout(
-        supabase.from('products').insert([productData]).select().single(),
-        15000
-      );
-      
-      if (error) {
-        console.error('Supabase Insert Error:', JSON.stringify(error, null, 2));
-        return res.status(500).json({ 
-          error: error.message, 
-          details: error.details, 
-          code: error.code 
-        });
-      }
-      
-      console.log('Product successfully inserted in Supabase');
-      return res.json(data);
-    } catch (err: any) {
-      console.error('Exception in POST /api/products:', err);
-      return res.status(500).json({ error: err.message || "Internal server error during product insertion" });
-    }
-  });
-
+  
   app.get("/api/products", async (req, res) => {
     try {
       const cacheKey = req.url;
@@ -254,19 +287,66 @@ async function startServer() {
   });
 
   app.put("/api/products/:id", async (req, res) => {
-    const { data, error } = await supabase.from('products').update(req.body).eq('id', req.params.id).select().single();
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
+    const id = req.params.id;
+    const updateData = req.body;
+
+    try {
+      if (process.env.VITE_SUPABASE_URL) {
+        const { data, error } = await supabase.from('products').update(updateData).eq('id', id).select().single();
+        if (!error && data) {
+           apiCache.clear();
+           return res.json(data);
+        }
+        console.warn("Supabase update failed, trying local fallback:", error?.message);
+      }
+
+      // Local Fallback
+      const products = await getLocalProducts();
+      const index = products.findIndex((p: any) => p.id === id);
+      if (index === -1) return res.status(404).json({ error: "Product not found" });
+
+      products[index] = { ...products[index], ...updateData };
+      const exportedPath = path.join(process.cwd(), 'data', 'products_exported.json');
+      await fs.writeFile(exportedPath, JSON.stringify(products, null, 2));
+      
+      localProductsCache = products;
+      apiCache.clear();
+      return res.json(products[index]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   app.delete("/api/products/:id", async (req, res) => {
-    const { error } = await supabase.from('products').delete().eq('id', req.params.id);
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ success: true });
+    const id = req.params.id;
+    try {
+      if (process.env.VITE_SUPABASE_URL) {
+        const { error } = await supabase.from('products').delete().eq('id', id);
+        if (!error) {
+          apiCache.clear();
+          return res.json({ success: true });
+        }
+        console.warn("Supabase delete failed, trying local fallback:", error?.message);
+      }
+
+      // Local Fallback
+      const products = await getLocalProducts();
+      const filtered = products.filter((p: any) => p.id !== id);
+      
+      const exportedPath = path.join(process.cwd(), 'data', 'products_exported.json');
+      await fs.writeFile(exportedPath, JSON.stringify(filtered, null, 2));
+      
+      localProductsCache = filtered;
+      apiCache.clear();
+      return res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Settings
   app.get("/api/settings/bulk", async (req, res) => {
+    console.log("!!! ROUTE HIT: /api/settings/bulk");
     try {
       const cacheKey = req.url;
       const cachedResponse = apiCache.get(cacheKey);
@@ -319,13 +399,38 @@ async function startServer() {
   });
 
   app.post("/api/settings/:key", async (req, res) => {
+    const key = req.params.key;
+    const incomingData = req.body;
     try {
-      const { data: existing } = await supabase.from('settings').select('data').eq('key', req.params.key).single();
-      const newData = { ...(existing?.data || {}), ...req.body };
-      const { data, error } = await supabase.from('settings').upsert({ key: req.params.key, data: newData }).select().single();
-      if (error) throw error;
-      res.json(data.data);
+      if (process.env.VITE_SUPABASE_URL) {
+        try {
+          const { data: existing } = await supabase.from('settings').select('data').eq('key', key).single();
+          const newData = { ...(existing?.data || {}), ...incomingData };
+          const { data, error } = await supabase.from('settings').upsert({ key, data: newData }).select().single();
+          if (!error && data) {
+            apiCache.clear();
+            return res.json(data.data);
+          }
+          console.warn("Supabase settings save failed, trying local fallback:", error?.message);
+        } catch (supabaseErr: any) {
+          console.warn("Supabase settings exception, trying local fallback:", supabaseErr.message);
+        }
+      }
+
+      // Local Fallback
+      const settings = await getLocalSettings();
+      const existingData = settings[key] || {};
+      const mergedData = { ...existingData, ...incomingData };
+      settings[key] = mergedData;
+
+      const exportedPath = path.join(process.cwd(), 'data', 'settings_exported.json');
+      await fs.writeFile(exportedPath, JSON.stringify(settings, null, 2));
+      
+      localSettingsCache = settings;
+      apiCache.clear();
+      return res.json(mergedData);
     } catch (error: any) {
+      console.error("Error saving settings:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -342,13 +447,84 @@ async function startServer() {
   // Admin Tools - Sync local data files to Supabase
   app.post("/api/admin/sync-local", async (req, res) => {
     try {
-      let { products, settings, clearExisting } = req.body;
-      console.log(`Migration triggered. Products in body: ${products?.length || 0}, Clear existing: ${clearExisting}`);
-      // Migration logic restored...
-      // (Skipping full paste here to focus on bringing back the routes for now, ensuring syntax is correct)
-      const results = ["Sync simulated for route restoration"];
+      let { products: bodyProducts, settings: bodySettings, clearExisting } = req.body;
+      console.log(`Migration triggered. Products in body: ${bodyProducts?.length || 0}, Clear existing: ${clearExisting}`);
+      
+      const results: string[] = [];
+
+      // 1. Clear existing data if requested
+      if (clearExisting) {
+        console.log("Clearing existing data from Supabase...");
+        const { error: pErr } = await supabase.from('products').delete().neq('id', '0');
+        const { error: sErr } = await supabase.from('settings').delete().neq('key', 'none');
+        if (pErr) console.warn("Error clearing products:", pErr);
+        if (sErr) console.warn("Error clearing settings:", sErr);
+        results.push("Cleared existing data");
+      }
+
+      // 2. Process Products
+      let productsToMigrate = bodyProducts;
+      if (!productsToMigrate || productsToMigrate.length === 0) {
+        productsToMigrate = await getLocalProducts();
+      }
+
+      if (productsToMigrate && productsToMigrate.length > 0) {
+        console.log(`Migrating ${productsToMigrate.length} products...`);
+        // Batch products to avoid request size limits
+        const BATCH_SIZE = 50;
+        let pSuccess = 0;
+        let pFail = 0;
+
+        for (let i = 0; i < productsToMigrate.length; i += BATCH_SIZE) {
+          const batch = productsToMigrate.slice(i, i + BATCH_SIZE).map((p: any) => {
+            // Remove ID to let Supabase generate it if it's a new migration
+            // Or keep it if we want to preserve IDs. 
+            // Most projects want to preserve IDs from JSON.
+            const { ...rest } = p;
+            return rest;
+          });
+
+          const { error } = await supabase.from('products').upsert(batch);
+          if (error) {
+            console.error(`Batch ${i/BATCH_SIZE} failed:`, error);
+            pFail += batch.length;
+          } else {
+            pSuccess += batch.length;
+          }
+        }
+        results.push(`Products: ${pSuccess} success, ${pFail} failed`);
+      }
+
+      // 3. Process Settings
+      let settingsToMigrate = bodySettings;
+      if (!settingsToMigrate || Object.keys(settingsToMigrate).length === 0) {
+        settingsToMigrate = await getLocalSettings();
+      }
+
+      if (settingsToMigrate && Object.keys(settingsToMigrate).length > 0) {
+        console.log("Migrating settings...");
+        const settingsEntries = Object.entries(settingsToMigrate).map(([key, data]) => ({
+          key,
+          data
+        }));
+
+        const { error } = await supabase.from('settings').upsert(settingsEntries);
+        if (error) {
+          console.error("Settings migration failed:", error);
+          results.push(`Settings failed: ${error.message}`);
+        } else {
+          results.push("Settings migrated successfully");
+        }
+      }
+
+      // Clear caches
+      localProductsCache = null;
+      localSettingsCache = null;
+      apiCache.clear();
+
       res.json({ success: true, message: results.join(", ") });
     } catch (error: any) {
+      console.error("Migration exception:", error);
       res.status(500).json({ error: error.message });
     }
   });
