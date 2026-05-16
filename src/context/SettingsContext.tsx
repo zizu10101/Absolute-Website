@@ -53,9 +53,9 @@ interface SettingsContextType {
   setFooterLinks: (links: FooterLink[]) => Promise<void>;
   seoSettings: SEO;
   setSeoSettings: (seo: SEO) => Promise<void>;
-  isLoading: boolean;
   setGlobalSettings: (settings: { logo?: string; landingLogo?: string; labBackgroundImage?: string; footerLogo?: string }) => Promise<void>;
   resetSettings: () => Promise<void>;
+  isLoading: boolean;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -178,26 +178,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(updates)
       });
       
-      if (!response.ok) {
-        throw new Error(`Failed to save settings: ${response.statusText}`);
-      }
+      const result = await response.json();
       
-      const newData = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || `Failed to save settings: ${response.statusText}`);
+      }
       
       // Sync local state
-      updateLocalState(key, newData);
-    } catch (err) {
-      console.warn(`API update for settings ${key} failed, trying direct Supabase fallback:`, err);
-      try {
-        const { data: existing } = await supabase.from('settings').select('data').eq('key', key).single();
-        const newData = { ...(existing?.data || {}), ...updates };
-        const { error: supError } = await supabase.from('settings').upsert({ key, data: newData }).select().single();
-        if (supError) throw supError;
-        updateLocalState(key, newData);
-      } catch (supErr) {
-        console.error(`Direct Supabase fallback for ${key} also failed:`, supErr);
-        throw supErr;
-      }
+      updateLocalState(key, result);
+    } catch (err: any) {
+      console.error(`API update for settings ${key} failed:`, err);
+      // We removed direct Supabase fallback to avoid RLS issues on the client
+      throw err;
     }
   };
 

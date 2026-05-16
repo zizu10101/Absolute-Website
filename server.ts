@@ -16,6 +16,15 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
 const supabaseKey = serviceRoleKey || anonKey || '';
 
+if (supabaseUrl) {
+  if (serviceRoleKey) {
+    console.log("Supabase: Initializing with Service Role Key (Bypassing RLS)");
+  } else if (anonKey) {
+    console.log("Supabase: Initializing with Anon Key (RLS will be enforced!)");
+    console.warn("WARNING: SUPABASE_SERVICE_ROLE_KEY is missing. Settings updates may fail due to RLS.");
+  }
+}
+
 export const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey, {
   auth: { persistSession: false }
 }) : null;
@@ -48,9 +57,8 @@ async function ensureDataDir() {
   }
 }
 
-export const app = express();
-
-async function setupApp() {
+async function startServer() {
+  const app = express();
   await ensureDataDir();
 
   // Basic Middleware
@@ -211,11 +219,18 @@ async function setupApp() {
   app.get("/api/settings/bulk", async (req, res) => {
     try {
       if (supabase) {
-        const { data, error } = await supabase.from('settings').select('key, data');
-        if (error) throw error;
+        console.log("Fetching bulk settings from Supabase...");
+        const { data, error } = await supabase.from('settings').select('*');
+        if (error) {
+          console.error("Supabase settings fetch error:", error);
+          throw error;
+        }
         
+        // Handle both key/data and id/config schemas if they exist
         const results = data.reduce((acc: any, curr: any) => {
-          acc[curr.key] = curr.data;
+          const k = curr.key || curr.id;
+          const d = curr.data || curr.config;
+          if (k) acc[k] = d;
           return acc;
         }, {});
         
@@ -240,17 +255,74 @@ async function setupApp() {
     const { key } = req.params;
     const updates = req.body;
     
+    console.log(`Updating setting for key: ${key}`);
+    
     try {
       if (supabase) {
         // Fetch existing for merge if it's an object
-        const { data: existing } = await supabase.from('settings').select('data').eq('key', key).single();
-        const newData = (existing?.data && typeof existing.data === 'object' && typeof updates === 'object') 
-          ? { ...existing.data, ...updates } 
+        const { data: existingData, error: fetchError } = await supabase
+          .from('settings')
+          .select('*')
+          .eq('key', key)
+          .maybeSingle();
+
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          console.error(`Error fetching existing setting for ${key}:`, fetchError);
+        }
+
+        const existing = existingData?.data || existingData?.config || {};
+        const newData = (existing && typeof existing === 'object' && typeof updates === 'object') 
+          ? { ...existing, ...updates } 
           : updates;
           
-        const { data, error } = await supabase.from('settings').upsert({ key, data: newData }).select().single();
-        if (error) throw error;
-        return res.json(data.data);
+        // Use upsert with key as the conflict target
+        const upsertPayload: any = { key, data: newData, updated_at: new Date() };
+        
+        const { data, error } = await supabase
+          .from('settings')
+          .upsert(upsertPayload, { onConflict: 'key' })
+          .select()
+          .single();
+
+        if (error) {
+          console.error(`Supabase upsert error for ${key}:`, error);
+          
+          if (error.message.includes('row-level security') || error.code === '42501') {
+            console.error("CRITICAL: RLS Violation detected. Please ensure SUPABASE_SERVICE_ROLE_KEY is set in your environment.");
+            return res.status(403).json({ 
+              error: "Supabase RLS Policy Violation", 
+              message: "The server is being blocked by Supabase RLS. Please add the SUPABASE_SERVICE_ROLE_KEY to your environment variables to bypass RLS for admin actions.",
+              details: error
+            });
+          }
+
+          // Try fallback to config column if data column fails
+          const secondTryPayload = { key, config: newData, updated_at: new Date() };
+          const { data: data2, error: error2 } = await supabase
+            .from('settings')
+            .upsert(secondTryPayload, { onConflict: 'key' })
+            .select()
+            .single();
+            
+          if (error2) {
+            console.error(`Supabase upsert error (config) for ${key}:`, error2);
+            // Last ditch effort: try using 'id' as the key column if 'key' fails
+            const thirdTryPayload = { id: key, config: newData, updated_at: new Date() };
+            const { data: data3, error: error3 } = await supabase
+              .from('settings')
+              .upsert(thirdTryPayload, { onConflict: 'id' })
+              .select()
+              .single();
+              
+            if (error3) {
+              throw error3;
+            }
+            return res.json(data3.config || data3.data || data3);
+          }
+          return res.json(data2.config || data2.data || data2);
+        }
+        
+        return res.json(data.data || data.config || data);
       } else {
         const fileContent = await fs.readFile(LOCAL_SETTINGS_PATH, 'utf-8').catch(() => '{}');
         const settings = JSON.parse(fileContent);
@@ -265,7 +337,7 @@ async function setupApp() {
       }
     } catch (err: any) {
       console.error(`Error saving settings for ${key}:`, err);
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: err.message, details: err });
     }
   });
 
@@ -309,7 +381,14 @@ async function setupApp() {
       }
 
       if (settings) {
-        await supabase.from('settings').upsert({ id: 'app_settings', config: settings, updated_at: new Date() });
+        // Try to sync settings to app_settings key
+        await supabase.from('settings').upsert({ key: 'app_settings', data: settings, updated_at: new Date() }, { onConflict: 'key' });
+        // Also try the old way just in case the schema is id/config
+        try {
+          await supabase.from('settings').upsert({ id: 'app_settings', config: settings, updated_at: new Date() }, { onConflict: 'id' });
+        } catch (e) {
+          console.warn("Legacy sync-local fallback failed (this is likely fine if you use key/data schema)");
+        }
       }
 
       clearCache();
@@ -378,6 +457,7 @@ async function setupApp() {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
+      configFile: path.resolve(process.cwd(), 'vite.config.ts'),
     });
     app.use(vite.middlewares);
   } else {
@@ -398,14 +478,14 @@ async function setupApp() {
   return app;
 }
 
-// Initialize app
-export const setupPromise = setupApp();
-
-// Start server if running directly
-if (import.meta.url === `file://${process.argv[1]}` || process.env.NODE_ENV !== 'production' || true) {
-  setupPromise.then(() => {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`>>> SERVER READY ON PORT ${PORT} <<<`);
-    });
+// Initialize and start server
+startServer().then((app) => {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
-}
+}).catch((err) => {
+  console.error("FATAL: Failed to start server:", err);
+  const fallbackApp = express();
+  fallbackApp.get('/', (req, res) => res.status(500).send(`Startup Error: ${err.message}`));
+  fallbackApp.listen(PORT, "0.0.0.0");
+});
