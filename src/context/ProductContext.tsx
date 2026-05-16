@@ -222,22 +222,20 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(productData)
       });
       if (!response.ok) {
-        console.error(`API POST request failed with status ${response.status} ${response.statusText}`);
-        const contentType = response.headers.get('content-type');
-        let errorMessage = 'Failed to add product';
-        if (contentType && contentType.includes('application/json')) {
-          const err = await response.json();
-          errorMessage = err.error || errorMessage;
-        } else {
-          errorMessage = await response.text();
-        }
-        throw new Error(errorMessage);
+        throw new Error(`API failed: ${response.status}`);
       }
       const newProduct = await response.json();
       setProducts(prev => [...prev, { ...productData as any, ...newProduct }]);
     } catch (e) {
-      console.error('API POST failed:', e);
-      throw e;
+      console.warn('API add product failed, trying direct Supabase:', e);
+      try {
+        const { data, error } = await supabase.from('products').insert([productData]).select().single();
+        if (error) throw error;
+        if (data) setProducts(prev => [...prev, data as Product]);
+      } catch (supErr) {
+        console.error('Direct Supabase add product also failed:', supErr);
+        throw supErr;
+      }
     }
   };
 
@@ -249,22 +247,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(updatedProduct)
       });
       if (!response.ok) {
-        console.error(`API PUT request failed with status ${response.status} ${response.statusText}`);
-        const contentType = response.headers.get('content-type');
-        let errorMessage = `Failed to update product (Status: ${response.status})`;
-        if (contentType && contentType.includes('application/json')) {
-          const err = await response.json();
-          errorMessage = err.error || errorMessage;
-        } else {
-          errorMessage = await response.text();
-        }
-        throw new Error(errorMessage);
+        throw new Error(`API failed: ${response.status}`);
       }
       const data = await response.json();
       setProducts(prev => prev.map(p => p.id === (data?.id || updatedProduct.id) ? { ...updatedProduct, ...data } : p));
     } catch (e) {
-      console.error('API PUT failed:', e);
-      throw e;
+      console.warn('API update product failed, trying direct Supabase:', e);
+      try {
+        const { id, ...rest } = updatedProduct;
+        const { data, error } = await supabase.from('products').update(rest).eq('id', id).select().single();
+        if (error) throw error;
+        setProducts(prev => prev.map(p => p.id === id ? { ...updatedProduct, ...(data || {}) } : p));
+      } catch (supErr) {
+        console.error('Direct Supabase update product also failed:', supErr);
+        throw supErr;
+      }
     }
   };
 
@@ -272,21 +269,19 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     try {
       const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
       if (!response.ok) {
-        console.error(`API DELETE request failed with status ${response.status} ${response.statusText}`);
-        const contentType = response.headers.get('content-type');
-        let errorMessage = `Failed to delete product (Status: ${response.status})`;
-        if (contentType && contentType.includes('application/json')) {
-          const err = await response.json();
-          errorMessage = err.error || errorMessage;
-        } else {
-          errorMessage = await response.text();
-        }
-        throw new Error(errorMessage);
+        throw new Error(`API failed: ${response.status}`);
       }
       setProducts(prev => prev.filter(p => p.id !== id));
     } catch (e) {
-      console.error('API DELETE failed:', e);
-      throw e;
+      console.warn('API delete product failed, trying direct Supabase:', e);
+      try {
+        const { error } = await supabase.from('products').delete().eq('id', id);
+        if (error) throw error;
+        setProducts(prev => prev.filter(p => p.id !== id));
+      } catch (supErr) {
+        console.error('Direct Supabase delete product also failed:', supErr);
+        throw supErr;
+      }
     }
   };
 

@@ -172,16 +172,32 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const updateSettings = async (key: string, updates: any) => {
     try {
-      const { data: existing } = await supabase.from('settings').select('data').eq('key', key).single();
-      const newData = { ...(existing?.data || {}), ...updates };
-      const { error: supError } = await supabase.from('settings').upsert({ key, data: newData }).select().single();
-      if (supError) throw supError;
+      const response = await fetch(`/api/settings/${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to save settings: ${response.statusText}`);
+      }
+      
+      const newData = await response.json();
       
       // Sync local state
-      updateLocalState(key, updates);
-    } catch (supErr) {
-      console.error(`Direct Supabase update for settings ${key} failed:`, supErr);
-      throw supErr;
+      updateLocalState(key, newData);
+    } catch (err) {
+      console.warn(`API update for settings ${key} failed, trying direct Supabase fallback:`, err);
+      try {
+        const { data: existing } = await supabase.from('settings').select('data').eq('key', key).single();
+        const newData = { ...(existing?.data || {}), ...updates };
+        const { error: supError } = await supabase.from('settings').upsert({ key, data: newData }).select().single();
+        if (supError) throw supError;
+        updateLocalState(key, newData);
+      } catch (supErr) {
+        console.error(`Direct Supabase fallback for ${key} also failed:`, supErr);
+        throw supErr;
+      }
     }
   };
 
