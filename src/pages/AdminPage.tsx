@@ -82,7 +82,7 @@ export function AdminPage() {
   const [dbMode, setDbMode] = useState<'supabase' | 'fallback' | 'unknown'>('unknown');
 
   useEffect(() => {
-    fetch('/api/health')
+    fetch(`${process.env.APP_URL || ''}/api/health`)
       .then(r => r.json())
       .then(data => {
         if (data.mode === 'supabase') setDbMode('supabase');
@@ -129,7 +129,7 @@ export function AdminPage() {
     setIsSyncingLocal(true);
     setLocalSyncStatus('idle');
     try {
-      const response = await fetch('/api/admin/sync-local', {
+      const response = await fetch(`${process.env.APP_URL || ''}/api/admin/sync-local`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -175,7 +175,7 @@ export function AdminPage() {
     setLocalRestoreStatus('idle');
 
     try {
-      const response = await fetch('/api/admin/sync-local', {
+      const response = await fetch(`${process.env.APP_URL || ''}/api/admin/sync-local`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clearExisting }) // Sending empty body or flag triggers server to read its own files
@@ -207,7 +207,7 @@ export function AdminPage() {
     setPullStatus('idle');
 
     try {
-      const response = await fetch('/api/admin/pull-from-cloud', {
+      const response = await fetch(`${process.env.APP_URL || ''}/api/admin/pull-from-cloud`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });

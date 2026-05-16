@@ -7,7 +7,5 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Direct pass-through to network
-  // This ensures the service worker doesn't stall or handle requests incorrectly
-  event.respondWith(fetch(event.request));
+  // Do nothing, let requests pass through to server natively
 });

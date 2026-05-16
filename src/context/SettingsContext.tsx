@@ -90,7 +90,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       let mode = 'unknown';
 
       try {
-        const response = await fetch('/api/settings/bulk');
+        const response = await fetch(`${process.env.APP_URL || ''}/api/settings/bulk`);
         const contentType = response.headers.get('content-type');
         
         if (!response.ok || (contentType && contentType.includes('text/html'))) {
