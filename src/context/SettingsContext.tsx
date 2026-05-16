@@ -53,6 +53,7 @@ interface SettingsContextType {
   setFooterLinks: (links: FooterLink[]) => Promise<void>;
   seoSettings: SEO;
   setSeoSettings: (seo: SEO) => Promise<void>;
+  isLoading: boolean;
   setGlobalSettings: (settings: { logo?: string; landingLogo?: string; labBackgroundImage?: string; footerLogo?: string }) => Promise<void>;
   resetSettings: () => Promise<void>;
 }
@@ -128,7 +129,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
         if (global?.logo) setLogoState(global.logo);
         if (global?.landingLogo) setLandingLogoState(global.landingLogo);
-        if (global?.labBackgroundImage) setLandingLogoState(global.labBackgroundImage); // Fix typo found in previous code if any
         if (global?.labBackgroundImage) setLabBackgroundImageState(global.labBackgroundImage);
         if (global?.footerLogo) setFooterLogoState(global.footerLogo);
 
@@ -284,8 +284,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     seoSettings,
     setSeoSettings,
     resetSettings,
-    setGlobalSettings
-  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings]);
+    setGlobalSettings,
+    isLoading
+  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, isLoading]);
 
   return (
     <SettingsContext.Provider value={value}>

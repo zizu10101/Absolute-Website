@@ -42,7 +42,7 @@ const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
 export function ProductProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { user } = useAuth();
 
@@ -58,6 +58,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     // Pre-fetch some initial products to speed up first interactions
     const init = async () => {
       console.log('ProductContext: Initializing products...');
+      setIsLoading(true);
       try {
         await fetchFeaturedProducts();
       } catch (e) {
@@ -69,13 +70,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const response = await fetch(`/api/products?limit=20&fields=${LIST_FIELDS}`);
         if (!response.ok) {
           console.warn(`Initial product batch fetch failed: ${response.status} ${response.statusText}`);
-          return;
+        } else {
+          const result = await response.json();
+          console.log(`ProductContext: Fetched ${result.data?.length || 0} initial products (Mode: ${result.mode || 'unknown'})`);
+          if (result.data) mergeProducts(result.data);
         }
-        const result = await response.json();
-        console.log(`ProductContext: Fetched ${result.data?.length || 0} initial products (Mode: ${result.mode || 'unknown'})`);
-        if (result.data) mergeProducts(result.data);
       } catch (e) {
         console.error('Initial product batch fetch error:', e);
+      } finally {
+        setIsLoading(false);
       }
     };
     init();

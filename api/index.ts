@@ -1,7 +1,8 @@
-import { app } from '../server';
+import { app, setupPromise } from '../server';
 
 export default async (req: any, res: any) => {
-  // The app exported from server.ts will be initialized when the module is loaded
-  // if we call setupApp() at the top level or export a promise.
+  // Ensure the app is fully initialized (all app.use and app.get calls done)
+  // before handling any serverless request on Vercel.
+  await setupPromise;
   return app(req, res);
 };

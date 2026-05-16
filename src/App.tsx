@@ -21,8 +21,9 @@ import { ContactUsPage } from './pages/ContactUsPage';
 
 function LoadingScreen() {
   return (
-    <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
-      <img src="/logo.svg" alt="Loading" className="w-24 h-24 animate-spin" />
+    <div className="fixed inset-0 bg-white flex flex-col items-center justify-center z-50">
+      <div className="w-12 h-12 border-4 border-zinc-100 border-t-[#b90014] rounded-full animate-spin mb-4"></div>
+      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Loading Experience</p>
     </div>
   );
 }

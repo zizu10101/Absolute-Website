@@ -399,11 +399,13 @@ async function setupApp() {
 }
 
 // Initialize app
-setupApp();
+export const setupPromise = setupApp();
 
 // Start server if running directly
 if (import.meta.url === `file://${process.argv[1]}` || process.env.NODE_ENV !== 'production' || true) {
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`>>> SERVER READY ON PORT ${PORT} <<<`);
+  setupPromise.then(() => {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`>>> SERVER READY ON PORT ${PORT} <<<`);
+    });
   });
 }
