@@ -201,6 +201,54 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     fetchSettings();
   }, [user]);
 
+  // One-time migration hook
+  useEffect(() => {
+    const runMigration = async () => {
+      const { data: menus, error: menusError } = await supabase.from('navigation_menus').select('id').limit(1);
+      if (menusError || (menus && menus.length > 0)) return;
+
+      console.log('SettingsContext: Empty navigation detected, running one-time migration...');
+      setIsLoading(true);
+      try {
+        const { data: settingsData, error: settingsError } = await supabase
+          .from('settings')
+          .select('data')
+          .eq('key', 'navigation')
+          .single();
+        
+        if (settingsError || !settingsData?.data?.navigationMenus) throw new Error('No legacy navigation found');
+
+        const legacyMenus = settingsData.data.navigationMenus;
+        const menusToInsert = [];
+        const itemsToInsert = [];
+
+        for (const menu of legacyMenus) {
+          const menuId = crypto.randomUUID();
+          menusToInsert.push({ id: menuId, label: menu.label, path: menu.path, order_index: menusToInsert.length });
+          
+          for (const [subIndex, submenu] of menu.submenus.entries()) {
+            const subId = crypto.randomUUID();
+            itemsToInsert.push({ id: subId, menu_id: menuId, parent_id: null, label: submenu.heading, path: submenu.path, logo_url: submenu.logo, order_index: subIndex });
+            
+            for (const [itemIndex, item] of submenu.items.entries()) {
+              itemsToInsert.push({ id: crypto.randomUUID(), menu_id: menuId, parent_id: subId, label: item.label, path: item.path, logo_url: item.logo, order_index: itemIndex });
+            }
+          }
+        }
+
+        await supabase.from('navigation_menus').insert(menusToInsert);
+        await supabase.from('navigation_items').insert(itemsToInsert);
+        console.log('SettingsContext: Migration complete.');
+        await fetchSettings();
+      } catch (err) {
+        console.error('SettingsContext: Migration failed:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    runMigration();
+  }, []);
+
   const updateSettings = async (key: string, updates: any) => {
     try {
       const payload = JSON.stringify(updates);
