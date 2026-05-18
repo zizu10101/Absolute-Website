@@ -82,8 +82,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
-  useEffect(() => {
-    const fetchAllSettings = async () => {
+  const fetchSettings = async () => {
       console.log('SettingsContext: Fetching all settings...');
       setIsLoading(true);
       
@@ -99,6 +98,38 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             acc[curr.key] = curr.data;
             return acc;
           }, {});
+        }
+
+        // Fetch relational navigation data
+        const { data: menus, error: menusError } = await supabase.from('navigation_menus').select('*').order('order_index');
+        const { data: items, error: itemsError } = await supabase.from('navigation_items').select('*').order('order_index');
+
+        if (!menusError && !itemsError && menus && items) {
+          const reconstructedMenus = menus.map(menu => ({
+            id: menu.id,
+            label: menu.label,
+            path: menu.path,
+            submenus: items
+              .filter(item => item.menu_id === menu.id && !item.parent_id)
+              .map(submenuItem => ({
+                id: submenuItem.id,
+                heading: submenuItem.label,
+                path: submenuItem.path,
+                logo: submenuItem.logo_url,
+                items: items
+                  .filter(subItem => subItem.parent_id === submenuItem.id)
+                  .map(subItem => ({
+                    id: subItem.id,
+                    label: subItem.label,
+                    path: subItem.path,
+                    logo: subItem.logo_url
+                  }))
+              }))
+          }));
+          
+          if (!results) results = {};
+          results.navigation = { navigationMenus: reconstructedMenus };
+          console.log(`SettingsContext: Reconstructed ${reconstructedMenus.length} menus from navigation tables`);
         }
 
         mode = 'direct-supabase';
@@ -166,7 +197,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     };
 
-    fetchAllSettings();
+  useEffect(() => {
+    fetchSettings();
   }, [user]);
 
   const updateSettings = async (key: string, updates: any) => {
@@ -334,9 +366,31 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     await updateSettings('footer', { footerLinks: links });
   };
 
-  const setNavigationMenus = async (menus: NavMenu[]) => {
-    await updateSettings('navigation', { navigationMenus: menus });
+  const updateNavigationItem = async (itemId: string, updates: Record<string, any>) => {
+    try {
+      const { error } = await supabase.from('navigation_items').update(updates).eq('id', itemId);
+      if (error) throw error;
+      
+      // Update local state by forcing a re-fetch or updating local array
+      // Re-fetch is safer for now
+      await fetchSettings();
+    } catch (err: any) {
+      console.error('SettingsContext: Failed to update navigation item:', err);
+      throw err;
+    }
   };
+
+  const updateNavigationMenu = async (menuId: string, updates: Record<string, any>) => {
+    try {
+      const { error } = await supabase.from('navigation_menus').update(updates).eq('id', menuId);
+      if (error) throw error;
+      await fetchSettings();
+    } catch (err: any) {
+      console.error('SettingsContext: Failed to update navigation menu:', err);
+      throw err;
+    }
+  };
+
 
   const setSeoSettings = async (seo: SEO) => {
     await updateSettings('seo', seo);
@@ -362,13 +416,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     footerLinks,
     setFooterLinks,
     navigationMenus,
-    setNavigationMenus,
+    updateNavigationItem,
+    updateNavigationMenu,
     seoSettings,
     setSeoSettings,
     resetSettings,
     setGlobalSettings,
     isLoading
-  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, isLoading]);
+  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, updateNavigationItem, updateNavigationMenu, footerLinks, seoSettings, isLoading]);
 
   return (
     <SettingsContext.Provider value={value}>
