@@ -8,3 +8,48 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export const uploadImage = async (fileOrBase64: File | string, path: string): Promise<string> => {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase credentials missing. Please configure them in settings.');
+  }
+
+  let body: any;
+  let contentType: string = 'image/jpeg';
+
+  if (typeof fileOrBase64 === 'string') {
+    // Handle base64
+    const base64Data = fileOrBase64.split(',')[1];
+    const mimeMatch = fileOrBase64.match(/data:(.*?);base64/);
+    if (mimeMatch) contentType = mimeMatch[1];
+    
+    const binaryStr = atob(base64Data);
+    const len = binaryStr.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+    }
+    body = bytes.buffer;
+  } else {
+    body = fileOrBase64;
+    contentType = fileOrBase64.type;
+  }
+
+  const { data, error } = await supabase.storage
+    .from('media')
+    .upload(path, body, {
+      contentType,
+      upsert: true
+    });
+
+  if (error) {
+    console.error('Error uploading to Supabase Storage:', error);
+    throw error;
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('media')
+    .getPublicUrl(data.path);
+
+  return publicUrl;
+};

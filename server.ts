@@ -57,8 +57,9 @@ async function ensureDataDir() {
   }
 }
 
+const app = express();
+
 async function startServer() {
-  const app = express();
   await ensureDataDir();
 
   // Basic Middleware
@@ -477,6 +478,8 @@ async function startServer() {
   console.log("App setup complete");
   return app;
 }
+
+export { app };
 
 // Initialize and start server
 startServer().then((app) => {

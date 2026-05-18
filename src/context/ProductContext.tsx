@@ -28,8 +28,10 @@ export interface Product {
 interface ProductContextType {
   products: Product[];
   isLoading: boolean;
+  hasMoreProducts: boolean;
   fetchProductsByCategory: (category?: string, submenu?: string) => Promise<void>;
   fetchAdminProducts: () => Promise<void>;
+  loadMoreAdminProducts: () => Promise<void>;
   fetchFeaturedProducts: () => Promise<void>;
   fetchProductById: (id: string) => Promise<Product | null>;
   addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
@@ -43,8 +45,10 @@ const ProductContext = createContext<ProductContextType | undefined>(undefined);
 export function ProductProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasMoreProducts, setHasMoreProducts] = useState(true);
 
   const { user } = useAuth();
+  const PAGE_SIZE = 50;
 
   const mergeProducts = (newProducts: Product[]) => {
     setProducts(prev => {
@@ -122,32 +126,58 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const fetchAdminProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/products?limit=1000');
+      console.log('ProductContext: Fetching first batch of admin products directly from Supabase...');
       
-      const contentType = response.headers.get('content-type');
-      if (!response.ok || (contentType && contentType.includes('text/html'))) {
-        throw new Error('API unavailable');
-      }
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE);
       
-      const result = await response.json();
-      const data = result.data || [];
+      if (error) throw error;
       
-      if (data && Array.isArray(data)) {
-        mergeProducts(data);
+      if (data) {
+        mergeProducts(data as Product[]);
+        setHasMoreProducts(data.length === PAGE_SIZE);
       }
     } catch (e) {
-      console.warn('Admin fetch from API failed, trying direct Supabase:', e);
+      console.warn('Direct Supabase admin fetch failed, falling back to API:', e);
       try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .limit(1000);
-        
-        if (error) throw error;
-        if (data) mergeProducts(data as any);
-      } catch (supabaseErr) {
-        console.error('Direct Supabase admin fetch also failed:', supabaseErr);
+        const response = await fetch(`/api/products?limit=${PAGE_SIZE}`);
+        const result = await response.json();
+        if (result.data) {
+          mergeProducts(result.data);
+          setHasMoreProducts(result.data.length === PAGE_SIZE);
+        }
+      } catch (apiErr) {
+        console.error('API admin fetch also failed:', apiErr);
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMoreAdminProducts = async () => {
+    if (isLoading || !hasMoreProducts) return;
+    setIsLoading(true);
+    try {
+      const offset = products.length;
+      console.log(`ProductContext: Loading next batch of products (Offset: ${offset})...`);
+      
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1);
+      
+      if (error) throw error;
+      
+      if (data) {
+        mergeProducts(data as Product[]);
+        setHasMoreProducts(data.length === PAGE_SIZE);
+      }
+    } catch (e) {
+      console.error('Failed to load more products:', e);
     } finally {
       setIsLoading(false);
     }
@@ -294,8 +324,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     <ProductContext.Provider value={{ 
       products, 
       isLoading,
+      hasMoreProducts,
       fetchProductsByCategory,
       fetchAdminProducts,
+      loadMoreAdminProducts,
       fetchFeaturedProducts,
       fetchProductById,
       addProduct, 

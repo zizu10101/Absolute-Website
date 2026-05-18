@@ -91,29 +91,63 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       let mode = 'unknown';
 
       try {
-        const response = await fetch('/api/settings/bulk');
-        const contentType = response.headers.get('content-type');
-        
-        if (!response.ok || (contentType && contentType.includes('text/html'))) {
-          throw new Error('API unavailable or returned HTML');
+        // Fetch standard settings
+        const { data: settingsData, error: settingsError } = await supabase.from('settings').select('key, data');
+        if (settingsError) throw settingsError;
+
+        if (settingsData) {
+          results = settingsData.reduce((acc: any, curr: any) => {
+            acc[curr.key] = curr.data;
+            return acc;
+          }, {});
         }
-        
-        results = await response.json();
-        mode = response.headers.get('X-Data-Mode') || 'supabase-proxy';
+
+        // Fetch flattened navigation row-by-row
+        console.log('SettingsContext: Fetching navigation row-by-row...');
+        const { data: flatNav, error: navError } = await supabase
+          .from('navigation')
+          .select('*')
+          .order('sort_order', { ascending: true });
+
+        if (!navError && flatNav && flatNav.length > 0) {
+          // Reconstruct tree
+          const menus = flatNav.filter(n => n.type === 'menu').map(m => ({
+            id: m.id,
+            label: m.label,
+            path: m.path,
+            submenus: flatNav.filter(s => s.type === 'submenu' && s.parent_id === m.id).map(s => ({
+              id: s.id,
+              heading: s.label,
+              path: s.path,
+              logo: s.logo,
+              items: flatNav.filter(i => i.type === 'item' && i.parent_id === s.id).map(i => ({
+                id: i.id,
+                label: i.label,
+                path: i.path,
+                logo: i.logo
+              }))
+            }))
+          }));
+          
+          if (!results) results = {};
+          results.navigation = { navigationMenus: menus };
+          console.log(`SettingsContext: Reconstructed ${menus.length} menus from navigation table`);
+        } else if (navError) {
+          console.warn('SettingsContext: Navigation table fetch failed or empty, falling back to settings JSON:', navError);
+        }
+
+        mode = 'direct-supabase';
       } catch (err) {
-        console.warn('SettingsContext: API fetch failed, trying direct Supabase:', err);
+        console.warn('SettingsContext: Direct Supabase fetch failed, trying API proxy:', err);
         try {
-          const { data, error } = await supabase.from('settings').select('key, data');
-          if (error) throw error;
-          if (data && data.length > 0) {
-            results = data.reduce((acc: any, curr: any) => {
-              acc[curr.key] = curr.data;
-              return acc;
-            }, {});
-            mode = 'direct-supabase';
+          const response = await fetch('/api/settings/bulk');
+          const contentType = response.headers.get('content-type');
+          if (response.ok && contentType?.includes('application/json')) {
+            results = await response.json();
+            mode = 'api-proxy';
           }
-        } catch (supabaseErr) {
-          console.error('Direct Supabase settings fetch also failed:', supabaseErr);
+        } catch (apiErr) {
+          console.error('API fetch also failed:', apiErr);
         }
       }
 
@@ -172,23 +206,94 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const updateSettings = async (key: string, updates: any) => {
     try {
+      const payload = JSON.stringify(updates);
+      const payloadSize = payload.length;
+      
+      console.log(`ACTUAL RAW PAYLOAD SIZE FOR ${key.toUpperCase()}:`, payloadSize, "bytes");
+
+      // Safety check: Block if payload contains base64/data:image strings
+      if (payload.includes('data:image')) {
+        console.error(`BLOCKING NETWORK EXECUTION: Base64 detected in ${key} payload!`);
+        
+        // Find the exact path for better debugging
+        const findPath = (obj: any, path: string = ''): string[] => {
+          let results: string[] = [];
+          if (!obj) return results;
+          if (typeof obj === 'string' && obj.includes('data:image')) {
+            results.push(path);
+          } else if (Array.isArray(obj)) {
+            obj.forEach((item, i) => {
+              results = [...results, ...findPath(item, `${path}[${i}]`)];
+            });
+          } else if (typeof obj === 'object') {
+            Object.keys(obj).forEach(key => {
+              results = [...results, ...findPath(obj[key], path ? `${path}.${key}` : key)];
+            });
+          }
+          return results;
+        };
+        
+        const paths = findPath(updates);
+        const errorMsg = `CRITICAL ERROR: Unsaved image data (base64) detected in ${key} payload at: ${paths.join(', ')}. The request was blocked to prevent server errors. Please ensure all images are uploaded before saving.`;
+        alert(errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      // Vercel limit is 4.5MB, we check at 4MB to be safe
+      if (payloadSize > 4000000) {
+        throw new Error(`THE DATA YOU ARE TRYING TO SAVE IS TOO LARGE (${(payloadSize / 1024 / 1024).toFixed(2)}MB). Please remove some images or simplify your menus to stay under the 4MB limit.`);
+      }
+
       const response = await fetch(`/api/settings/${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
+        body: payload
       });
       
-      const result = await response.json();
+      const contentType = response.headers.get('content-type');
+      const text = await response.text();
       
       if (!response.ok) {
-        throw new Error(result.error || `Failed to save settings: ${response.statusText}`);
+        console.error(`Status ${response.status} from server for ${key}:`, text.substring(0, 200));
+        
+        // Handle common proxy errors like 413 or Vercel's FUNCTION_PAYLOAD_TOO_LARGE
+        if (response.status === 413 || 
+            text.toUpperCase().includes('ENTITY TOO LARGE') || 
+            text.toUpperCase().includes('TOO LARGE') ||
+            text.toUpperCase().includes('FUNCTION_PAYLOAD_TOO_LARGE')) {
+          throw new Error('THE DATA YOU ARE TRYING TO SAVE IS TOO LARGE for the server (limit is 4.5MB). Please reduce the size of your images or submenus.');
+        }
+        
+        try {
+          if (contentType && contentType.includes('application/json')) {
+            const errorResult = JSON.parse(text);
+            throw new Error(errorResult.error || `Server Error: ${response.statusText}`);
+          }
+        } catch (e) {
+          // Fallback if not JSON or parsing fails
+        }
+        
+        throw new Error(`Server Error (${response.status}): ${text.substring(0, 100) || response.statusText}`);
+      }
+
+      let result: any;
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          result = JSON.parse(text);
+        } else {
+          // If 200 OK but not JSON, we assume success for safety
+          console.warn(`Success but non-JSON response for ${key}:`, text.substring(0, 50));
+          result = updates;
+        }
+      } catch (parseErr: any) {
+        console.error(`Failed to parse response for ${key}:`, text.substring(0, 200));
+        throw new Error("The server saved your changes but returned an invalid response. Please refresh the page.");
       }
       
       // Sync local state
       updateLocalState(key, result);
     } catch (err: any) {
       console.error(`API update for settings ${key} failed:`, err);
-      // We removed direct Supabase fallback to avoid RLS issues on the client
       throw err;
     }
   };
@@ -245,7 +350,84 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   };
 
   const setNavigationMenus = async (menus: NavMenu[]) => {
-    await updateSettings('navigation', { navigationMenus: menus });
+    console.log('SettingsContext: Saving navigation row-by-row directly to Supabase...');
+    setIsLoading(true);
+    try {
+      // 1. Flatten the tree
+      const rows: any[] = [];
+      menus.forEach((menu, menuIdx) => {
+        const menuId = menu.id || `menu_${Date.now()}_${menuIdx}`;
+        rows.push({
+          id: menuId,
+          label: menu.label,
+          path: menu.path,
+          type: 'menu',
+          parent_id: null,
+          sort_order: menuIdx,
+          logo: null
+        });
+
+        menu.submenus.forEach((submenu, subIdx) => {
+          const subId = submenu.id || `submenu_${Date.now()}_${menuIdx}_${subIdx}`;
+          rows.push({
+            id: subId,
+            label: submenu.heading,
+            path: submenu.path || null,
+            type: 'submenu',
+            parent_id: menuId,
+            sort_order: subIdx,
+            logo: submenu.logo || null
+          });
+
+          submenu.items.forEach((item, itemIdx) => {
+            const itemId = item.id || `item_${Date.now()}_${menuIdx}_${subIdx}_${itemIdx}`;
+            rows.push({
+              id: itemId,
+              label: item.label,
+              path: item.path,
+              type: 'item',
+              parent_id: subId,
+              sort_order: itemIdx,
+              logo: item.logo || null
+            });
+          });
+        });
+      });
+
+      // 2. Clear and Upsert
+      // NOTE: Using a transaction-like approach by deleting old and inserting new
+      // In a real app, we'd use a single RPC call or more sophisticated upsert
+      const { error: deleteError } = await supabase.from('navigation').delete().neq('id', '0');
+      if (deleteError) {
+        console.warn('Navigation table clear failed (might not exist), trying standard settings fallback:', deleteError);
+        // Fallback to settings table if navigation table doesn't exist
+        await updateSettings('navigation', { navigationMenus: menus });
+        return;
+      }
+
+      const { error: insertError } = await supabase.from('navigation').insert(rows);
+      if (insertError) throw insertError;
+
+      // Also update the legacy settings blob for backward compatibility and fallback
+      try {
+        await supabase.from('settings').upsert({ 
+          key: 'navigation', 
+          data: { navigationMenus: menus },
+          updated_at: new Date()
+        }, { onConflict: 'key' });
+      } catch (e) {
+        console.warn('Legacy settings sync failed:', e);
+      }
+
+      setNavigationMenusState(menus);
+      console.log('SettingsContext: Navigation saved successfully row-by-row');
+    } catch (err: any) {
+      console.error('SettingsContext: Failed to save navigation row-by-row:', err);
+      // Last ditch fallback to standard API
+      await updateSettings('navigation', { navigationMenus: menus });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const setSeoSettings = async (seo: SEO) => {

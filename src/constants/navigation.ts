@@ -1,10 +1,12 @@
 export interface NavSubmenuItem {
+  id?: string;
   label: string;
   path: string;
   logo?: string;
 }
 
 export interface NavSubmenu {
+  id?: string;
   heading: string;
   path?: string;
   logo?: string;
@@ -12,6 +14,7 @@ export interface NavSubmenu {
 }
 
 export interface NavMenu {
+  id?: string;
   label: string;
   path: string;
   submenus: NavSubmenu[];

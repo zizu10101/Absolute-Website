@@ -1,13 +1,14 @@
 import React, { useState, ChangeEvent, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts, Product } from '../context/ProductContext';
-import { useSettings, NavMenu } from '../context/SettingsContext';
+import { useSettings, NavMenu, SEO } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
 import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
 import { resizeImage } from '../lib/imageUtils';
+import { uploadImage } from '../supabase';
 
 type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'tools';
 
@@ -35,7 +36,7 @@ const getCategoryPath = (name: string) => {
 export function AdminPage() {
   const { 
     products, addProduct, deleteProduct, updateProduct, resetProducts, 
-    fetchAdminProducts, isLoading
+    fetchAdminProducts, loadMoreAdminProducts, hasMoreProducts, isLoading
   } = useProducts();
   const { sliderImages, setSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, setNavigationMenus, footerLinks, setFooterLinks, seoSettings, setSeoSettings, setGlobalSettings, resetSettings } = useSettings();
   const { logout, user } = useAuth();
@@ -107,6 +108,7 @@ export function AdminPage() {
   const [draftNavigationMenus, setDraftNavigationMenus] = useState(navigationMenus);
   const [draftSeoSettings, setDraftSeoSettings] = useState(seoSettings);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const [addStatus, setAddStatus] = useState<'idle' | 'success' | 'error' | 'syncing'>('idle');
@@ -342,6 +344,22 @@ export function AdminPage() {
               continue;
             }
 
+            let mainImage = row.image;
+            if (mainImage.startsWith('data:')) {
+              console.log(`Uploading bulk image for: ${row.name}`);
+              const path = `products/bulk_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+              mainImage = await uploadImage(mainImage, path);
+            }
+
+            const galleryImages = row.images ? row.images.split(',').map((s: string) => s.trim()) : [];
+            const uploadedGallery = await Promise.all(galleryImages.map(async (img: string, idx: number) => {
+              if (img.startsWith('data:')) {
+                const path = `products/bulk_gallery_${Date.now()}_${idx}`;
+                return await uploadImage(img, path);
+              }
+              return img;
+            }));
+
             const product: Product = {
               id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
               name: row.name,
@@ -349,8 +367,8 @@ export function AdminPage() {
               category: row.category,
               submenu: row.submenu || '',
               submenus: row.submenus ? row.submenus.split(',').map((s: string) => s.trim()) : [],
-              image: row.image,
-              images: row.images ? row.images.split(',').map((s: string) => s.trim()) : [],
+              image: mainImage,
+              images: uploadedGallery,
               description: row.description || '',
               isNewArrival: row.isNewArrival === 'true' || row.isNewArrival === true,
               isOnSale: row.isOnSale === 'true' || row.isOnSale === true,
@@ -404,7 +422,6 @@ export function AdminPage() {
 
   const handleAdd = async () => {
     setAddErrorMessage(null);
-    console.log('AdminPage: Attempting to add product', newProduct);
     
     if (!newProduct.name || !newProduct.price || !newProduct.image) {
       setAddErrorMessage('Please fill in Name, Price, and Image.');
@@ -413,28 +430,25 @@ export function AdminPage() {
       return;
     }
 
-    // Check image size (Firestore limit is 1MB, but we'll cap at 800KB to be safe)
-    if (newProduct.image.startsWith('data:') && newProduct.image.length > 1000000) {
-      setAddErrorMessage('Image is too large. Please use a smaller file (under 800KB).');
-      setAddStatus('error');
-      setTimeout(() => setAddStatus('idle'), 5000);
-      return;
-    }
-
     setAddStatus('syncing');
 
-    const productData = { ...newProduct };
-    if (!productData.isOnSale) {
-      delete (productData as any).salePrice;
-    }
-
     try {
-      console.log('AdminPage: Final product data to be added:', productData);
+      // Ensure no base64 in newProduct
+      if (containsBase64(newProduct)) {
+        setAddErrorMessage('Image upload in progress or invalid image data. Please try again.');
+        setAddStatus('error');
+        setTimeout(() => setAddStatus('idle'), 3000);
+        return;
+      }
+
+      const productData = { ...newProduct };
+      if (!productData.isOnSale) {
+        delete (productData as any).salePrice;
+      }
       
       // Perform the add
       await addProduct(productData);
       
-      console.log('AdminPage: Product added successfully');
       setAddStatus('success');
       setNewProduct({
         name: '',
@@ -451,12 +465,10 @@ export function AdminPage() {
         colors: []
       });
       setTimeout(() => setAddStatus('idle'), 3000);
-      
-      // Optional: Refresh product list to show new item
       fetchAdminProducts();
     } catch (error: any) {
       console.error('AdminPage: Failed to add product', error);
-      setAddErrorMessage(error.message || 'Failed to save to database. This could be due to a network error or database configuration issue.');
+      setAddErrorMessage(error.message || 'Failed to save to database.');
       setAddStatus('error');
       setTimeout(() => setAddStatus('idle'), 5000);
     }
@@ -464,7 +476,14 @@ export function AdminPage() {
 
   const handleUpdate = async () => {
     if (editingProduct && editingProduct.name && editingProduct.price > 0) {
+      setIsUploading(true);
       try {
+        // Ensure no base64 in editingProduct
+        if (containsBase64(editingProduct)) {
+          alert('Image upload in progress. Please wait.');
+          return;
+        }
+
         const productData = { ...editingProduct };
         if (!productData.isOnSale) {
           delete productData.salePrice;
@@ -475,6 +494,8 @@ export function AdminPage() {
       } catch (error: any) {
         console.error('AdminPage: Failed to update product', error);
         alert('Failed to update product: ' + error.message);
+      } finally {
+        setIsUploading(false);
       }
     }
   };
@@ -512,13 +533,25 @@ export function AdminPage() {
   const handleProductImageUpload = (e: ChangeEvent<HTMLInputElement>, isEditing: boolean = false) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploading(true);
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const resized = await resizeImage(reader.result as string, 1000, 1250, 0.8);
-        if (isEditing && editingProduct) {
-          setEditingProduct({ ...editingProduct, image: resized });
-        } else {
-          setNewProduct({ ...newProduct, image: resized });
+        try {
+          const resized = await resizeImage(reader.result as string, 1000, 1250, 0.8);
+          // Upload to Supabase instead of storing base64
+          const path = `products/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(resized, path);
+          
+          if (isEditing && editingProduct) {
+            setEditingProduct({ ...editingProduct, image: publicUrl });
+          } else {
+            setNewProduct({ ...newProduct, image: publicUrl });
+          }
+        } catch (err) {
+          console.error("Product image upload failed:", err);
+          setSaveErrorMessage("Failed to upload image to storage. Please check your Supabase configuration.");
+        } finally {
+          setIsUploading(false);
         }
       };
       reader.readAsDataURL(file);
@@ -528,17 +561,28 @@ export function AdminPage() {
   const handleAdditionalImageUpload = (e: ChangeEvent<HTMLInputElement>, index: number, isEditing: boolean = false) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploading(true);
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const resized = await resizeImage(reader.result as string, 1000, 1250, 0.8);
-        if (isEditing && editingProduct) {
-          const newImages = [...(editingProduct.images || [])];
-          newImages[index] = resized;
-          setEditingProduct({ ...editingProduct, images: newImages });
-        } else {
-          const newImages = [...(newProduct.images || [])];
-          newImages[index] = resized;
-          setNewProduct({ ...newProduct, images: newImages });
+        try {
+          const resized = await resizeImage(reader.result as string, 1000, 1250, 0.8);
+          const path = `products/gallery_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(resized, path);
+
+          if (isEditing && editingProduct) {
+            const newImages = [...(editingProduct.images || [])];
+            newImages[index] = publicUrl;
+            setEditingProduct({ ...editingProduct, images: newImages });
+          } else {
+            const newImages = [...(newProduct.images || [])];
+            newImages[index] = publicUrl;
+            setNewProduct({ ...newProduct, images: newImages });
+          }
+        } catch (err) {
+          console.error("Gallery image upload failed:", err);
+          setSaveErrorMessage("Failed to upload image to storage.");
+        } finally {
+          setIsUploading(false);
         }
       };
       reader.readAsDataURL(file);
@@ -548,28 +592,63 @@ export function AdminPage() {
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploading(true);
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const resized = await resizeImage(reader.result as string, 1920, 1080, 0.7);
-        setDraftSliderImages([...draftSliderImages, { url: resized, title: '', link: '' }]);
+        try {
+          const resized = await resizeImage(reader.result as string, 1920, 1080, 0.8);
+          const path = `slider/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(resized, path);
+          setDraftSliderImages([...draftSliderImages, { url: publicUrl, title: '', link: '' }]);
+        } catch (err) {
+          console.error("Slider upload failed:", err);
+          setSaveErrorMessage("Failed to upload slider image.");
+        } finally {
+          setIsUploading(false);
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const updateSliderImage = (index: number, field: 'title' | 'link', value: string) => {
+  const updateSliderImage = async (index: number, field: 'title' | 'link' | 'url', value: string) => {
+    let finalValue = value;
+    if (field === 'url' && value.startsWith('data:')) {
+      setIsUploading(true);
+      try {
+        const resized = await resizeImage(value, 1920, 1080, 0.8);
+        const path = `slider/${Date.now()}_pasted`;
+        finalValue = await uploadImage(resized, path);
+      } catch (err) {
+        console.error("Slider upload failed:", err);
+        alert("Failed to upload pasted image.");
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
     const newImages = [...draftSliderImages];
-    newImages[index] = { ...newImages[index], [field]: value };
+    newImages[index] = { ...newImages[index], [field]: finalValue as any };
     setDraftSliderImages(newImages);
   };
 
   const handleLogoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploading(true);
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const resized = await resizeImage(reader.result as string, 1000, 1000, 0.9);
-        setDraftLogo(resized);
+        try {
+          const resized = await resizeImage(reader.result as string, 800, 800, 0.9);
+          const path = `logos/main_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(resized, path);
+          setDraftLogo(publicUrl);
+        } catch (err) {
+          console.error("Logo upload failed:", err);
+        } finally {
+          setIsUploading(false);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -578,10 +657,19 @@ export function AdminPage() {
   const handleLandingLogoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploading(true);
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const resized = await resizeImage(reader.result as string, 1000, 1000, 0.9);
-        setDraftLandingLogo(resized);
+        try {
+          const resized = await resizeImage(reader.result as string, 800, 800, 0.9);
+          const path = `logos/landing_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(resized, path);
+          setDraftLandingLogo(publicUrl);
+        } catch (err) {
+          console.error("Landing logo upload failed:", err);
+        } finally {
+          setIsUploading(false);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -590,10 +678,19 @@ export function AdminPage() {
   const handleLabBackgroundImageFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploading(true);
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const resized = await resizeImage(reader.result as string, 1920, 1080, 0.7);
-        setDraftLabBackgroundImage(resized);
+        try {
+          const resized = await resizeImage(reader.result as string, 1920, 1080, 0.8);
+          const path = `backgrounds/lab_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(resized, path);
+          setDraftLabBackgroundImage(publicUrl);
+        } catch (err) {
+          console.error("Background upload failed:", err);
+        } finally {
+          setIsUploading(false);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -602,78 +699,125 @@ export function AdminPage() {
   const handleFooterLogoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploading(true);
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const resized = await resizeImage(reader.result as string, 1000, 1000, 0.9);
-        setDraftFooterLogo(resized);
+        try {
+          const resized = await resizeImage(reader.result as string, 800, 800, 0.9);
+          const path = `logos/footer_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(resized, path);
+          setDraftFooterLogo(publicUrl);
+        } catch (err) {
+          console.error("Footer logo upload failed:", err);
+        } finally {
+          setIsUploading(false);
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
+  const containsBase64 = (obj: any): boolean => {
+    const str = JSON.stringify(obj);
+    return str.includes('data:image');
+  };
+
+  const sanitizeNavMenus = async (menus: NavMenu[]): Promise<NavMenu[]> => {
+    console.log('AdminPage: Sanitizing navigation menus (Deep recursion)...');
+    const sanitized = await Promise.all(menus.map(async (menu) => {
+      const sanitizedSubmenus = await Promise.all(menu.submenus.map(async (submenu) => {
+        let sanitizedLogo = submenu.logo;
+        if (sanitizedLogo?.startsWith('data:')) {
+          console.log(`AdminPage: Sanitizing submenu logo: ${submenu.heading}`);
+          const resized = await resizeImage(sanitizedLogo, 200, 200, 0.8);
+          const path = `nav/submenu_${Date.now()}_sanitized`;
+          sanitizedLogo = await uploadImage(resized, path);
+        }
+
+        const sanitizedItems = await Promise.all(submenu.items.map(async (item) => {
+          let itemLogo = item.logo;
+          if (itemLogo?.startsWith('data:')) {
+            console.log(`AdminPage: Sanitizing item logo: ${item.label}`);
+            const resized = await resizeImage(itemLogo, 200, 200, 0.8);
+            const path = `nav/item_${Date.now()}_sanitized`;
+            itemLogo = await uploadImage(resized, path);
+          }
+          return { ...item, logo: itemLogo };
+        }));
+
+        return { ...submenu, logo: sanitizedLogo, items: sanitizedItems };
+      }));
+      return { ...menu, submenus: sanitizedSubmenus };
+    }));
+    return sanitized;
+  };
+
+  const sanitizeState = async (obj: any): Promise<any> => {
+    if (obj === null || obj === undefined) return obj;
+    
+    if (typeof obj === 'string') {
+      if (obj.startsWith('data:')) {
+        console.log('Sanitizing rogue base64 string during save...');
+        const path = `sanitized/${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        // For navigation logos, we want smaller sizes
+        const resized = await resizeImage(obj, 800, 800, 0.7);
+        return await uploadImage(resized, path);
+      }
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      return await Promise.all(obj.map(item => sanitizeState(item)));
+    }
+
+    if (typeof obj === 'object') {
+      const result: any = {};
+      const keys = Object.keys(obj);
+      for (const key of keys) {
+        result[key] = await sanitizeState(obj[key]);
+      }
+      return result;
+    }
+
+    return obj;
+  };
+
   const handleSaveSlider = async () => {
-    setIsSaving(true);
-    console.log('AdminPage: Saving slider images...', draftSliderImages);
-    
-    // Increase limit for local server (10MB)
-    const sliderSize = JSON.stringify({ sliderImages: draftSliderImages }).length;
-    
-    if (sliderSize > 10000000) {
-      setSaveErrorMessage('THE SLIDER IMAGES ARE TOO LARGE. PLEASE USE SMALLER IMAGES OR FEWER SLIDES.');
-      setIsSaving(false);
-      setTimeout(() => setSaveErrorMessage(null), 5000);
+    if (containsBase64({ draftSliderImages, draftLogo, draftLandingLogo, draftLabBackgroundImage, draftFooterLogo })) {
+      setSaveErrorMessage('Image uploads in progress. Please wait.');
       return;
     }
 
-    // Check logo sizes
-    const logosSize = JSON.stringify({ 
-      logo: draftLogo, 
-      landingLogo: draftLandingLogo,
-      labBackgroundImage: draftLabBackgroundImage,
-      footerLogo: draftFooterLogo 
-    }).length;
-    if (logosSize > 10000000) {
-      setSaveErrorMessage('The logos or background images are too large. Please use smaller image files.');
-      setIsSaving(false);
-      setTimeout(() => setSaveErrorMessage(null), 5000);
-      return;
-    }
+    setIsSaving(true);
+    setSaveErrorMessage(null);
 
     try {
-      setSaveErrorMessage(null);
       await setSliderImages(draftSliderImages);
-      console.log('AdminPage: Slider images saved');
       await setGlobalSettings({
         logo: draftLogo,
         landingLogo: draftLandingLogo,
         labBackgroundImage: draftLabBackgroundImage,
         footerLogo: draftFooterLogo
       });
-      console.log('AdminPage: Global branding settings saved successfully');
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error: any) {
       console.error('AdminPage: Failed to save slider/logo:', error);
-      setSaveErrorMessage(error.message || 'Failed to save settings. Check console for details.');
+      setSaveErrorMessage(error.message || 'Failed to save settings.');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleSaveHomeLayout = async () => {
-    setIsSaving(true);
-    setSaveErrorMessage(null);
-    
-    // Increase limit for local server (10MB)
-    const categoriesSize = JSON.stringify({ homeCategories: draftHomeCategories }).length;
-    
-    if (categoriesSize > 10000000) {
-      setSaveErrorMessage('The home categories images are too large. Please use smaller images.');
-      setIsSaving(false);
-      setTimeout(() => setSaveErrorMessage(null), 5000);
+    if (containsBase64(draftHomeCategories)) {
+      setSaveErrorMessage('Image uploads in progress. Please wait.');
       return;
     }
 
+    setIsSaving(true);
+    setSaveErrorMessage(null);
+    
     try {
       await setHomeCategories(draftHomeCategories);
       setSaveSuccess(true);
@@ -690,36 +834,50 @@ export function AdminPage() {
     setIsSaving(true);
     setSaveErrorMessage(null);
 
-    // Increase limit for local server (10MB)
-    console.log('AdminPage: Saving navigation menus...', draftNavigationMenus);
-    
-    // Ensure essential items are present
-    const essentialItems = ['CUSTOM LAB', 'UNIFORM SUBMISSION'];
-    let finalMenus = [...draftNavigationMenus];
-    essentialItems.forEach(label => {
-      if (!finalMenus.find(m => m.label.toUpperCase() === label)) {
-        console.log(`AdminPage: Forcing ${label} into navigation menus`);
-        finalMenus.push({ label, path: label === 'CUSTOM LAB' ? '/custom-lab' : '/uniform-submission', submenus: [] });
+    // 1. Safety Check: Verify no base64 in draft state before attempting transit
+    const checkBase64 = (obj: any, path: string = ''): string[] => {
+      let results: string[] = [];
+      if (!obj) return results;
+      if (typeof obj === 'string' && obj.includes('data:image')) {
+        results.push(path);
+      } else if (Array.isArray(obj)) {
+        obj.forEach((item, i) => results = [...results, ...checkBase64(item, `${path}[${i}]`)]);
+      } else if (typeof obj === 'object') {
+        Object.keys(obj).forEach(key => results = [...results, ...checkBase64(obj[key], path ? `${path}.${key}` : key)]);
       }
-    });
+      return results;
+    };
 
-    const navSize = JSON.stringify({ navigationMenus: finalMenus }).length;
-    
-    if (navSize > 10000000) {
-      setSaveErrorMessage('Your navigation menu is too complex. Please simplify it or use fewer items.');
+    const leaks = checkBase64(draftNavigationMenus);
+    if (leaks.length > 0) {
+      const msg = `SAVE BLOCKED: Unsaved image data detected at: ${leaks.join(', ')}. Please wait for uploads to finish.`;
+      console.error(msg);
+      setSaveErrorMessage(msg);
+      alert(msg);
       setIsSaving(false);
-      setTimeout(() => setSaveErrorMessage(null), 5000);
       return;
     }
 
     try {
+      console.log("AdminPage: Initiating row-by-row navigation save to Supabase...");
+      
+      const essentialItems = ['CUSTOM LAB', 'UNIFORM SUBMISSION'];
+      const finalMenus = [...draftNavigationMenus];
+      
+      essentialItems.forEach(label => {
+        if (!finalMenus.find(m => m.label.toUpperCase() === label)) {
+          finalMenus.push({ label, path: label === 'CUSTOM LAB' ? '/custom-lab' : '/uniform-submission', submenus: [] });
+        }
+      });
+
+      // The context now handles direct Supabase upsert row-by-row
       await setNavigationMenus(finalMenus);
-      console.log('AdminPage: Navigation menus saved successfully');
+      
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error: any) {
-      console.error('AdminPage: Failed to save navigation menus', error);
-      setSaveErrorMessage(error.message || 'Failed to save navigation menus.');
+      console.error('AdminPage: Navigation save failed:', error);
+      setSaveErrorMessage(error.message || 'Failed to save navigation.');
     } finally {
       setIsSaving(false);
     }
@@ -751,6 +909,11 @@ export function AdminPage() {
   };
 
   const handleSaveSEO = async () => {
+    if (containsBase64(draftSeoSettings)) {
+      setSaveErrorMessage('Image upload in progress. Please wait.');
+      return;
+    }
+
     setIsSaving(true);
     setSaveErrorMessage(null);
 
@@ -778,6 +941,90 @@ export function AdminPage() {
     const newLinks = [...draftFooterLinks];
     newLinks[index] = { ...newLinks[index], [field]: value };
     setDraftFooterLinks(newLinks);
+  };
+
+  const updateSeoField = async (field: keyof SEO, value: string) => {
+    let finalValue = value;
+    if (field === 'ogImage' && value.startsWith('data:')) {
+      setIsUploading(true);
+      try {
+        const resized = await resizeImage(value, 1200, 630, 0.8);
+        const path = `seo/${Date.now()}_og`;
+        finalValue = await uploadImage(resized, path);
+      } catch (err) {
+        console.error("SEO image upload failed:", err);
+        alert("Failed to upload pasted image.");
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
+    setDraftSeoSettings({ ...draftSeoSettings, [field]: finalValue });
+  };
+
+  const updateNewProductImage = async (field: 'image' | 'additional' | 'color', value: string, index?: number, colorIndex?: number) => {
+    let finalValue = value;
+    if (value.startsWith('data:')) {
+      setIsUploading(true);
+      try {
+        const resized = await resizeImage(value, 1000, 1250, 0.8);
+        const path = `products/${Date.now()}_pasted`;
+        finalValue = await uploadImage(resized, path);
+      } catch (err) {
+        console.error("Product image upload failed:", err);
+        alert("Failed to upload pasted image.");
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
+    if (field === 'image') {
+      setNewProduct({...newProduct, image: finalValue});
+    } else if (field === 'additional' && index !== undefined) {
+      const newImages = [...(newProduct.images || [])];
+      newImages[index] = finalValue;
+      setNewProduct({...newProduct, images: newImages});
+    } else if (field === 'color' && colorIndex !== undefined && index !== undefined) {
+      const newColors = [...(newProduct.colors || [])];
+      const newImages = [...(newColors[colorIndex].images || [])];
+      newImages[index] = finalValue;
+      newColors[colorIndex] = { ...newColors[colorIndex], images: newImages };
+      setNewProduct({...newProduct, colors: newColors});
+    }
+  };
+
+  const updateEditingProductImage = async (field: 'image' | 'additional' | 'color', value: string, index?: number, colorIndex?: number) => {
+    if (!editingProduct) return;
+    let finalValue = value;
+    if (value.startsWith('data:')) {
+      setIsUploading(true);
+      try {
+        const resized = await resizeImage(value, 1000, 1250, 0.8);
+        const path = `products/${Date.now()}_pasted`;
+        finalValue = await uploadImage(resized, path);
+      } catch (err) {
+        console.error("Editing product image upload failed:", err);
+        alert("Failed to upload pasted image.");
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
+    if (field === 'image') {
+      setEditingProduct({...editingProduct, image: finalValue});
+    } else if (field === 'additional' && index !== undefined) {
+      const newImages = [...(editingProduct.images || [])];
+      newImages[index] = finalValue;
+      setEditingProduct({...editingProduct, images: newImages});
+    } else if (field === 'color' && colorIndex !== undefined && index !== undefined) {
+      const newColors = [...(editingProduct.colors || [])];
+      const newImages = [...(newColors[colorIndex].images || [])];
+      newImages[index] = finalValue;
+      newColors[colorIndex] = { ...newColors[colorIndex], images: newImages };
+      setEditingProduct({...editingProduct, colors: newColors});
+    }
   };
 
   const addNavigationMenu = () => {
@@ -832,30 +1079,57 @@ export function AdminPage() {
     setDraftNavigationMenus(newMenus);
   };
 
-  const updateSubmenuLogo = (menuIndex: number, submenuIndex: number, logo: string) => {
-    const newMenus = [...draftNavigationMenus];
-    newMenus[menuIndex].submenus[submenuIndex].logo = logo;
-    setDraftNavigationMenus(newMenus);
+  const updateSubmenuLogo = async (menuIndex: number, submenuIndex: number, logo: string) => {
+    if (logo.startsWith('data:')) {
+      setIsUploading(true);
+      try {
+        const resized = await resizeImage(logo, 200, 200, 0.8);
+        const path = `nav/submenu_${Date.now()}_pasted`;
+        const publicUrl = await uploadImage(resized, path);
+        const newMenus = [...draftNavigationMenus];
+        newMenus[menuIndex].submenus[submenuIndex].logo = publicUrl;
+        setDraftNavigationMenus(newMenus);
+      } catch (err) {
+        console.error("Failed to upload pasted submenu logo:", err);
+        alert("Failed to upload image. Please try again or use a URL.");
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      const newMenus = [...draftNavigationMenus];
+      newMenus[menuIndex].submenus[submenuIndex].logo = logo;
+      setDraftNavigationMenus(newMenus);
+    }
   };
 
   const handleColorImageUpload = (e: ChangeEvent<HTMLInputElement>, colorIndex: number, imageIndex: number, isEditing: boolean = false) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploading(true);
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const resized = await resizeImage(reader.result as string, 1000, 1250, 0.8);
-        if (isEditing && editingProduct) {
-          const newColors = [...(editingProduct.colors || [])];
-          const colorImages = [...(newColors[colorIndex].images || [])];
-          colorImages[imageIndex] = resized;
-          newColors[colorIndex] = { ...newColors[colorIndex], images: colorImages };
-          setEditingProduct({ ...editingProduct, colors: newColors });
-        } else {
-          const newColors = [...(newProduct.colors || [])];
-          const colorImages = [...(newColors[colorIndex].images || [])];
-          colorImages[imageIndex] = resized;
-          newColors[colorIndex] = { ...newColors[colorIndex], images: colorImages };
-          setNewProduct({ ...newProduct, colors: newColors });
+        try {
+          const resized = await resizeImage(reader.result as string, 1000, 1250, 0.8);
+          const path = `products/color_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(resized, path);
+
+          if (isEditing && editingProduct) {
+            const newColors = [...(editingProduct.colors || [])];
+            const colorImages = [...(newColors[colorIndex].images || [])];
+            colorImages[imageIndex] = publicUrl;
+            newColors[colorIndex] = { ...newColors[colorIndex], images: colorImages };
+            setEditingProduct({ ...editingProduct, colors: newColors });
+          } else {
+            const newColors = [...(newProduct.colors || [])];
+            const colorImages = [...(newColors[colorIndex].images || [])];
+            colorImages[imageIndex] = publicUrl;
+            newColors[colorIndex] = { ...newColors[colorIndex], images: colorImages };
+            setNewProduct({ ...newProduct, colors: newColors });
+          }
+        } catch (err) {
+          console.error("Color image upload failed:", err);
+        } finally {
+          setIsUploading(false);
         }
       };
       reader.readAsDataURL(file);
@@ -865,9 +1139,19 @@ export function AdminPage() {
   const handleSubmenuLogoUpload = (menuIndex: number, submenuIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploading(true);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        updateSubmenuLogo(menuIndex, submenuIndex, reader.result as string);
+      reader.onloadend = async () => {
+        try {
+          const resized = await resizeImage(reader.result as string, 200, 200, 0.8);
+          const path = `nav/submenu_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(resized, path);
+          updateSubmenuLogo(menuIndex, submenuIndex, publicUrl);
+        } catch (err) {
+          console.error("Submenu logo upload failed:", err);
+        } finally {
+          setIsUploading(false);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -885,18 +1169,45 @@ export function AdminPage() {
     setDraftNavigationMenus(newMenus);
   };
 
-  const updateSubmenuItem = (menuIndex: number, submenuIndex: number, itemIndex: number, field: 'label' | 'path' | 'logo', value: string) => {
-    const newMenus = [...draftNavigationMenus];
-    newMenus[menuIndex].submenus[submenuIndex].items[itemIndex] = { ...newMenus[menuIndex].submenus[submenuIndex].items[itemIndex], [field]: value };
-    setDraftNavigationMenus(newMenus);
+  const updateSubmenuItem = async (menuIndex: number, submenuIndex: number, itemIndex: number, field: 'label' | 'path' | 'logo', value: string) => {
+    if (field === 'logo' && value.startsWith('data:')) {
+      setIsUploading(true);
+      try {
+        const resized = await resizeImage(value, 120, 120, 0.8);
+        const path = `nav/item_${Date.now()}_pasted`;
+        const publicUrl = await uploadImage(resized, path);
+        const newMenus = [...draftNavigationMenus];
+        newMenus[menuIndex].submenus[submenuIndex].items[itemIndex] = { ...newMenus[menuIndex].submenus[submenuIndex].items[itemIndex], logo: publicUrl };
+        setDraftNavigationMenus(newMenus);
+      } catch (err) {
+        console.error("Failed to upload pasted item logo:", err);
+        alert("Failed to upload image. Please try again.");
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      const newMenus = [...draftNavigationMenus];
+      newMenus[menuIndex].submenus[submenuIndex].items[itemIndex] = { ...newMenus[menuIndex].submenus[submenuIndex].items[itemIndex], [field]: value };
+      setDraftNavigationMenus(newMenus);
+    }
   };
 
   const handleSubmenuItemLogoUpload = (menuIndex: number, submenuIndex: number, itemIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploading(true);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        updateSubmenuItem(menuIndex, submenuIndex, itemIndex, 'logo', reader.result as string);
+      reader.onloadend = async () => {
+        try {
+          const resized = await resizeImage(reader.result as string, 120, 120, 0.8);
+          const path = `nav/item_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(resized, path);
+          updateSubmenuItem(menuIndex, submenuIndex, itemIndex, 'logo', publicUrl);
+        } catch (err) {
+          console.error("Item logo upload failed:", err);
+        } finally {
+          setIsUploading(false);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -945,19 +1256,44 @@ export function AdminPage() {
     setDraftHomeCategories(draftHomeCategories.filter((_, i) => i !== index));
   };
 
-  const updateCategory = (index: number, field: keyof typeof draftHomeCategories[0], value: string) => {
+  const updateCategory = async (index: number, field: keyof typeof draftHomeCategories[0], value: string) => {
+    let finalValue = value;
+    if (field === 'image' && value.startsWith('data:')) {
+      setIsUploading(true);
+      try {
+        const resized = await resizeImage(value, 900, 1200, 0.8);
+        const path = `categories/${Date.now()}_pasted`;
+        finalValue = await uploadImage(resized, path);
+      } catch (err) {
+        console.error("Category image upload failed:", err);
+        alert("Failed to upload pasted image.");
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
     const newCats = [...draftHomeCategories];
-    newCats[index] = { ...newCats[index], [field]: value };
+    newCats[index] = { ...newCats[index], [field]: finalValue as any };
     setDraftHomeCategories(newCats);
   };
 
   const handleCategoryImageUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploading(true);
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const resized = await resizeImage(reader.result as string, 900, 1200, 0.8);
-        updateCategory(index, 'image', resized);
+        try {
+          const resized = await resizeImage(reader.result as string, 900, 1200, 0.8);
+          const path = `categories/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(resized, path);
+          updateCategory(index, 'image', publicUrl);
+        } catch (err) {
+          console.error("Category image upload failed:", err);
+        } finally {
+          setIsUploading(false);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -1155,20 +1491,30 @@ export function AdminPage() {
                       <Upload size={14} /> Upload New
                       <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                     </label>
-                    <button 
-                      onClick={handleSaveSlider}
-                      disabled={isSaving}
-                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'}`}
-                    >
-                      {isSaving ? (
+                    <div className="flex items-center gap-4">
+                      {draftSliderImages && (
+                        <div className={`text-[10px] font-black uppercase tracking-widest ${
+                          JSON.stringify({ sliderImages: draftSliderImages }).length > 3500000 ? 'text-red-500' : 
+                          JSON.stringify({ sliderImages: draftSliderImages }).length > 2000000 ? 'text-amber-500' : 'text-zinc-400'
+                        }`}>
+                          Size: {(JSON.stringify({ sliderImages: draftSliderImages }).length / 1024 / 1024).toFixed(2)}MB / 4.5MB
+                        </div>
+                      )}
+                      <button 
+                        onClick={handleSaveSlider}
+                        disabled={isSaving || isUploading}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                      {isSaving || isUploading ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : saveSuccess ? (
                         <Check size={14} />
                       ) : (
                         <Save size={14} />
                       )}
-                      {isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Changes'}
+                      {isUploading ? 'Uploading...' : isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Changes'}
                     </button>
+                    </div>
                   </div>
                 </div>
                 
@@ -1262,17 +1608,17 @@ export function AdminPage() {
                     </button>
                     <button 
                       onClick={handleSaveHomeLayout}
-                      disabled={isSaving}
-                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'}`}
+                      disabled={isSaving || isUploading}
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      {isSaving ? (
+                      {isSaving || isUploading ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : saveSuccess ? (
                         <Check size={14} />
                       ) : (
                         <Save size={14} />
                       )}
-                      {isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Layout'}
+                      {isUploading ? 'Uploading...' : isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Layout'}
                     </button>
                   </div>
                 </div>
@@ -1427,20 +1773,30 @@ export function AdminPage() {
                     >
                       <Plus size={14} /> Add Main Menu
                     </button>
-                    <button 
-                      onClick={handleSaveNavigation}
-                      disabled={isSaving}
-                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'}`}
-                    >
-                      {isSaving ? (
+                    <div className="flex items-center gap-4">
+                      {draftNavigationMenus && (
+                        <div className={`text-[10px] font-black uppercase tracking-widest ${
+                          JSON.stringify({ navigationMenus: draftNavigationMenus }).length > 3500000 ? 'text-red-500' : 
+                          JSON.stringify({ navigationMenus: draftNavigationMenus }).length > 2000000 ? 'text-amber-500' : 'text-zinc-400'
+                        }`}>
+                          Size: {(JSON.stringify({ navigationMenus: draftNavigationMenus }).length / 1024 / 1024).toFixed(2)}MB / 4.5MB
+                        </div>
+                      )}
+                      <button 
+                        onClick={handleSaveNavigation}
+                        disabled={isSaving || isUploading}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                      {isSaving || isUploading ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : saveSuccess ? (
                         <Check size={14} />
                       ) : (
                         <Save size={14} />
                       )}
-                      {isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Changes'}
+                      {isUploading ? 'Uploading...' : isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Changes'}
                     </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1663,10 +2019,17 @@ export function AdminPage() {
                     </button>
                     <button 
                       onClick={handleSaveFooter}
-                      disabled={isSaving}
-                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'}`}
+                      disabled={isSaving || isUploading}
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      {isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Footer'}
+                      {isSaving || isUploading ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : saveSuccess ? (
+                        <Check size={14} />
+                      ) : (
+                        <Save size={14} />
+                      )}
+                      {isUploading ? 'Uploading...' : isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Footer'}
                     </button>
                   </div>
                 </div>
@@ -1714,10 +2077,17 @@ export function AdminPage() {
                   </div>
                   <button 
                     onClick={handleSaveSEO}
-                    disabled={isSaving}
-                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'}`}
+                    disabled={isSaving || isUploading}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    {isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save SEO'}
+                    {isSaving || isUploading ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : saveSuccess ? (
+                      <Check size={14} />
+                    ) : (
+                      <Save size={14} />
+                    )}
+                    {isUploading ? 'Uploading...' : isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save SEO'}
                   </button>
                 </div>
                 
@@ -1730,7 +2100,7 @@ export function AdminPage() {
                         <input
                           type="text"
                           value={draftSeoSettings.title}
-                          onChange={(e) => setDraftSeoSettings({ ...draftSeoSettings, title: e.target.value })}
+                          onChange={(e) => updateSeoField('title', e.target.value)}
                           className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all"
                           placeholder="Site Title"
                         />
@@ -1739,7 +2109,7 @@ export function AdminPage() {
                         <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Meta Description</label>
                         <textarea
                           value={draftSeoSettings.description}
-                          onChange={(e) => setDraftSeoSettings({ ...draftSeoSettings, description: e.target.value })}
+                          onChange={(e) => updateSeoField('description', e.target.value)}
                           className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all min-h-[100px]"
                           placeholder="Site Description"
                         />
@@ -1749,7 +2119,7 @@ export function AdminPage() {
                         <input
                           type="text"
                           value={draftSeoSettings.keywords}
-                          onChange={(e) => setDraftSeoSettings({ ...draftSeoSettings, keywords: e.target.value })}
+                          onChange={(e) => updateSeoField('keywords', e.target.value)}
                           className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all"
                           placeholder="soccer, mississauga, custom uniforms..."
                         />
@@ -1764,7 +2134,7 @@ export function AdminPage() {
                         <input
                           type="text"
                           value={draftSeoSettings.ogTitle}
-                          onChange={(e) => setDraftSeoSettings({ ...draftSeoSettings, ogTitle: e.target.value })}
+                          onChange={(e) => updateSeoField('ogTitle', e.target.value)}
                           className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all"
                         />
                       </div>
@@ -1773,7 +2143,7 @@ export function AdminPage() {
                         <input
                           type="text"
                           value={draftSeoSettings.ogImage}
-                          onChange={(e) => setDraftSeoSettings({ ...draftSeoSettings, ogImage: e.target.value })}
+                          onChange={(e) => updateSeoField('ogImage', e.target.value)}
                           className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all"
                         />
                       </div>
@@ -1944,6 +2314,14 @@ export function AdminPage() {
                           reader.onload = async (event) => {
                             try {
                               const data = JSON.parse(event.target?.result as string);
+                              
+                              if (containsBase64(data)) {
+                                if (!window.confirm('This backup contains base64 images which may cause "Payload Too Large" errors on Vercel. Would you like to try anyway?')) {
+                                  setIsRestoringLocal(false);
+                                  return;
+                                }
+                              }
+
                               const response = await fetch('/api/admin/sync-local', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -2171,7 +2549,7 @@ export function AdminPage() {
                             className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[#b90014] outline-none" 
                             placeholder="Or paste image URL..." 
                             value={newProduct.image} 
-                            onChange={e => setNewProduct({...newProduct, image: e.target.value})} 
+                            onChange={e => updateNewProductImage('image', e.target.value)} 
                           />
                         </div>
                       </div>
@@ -2200,11 +2578,7 @@ export function AdminPage() {
                                 className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[#b90014] outline-none" 
                                 placeholder="Or paste image URL..." 
                                 value={img} 
-                                onChange={e => {
-                                  const newImages = [...(newProduct.images || [])];
-                                  newImages[idx] = e.target.value;
-                                  setNewProduct({...newProduct, images: newImages});
-                                }} 
+                                onChange={e => updateNewProductImage('additional', e.target.value, idx)} 
                               />
                             </div>
                             <button 
@@ -2292,13 +2666,7 @@ export function AdminPage() {
                                         className="flex-1 p-1 bg-white border border-zinc-200 rounded text-[9px]" 
                                         placeholder="URL" 
                                         value={img} 
-                                        onChange={e => {
-                                          const newColors = [...(newProduct.colors || [])];
-                                          const newImages = [...(newColors[colorIdx].images || [])];
-                                          newImages[imgIdx] = e.target.value;
-                                          newColors[colorIdx] = {...newColors[colorIdx], images: newImages};
-                                          setNewProduct({...newProduct, colors: newColors});
-                                        }} 
+                                        onChange={e => updateNewProductImage('color', e.target.value, imgIdx, colorIdx)} 
                                       />
                                     </div>
                                     <button 
@@ -2381,16 +2749,16 @@ export function AdminPage() {
                       className={`w-full mt-4 p-4 rounded-xl font-headline font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 ${
                         addStatus === 'success' ? 'bg-green-600 text-white' : 
                         addStatus === 'error' ? 'bg-red-600 text-white' : 
-                        addStatus === 'syncing' ? 'bg-zinc-700 text-white' :
+                        addStatus === 'syncing' || isUploading ? 'bg-zinc-700 text-white' :
                         'bg-zinc-900 text-white hover:bg-[#b90014] shadow-zinc-900/10'
                       }`}
                       onClick={handleAdd}
-                      disabled={addStatus === 'syncing'}
+                      disabled={addStatus === 'syncing' || isUploading}
                     >
-                      {addStatus === 'syncing' ? (
+                      {addStatus === 'syncing' || isUploading ? (
                         <>
                           <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Syncing...
+                          {isUploading ? 'Uploading Image...' : 'Syncing...'}
                         </>
                       ) : addStatus === 'success' ? (
                         <>
@@ -2628,6 +2996,25 @@ export function AdminPage() {
                       ))
                     )}
                   </div>
+                  
+                  {hasMoreProducts && productCategoryFilter === 'All' && !adminSearchTerm && (
+                    <div className="p-8 border-t border-zinc-100 bg-zinc-50 flex justify-center">
+                      <button
+                        onClick={loadMoreAdminProducts}
+                        disabled={isLoading}
+                        className="flex items-center gap-2 px-8 py-3 bg-white border border-zinc-200 text-zinc-900 rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-zinc-900 hover:text-white transition-all shadow-sm disabled:opacity-50"
+                      >
+                        {isLoading ? (
+                          <div className="w-4 h-4 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <CloudDownload size={16} />
+                            Load More Products
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                   
                   {/* Diagnostic Section */}
                   <div className="mt-12 p-8 border-t border-zinc-100 bg-zinc-50/50 rounded-xl">
@@ -2893,7 +3280,7 @@ export function AdminPage() {
                           className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[#b90014] outline-none" 
                           placeholder="Or paste image URL..." 
                           value={editingProduct.image} 
-                          onChange={e => setEditingProduct({...editingProduct, image: e.target.value})} 
+                          onChange={e => updateEditingProductImage('image', e.target.value)} 
                         />
                       </div>
                     </div>
@@ -2922,11 +3309,7 @@ export function AdminPage() {
                               className="flex-1 p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[#b90014] outline-none" 
                               placeholder="Or paste image URL..." 
                               value={img} 
-                              onChange={e => {
-                                const newImages = [...(editingProduct.images || [])];
-                                newImages[idx] = e.target.value;
-                                setEditingProduct({...editingProduct, images: newImages});
-                              }} 
+                              onChange={e => updateEditingProductImage('additional', e.target.value, idx)} 
                             />
                           </div>
                           <button 
@@ -3015,13 +3398,7 @@ export function AdminPage() {
                                       className="flex-1 p-1 bg-white border border-zinc-200 rounded text-[9px]" 
                                       placeholder="URL" 
                                       value={img} 
-                                      onChange={e => {
-                                        const newColors = [...(editingProduct.colors || [])];
-                                        const newImages = [...(newColors[colorIdx].images || [])];
-                                        newImages[imgIdx] = e.target.value;
-                                        newColors[colorIdx] = {...newColors[colorIdx], images: newImages};
-                                        setEditingProduct({...editingProduct, colors: newColors});
-                                      }} 
+                                      onChange={e => updateEditingProductImage('color', e.target.value, imgIdx, colorIdx)} 
                                     />
                                   </div>
                                   <button 
@@ -3079,10 +3456,27 @@ export function AdminPage() {
                     Cancel
                   </button>
                   <button 
-                    onClick={handleUpdate}
-                    className="px-8 py-3 bg-zinc-900 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#b90014] transition-all shadow-lg shadow-zinc-900/10"
+                    onClick={async () => {
+                      if (editingProduct) {
+                        const payloadSize = JSON.stringify(editingProduct).length;
+                        if (payloadSize > 4000000) {
+                          alert(`Product data is too large (${(payloadSize / 1024 / 1024).toFixed(2)}MB). Please use smaller images.`);
+                          return;
+                        }
+                        await handleUpdate();
+                      }
+                    }}
+                    disabled={isUploading}
+                    className={`px-8 py-3 bg-zinc-900 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#b90014] transition-all shadow-lg shadow-zinc-900/10 flex items-center gap-2 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    Save Changes
+                    {isUploading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
                   </button>
                 </div>
               </motion.div>
