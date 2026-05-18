@@ -859,7 +859,7 @@ export function AdminPage() {
     }
 
     try {
-      console.log("AdminPage: Initiating row-by-row navigation save to Supabase...");
+      console.log("AdminPage: Initiating direct settings save to Supabase...");
       
       const essentialItems = ['CUSTOM LAB', 'UNIFORM SUBMISSION'];
       const finalMenus = [...draftNavigationMenus];

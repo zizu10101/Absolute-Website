@@ -91,7 +91,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       let mode = 'unknown';
 
       try {
-        // Fetch standard settings
         const { data: settingsData, error: settingsError } = await supabase.from('settings').select('key, data');
         if (settingsError) throw settingsError;
 
@@ -100,40 +99,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             acc[curr.key] = curr.data;
             return acc;
           }, {});
-        }
-
-        // Fetch flattened navigation row-by-row
-        console.log('SettingsContext: Fetching navigation row-by-row...');
-        const { data: flatNav, error: navError } = await supabase
-          .from('navigation')
-          .select('*')
-          .order('sort_order', { ascending: true });
-
-        if (!navError && flatNav && flatNav.length > 0) {
-          // Reconstruct tree
-          const menus = flatNav.filter(n => n.type === 'menu').map(m => ({
-            id: m.id,
-            label: m.label,
-            path: m.path,
-            submenus: flatNav.filter(s => s.type === 'submenu' && s.parent_id === m.id).map(s => ({
-              id: s.id,
-              heading: s.label,
-              path: s.path,
-              logo: s.logo,
-              items: flatNav.filter(i => i.type === 'item' && i.parent_id === s.id).map(i => ({
-                id: i.id,
-                label: i.label,
-                path: i.path,
-                logo: i.logo
-              }))
-            }))
-          }));
-          
-          if (!results) results = {};
-          results.navigation = { navigationMenus: menus };
-          console.log(`SettingsContext: Reconstructed ${menus.length} menus from navigation table`);
-        } else if (navError) {
-          console.warn('SettingsContext: Navigation table fetch failed or empty, falling back to settings JSON:', navError);
         }
 
         mode = 'direct-supabase';
@@ -239,6 +204,26 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         throw new Error(errorMsg);
       }
       
+      // 1. Try Direct Supabase Upsert FIRST (Bypasses Vercel Payload Limits)
+      console.log(`SettingsContext: Attempting direct Supabase upsert for ${key}...`);
+      const { data: upsertData, error: upsertError } = await supabase
+        .from('settings')
+        .upsert({ 
+          key, 
+          data: updates,
+          updated_at: new Date()
+        }, { onConflict: 'key' })
+        .select();
+
+      if (!upsertError) {
+        console.log(`SettingsContext: Direct Supabase save successful for ${key}`);
+        updateLocalState(key, updates);
+        return;
+      }
+
+      console.warn(`SettingsContext: Direct Supabase upsert failed for ${key}, falling back to API:`, upsertError);
+
+      // 2. Fallback to API if RLS or other issues prevent direct write
       // Vercel limit is 4.5MB, we check at 4MB to be safe
       if (payloadSize > 4000000) {
         throw new Error(`THE DATA YOU ARE TRYING TO SAVE IS TOO LARGE (${(payloadSize / 1024 / 1024).toFixed(2)}MB). Please remove some images or simplify your menus to stay under the 4MB limit.`);
@@ -293,7 +278,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       // Sync local state
       updateLocalState(key, result);
     } catch (err: any) {
-      console.error(`API update for settings ${key} failed:`, err);
+      console.error(`Settings update for ${key} failed:`, err);
       throw err;
     }
   };
@@ -350,84 +335,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   };
 
   const setNavigationMenus = async (menus: NavMenu[]) => {
-    console.log('SettingsContext: Saving navigation row-by-row directly to Supabase...');
-    setIsLoading(true);
-    try {
-      // 1. Flatten the tree
-      const rows: any[] = [];
-      menus.forEach((menu, menuIdx) => {
-        const menuId = menu.id || `menu_${Date.now()}_${menuIdx}`;
-        rows.push({
-          id: menuId,
-          label: menu.label,
-          path: menu.path,
-          type: 'menu',
-          parent_id: null,
-          sort_order: menuIdx,
-          logo: null
-        });
-
-        menu.submenus.forEach((submenu, subIdx) => {
-          const subId = submenu.id || `submenu_${Date.now()}_${menuIdx}_${subIdx}`;
-          rows.push({
-            id: subId,
-            label: submenu.heading,
-            path: submenu.path || null,
-            type: 'submenu',
-            parent_id: menuId,
-            sort_order: subIdx,
-            logo: submenu.logo || null
-          });
-
-          submenu.items.forEach((item, itemIdx) => {
-            const itemId = item.id || `item_${Date.now()}_${menuIdx}_${subIdx}_${itemIdx}`;
-            rows.push({
-              id: itemId,
-              label: item.label,
-              path: item.path,
-              type: 'item',
-              parent_id: subId,
-              sort_order: itemIdx,
-              logo: item.logo || null
-            });
-          });
-        });
-      });
-
-      // 2. Clear and Upsert
-      // NOTE: Using a transaction-like approach by deleting old and inserting new
-      // In a real app, we'd use a single RPC call or more sophisticated upsert
-      const { error: deleteError } = await supabase.from('navigation').delete().neq('id', '0');
-      if (deleteError) {
-        console.warn('Navigation table clear failed (might not exist), trying standard settings fallback:', deleteError);
-        // Fallback to settings table if navigation table doesn't exist
-        await updateSettings('navigation', { navigationMenus: menus });
-        return;
-      }
-
-      const { error: insertError } = await supabase.from('navigation').insert(rows);
-      if (insertError) throw insertError;
-
-      // Also update the legacy settings blob for backward compatibility and fallback
-      try {
-        await supabase.from('settings').upsert({ 
-          key: 'navigation', 
-          data: { navigationMenus: menus },
-          updated_at: new Date()
-        }, { onConflict: 'key' });
-      } catch (e) {
-        console.warn('Legacy settings sync failed:', e);
-      }
-
-      setNavigationMenusState(menus);
-      console.log('SettingsContext: Navigation saved successfully row-by-row');
-    } catch (err: any) {
-      console.error('SettingsContext: Failed to save navigation row-by-row:', err);
-      // Last ditch fallback to standard API
-      await updateSettings('navigation', { navigationMenus: menus });
-    } finally {
-      setIsLoading(false);
-    }
+    await updateSettings('navigation', { navigationMenus: menus });
   };
 
   const setSeoSettings = async (seo: SEO) => {
