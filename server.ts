@@ -104,12 +104,26 @@ async function startServer() {
         return res.json(responseData);
       } else {
         const fileContent = await fs.readFile(LOCAL_PRODUCTS_PATH, 'utf-8').catch(() => '[]');
-        return res.json({ data: JSON.parse(fileContent), mode: 'local' });
+        let data;
+        try {
+          data = JSON.parse(fileContent);
+        } catch (e) {
+          console.error("Failed to parse local products JSON, returning empty list");
+          data = [];
+        }
+        return res.json({ data, mode: 'local' });
       }
     } catch (err) {
       console.warn("Supabase products fetch failed, using local fallback");
       const fileContent = await fs.readFile(LOCAL_PRODUCTS_PATH, 'utf-8').catch(() => '[]');
-      return res.json({ data: JSON.parse(fileContent), mode: 'local-fallback' });
+      let data;
+      try {
+        data = JSON.parse(fileContent);
+      } catch (e) {
+        console.error("Failed to parse local products JSON fallback, returning empty list");
+        data = [];
+      }
+      return res.json({ data, mode: 'local-fallback' });
     }
   });
 

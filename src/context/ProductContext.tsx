@@ -71,7 +71,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       // Also fetch a small batch of all products to have some local cache
       try {
         const response = await fetch(`/api/products?limit=20&fields=${LIST_FIELDS}`);
-        if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (!response.ok || (contentType && contentType.includes('text/html'))) {
           console.warn(`Initial product batch fetch failed: ${response.status} ${response.statusText}`);
           return;
         }
