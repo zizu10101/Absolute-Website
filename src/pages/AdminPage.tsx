@@ -1241,6 +1241,67 @@ export function AdminPage() {
     alert('Sample logos applied to your current navigation. Click "Save Navigation" to apply changes.');
   };
 
+  const handleAutoFixLogos = async () => {
+    setIsSaving(true);
+    setSaveErrorMessage("AUTO-FIXING LOGOS: Searching and uploading base64 strings directly to Supabase...");
+    
+    try {
+      const menus = JSON.parse(JSON.stringify(draftNavigationMenus));
+      let fixCount = 0;
+
+      // Recursively find and fix base64 logos
+      for (let i = 0; i < menus.length; i++) {
+        const menu = menus[i];
+        if (menu.submenus) {
+          for (let j = 0; j < menu.submenus.length; j++) {
+            const sub = menu.submenus[j];
+            if (sub.logo && sub.logo.startsWith('data:image')) {
+              console.log(`Fixing logo at [${i}].submenus[${j}].logo`);
+              const path = `nav/auto-fix_${Date.now()}_sub_${i}_${j}`;
+              sub.logo = await uploadImage(sub.logo, path);
+              fixCount++;
+            }
+            if (sub.items) {
+              for (let k = 0; k < sub.items.length; k++) {
+                const item = sub.items[k];
+                if (item.logo && item.logo.startsWith('data:image')) {
+                  console.log(`Fixing logo at [${i}].submenus[${j}].items[${k}].logo`);
+                  const path = `nav/auto-fix_${Date.now()}_item_${i}_${j}_${k}`;
+                  item.logo = await uploadImage(item.logo, path);
+                  fixCount++;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      if (fixCount === 0) {
+        setSaveErrorMessage(null);
+        setIsSaving(false);
+        alert('No base64 logos detected. Your navigation state is clean!');
+        return;
+      }
+
+      console.log(`Auto-fix complete. Total logos fixed: ${fixCount}`);
+      setDraftNavigationMenus(menus);
+      
+      // Directly persist the fixed rows to Supabase to clear the error
+      await setNavigationMenus(menus);
+      
+      setSaveSuccess(true);
+      setSaveErrorMessage(null);
+      alert(`Auto-fix successfully uploaded ${fixCount} logos to Supabase and saved your navigation.`);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error: any) {
+      console.error('Auto-fix failed:', error);
+      setSaveErrorMessage(`Auto-fix failed: ${error.message}`);
+      alert(`Auto-fix failed: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const addCategory = () => {
     const usedNames = draftHomeCategories.map(c => c.name);
     const firstAvailable = CATEGORIES.find(name => !usedNames.includes(name)) || CATEGORIES[0];
@@ -1744,6 +1805,13 @@ export function AdminPage() {
                         className="px-3 py-1.5 bg-zinc-100 text-zinc-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-colors border border-zinc-200"
                       >
                         Restore Sample Logos
+                      </button>
+                      <button 
+                        onClick={handleAutoFixLogos}
+                        className="px-3 py-1.5 bg-zinc-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-colors border border-zinc-900 shadow-sm flex items-center gap-1"
+                      >
+                        <Zap size={12} className="text-yellow-400" />
+                        Auto-Fix Default Logos
                       </button>
                       <button 
                         onClick={() => {
