@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Fragment, useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Meta } from './components/Meta';
+import { ScrollToTop } from './components/ScrollToTop';
 import { HomePage } from './pages/HomePage';
 import { AdminLogin } from './pages/AdminLogin';
 import { ProductProvider, useProducts } from './context/ProductContext';
@@ -117,6 +118,7 @@ export default function App() {
       <ProductProvider>
         <SettingsProvider>
           <BrowserRouter>
+            <ScrollToTop />
             <AppContent />
           </BrowserRouter>
         </SettingsProvider>

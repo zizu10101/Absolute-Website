@@ -41,6 +41,14 @@ export function AdminPage() {
   const { sliderImages, setSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, setGlobalSettings, resetSettings } = useSettings();
   const { logout, user } = useAuth();
 
+  const updateDraftNavigationMenu = (index: number, field: string, value: string) => {
+    setDraftNavigationMenus(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
   useEffect(() => {
     fetchAdminProducts();
   }, []);
@@ -1839,7 +1847,7 @@ export function AdminPage() {
                             <input 
                               type="text" 
                               value={menu.label}
-                              onChange={(e) => updateNavigationMenu(menuIndex, 'label', e.target.value)}
+                              onChange={(e) => updateDraftNavigationMenu(menuIndex, 'label', e.target.value)}
                               className="w-full bg-zinc-50 border-none focus:ring-2 focus:ring-zinc-900 rounded-lg px-3 py-2 text-sm font-bold"
                             />
                           </div>
@@ -1848,7 +1856,7 @@ export function AdminPage() {
                             <input 
                               type="text" 
                               value={menu.path}
-                              onChange={(e) => updateNavigationMenu(menuIndex, 'path', e.target.value)}
+                              onChange={(e) => updateDraftNavigationMenu(menuIndex, 'path', e.target.value)}
                               className="w-full bg-zinc-50 border-none focus:ring-2 focus:ring-zinc-900 rounded-lg px-3 py-2 text-sm"
                             />
                           </div>
