@@ -367,13 +367,28 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     await updateSettings('footer', { footerLinks: links });
   };
 
-  const updateNavigationItem = async (itemId: string, updates: Record<string, any>) => {
+  const updateNavigationItem = async (itemId: string, updates: Record<string, any>, logoFile?: File) => {
     try {
-      const { error } = await supabase.from('navigation_items').update(updates).eq('id', itemId);
+      let finalUpdates = { ...updates };
+
+      // Handle hybrid logo logic
+      if (logoFile) {
+        try {
+          const path = `nav/item_${Date.now()}_${logoFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(logoFile, path, 'navigation_logos');
+          finalUpdates.logo_url = publicUrl;
+        } catch (err: any) {
+          console.error('SettingsContext: Failed to upload logo, proceeding with text updates:', err);
+          // If upload fails, just don't update logo_url, proceed with other updates
+          delete finalUpdates.logo_url;
+        }
+      } else if (finalUpdates.logo_url && finalUpdates.logo_url.startsWith('data:image/')) {
+        // Base64 logo, keep as is
+      }
+
+      const { error } = await supabase.from('navigation_items').update(finalUpdates).eq('id', itemId);
       if (error) throw error;
       
-      // Update local state by forcing a re-fetch or updating local array
-      // Re-fetch is safer for now
       await fetchSettings();
     } catch (err: any) {
       console.error('SettingsContext: Failed to update navigation item:', err);
