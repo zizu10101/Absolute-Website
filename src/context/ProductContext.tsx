@@ -189,6 +189,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     try {
       const params = new URLSearchParams();
       if (category && category.toLowerCase() !== 'all') params.append('category', category);
+      if (submenu) params.append('submenu', submenu);
       params.append('fields', LIST_FIELDS);
       params.append('limit', '40');
       

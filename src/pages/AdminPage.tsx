@@ -1107,19 +1107,18 @@ export function AdminPage() {
     if (file) {
       setIsUploading(true);
       try {
-        const path = `nav/submenu_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+        const path = `nav/submenu_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase()}`;
         const publicUrl = await uploadImage(file, path, 'navigation_logos');
         const sub = draftNavigationMenus[menuIndex].submenus[submenuIndex];
 
+        // Update local state IMMEDIATELY so the user sees the preview
+        const newMenus = [...draftNavigationMenus];
+        newMenus[menuIndex].submenus[submenuIndex].logo = publicUrl;
+        setDraftNavigationMenus(newMenus);
+
+        // Try to update DB if id exists (legacy item being edited individually)
         if (sub.id) {
            await updateNavigationItem(sub.id, { logo_url: publicUrl });
-           
-           // Update local state
-           const newMenus = [...draftNavigationMenus];
-           newMenus[menuIndex].submenus[submenuIndex].logo = publicUrl;
-           setDraftNavigationMenus(newMenus);
-        } else {
-           console.error("Submenu id missing");
         }
       } catch (err: any) {
         console.error("Submenu logo upload failed:", err);
@@ -1170,19 +1169,18 @@ export function AdminPage() {
     if (file) {
       setIsUploading(true);
       try {
-        const path = `nav/item_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+        const path = `nav/item_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase()}`;
         const publicUrl = await uploadImage(file, path, 'navigation_logos');
         const item = draftNavigationMenus[menuIndex].submenus[submenuIndex].items[itemIndex];
         
+        // Update local state IMMEDIATELY
+        const newMenus = [...draftNavigationMenus];
+        newMenus[menuIndex].submenus[submenuIndex].items[itemIndex].logo = publicUrl;
+        setDraftNavigationMenus(newMenus);
+
+        // Try to update DB if id exists
         if (item.id) {
             await updateNavigationItem(item.id, { logo_url: publicUrl });
-            
-            // Update local state
-            const newMenus = [...draftNavigationMenus];
-            newMenus[menuIndex].submenus[submenuIndex].items[itemIndex].logo = publicUrl;
-            setDraftNavigationMenus(newMenus);
-        } else {
-             console.error("Item id missing");
         }
       } catch (err: any) {
         console.error("Item logo upload failed:", err);
@@ -1342,8 +1340,32 @@ export function AdminPage() {
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mb-4 p-4 bg-zinc-900 rounded-lg flex justify-between items-center text-white">
-          <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">Database Tools</p>
+        <div className="mb-4 p-4 bg-zinc-900 rounded-lg flex flex-wrap gap-4 justify-between items-center text-white">
+          <div className="flex items-center gap-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">Database Tools</p>
+            <div className="h-4 w-px bg-zinc-700" />
+            <button 
+              onClick={async () => {
+                if (window.confirm('Standardize all products and navigation (lowercase fields, leading slashes, path normalization)? This fixes filtering issues and 404s on production.')) {
+                  try {
+                    const resp = await fetch('/api/admin/standardize-db', { method: 'POST' });
+                    const data = await resp.json();
+                    if (data.results) {
+                      alert(`Standardization complete!\n- Products Fixed: ${data.results.productsFixed}\n- Navigation Fixed: ${data.results.navigationFixed}\n- Errors: ${data.results.errors.length}`);
+                    } else {
+                      alert(data.message || 'Standardization complete');
+                    }
+                    window.location.reload();
+                  } catch (err: any) {
+                    alert('Standardization failed: ' + err.message);
+                  }
+                }
+              }} 
+              className="px-4 py-2 bg-zinc-700 text-white font-bold text-[10px] uppercase tracking-widest rounded hover:bg-zinc-600 transition-colors flex items-center gap-2"
+            >
+              🛠️ Standardize Database & Assets
+            </button>
+          </div>
           <button onClick={(e) => { e.preventDefault(); forceManualNavigationMigration(); }} className="px-4 py-2 bg-blue-600 text-white font-bold text-[10px] uppercase tracking-widest rounded hover:bg-blue-700 transition-colors">
             🚀 Force Manual Database Migration
           </button>

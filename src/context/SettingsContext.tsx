@@ -397,6 +397,16 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   };
 
   const saveNavigation = async (menus: NavMenu[]) => {
+    const normalizePath = (p: string | null | undefined) => {
+      if (!p) return null;
+      let normalized = p.trim().toLowerCase();
+      // If it's an internal path (doesn't start with http/https/data) and lacks leading slash, add it
+      if (!normalized.startsWith('http') && !normalized.startsWith('data:') && !normalized.startsWith('/')) {
+        normalized = '/' + normalized;
+      }
+      return normalized;
+    };
+
     try {
       // 1. Clear out existing
       const { error: deleteItemsErr } = await supabase.from('navigation_items').delete().neq('id', '0');
@@ -409,7 +419,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         const menu = menus[m];
         const { data: insertedMenu, error: menuErr } = await supabase
           .from('navigation_menus')
-          .insert({ label: menu.label, path: menu.path, order_index: m })
+          .insert({ 
+            label: menu.label, 
+            path: normalizePath(menu.path) || '#', 
+            order_index: m 
+          })
           .select()
           .single();
         if (menuErr) throw menuErr;
@@ -421,8 +435,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             .insert({
               menu_id: insertedMenu.id,
               label: sub.heading,
-              path: sub.path,
-              logo_url: sub.logo,
+              path: normalizePath(sub.path) || '',
+              logo_url: normalizePath(sub.logo),
               order_index: s
             })
             .select()
@@ -437,8 +451,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 menu_id: insertedMenu.id,
                 parent_id: insertedSub.id,
                 label: item.label,
-                path: item.path,
-                logo_url: item.logo,
+                path: normalizePath(item.path) || '#',
+                logo_url: normalizePath(item.logo),
                 order_index: i
               });
             if (itemErr) throw itemErr;
