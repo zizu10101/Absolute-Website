@@ -211,7 +211,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         if (category && category.toLowerCase() !== 'all') {
           query = query.ilike('category', category);
         }
-        const { data, error } = await query.limit(40);
+        if (submenu) {
+          query = query.or(`submenu.ilike.${submenu},submenus.cs.{${submenu}}`);
+        }
+        const { data, error } = await query.order('name').limit(100);
         
         if (error) throw error;
         if (data) mergeProducts(data as any);
@@ -247,11 +250,33 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const addProduct = async (productData: Omit<Product, 'id'>) => {
+    const normalizePath = (p: string | undefined) => {
+      if (!p) return p;
+      let val = (p + '').trim();
+      if (val.startsWith('http') || val.startsWith('data:')) return val;
+      let normalized = val.toLowerCase();
+      if (!normalized.startsWith('/')) normalized = '/' + normalized;
+      return normalized;
+    };
+    const normalizeString = (s: string | undefined) => {
+      if (!s) return s;
+      return (s + '').trim().toLowerCase();
+    };
+
+    const normalizedData = {
+      ...productData,
+      image: normalizePath(productData.image),
+      images: productData.images?.map(img => normalizePath(img)),
+      category: normalizeString(productData.category),
+      submenu: normalizeString(productData.submenu),
+      submenus: productData.submenus?.map(s => normalizeString(s))
+    };
+
     try {
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productData)
+        body: JSON.stringify(normalizedData)
       });
       if (!response.ok) {
         throw new Error(`API failed: ${response.status}`);
@@ -272,11 +297,33 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProduct = async (updatedProduct: Product) => {
+    const normalizePath = (p: string | undefined) => {
+      if (!p) return p;
+      let val = (p + '').trim();
+      if (val.startsWith('http') || val.startsWith('data:')) return val;
+      let normalized = val.toLowerCase();
+      if (!normalized.startsWith('/')) normalized = '/' + normalized;
+      return normalized;
+    };
+    const normalizeString = (s: string | undefined) => {
+      if (!s) return s;
+      return (s + '').trim().toLowerCase();
+    };
+
+    const normalizedData = {
+      ...updatedProduct,
+      image: normalizePath(updatedProduct.image),
+      images: updatedProduct.images?.map(img => normalizePath(img)),
+      category: normalizeString(updatedProduct.category),
+      submenu: normalizeString(updatedProduct.submenu),
+      submenus: updatedProduct.submenus?.map(s => normalizeString(s))
+    };
+
     try {
       const response = await fetch(`/api/products/${updatedProduct.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedProduct)
+        body: JSON.stringify(normalizedData)
       });
       if (!response.ok) {
         throw new Error(`API failed: ${response.status}`);

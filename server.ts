@@ -246,9 +246,11 @@ async function startServer() {
 
   // Standardize Database Assets and Fields
   app.post("/api/admin/standardize-db", async (req, res) => {
+    console.log("POST /api/admin/standardize-db hit");
+    res.setHeader('Content-Type', 'application/json');
     try {
       if (!supabase) {
-        return res.status(400).json({ error: "Supabase not connected" });
+        return res.status(400).json({ error: "Supabase not connected. This feature requires Supabase." });
       }
 
       const results = {
@@ -259,7 +261,7 @@ async function startServer() {
 
       const normalizePath = (p: string | null | undefined) => {
         if (!p) return null;
-        let val = p.trim();
+        let val = (p + '').trim(); // Coerce to string
         if (val.startsWith('http') || val.startsWith('data:')) return val;
         let normalized = val.toLowerCase();
         if (!normalized.startsWith('/')) normalized = '/' + normalized;
@@ -268,77 +270,95 @@ async function startServer() {
 
       const normalizeString = (s: string | null | undefined) => {
         if (!s) return null;
-        return s.trim().toLowerCase();
+        return (s + '').trim().toLowerCase();
       };
 
       // 1. Standardize Products
+      console.log("Standardizing products...");
       const { data: products, error: prodErr } = await supabase.from('products').select('*');
       if (prodErr) throw prodErr;
 
       for (const p of (products || [])) {
         const updates: any = {};
         
-        const normImage = normalizePath(p.image);
-        if (normImage !== p.image) updates.image = normImage;
+        try {
+          const normImage = normalizePath(p.image);
+          if (normImage !== p.image) updates.image = normImage;
 
-        if (Array.isArray(p.images)) {
-          const normImages = p.images.map((img: string) => normalizePath(img));
-          if (JSON.stringify(normImages) !== JSON.stringify(p.images)) updates.images = normImages;
-        }
+          if (Array.isArray(p.images)) {
+            const normImages = p.images.map((img: any) => normalizePath(img));
+            if (JSON.stringify(normImages) !== JSON.stringify(p.images)) updates.images = normImages;
+          }
 
-        const normCat = normalizeString(p.category);
-        if (normCat !== p.category) updates.category = normCat;
+          const normCat = normalizeString(p.category);
+          if (normCat !== p.category) updates.category = normCat;
 
-        const normSub = normalizeString(p.submenu);
-        if (normSub !== p.submenu) updates.submenu = normSub;
+          const normSub = normalizeString(p.submenu);
+          if (normSub !== p.submenu) updates.submenu = normSub;
 
-        if (Array.isArray(p.submenus)) {
-          const normSubs = p.submenus.map((s: string) => normalizeString(s));
-          if (JSON.stringify(normSubs) !== JSON.stringify(p.submenus)) updates.submenus = normSubs;
-        }
+          if (Array.isArray(p.submenus)) {
+            const normSubs = p.submenus.map((s: any) => normalizeString(s));
+            if (JSON.stringify(normSubs) !== JSON.stringify(p.submenus)) updates.submenus = normSubs;
+          }
 
-        if (Object.keys(updates).length > 0) {
-          const { error: upErr } = await supabase.from('products').update(updates).eq('id', p.id);
-          if (upErr) results.errors.push(`Product ${p.id}: ${upErr.message}`);
-          else results.productsFixed++;
+          if (Object.keys(updates).length > 0) {
+            const { error: upErr } = await supabase.from('products').update(updates).eq('id', p.id);
+            if (upErr) results.errors.push(`Product ${p.id}: ${upErr.message}`);
+            else results.productsFixed++;
+          }
+        } catch (e: any) {
+          results.errors.push(`Product ${p.id} processing fail: ${e.message}`);
         }
       }
 
       // 2. Standardize Navigation
+      console.log("Standardizing navigation...");
       const { data: items, error: itemErr } = await supabase.from('navigation_items').select('*');
       if (itemErr) throw itemErr;
 
       for (const item of (items || [])) {
-        const navUpdates: any = {};
-        const nLogo = normalizePath(item.logo_url);
-        const nPath = normalizePath(item.path);
+        try {
+          const navUpdates: any = {};
+          const nLogo = normalizePath(item.logo_url);
+          const nPath = normalizePath(item.path);
 
-        if (nLogo !== item.logo_url) navUpdates.logo_url = nLogo;
-        if (nPath !== item.path) navUpdates.path = nPath;
+          if (nLogo !== item.logo_url) navUpdates.logo_url = nLogo;
+          if (nPath !== item.path) navUpdates.path = nPath;
 
-        if (Object.keys(navUpdates).length > 0) {
-          const { error: upErr } = await supabase.from('navigation_items').update(navUpdates).eq('id', item.id);
-          if (upErr) results.errors.push(`NavItem ${item.id}: ${upErr.message}`);
-          else results.navigationFixed++;
+          if (Object.keys(navUpdates).length > 0) {
+            const { error: upErr } = await supabase.from('navigation_items').update(navUpdates).eq('id', item.id);
+            if (upErr) results.errors.push(`NavItem ${item.id}: ${upErr.message}`);
+            else results.navigationFixed++;
+          }
+        } catch (e: any) {
+          results.errors.push(`NavItem ${item.id} processing fail: ${e.message}`);
         }
       }
 
       const { data: menus, error: menuErr } = await supabase.from('navigation_menus').select('*');
       if (!menuErr) {
         for (const menu of (menus || [])) {
-          const nPath = normalizePath(menu.path);
-          if (nPath !== menu.path) {
-            await supabase.from('navigation_menus').update({ path: nPath }).eq('id', menu.id);
-            results.navigationFixed++;
+          try {
+            const nPath = normalizePath(menu.path);
+            if (nPath !== menu.path) {
+              await supabase.from('navigation_menus').update({ path: nPath }).eq('id', menu.id);
+              results.navigationFixed++;
+            }
+          } catch (e: any) {
+            results.errors.push(`NavMenu ${menu.id} processing fail: ${e.message}`);
           }
         }
       }
 
       clearCache(); // Full clear
+      console.log("Standardization complete successfully");
       return res.json({ success: true, message: "Standardization complete", results });
     } catch (error: any) {
-      console.error("Standardization crash:", error);
-      return res.status(500).json({ error: error.message || "Failed to standardize" });
+      console.error("Standardization FATAL error:", error);
+      return res.status(500).json({ 
+        success: false, 
+        error: error.message || "An unknown error occurred during standardization" 
+      });
     }
   });
 

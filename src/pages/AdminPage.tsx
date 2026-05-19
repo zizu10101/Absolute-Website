@@ -1349,6 +1349,13 @@ export function AdminPage() {
                 if (window.confirm('Standardize all products and navigation (lowercase fields, leading slashes, path normalization)? This fixes filtering issues and 404s on production.')) {
                   try {
                     const resp = await fetch('/api/admin/standardize-db', { method: 'POST' });
+                    
+                    if (!resp.ok) {
+                      const text = await resp.text();
+                      console.error('Server error response:', text);
+                      throw new Error(`Server returned ${resp.status}: ${text.substring(0, 100)}...`);
+                    }
+
                     const data = await resp.json();
                     if (data.results) {
                       alert(`Standardization complete!\n- Products Fixed: ${data.results.productsFixed}\n- Navigation Fixed: ${data.results.navigationFixed}\n- Errors: ${data.results.errors.length}`);
@@ -1357,6 +1364,7 @@ export function AdminPage() {
                     }
                     window.location.reload();
                   } catch (err: any) {
+                    console.error('Standardization error:', err);
                     alert('Standardization failed: ' + err.message);
                   }
                 }
