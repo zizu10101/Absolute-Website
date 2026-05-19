@@ -38,7 +38,7 @@ export function AdminPage() {
     products, addProduct, deleteProduct, updateProduct, resetProducts, 
     fetchAdminProducts, loadMoreAdminProducts, hasMoreProducts, isLoading
   } = useProducts();
-  const { sliderImages, setSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, updateNavigationMenu, footerLinks, setFooterLinks, seoSettings, setSeoSettings, setGlobalSettings, resetSettings } = useSettings();
+  const { sliderImages, setSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, setGlobalSettings, resetSettings } = useSettings();
   const { logout, user } = useAuth();
 
   useEffect(() => {
@@ -835,11 +835,12 @@ export function AdminPage() {
     setSaveErrorMessage(null);
 
     try {
-      console.log("AdminPage: Navigation sync completed.");
+      await saveNavigation(draftNavigationMenus);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error: any) {
       console.error('AdminPage: Navigation save failed:', error);
+      alert(`Database rejected navigation save: ${error.message}`);
       setSaveErrorMessage(error.message || 'Failed to save navigation.');
     } finally {
       setIsSaving(false);

@@ -117,8 +117,8 @@ async function startServer() {
         const data = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
         return res.json({ data, mode: 'local' });
       }
-    } catch (err) {
-      console.warn("Supabase products fetch failed, using local fallback");
+    } catch (err: any) {
+      console.warn("Supabase products fetch failed:", err);
       const data = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
       return res.json({ data, mode: 'local-fallback' });
     }
@@ -324,12 +324,12 @@ async function startServer() {
             if (error3) {
               throw error3;
             }
-            return res.json(data3.config || data3.data || data3);
+            return res.json(data3?.config || data3?.data || data3 || newData);
           }
-          return res.json(data2.config || data2.data || data2);
+          return res.json(data2?.config || data2?.data || data2 || newData);
         }
         
-        return res.json(data.data || data.config || data);
+        return res.json(data?.data || data?.config || data || newData);
       } else {
         const settings = await readSafeJson(LOCAL_SETTINGS_PATH, {});
         const existing = settings[key] || {};

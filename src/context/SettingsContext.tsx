@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useRef } from 'react';
 import { DEFAULT_NAV, NavMenu, NavSubmenu, NavSubmenuItem } from '../constants/navigation';
-import { supabase } from '../supabase';
+import { supabase, uploadImage } from '../supabase';
 import { useAuth } from './AuthContext';
 
 export type { NavMenu, NavSubmenu, NavSubmenuItem };
@@ -396,13 +396,58 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateNavigationMenu = async (menuId: string, updates: Record<string, any>) => {
+  const saveNavigation = async (menus: NavMenu[]) => {
     try {
-      const { error } = await supabase.from('navigation_menus').update(updates).eq('id', menuId);
-      if (error) throw error;
+      // 1. Clear out existing
+      const { error: deleteItemsErr } = await supabase.from('navigation_items').delete().neq('id', '0');
+      if (deleteItemsErr) throw deleteItemsErr;
+      const { error: deleteMenusErr } = await supabase.from('navigation_menus').delete().neq('id', '0');
+      if (deleteMenusErr) throw deleteMenusErr;
+
+      // 2. Insert new
+      for (let m = 0; m < menus.length; m++) {
+        const menu = menus[m];
+        const { data: insertedMenu, error: menuErr } = await supabase
+          .from('navigation_menus')
+          .insert({ label: menu.label, path: menu.path, order_index: m })
+          .select()
+          .single();
+        if (menuErr) throw menuErr;
+
+        for (let s = 0; s < menu.submenus.length; s++) {
+          const sub = menu.submenus[s];
+          const { data: insertedSub, error: subErr } = await supabase
+            .from('navigation_items')
+            .insert({
+              menu_id: insertedMenu.id,
+              label: sub.heading,
+              path: sub.path,
+              logo_url: sub.logo,
+              order_index: s
+            })
+            .select()
+            .single();
+          if (subErr) throw subErr;
+
+          for (let i = 0; i < sub.items.length; i++) {
+            const item = sub.items[i];
+            const { error: itemErr } = await supabase
+              .from('navigation_items')
+              .insert({
+                menu_id: insertedMenu.id,
+                parent_id: insertedSub.id,
+                label: item.label,
+                path: item.path,
+                logo_url: item.logo,
+                order_index: i
+              });
+            if (itemErr) throw itemErr;
+          }
+        }
+      }
       await fetchSettings();
     } catch (err: any) {
-      console.error('SettingsContext: Failed to update navigation menu:', err);
+      console.error('SettingsContext: Failed to save navigation:', err);
       throw err;
     }
   };
@@ -433,13 +478,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setFooterLinks,
     navigationMenus,
     updateNavigationItem,
-    updateNavigationMenu,
+    saveNavigation,
     seoSettings,
     setSeoSettings,
     resetSettings,
     setGlobalSettings,
     isLoading
-  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, updateNavigationItem, updateNavigationMenu, footerLinks, seoSettings, isLoading]);
+  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, seoSettings, isLoading]);
 
   return (
     <SettingsContext.Provider value={value}>
