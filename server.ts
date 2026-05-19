@@ -244,30 +244,34 @@ async function startServer() {
           return acc;
         }, {});
 
-        // Reconstruct navigation to match the precise legacy frontend schema keys (columns/links)
+        // Reconstruct navigation to match the precise frontend NavMenu interface
         const reconstructedMenus = (menus || []).map((menu: any) => {
-          const columns = (items || [])
+          const submenus = (items || [])
             .filter((item: any) => item.menu_id === menu.id && !item.parent_id)
             .map((col: any) => {
-              const links = (items || [])
+              const linkItems = (items || [])
                 .filter((subItem: any) => subItem.parent_id === col.id)
                 .map((link: any) => ({
-                  name: link.label || '',
+                  id: link.id,
+                  label: link.label || '',
                   path: link.path || '#',
                   logo: link.logo_url || null
                 }));
 
               return {
-                name: col.label || '',
+                id: col.id,
+                heading: col.label || '',
                 path: col.path || '',
-                links: links
+                logo: col.logo_url || null,
+                items: linkItems
               };
             });
 
           return {
-            name: menu.label || menu.name || '',
+            id: menu.id,
+            label: menu.label || menu.name || '',
             path: menu.path || '#',
-            columns: columns
+            submenus: submenus
           };
         });
         
