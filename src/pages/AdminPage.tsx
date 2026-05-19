@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts, Product } from '../context/ProductContext';
-import { useSettings, NavMenu, SEO } from '../context/SettingsContext';
+import { useSettings, NavMenu, SEO, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
 import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload } from 'lucide-react';
@@ -1331,6 +1331,12 @@ export function AdminPage() {
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mb-4 p-4 bg-zinc-900 rounded-lg flex justify-between items-center text-white">
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">Database Tools</p>
+          <button onClick={(e) => { e.preventDefault(); forceManualNavigationMigration(); }} className="px-4 py-2 bg-blue-600 text-white font-bold text-[10px] uppercase tracking-widest rounded hover:bg-blue-700 transition-colors">
+            🚀 Force Manual Database Migration
+          </button>
+        </div>
         <div className="mb-8 flex items-center justify-between">
           <Link to="/" className="inline-flex items-center gap-2 text-zinc-500 hover:text-zinc-900 font-bold uppercase tracking-widest text-[10px] transition-colors">
             <ArrowLeft size={14} /> Back to Store
@@ -1341,7 +1347,7 @@ export function AdminPage() {
               <p className="text-[8px] text-zinc-400 uppercase tracking-widest font-black mt-1">Administrator</p>
             </div>
             <button 
-              onClick={logout}
+              onClick={() => logout()}
               className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 text-zinc-600 rounded-lg font-bold uppercase tracking-widest text-[10px] hover:bg-red-50 hover:text-[#b90014] transition-all"
             >
               <LogOut size={14} /> Logout
@@ -1369,7 +1375,7 @@ export function AdminPage() {
               </div>
               <div className="flex items-center gap-4 mt-4">
                 <button 
-                  onClick={syncFromLocal}
+                  onClick={() => syncFromLocal()}
                   disabled={isRestoringLocal}
                   className="flex items-center gap-2 px-4 py-2 bg-[#b90014] text-white rounded-lg border border-[#b90014] hover:bg-zinc-900 transition-all text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-red-900/20"
                 >
@@ -1377,7 +1383,7 @@ export function AdminPage() {
                   {isRestoringLocal ? 'Migrating...' : 'Migrate Real Supabase Data'}
                 </button>
                 <button 
-                  onClick={handleReset}
+                  onClick={() => handleReset()}
                   className="flex items-center gap-2 px-4 py-2 bg-zinc-100 text-zinc-600 rounded-lg border border-zinc-200 hover:bg-zinc-200 transition-all text-[10px] font-bold uppercase tracking-widest"
                 >
                   <Package size={14} /> Restore All Local JSON Data
@@ -1522,7 +1528,7 @@ export function AdminPage() {
                     </label>
                     <div className="flex items-center gap-4">
                       <button 
-                        onClick={handleSaveSlider}
+                        onClick={() => handleSaveSlider()}
                         disabled={isSaving || isUploading}
                         className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
@@ -1621,14 +1627,14 @@ export function AdminPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <button 
-                      onClick={addCategory}
+                      onClick={() => addCategory()}
                       disabled={draftHomeCategories.length >= CATEGORIES.length}
                       className={`flex items-center gap-2 px-4 py-2.5 bg-zinc-100 text-zinc-900 rounded-lg font-bold uppercase tracking-widest text-[10px] hover:bg-zinc-200 transition-colors ${draftHomeCategories.length >= CATEGORIES.length ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <Plus size={14} /> Add Category
                     </button>
                     <button 
-                      onClick={handleSaveHomeLayout}
+                      onClick={() => handleSaveHomeLayout()}
                       disabled={isSaving || isUploading}
                       className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
@@ -1803,7 +1809,7 @@ export function AdminPage() {
                     </button>
                     <div className="flex items-center gap-4">
                       <button 
-                        onClick={handleSaveNavigation}
+                        onClick={() => handleSaveNavigation()}
                         disabled={isSaving || isUploading}
                         className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
@@ -2032,13 +2038,13 @@ export function AdminPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <button 
-                      onClick={addFooterLink}
+                      onClick={() => addFooterLink()}
                       className="flex items-center gap-2 px-4 py-2.5 bg-zinc-100 text-zinc-900 rounded-lg font-bold uppercase tracking-widest text-[10px] cursor-pointer hover:bg-zinc-200 transition-colors"
                     >
                       <Plus size={14} /> Add Link
                     </button>
                     <button 
-                      onClick={handleSaveFooter}
+                      onClick={() => handleSaveFooter()}
                       disabled={isSaving || isUploading}
                       className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
@@ -2096,7 +2102,7 @@ export function AdminPage() {
                     <p className="text-sm text-zinc-500 mt-1">Optimize your site for search engines and social sharing.</p>
                   </div>
                   <button 
-                    onClick={handleSaveSEO}
+                    onClick={() => handleSaveSEO()}
                     disabled={isSaving || isUploading}
                     className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
@@ -2268,7 +2274,7 @@ export function AdminPage() {
                   <div className="p-8 flex-1 space-y-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <button
-                        onClick={pullFromCloud}
+                        onClick={() => pullFromCloud()}
                         disabled={isPullingCloud}
                         className="p-4 rounded-xl border border-zinc-200 hover:border-[#b90014] hover:bg-zinc-50 transition-all text-left flex items-center gap-4 disabled:opacity-50"
                       >
@@ -2381,7 +2387,7 @@ export function AdminPage() {
                         <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">Local Cache Sync</span>
                       </div>
                       <button 
-                        onClick={syncToLocal}
+                        onClick={() => syncToLocal()}
                         disabled={isSyncingLocal}
                         className="text-[9px] font-black uppercase tracking-widest text-[#b90014] hover:underline flex items-center gap-1 disabled:opacity-50"
                       >
@@ -2772,7 +2778,7 @@ export function AdminPage() {
                         addStatus === 'syncing' || isUploading ? 'bg-zinc-700 text-white' :
                         'bg-zinc-900 text-white hover:bg-[#b90014] shadow-zinc-900/10'
                       }`}
-                      onClick={handleAdd}
+                      onClick={() => handleAdd()}
                       disabled={addStatus === 'syncing' || isUploading}
                     >
                       {addStatus === 'syncing' || isUploading ? (

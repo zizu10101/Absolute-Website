@@ -201,73 +201,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     fetchSettings();
   }, [user]);
 
-  // One-time migration hook
-  useEffect(() => {
-    const runMigration = async () => {
-      const { data: menus, error: menusError } = await supabase.from('navigation_menus').select('id').limit(1);
-      if (menusError || (menus && menus.length > 0)) return;
-
-      console.log('SettingsContext: Empty navigation detected, running one-time migration...');
-      setIsLoading(true);
-      try {
-        // First, try fetching the specific 'navigation' key
-        let { data: settingsData, error: settingsError } = await supabase
-          .from('settings')
-          .select('data')
-          .eq('key', 'navigation')
-          .single();
-        
-        // If not found, try fetching all settings
-        if (settingsError || !settingsData?.data) {
-          console.log('SettingsContext: Key "navigation" not found, trying to fetch all settings...');
-          const { data: allSettings, error: allError } = await supabase
-            .from('settings')
-            .select('key, data');                
-          
-          if (allError) throw new Error('Failed to fetch settings');
-          
-          // Look for 'navigation' inside the results if it's not a root row
-          const navSetting = allSettings?.find(s => s.key === 'navigation') || allSettings?.find(s => s.data && s.data.navigationMenus);
-          if (navSetting) {
-            settingsData = navSetting;
-          }
-        }
-        
-        if (!settingsData?.data) throw new Error('No legacy navigation found in settings');
-        
-        // Deep isolate data to prevent engine crashes
-        const sanitizedData = JSON.parse(JSON.stringify(settingsData.data));
-        
-        const legacyMenus = sanitizedData.navigationMenus || [];
-        const menusToInsert = [];
-        const itemsToInsert = [];
-
-        for (const menu of legacyMenus) {
-          const menuId = crypto.randomUUID();
-          menusToInsert.push({ id: menuId, label: menu.label, path: menu.path, order_index: menusToInsert.length });
-          
-          for (const [subIndex, submenu] of menu.submenus.entries()) {
-            const subId = crypto.randomUUID();
-            itemsToInsert.push({ id: subId, menu_id: menuId, parent_id: null, label: submenu.heading, path: submenu.path, logo_url: submenu.logo, order_index: subIndex });
-            
-            for (const [itemIndex, item] of submenu.items.entries()) {
-              itemsToInsert.push({ id: crypto.randomUUID(), menu_id: menuId, parent_id: subId, label: item.label, path: item.path, logo_url: item.logo, order_index: itemIndex });
-            }
-          }
-        }
-
-        await supabase.from('navigation_menus').insert(menusToInsert);
-        await supabase.from('navigation_items').insert(itemsToInsert);
-        console.log('SettingsContext: Migration complete.');
-        await fetchSettings();
-      } catch (err) {
-        console.error('SettingsContext: Migration failed:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    runMigration();
-  }, []);
+  // Removed automatic migration useEffect
 
   const updateSettings = async (key: string, updates: any) => {
     try {
@@ -383,8 +317,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateLocalState = (key: string, updates: any) => {
-    if (key === 'global') {
+  const updateLocalState = (key: string, updates: any) => {    if (key === 'global') {
       if (updates.logo) setLogoState(updates.logo);
       if (updates.landingLogo) setLandingLogoState(updates.landingLogo);
       if (updates.labBackgroundImage) setLabBackgroundImageState(updates.labBackgroundImage);
@@ -498,6 +431,59 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       {children}
     </SettingsContext.Provider>
   );
+}
+
+
+export async function forceManualNavigationMigration() {
+  try {
+    console.log("Starting isolated database data migration...");
+
+    // Fetch raw data straight from the legacy table row
+    const { data: settingsData, error: fetchError } = await supabase
+      .from('settings')
+      .select('data')
+      .eq('key', 'navigation')
+      .single();
+
+    if (fetchError || !settingsData?.data) {
+      alert("Could not read legacy navigation data from settings table.");
+      return;
+    }
+
+    // Cryptographically clone the raw JSON data to strip away any hidden React parameters
+    const pristineJSON = JSON.parse(JSON.stringify(settingsData.data));
+    const legacyMenus = pristineJSON.navigationMenus || [];
+
+    if (legacyMenus.length === 0) {
+      alert("No menus found in legacy data to migrate.");
+      return;
+    }
+
+    const menusToInsert = [];
+    const itemsToInsert = [];
+
+    for (const menu of legacyMenus) {
+      const menuId = crypto.randomUUID();
+      menusToInsert.push({ id: menuId, label: menu.label, path: menu.path, order_index: menusToInsert.length });
+      
+      for (const [subIndex, submenu] of (menu.submenus || []).entries()) {
+        const subId = crypto.randomUUID();
+        itemsToInsert.push({ id: subId, menu_id: menuId, parent_id: null, label: submenu.heading, path: submenu.path, logo_url: submenu.logo, order_index: subIndex });
+        
+        for (const [itemIndex, item] of (submenu.items || []).entries()) {
+          itemsToInsert.push({ id: crypto.randomUUID(), menu_id: menuId, parent_id: subId, label: item.label, path: item.path, logo_url: item.logo, order_index: itemIndex });
+        }
+      }
+    }
+
+    await supabase.from('navigation_menus').insert(menusToInsert);
+    await supabase.from('navigation_items').insert(itemsToInsert);
+    
+    alert("Migration completed successfully! Reloading page...");
+    window.location.reload();
+  } catch (err: any) {
+    alert("Migration failed: " + err.message);
+  }
 }
 
 export const useSettings = () => {
