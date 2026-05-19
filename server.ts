@@ -244,6 +244,104 @@ async function startServer() {
     }
   });
 
+  // Standardize Database Assets and Fields
+  app.post("/api/admin/standardize-db", async (req, res) => {
+    try {
+      if (!supabase) {
+        return res.status(400).json({ error: "Supabase not connected" });
+      }
+
+      const results = {
+        productsFixed: 0,
+        navigationFixed: 0,
+        errors: [] as string[]
+      };
+
+      const normalizePath = (p: string | null | undefined) => {
+        if (!p) return null;
+        let val = p.trim();
+        if (val.startsWith('http') || val.startsWith('data:')) return val;
+        let normalized = val.toLowerCase();
+        if (!normalized.startsWith('/')) normalized = '/' + normalized;
+        return normalized;
+      };
+
+      const normalizeString = (s: string | null | undefined) => {
+        if (!s) return null;
+        return s.trim().toLowerCase();
+      };
+
+      // 1. Standardize Products
+      const { data: products, error: prodErr } = await supabase.from('products').select('*');
+      if (prodErr) throw prodErr;
+
+      for (const p of (products || [])) {
+        const updates: any = {};
+        
+        const normImage = normalizePath(p.image);
+        if (normImage !== p.image) updates.image = normImage;
+
+        if (Array.isArray(p.images)) {
+          const normImages = p.images.map((img: string) => normalizePath(img));
+          if (JSON.stringify(normImages) !== JSON.stringify(p.images)) updates.images = normImages;
+        }
+
+        const normCat = normalizeString(p.category);
+        if (normCat !== p.category) updates.category = normCat;
+
+        const normSub = normalizeString(p.submenu);
+        if (normSub !== p.submenu) updates.submenu = normSub;
+
+        if (Array.isArray(p.submenus)) {
+          const normSubs = p.submenus.map((s: string) => normalizeString(s));
+          if (JSON.stringify(normSubs) !== JSON.stringify(p.submenus)) updates.submenus = normSubs;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          const { error: upErr } = await supabase.from('products').update(updates).eq('id', p.id);
+          if (upErr) results.errors.push(`Product ${p.id}: ${upErr.message}`);
+          else results.productsFixed++;
+        }
+      }
+
+      // 2. Standardize Navigation
+      const { data: items, error: itemErr } = await supabase.from('navigation_items').select('*');
+      if (itemErr) throw itemErr;
+
+      for (const item of (items || [])) {
+        const navUpdates: any = {};
+        const nLogo = normalizePath(item.logo_url);
+        const nPath = normalizePath(item.path);
+
+        if (nLogo !== item.logo_url) navUpdates.logo_url = nLogo;
+        if (nPath !== item.path) navUpdates.path = nPath;
+
+        if (Object.keys(navUpdates).length > 0) {
+          const { error: upErr } = await supabase.from('navigation_items').update(navUpdates).eq('id', item.id);
+          if (upErr) results.errors.push(`NavItem ${item.id}: ${upErr.message}`);
+          else results.navigationFixed++;
+        }
+      }
+
+      const { data: menus, error: menuErr } = await supabase.from('navigation_menus').select('*');
+      if (!menuErr) {
+        for (const menu of (menus || [])) {
+          const nPath = normalizePath(menu.path);
+          if (nPath !== menu.path) {
+            await supabase.from('navigation_menus').update({ path: nPath }).eq('id', menu.id);
+            results.navigationFixed++;
+          }
+        }
+      }
+
+      clearCache(); // Full clear
+      return res.json({ success: true, message: "Standardization complete", results });
+    } catch (error: any) {
+      console.error("Standardization crash:", error);
+      return res.status(500).json({ error: error.message || "Failed to standardize" });
+    }
+  });
+
   // Settings GET (Bulk or Key)
   app.get("/api/settings/bulk", async (req, res) => {
     try {
@@ -563,102 +661,6 @@ export { app };
 
 // Initialize and start server
 startServer().then((app) => {
-  // Standardize Database Assets and Fields
-  app.post("/api/admin/standardize-db", async (req, res) => {
-    try {
-      if (!supabase) throw new Error("Supabase not connected");
-
-      const results = {
-        productsFixed: 0,
-        navigationFixed: 0,
-        errors: [] as string[]
-      };
-
-      const normalizePath = (p: string | null | undefined) => {
-        if (!p) return null;
-        let val = p.trim();
-        if (val.startsWith('http') || val.startsWith('data:')) return val;
-        let normalized = val.toLowerCase();
-        if (!normalized.startsWith('/')) normalized = '/' + normalized;
-        return normalized;
-      };
-
-      const normalizeString = (s: string | null | undefined) => {
-        if (!s) return null;
-        return s.trim().toLowerCase();
-      };
-
-      // 1. Standardize Products
-      const { data: products, error: prodErr } = await supabase.from('products').select('*');
-      if (prodErr) throw prodErr;
-
-      for (const p of (products || [])) {
-        const updates: any = {};
-        
-        const normImage = normalizePath(p.image);
-        if (normImage !== p.image) updates.image = normImage;
-
-        if (Array.isArray(p.images)) {
-          const normImages = p.images.map((img: string) => normalizePath(img));
-          if (JSON.stringify(normImages) !== JSON.stringify(p.images)) updates.images = normImages;
-        }
-
-        const normCat = normalizeString(p.category);
-        if (normCat !== p.category) updates.category = normCat;
-
-        const normSub = normalizeString(p.submenu);
-        if (normSub !== p.submenu) updates.submenu = normSub;
-
-        if (Array.isArray(p.submenus)) {
-          const normSubs = p.submenus.map((s: string) => normalizeString(s));
-          if (JSON.stringify(normSubs) !== JSON.stringify(p.submenus)) updates.submenus = normSubs;
-        }
-
-        if (Object.keys(updates).length > 0) {
-          const { error: upErr } = await supabase.from('products').update(updates).eq('id', p.id);
-          if (upErr) results.errors.push(`Product ${p.id}: ${upErr.message}`);
-          else results.productsFixed++;
-        }
-      }
-
-      // 2. Standardize Navigation
-      const { data: items, error: itemErr } = await supabase.from('navigation_items').select('*');
-      if (itemErr) throw itemErr;
-
-      for (const item of (items || [])) {
-        const navUpdates: any = {};
-        const nLogo = normalizePath(item.logo_url);
-        const nPath = normalizePath(item.path);
-
-        if (nLogo !== item.logo_url) navUpdates.logo_url = nLogo;
-        if (nPath !== item.path) navUpdates.path = nPath;
-
-        if (Object.keys(navUpdates).length > 0) {
-          const { error: upErr } = await supabase.from('navigation_items').update(navUpdates).eq('id', item.id);
-          if (upErr) results.errors.push(`NavItem ${item.id}: ${upErr.message}`);
-          else results.navigationFixed++;
-        }
-      }
-
-      const { data: menus, error: menuErr } = await supabase.from('navigation_menus').select('*');
-      if (!menuErr) {
-        for (const menu of (menus || [])) {
-          const nPath = normalizePath(menu.path);
-          if (nPath !== menu.path) {
-            await supabase.from('navigation_menus').update({ path: nPath }).eq('id', menu.id);
-            results.navigationFixed++;
-          }
-        }
-      }
-
-      clearCache(); // Full clear
-      res.json({ success: true, message: "Standardization complete", results });
-    } catch (error: any) {
-      console.error("Standardization failed:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
