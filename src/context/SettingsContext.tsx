@@ -466,12 +466,37 @@ export async function forceManualNavigationMigration() {
       const menuId = crypto.randomUUID();
       menusToInsert.push({ id: menuId, label: menu.label, path: menu.path, order_index: menusToInsert.length });
       
-      for (const [subIndex, submenu] of (menu.submenus || []).entries()) {
+      // Support both 'submenus' and 'columns'
+      const children = menu.submenus || menu.columns || [];
+      
+      for (const [subIndex, child] of children.entries()) {
         const subId = crypto.randomUUID();
-        itemsToInsert.push({ id: subId, menu_id: menuId, parent_id: null, label: submenu.heading, path: submenu.path, logo_url: submenu.logo, order_index: subIndex });
+        // Try multiple fields for the heading
+        const heading = child.heading || child.name || child.label || 'Untitled';
         
-        for (const [itemIndex, item] of (submenu.items || []).entries()) {
-          itemsToInsert.push({ id: crypto.randomUUID(), menu_id: menuId, parent_id: subId, label: item.label, path: item.path, logo_url: item.logo, order_index: itemIndex });
+        itemsToInsert.push({ 
+          id: subId, 
+          menu_id: menuId, 
+          parent_id: null, 
+          label: heading, 
+          path: child.path || '', 
+          logo_url: child.logo, 
+          order_index: subIndex 
+        });
+        
+        // Items might also be under a different name if it's 'columns'?
+        const items = child.items || child.links || [];
+        
+        for (const [itemIndex, item] of items.entries()) {
+          itemsToInsert.push({ 
+            id: crypto.randomUUID(), 
+            menu_id: menuId, 
+            parent_id: subId, 
+            label: item.label, 
+            path: item.path, 
+            logo_url: item.logo, 
+            order_index: itemIndex 
+          });
         }
       }
     }
