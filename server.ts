@@ -278,36 +278,67 @@ async function startServer() {
       const { data: products, error: prodErr } = await supabase.from('products').select('*');
       if (prodErr) throw prodErr;
 
+      const productUpdates: any[] = [];
       for (const p of (products || [])) {
-        const updates: any = {};
+        const updates: any = { id: p.id };
+        let hasChanges = false;
         
         try {
           const normImage = normalizePath(p.image);
-          if (normImage !== p.image) updates.image = normImage;
+          if (normImage !== p.image) {
+            updates.image = normImage;
+            hasChanges = true;
+          }
 
           if (Array.isArray(p.images)) {
             const normImages = p.images.map((img: any) => normalizePath(img));
-            if (JSON.stringify(normImages) !== JSON.stringify(p.images)) updates.images = normImages;
+            if (JSON.stringify(normImages) !== JSON.stringify(p.images)) {
+              updates.images = normImages;
+              hasChanges = true;
+            }
           }
 
           const normCat = normalizeString(p.category);
-          if (normCat !== p.category) updates.category = normCat;
+          if (normCat !== p.category) {
+            updates.category = normCat;
+            hasChanges = true;
+          }
 
           const normSub = normalizeString(p.submenu);
-          if (normSub !== p.submenu) updates.submenu = normSub;
+          if (normSub !== p.submenu) {
+            updates.submenu = normSub;
+            hasChanges = true;
+          }
 
           if (Array.isArray(p.submenus)) {
             const normSubs = p.submenus.map((s: any) => normalizeString(s));
-            if (JSON.stringify(normSubs) !== JSON.stringify(p.submenus)) updates.submenus = normSubs;
+            if (JSON.stringify(normSubs) !== JSON.stringify(p.submenus)) {
+              updates.submenus = normSubs;
+              hasChanges = true;
+            }
           }
 
-          if (Object.keys(updates).length > 0) {
-            const { error: upErr } = await supabase.from('products').update(updates).eq('id', p.id);
-            if (upErr) results.errors.push(`Product ${p.id}: ${upErr.message}`);
-            else results.productsFixed++;
+          if (hasChanges) {
+            productUpdates.push(updates);
           }
         } catch (e: any) {
           results.errors.push(`Product ${p.id} processing fail: ${e.message}`);
+        }
+      }
+
+      // Batch upsert products (using upsert with IDs behaves like an update)
+      if (productUpdates.length > 0) {
+        console.log(`Upserting ${productUpdates.length} products...`);
+        // Split into chunks of 100 to be safe
+        for (let i = 0; i < productUpdates.length; i += 100) {
+          const chunk = productUpdates.slice(i, i + 100);
+          const { error: upErr } = await supabase.from('products').upsert(chunk);
+          if (upErr) {
+            console.error("Product upsert error:", upErr);
+            results.errors.push(`Product batch ${i}-${i+100} failed: ${upErr.message}`);
+          } else {
+            results.productsFixed += chunk.length;
+          }
         }
       }
 
@@ -316,37 +347,57 @@ async function startServer() {
       const { data: items, error: itemErr } = await supabase.from('navigation_items').select('*');
       if (itemErr) throw itemErr;
 
+      const itemUpdates: any[] = [];
       for (const item of (items || [])) {
         try {
-          const navUpdates: any = {};
+          const navUpdates: any = { id: item.id };
+          let hasChanges = false;
           const nLogo = normalizePath(item.logo_url);
           const nPath = normalizePath(item.path);
 
-          if (nLogo !== item.logo_url) navUpdates.logo_url = nLogo;
-          if (nPath !== item.path) navUpdates.path = nPath;
+          if (nLogo !== item.logo_url) {
+            navUpdates.logo_url = nLogo;
+            hasChanges = true;
+          }
+          if (nPath !== item.path) {
+            navUpdates.path = nPath;
+            hasChanges = true;
+          }
 
-          if (Object.keys(navUpdates).length > 0) {
-            const { error: upErr } = await supabase.from('navigation_items').update(navUpdates).eq('id', item.id);
-            if (upErr) results.errors.push(`NavItem ${item.id}: ${upErr.message}`);
-            else results.navigationFixed++;
+          if (hasChanges) {
+            itemUpdates.push(navUpdates);
           }
         } catch (e: any) {
           results.errors.push(`NavItem ${item.id} processing fail: ${e.message}`);
         }
       }
 
+      if (itemUpdates.length > 0) {
+        console.log(`Upserting ${itemUpdates.length} navigation items...`);
+        const { error: upErr } = await supabase.from('navigation_items').upsert(itemUpdates);
+        if (upErr) {
+          results.errors.push(`NavItems batch failed: ${upErr.message}`);
+        } else {
+          results.navigationFixed += itemUpdates.length;
+        }
+      }
+
       const { data: menus, error: menuErr } = await supabase.from('navigation_menus').select('*');
-      if (!menuErr) {
-        for (const menu of (menus || [])) {
+      if (!menuErr && menus) {
+        const menuUpdates: any[] = [];
+        for (const menu of menus) {
           try {
             const nPath = normalizePath(menu.path);
             if (nPath !== menu.path) {
-              await supabase.from('navigation_menus').update({ path: nPath }).eq('id', menu.id);
-              results.navigationFixed++;
+              menuUpdates.push({ id: menu.id, path: nPath });
             }
           } catch (e: any) {
             results.errors.push(`NavMenu ${menu.id} processing fail: ${e.message}`);
           }
+        }
+        if (menuUpdates.length > 0) {
+          const { error: upErr } = await supabase.from('navigation_menus').upsert(menuUpdates);
+          if (!upErr) results.navigationFixed += menuUpdates.length;
         }
       }
 
