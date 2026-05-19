@@ -9,7 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export const uploadImage = async (fileOrBase64: File | string, path: string): Promise<string> => {
+export const uploadImage = async (fileOrBase64: File | string, path: string, bucketName: string = 'media'): Promise<string> => {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error('Supabase credentials missing. Please configure them in settings.');
   }
@@ -36,7 +36,7 @@ export const uploadImage = async (fileOrBase64: File | string, path: string): Pr
   }
 
   const { data, error } = await supabase.storage
-    .from('media')
+    .from(bucketName)
     .upload(path, body, {
       contentType,
       upsert: true
@@ -48,7 +48,7 @@ export const uploadImage = async (fileOrBase64: File | string, path: string): Pr
   }
 
   const { data: { publicUrl } } = supabase.storage
-    .from('media')
+    .from(bucketName)
     .getPublicUrl(data.path);
 
   return publicUrl;

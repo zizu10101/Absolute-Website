@@ -436,78 +436,93 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
 export async function forceManualNavigationMigration() {
   try {
-    console.log("Starting isolated database data migration...");
-
-    // Fetch raw data straight from the legacy table row
-    const { data: settingsData, error: fetchError } = await supabase
+    console.log("FETCHING LEGACY NAVIGATION...");
+    const { data: settingsRow, error: fetchError } = await supabase
       .from('settings')
       .select('data')
       .eq('key', 'navigation')
       .single();
 
-    if (fetchError || !settingsData?.data) {
-      alert("Could not read legacy navigation data from settings table.");
+    if (fetchError || !settingsRow?.data) {
+      alert("Error reading legacy settings row.");
       return;
     }
 
-    // Cryptographically clone the raw JSON data to strip away any hidden React parameters
-    const pristineJSON = JSON.parse(JSON.stringify(settingsData.data));
-    const legacyMenus = pristineJSON.navigationMenus || [];
-
-    if (legacyMenus.length === 0) {
-      alert("No menus found in legacy data to migrate.");
+    const rawJSON = JSON.parse(JSON.stringify(settingsRow.data));
+    const menusArray = rawJSON.navigationMenus || [];
+    
+    if (menusArray.length === 0) {
+      alert("No data found inside navigationMenus layout array.");
       return;
     }
 
-    const menusToInsert = [];
-    const itemsToInsert = [];
+    // 1. Clear out any failed structural records first
+    await supabase.from('navigation_items').delete().neq('id', '0');
+    await supabase.from('navigation_menus').delete().neq('id', '0');
 
-    for (const menu of legacyMenus) {
-      const menuId = crypto.randomUUID();
-      menusToInsert.push({ id: menuId, label: menu.label, path: menu.path, order_index: menusToInsert.length });
+    // 2. Map the parent menus
+    for (let m = 0; m < menusArray.length; m++) {
+      const menu = menusArray[m];
       
-      // Support both 'submenus' and 'columns'
-      const children = menu.submenus || menu.columns || [];
-      
-      for (const [subIndex, child] of children.entries()) {
-        const subId = crypto.randomUUID();
-        // Try multiple fields for the heading
-        const heading = child.heading || child.name || child.label || 'Untitled';
+      const { data: insertedMenu, error: menuErr } = await supabase
+        .from('navigation_menus')
+        .insert({
+          label: menu.name || menu.label,
+          path: menu.path || '#',
+          order_index: m
+        })
+        .select()
+        .single();
+
+      if (menuErr || !insertedMenu) {
+        console.error("Failed inserting menu row:", menuErr);
+        continue;
+      }
+
+      // 3. Extract columns under this parent menu
+      const columns = menu.columns || [];
+      for (let c = 0; c < columns.length; c++) {
+        const col = columns[c];
         
-        itemsToInsert.push({ 
-          id: subId, 
-          menu_id: menuId, 
-          parent_id: null, 
-          label: heading, 
-          path: child.path || '', 
-          logo_url: child.logo, 
-          order_index: subIndex 
-        });
-        
-        // Items might also be under a different name if it's 'columns'?
-        const items = child.items || child.links || [];
-        
-        for (const [itemIndex, item] of items.entries()) {
-          itemsToInsert.push({ 
-            id: crypto.randomUUID(), 
-            menu_id: menuId, 
-            parent_id: subId, 
-            label: item.label, 
-            path: item.path, 
-            logo_url: item.logo, 
-            order_index: itemIndex 
-          });
+        // Create a subcategory parent node if it has individual links
+        const { data: parentNode, error: parentNodeErr } = await supabase
+          .from('navigation_items')
+          .insert({
+            menu_id: insertedMenu.id,
+            label: col.name || col.heading || col.label,
+            path: col.path || '',
+            order_index: c
+          })
+          .select()
+          .single();
+
+        if (parentNodeErr || !parentNode) continue;
+
+        // 4. Extract individual target items/links inside that column group
+        const links = col.links || col.items || [];
+        for (let l = 0; l < links.length; l++) {
+          const link = links[l];
+          
+          const { error: itemErr } = await supabase
+            .from('navigation_items')
+            .insert({
+              menu_id: insertedMenu.id,
+              parent_id: parentNode.id, // Links are children of the column header node
+              label: link.label || link.name,
+              path: link.path || '#',
+              logo_url: link.logo_url || link.icon || null,
+              order_index: l
+            });
+
+          if (itemErr) console.error("Failed inserting link item:", itemErr);
         }
       }
     }
 
-    await supabase.from('navigation_menus').insert(menusToInsert);
-    await supabase.from('navigation_items').insert(itemsToInsert);
-    
-    alert("Migration completed successfully! Reloading page...");
+    alert("Database sync successful! Structural rows populated.");
     window.location.reload();
   } catch (err: any) {
-    alert("Migration failed: " + err.message);
+    alert("Migration block exception: " + err.message);
   }
 }
 

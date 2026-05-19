@@ -1099,7 +1099,7 @@ export function AdminPage() {
       setIsUploading(true);
       try {
         const path = `nav/submenu_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-        const publicUrl = await uploadImage(file, path);
+        const publicUrl = await uploadImage(file, path, 'navigation_logos');
         const sub = draftNavigationMenus[menuIndex].submenus[submenuIndex];
 
         if (sub.id) {
@@ -1112,8 +1112,9 @@ export function AdminPage() {
         } else {
            console.error("Submenu id missing");
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Submenu logo upload failed:", err);
+        alert("Submenu logo upload failed: " + err.message);
       } finally {
         setIsUploading(false);
       }
@@ -1161,7 +1162,7 @@ export function AdminPage() {
       setIsUploading(true);
       try {
         const path = `nav/item_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-        const publicUrl = await uploadImage(file, path);
+        const publicUrl = await uploadImage(file, path, 'navigation_logos');
         const item = draftNavigationMenus[menuIndex].submenus[submenuIndex].items[itemIndex];
         
         if (item.id) {
@@ -1174,8 +1175,9 @@ export function AdminPage() {
         } else {
              console.error("Item id missing");
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Item logo upload failed:", err);
+        alert("Item logo upload failed: " + err.message);
       } finally {
         setIsUploading(false);
       }
