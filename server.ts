@@ -228,19 +228,50 @@ async function startServer() {
     try {
       if (supabase) {
         console.log("Fetching bulk settings from Supabase...");
-        const { data, error } = await supabase.from('settings').select('*');
-        if (error) {
-          console.error("Supabase settings fetch error:", error);
-          throw error;
+        const { data: settings, error: settingsError } = await supabase.from('settings').select('*');
+        const { data: menus, error: menusError } = await supabase.from('navigation_menus').select('*').order('order_index');
+        const { data: items, error: itemsError } = await supabase.from('navigation_items').select('*').order('order_index');
+
+        if (settingsError || menusError || itemsError) {
+          throw new Error("Supabase fetch error");
         }
         
         // Handle both key/data and id/config schemas if they exist
-        const results = data.reduce((acc: any, curr: any) => {
+        const results = settings.reduce((acc: any, curr: any) => {
           const k = curr.key || curr.id;
           const d = curr.data || curr.config;
           if (k) acc[k] = d;
           return acc;
         }, {});
+
+        // Reconstruct navigation to match the precise legacy frontend schema keys (columns/links)
+        const reconstructedMenus = (menus || []).map((menu: any) => {
+          const columns = (items || [])
+            .filter((item: any) => item.menu_id === menu.id && !item.parent_id)
+            .map((col: any) => {
+              const links = (items || [])
+                .filter((subItem: any) => subItem.parent_id === col.id)
+                .map((link: any) => ({
+                  name: link.label || '',
+                  path: link.path || '#',
+                  logo: link.logo_url || null
+                }));
+
+              return {
+                name: col.label || '',
+                path: col.path || '',
+                links: links
+              };
+            });
+
+          return {
+            name: menu.label || menu.name || '',
+            path: menu.path || '#',
+            columns: columns
+          };
+        });
+        
+        results.navigation = { navigationMenus: reconstructedMenus };
         
         res.header('X-Data-Mode', 'supabase');
         return res.json(results);
@@ -342,7 +373,7 @@ async function startServer() {
         return res.json(newData);
       }
     } catch (err: any) {
-      console.error(`Error saving settings for ${key}:`, err);
+      console.error(`Error save settings for ${key}:`, err);
       res.status(500).json({ error: err.message, details: err });
     }
   });
