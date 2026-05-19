@@ -86,7 +86,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       console.log('SettingsContext: Fetching all settings...');
       setIsLoading(true);
       
-      let results: any = null;
+      let results: any = {};
       let mode = 'unknown';
 
       try {
@@ -210,15 +210,35 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       console.log('SettingsContext: Empty navigation detected, running one-time migration...');
       setIsLoading(true);
       try {
-        const { data: settingsData, error: settingsError } = await supabase
+        // First, try fetching the specific 'navigation' key
+        let { data: settingsData, error: settingsError } = await supabase
           .from('settings')
           .select('data')
           .eq('key', 'navigation')
           .single();
         
-        if (settingsError || !settingsData?.data?.navigationMenus) throw new Error('No legacy navigation found');
-
-        const legacyMenus = settingsData.data.navigationMenus;
+        // If not found, try fetching all settings
+        if (settingsError || !settingsData?.data) {
+          console.log('SettingsContext: Key "navigation" not found, trying to fetch all settings...');
+          const { data: allSettings, error: allError } = await supabase
+            .from('settings')
+            .select('key, data');                
+          
+          if (allError) throw new Error('Failed to fetch settings');
+          
+          // Look for 'navigation' inside the results if it's not a root row
+          const navSetting = allSettings?.find(s => s.key === 'navigation') || allSettings?.find(s => s.data && s.data.navigationMenus);
+          if (navSetting) {
+            settingsData = navSetting;
+          }
+        }
+        
+        if (!settingsData?.data) throw new Error('No legacy navigation found in settings');
+        
+        // Deep isolate data to prevent engine crashes
+        const sanitizedData = JSON.parse(JSON.stringify(settingsData.data));
+        
+        const legacyMenus = sanitizedData.navigationMenus || [];
         const menusToInsert = [];
         const itemsToInsert = [];
 

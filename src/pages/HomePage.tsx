@@ -136,7 +136,7 @@ export function HomePage() {
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                   referrerPolicy="no-referrer"
                   loading={index < 2 ? "eager" : "lazy"}
-                  fetchpriority={index < 2 ? "high" : "auto"}
+                  fetchPriority={index < 2 ? "high" : "auto"}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-8">
                   <h3 className="text-white text-4xl font-black uppercase tracking-widest font-headline italic leading-none">{category.name}</h3>

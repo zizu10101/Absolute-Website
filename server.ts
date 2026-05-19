@@ -31,8 +31,19 @@ export const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl,
 
 // File paths
 const DATA_DIR = path.join(process.cwd(), 'data');
-const LOCAL_PRODUCTS_PATH = path.join(DATA_DIR, 'products_exported.json');
+const LOCAL_PRODUCTS_PATH = path.join(DATA_DIR, 'products.json');
 const LOCAL_SETTINGS_PATH = path.join(DATA_DIR, 'settings_exported.json');
+
+// Helper for safe JSON reading
+async function readSafeJson(filePath: string, defaultValue: any) {
+  try {
+    const fileContent = await fs.readFile(filePath, 'utf-8');
+    return JSON.parse(fileContent);
+  } catch (e) {
+    console.error(`Error reading/parsing JSON file ${filePath}:`, e);
+    return defaultValue;
+  }
+}
 
 // Cache to prevent too many Supabase hits
 const apiCache = new Map<string, { data: any, expires: number }>();
@@ -103,26 +114,12 @@ async function startServer() {
         apiCache.set(cacheKey, { data: responseData, expires: Date.now() + CACHE_TTL });
         return res.json(responseData);
       } else {
-        const fileContent = await fs.readFile(LOCAL_PRODUCTS_PATH, 'utf-8').catch(() => '[]');
-        let data;
-        try {
-          data = JSON.parse(fileContent);
-        } catch (e) {
-          console.error("Failed to parse local products JSON, returning empty list");
-          data = [];
-        }
+        const data = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
         return res.json({ data, mode: 'local' });
       }
     } catch (err) {
       console.warn("Supabase products fetch failed, using local fallback");
-      const fileContent = await fs.readFile(LOCAL_PRODUCTS_PATH, 'utf-8').catch(() => '[]');
-      let data;
-      try {
-        data = JSON.parse(fileContent);
-      } catch (e) {
-        console.error("Failed to parse local products JSON fallback, returning empty list");
-        data = [];
-      }
+      const data = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
       return res.json({ data, mode: 'local-fallback' });
     }
   });
@@ -141,8 +138,7 @@ async function startServer() {
         clearCache('products');
         return res.json(data);
       } else {
-        const fileContent = await fs.readFile(LOCAL_PRODUCTS_PATH, 'utf-8').catch(() => '[]');
-        const products = JSON.parse(fileContent);
+        const products = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
         const newProduct = { ...productData, id: Date.now().toString() };
         products.push(newProduct);
         await fs.writeFile(LOCAL_PRODUCTS_PATH, JSON.stringify(products, null, 2));
@@ -164,8 +160,7 @@ async function startServer() {
         if (error) throw error;
         return res.json(data);
       } else {
-        const fileContent = await fs.readFile(LOCAL_PRODUCTS_PATH, 'utf-8').catch(() => '[]');
-        const products = JSON.parse(fileContent);
+        const products = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
         const product = products.find((p: any) => p.id === id);
         if (!product) return res.status(404).json({ error: "Product not found" });
         return res.json(product);
@@ -187,8 +182,7 @@ async function startServer() {
         clearCache('products');
         return res.json(data);
       } else {
-        const fileContent = await fs.readFile(LOCAL_PRODUCTS_PATH, 'utf-8').catch(() => '[]');
-        let products = JSON.parse(fileContent);
+        let products = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
         const index = products.findIndex((p: any) => p.id === id);
         if (index === -1) return res.status(404).json({ error: "Product not found" });
         
@@ -213,8 +207,7 @@ async function startServer() {
         clearCache('products');
         return res.json({ success: true });
       } else {
-        const fileContent = await fs.readFile(LOCAL_PRODUCTS_PATH, 'utf-8').catch(() => '[]');
-        let products = JSON.parse(fileContent);
+        let products = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
         const initialLength = products.length;
         products = products.filter((p: any) => p.id !== id);
         
@@ -252,8 +245,7 @@ async function startServer() {
         res.header('X-Data-Mode', 'supabase');
         return res.json(results);
       } else {
-        const fileContent = await fs.readFile(LOCAL_SETTINGS_PATH, 'utf-8').catch(() => '{}');
-        const data = JSON.parse(fileContent);
+        const data = await readSafeJson(LOCAL_SETTINGS_PATH, {});
         res.header('X-Data-Mode', 'local');
         return res.json(data);
       }
@@ -339,8 +331,7 @@ async function startServer() {
         
         return res.json(data.data || data.config || data);
       } else {
-        const fileContent = await fs.readFile(LOCAL_SETTINGS_PATH, 'utf-8').catch(() => '{}');
-        const settings = JSON.parse(fileContent);
+        const settings = await readSafeJson(LOCAL_SETTINGS_PATH, {});
         const existing = settings[key] || {};
         const newData = (typeof existing === 'object' && typeof updates === 'object')
           ? { ...existing, ...updates }
@@ -364,12 +355,12 @@ async function startServer() {
         if (error) throw error;
         return res.json(data.config);
       } else {
-        const fileContent = await fs.readFile(LOCAL_SETTINGS_PATH, 'utf-8').catch(() => '{}');
-        return res.json(JSON.parse(fileContent));
+        const settings = await readSafeJson(LOCAL_SETTINGS_PATH, {});
+        return res.json(settings);
       }
     } catch (err) {
-      const fileContent = await fs.readFile(LOCAL_SETTINGS_PATH, 'utf-8').catch(() => '{}');
-      return res.json(JSON.parse(fileContent));
+      const settings = await readSafeJson(LOCAL_SETTINGS_PATH, {});
+      return res.json(settings);
     }
   });
 
@@ -449,11 +440,11 @@ async function startServer() {
         supabaseProducts: 0
       };
 
-      const pRaw = await fs.readFile(LOCAL_PRODUCTS_PATH, 'utf-8').catch(() => '[]');
-      stats.localProducts = JSON.parse(pRaw).length;
+      const localProducts = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
+      stats.localProducts = localProducts.length;
       
-      const sRaw = await fs.readFile(LOCAL_SETTINGS_PATH, 'utf-8').catch(() => '{}');
-      stats.localSettings = Object.keys(JSON.parse(sRaw)).length > 0;
+      const localSettings = await readSafeJson(LOCAL_SETTINGS_PATH, {});
+      stats.localSettings = Object.keys(localSettings).length > 0;
 
       if (supabase) {
         const { count, error } = await supabase.from('products').select('*', { count: 'exact', head: true });
