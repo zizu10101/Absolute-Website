@@ -628,8 +628,8 @@ export function AdminPage() {
             const approxCompSizeMB = (resized.length * (3/4)) / (1024 * 1024);
             console.log(`Slider image compressed to approx: ${approxCompSizeMB.toFixed(2)}MB`);
 
-            const path = `slider/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-            const publicUrl = await uploadImage(resized, path);
+            const path = `slider_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+            const publicUrl = await uploadImage(resized, path, 'navigation_logos');
             
             setDraftSliderImages([...draftSliderImages, { url: publicUrl, title: '', link: '' }]);
             setSaveErrorMessage(null); // Success clears error
@@ -664,8 +664,8 @@ export function AdminPage() {
 
         console.log(`Processing pasted slider image. Approx size: ${approxSizeMB.toFixed(2)}MB, target quality: ${quality}`);
         const resized = await resizeImage(value, 1920, 1080, quality);
-        const path = `slider/${Date.now()}_pasted`;
-        finalValue = await uploadImage(resized, path);
+        const path = `slider_${Date.now()}_pasted`;
+        finalValue = await uploadImage(resized, path, 'navigation_logos');
         setSaveErrorMessage(null);
       } catch (err: any) {
         console.error("Slider upload failed:", err);
