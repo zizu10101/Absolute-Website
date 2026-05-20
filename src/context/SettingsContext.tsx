@@ -214,7 +214,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       if (payload.includes('data:image')) {
         console.error(`BLOCKING NETWORK EXECUTION: Base64 detected in ${key} payload!`);
         
-        // Find the exact path for better debugging
         const findPath = (obj: any, path: string = ''): string[] => {
           let results: string[] = [];
           if (!obj) return results;
@@ -238,30 +237,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         throw new Error(errorMsg);
       }
       
-      // 1. Try Direct Supabase Upsert FIRST (Bypasses Vercel Payload Limits)
-      console.log(`SettingsContext: Attempting direct Supabase upsert for ${key}...`);
-      const { data: upsertData, error: upsertError } = await supabase
-        .from('settings')
-        .upsert({
-          key,
-          data: updates,
-          updated_at: new Date()
-        }, { onConflict: 'key' })
-        .select();
-
-      if (!upsertError) {
-        console.log(`SettingsContext: Direct Supabase save successful for ${key}`);
-        updateLocalState(key, updates);
-        return;
-      }
-
-      console.error(`SettingsContext: Direct Supabase upsert FAILED for ${key}. Error Code: ${upsertError.code}, Message: ${upsertError.message}, Details: ${upsertError.details || 'none'}`);
+      // Use API proxy for all settings updates to ensure we use the service_role key
+      console.log(`SettingsContext: Updating ${key} via API proxy...`);
       
-      // Pass the specific database error upstream
-      throw new Error(`DB Save Failed (Code: ${upsertError.code}): ${upsertError.message}`);
-
-
-      // 2. Fallback to API if RLS or other issues prevent direct write
       // Vercel limit is 4.5MB, we check at 4MB to be safe
       if (payloadSize > 4000000) {
         throw new Error(`THE DATA YOU ARE TRYING TO SAVE IS TOO LARGE (${(payloadSize / 1024 / 1024).toFixed(2)}MB). Please remove some images or simplify your menus to stay under the 4MB limit.`);
