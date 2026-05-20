@@ -850,7 +850,10 @@ export function AdminPage() {
     setSaveErrorMessage(null);
 
     try {
-      await setSliderImages(draftSliderImages);
+      // Filter out any items with raw base64 data to prevent DB payload errors
+      const sanitizedImages = draftSliderImages.filter(img => img.url && !img.url.startsWith('data:image/'));
+
+      await setSliderImages(sanitizedImages);
       await setGlobalSettings({
         logo: draftLogo,
         landingLogo: draftLandingLogo,
