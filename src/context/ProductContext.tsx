@@ -70,7 +70,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       // Also fetch a small batch of all products to have some local cache
       try {
-        const response = await fetch(`/api/products?limit=20&fields=${LIST_FIELDS}`);
+        const response = await fetch(`/api/products?limit=20&fields=${LIST_FIELDS}&_t=${Date.now()}`);
         const contentType = response.headers.get('content-type');
         if (!response.ok || (contentType && contentType.includes('text/html'))) {
           console.warn(`Initial product batch fetch failed: ${response.status} ${response.statusText}`);
@@ -91,7 +91,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const fetchFeaturedProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/products?isFeatured=true&limit=8&fields=${LIST_FIELDS}`);
+      const response = await fetch(`/api/products?isFeatured=true&limit=8&fields=${LIST_FIELDS}&_t=${Date.now()}`);
       
       // If we get index.html (SPA fallback), handle it
       const contentType = response.headers.get('content-type');
@@ -186,12 +186,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const fetchProductsByCategory = async (category?: string, submenu?: string) => {
     setIsLoading(true);
+    const cleanCategory = category?.trim().toLowerCase();
+    const cleanSubmenu = submenu?.trim().toLowerCase();
+
     try {
       const params = new URLSearchParams();
-      if (category && category.toLowerCase() !== 'all') params.append('category', category);
-      if (submenu) params.append('submenu', submenu);
+      if (cleanCategory && cleanCategory !== 'all') params.append('category', cleanCategory);
+      if (cleanSubmenu) params.append('submenu', cleanSubmenu);
       params.append('fields', LIST_FIELDS);
       params.append('limit', '40');
+      params.append('_t', Date.now().toString()); // Cache buster
       
       const response = await fetch(`/api/products?${params.toString()}`);
       
@@ -208,11 +212,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       console.warn('Categorized fetch from API failed, trying direct Supabase:', e);
       try {
         let query = supabase.from('products').select(LIST_FIELDS);
-        if (category && category.toLowerCase() !== 'all') {
-          query = query.ilike('category', category);
+        if (cleanCategory && cleanCategory !== 'all') {
+          query = query.ilike('category', cleanCategory);
         }
-        if (submenu) {
-          query = query.or(`submenu.ilike.${submenu},submenus.cs.{${submenu}}`);
+        if (cleanSubmenu) {
+          query = query.or(`submenu.ilike.${cleanSubmenu},submenus.cs.{${cleanSubmenu}}`);
         }
         const { data, error } = await query.order('name').limit(100);
         
@@ -231,8 +235,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       // First check local state
       const local = products.find(p => p.id === id);
       if (local && local.description) return local;
-
-      const response = await fetch(`/api/products/${id}`);
+      
+      const response = await fetch(`/api/products/${id}?_t=${Date.now()}`);
       if (!response.ok || (response.headers.get('content-type') && response.headers.get('content-type')!.includes('text/html'))) {
         throw new Error('API unavailable or returned HTML');
       }
