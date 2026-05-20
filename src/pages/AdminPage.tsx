@@ -631,8 +631,16 @@ export function AdminPage() {
             const path = `slider_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
             const publicUrl = await uploadImage(resized, path, 'navigation_logos');
             
-            setDraftSliderImages([...draftSliderImages, { url: publicUrl, title: '', link: '' }]);
-            setSaveErrorMessage(null); // Success clears error
+            const newImages = [...draftSliderImages, { url: publicUrl, title: '', link: '' }];
+            setDraftSliderImages(newImages);
+            
+            try {
+              await setSliderImages(newImages);
+              setSaveErrorMessage(null); // Success clears error
+            } catch (err: any) {
+              console.error("Failed to save slider images to database:", err);
+              setSaveErrorMessage('Image uploaded, but failed to save layout settings to database.');
+            }
           } catch (err: any) {
             console.error("Slider upload failed during conversion/upload:", err);
             const detailedMessage = err?.message || err || "Unknown error";
