@@ -852,6 +852,8 @@ export function AdminPage() {
     try {
       // Filter out any items with raw base64 data to prevent DB payload errors
       const sanitizedImages = draftSliderImages.filter(img => img.url && !img.url.startsWith('data:image/'));
+      
+      console.log("FINAL SLIDER PAYLOAD BEING SENT TO DB:", sanitizedImages);
 
       await setSliderImages(sanitizedImages);
       await setGlobalSettings({
@@ -864,7 +866,8 @@ export function AdminPage() {
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error: any) {
       console.error('AdminPage: Failed to save slider/logo:', error);
-      setSaveErrorMessage(error.message || 'Failed to save settings.');
+      const detailedErrorMessage = error.message || error.details || error.hint || JSON.stringify(error) || 'Failed to save settings.';
+      setSaveErrorMessage(`Failed to save settings to database: ${detailedErrorMessage}`);
     } finally {
       setIsSaving(false);
     }

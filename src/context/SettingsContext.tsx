@@ -242,8 +242,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       console.log(`SettingsContext: Attempting direct Supabase upsert for ${key}...`);
       const { data: upsertData, error: upsertError } = await supabase
         .from('settings')
-        .upsert({ 
-          key, 
+        .upsert({
+          key,
           data: updates,
           updated_at: new Date()
         }, { onConflict: 'key' })
@@ -255,7 +255,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      console.warn(`SettingsContext: Direct Supabase upsert failed for ${key}, falling back to API:`, upsertError);
+      console.error(`SettingsContext: Direct Supabase upsert FAILED for ${key}. Error Code: ${upsertError.code}, Message: ${upsertError.message}, Details: ${upsertError.details || 'none'}`);
+      
+      // Pass the specific database error upstream
+      throw new Error(`DB Save Failed (Code: ${upsertError.code}): ${upsertError.message}`);
+
 
       // 2. Fallback to API if RLS or other issues prevent direct write
       // Vercel limit is 4.5MB, we check at 4MB to be safe
