@@ -98,7 +98,6 @@ async function startServer() {
 
   // Products GET
   app.get("/api/products", async (req, res) => {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     const cacheKey = `products_${JSON.stringify(req.query)}`;
     const cached = apiCache.get(cacheKey);
     if (cached && cached.expires > Date.now()) {

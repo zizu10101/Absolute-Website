@@ -598,63 +598,24 @@ export function AdminPage() {
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    try {
-      const file = e.target.files?.[0];
-      if (file) {
-        setIsUploading(true);
-        setSaveErrorMessage(null); // Clear previous errors
-        const fileSizeMB = file.size / (1024 * 1024);
-
-        const reader = new FileReader();
-        reader.onerror = (readerErr) => {
-          console.error("Slider file reader error:", readerErr);
-          setSaveErrorMessage(`Failed to read selected file: ${readerErr}`);
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsUploading(true);
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const resized = await resizeImage(reader.result as string, 1920, 1080, 0.8);
+          const path = `slider/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const publicUrl = await uploadImage(resized, path);
+          setDraftSliderImages([...draftSliderImages, { url: publicUrl, title: '', link: '' }]);
+        } catch (err) {
+          console.error("Slider upload failed:", err);
+          setSaveErrorMessage("Failed to upload slider image.");
+        } finally {
           setIsUploading(false);
-        };
-        reader.onloadend = async () => {
-          try {
-            // Adjust quality adaptively based on the source image size (larger source => higher compression)
-            let quality = 0.8;
-            if (fileSizeMB > 5) {
-              quality = 0.5; // Aggressive compression for very large files
-            } else if (fileSizeMB > 2) {
-              quality = 0.65; // Balanced compression
-            }
-
-            console.log(`Processing slider upload. Original Size: ${fileSizeMB.toFixed(2)}MB, Target Quality: ${quality}`);
-            const resized = await resizeImage(reader.result as string, 1920, 1080, quality);
-            
-            // Estimate length of the compressed image
-            const approxCompSizeMB = (resized.length * (3/4)) / (1024 * 1024);
-            console.log(`Slider image compressed to approx: ${approxCompSizeMB.toFixed(2)}MB`);
-
-            const path = `slider_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-            const publicUrl = await uploadImage(resized, path, 'navigation_logos');
-            
-            const newImages = [...draftSliderImages, { url: publicUrl, title: '', link: '' }];
-            setDraftSliderImages(newImages);
-            
-            try {
-              await setSliderImages(newImages);
-              setSaveErrorMessage(null); // Success clears error
-            } catch (err: any) {
-              console.error("Failed to save slider images to database:", err);
-              setSaveErrorMessage('Image uploaded, but failed to save layout settings to database.');
-            }
-          } catch (err: any) {
-            console.error("Slider upload failed during conversion/upload:", err);
-            const detailedMessage = err?.message || err || "Unknown error";
-            setSaveErrorMessage(`Failed to upload slider image: ${detailedMessage}`);
-          } finally {
-            setIsUploading(false);
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-    } catch (err: any) {
-      console.error("Frontend upload script crashed:", err);
-      setSaveErrorMessage(`Frontend script crash: ${err.message || err}`);
-      setIsUploading(false);
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -662,24 +623,13 @@ export function AdminPage() {
     let finalValue = value;
     if (field === 'url' && value.startsWith('data:')) {
       setIsUploading(true);
-      setSaveErrorMessage(null);
       try {
-        const base64Len = value.length;
-        const approxSizeMB = (base64Len * (3/4)) / (1024 * 1024);
-        let quality = 0.8;
-        if (approxSizeMB > 5) quality = 0.5;
-        else if (approxSizeMB > 2) quality = 0.65;
-
-        console.log(`Processing pasted slider image. Approx size: ${approxSizeMB.toFixed(2)}MB, target quality: ${quality}`);
-        const resized = await resizeImage(value, 1920, 1080, quality);
-        const path = `slider_${Date.now()}_pasted`;
-        finalValue = await uploadImage(resized, path, 'navigation_logos');
-        setSaveErrorMessage(null);
-      } catch (err: any) {
+        const resized = await resizeImage(value, 1920, 1080, 0.8);
+        const path = `slider/${Date.now()}_pasted`;
+        finalValue = await uploadImage(resized, path);
+      } catch (err) {
         console.error("Slider upload failed:", err);
-        const detailedMessage = err?.message || err || "Unknown error";
-        setSaveErrorMessage(`Failed to upload pasted slider image: ${detailedMessage}`);
-        alert(`Failed to upload pasted image: ${detailedMessage}`);
+        alert("Failed to upload pasted image.");
         return;
       } finally {
         setIsUploading(false);
@@ -850,12 +800,7 @@ export function AdminPage() {
     setSaveErrorMessage(null);
 
     try {
-      // Filter out any items with raw base64 data to prevent DB payload errors
-      const sanitizedImages = draftSliderImages.filter(img => img.url && !img.url.startsWith('data:image/'));
-      
-      console.log("FINAL SLIDER PAYLOAD BEING SENT TO DB:", sanitizedImages);
-
-      await setSliderImages(sanitizedImages);
+      await setSliderImages(draftSliderImages);
       await setGlobalSettings({
         logo: draftLogo,
         landingLogo: draftLandingLogo,
@@ -866,8 +811,7 @@ export function AdminPage() {
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error: any) {
       console.error('AdminPage: Failed to save slider/logo:', error);
-      const detailedErrorMessage = error.message || error.details || error.hint || JSON.stringify(error) || 'Failed to save settings.';
-      setSaveErrorMessage(`Failed to save settings to database: ${detailedErrorMessage}`);
+      setSaveErrorMessage(error.message || 'Failed to save settings.');
     } finally {
       setIsSaving(false);
     }
@@ -1402,7 +1346,7 @@ export function AdminPage() {
             <div className="h-4 w-px bg-zinc-700" />
             <button 
               onClick={async () => {
-                if (window.confirm('Standardize all products and navigation (lowercase fields, leading slashes, path normalization)? This will also clear all server and client caches to fix filtering issues and 404s.')) {
+                if (window.confirm('Standardize all products and navigation (lowercase fields, leading slashes, path normalization)? This fixes filtering issues and 404s on production.')) {
                   try {
                     const resp = await fetch('/api/admin/standardize-db', { method: 'POST' });
                     
@@ -1414,7 +1358,7 @@ export function AdminPage() {
 
                     const data = await resp.json();
                     if (data.results) {
-                      alert(`Standardization & Cache Clear complete!\n- Products Fixed: ${data.results.productsFixed}\n- Navigation Fixed: ${data.results.navigationFixed}\n- Errors: ${data.results.errors.length}`);
+                      alert(`Standardization complete!\n- Products Fixed: ${data.results.productsFixed}\n- Navigation Fixed: ${data.results.navigationFixed}\n- Errors: ${data.results.errors.length}`);
                     } else {
                       alert(data.message || 'Standardization complete');
                     }
@@ -1427,7 +1371,7 @@ export function AdminPage() {
               }} 
               className="px-4 py-2 bg-zinc-700 text-white font-bold text-[10px] uppercase tracking-widest rounded hover:bg-zinc-600 transition-colors flex items-center gap-2"
             >
-              🛠️ Standardize & Flush Cache
+              🛠️ Standardize Database & Assets
             </button>
           </div>
           <button onClick={(e) => { e.preventDefault(); forceManualNavigationMigration(); }} className="px-4 py-2 bg-blue-600 text-white font-bold text-[10px] uppercase tracking-widest rounded hover:bg-blue-700 transition-colors">
