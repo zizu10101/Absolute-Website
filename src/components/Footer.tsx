@@ -17,7 +17,7 @@ export function Footer() {
   );
 
   return (
-    <footer className="bg-zinc-950 text-white pt-20 pb-10 mt-20">
+    <footer className="bg-zinc-950 text-white pt-20 pb-10">
       <div className="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
         <div className="space-y-6">
           <img src={footerLogo} alt="ABSOLUTE SOCCER" className="h-24 w-auto" />

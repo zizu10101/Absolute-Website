@@ -44,9 +44,9 @@ export function HomePage() {
   const currentSlide = sliderImages[currentIndex];
 
   return (
-    <div className="space-y-20 pb-20">
+    <div className="space-y-20">
       {sliderImages.length > 0 && currentSlide && (
-        <section className="relative w-full aspect-video overflow-hidden bg-zinc-900 flex items-center px-8 md:px-20">
+        <section className="relative w-full h-[350px] sm:h-[450px] md:h-[500px] lg:h-[550px] overflow-hidden bg-zinc-900 flex items-center px-8 md:px-20">
           <AnimatePresence mode="wait">
             <div key={currentIndex} className="absolute inset-0 w-full h-full">
               {currentSlide.link ? (
@@ -170,29 +170,43 @@ export function HomePage() {
         </section>
       )}
 
-      <section className="bg-zinc-950 text-white py-20 px-8">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-black font-headline uppercase italic tracking-tighter mb-6">JOIN THE SQUAD</h2>
-          <p className="text-zinc-400 mb-10 px-4">Be the first to know about drop dates, exclusive kits, and member-only stadium access events.</p>
-          <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto mb-16 px-4">
-            <input type="email" placeholder="EMAIL ADDRESS" className="flex-1 bg-zinc-800 p-4 text-white placeholder-zinc-500 font-bold uppercase tracking-widest" />
-            <button type="submit" className="bg-[#b90014] text-white px-8 py-4 font-headline font-bold uppercase tracking-widest hover:bg-white hover:text-[#b90014] transition-colors">
-              SUBSCRIBE
-            </button>
-          </form>
+      <section className="bg-zinc-950 text-white py-20 px-8 border-t border-zinc-900">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            {/* Visit info */}
+            <div className="space-y-6 text-center md:text-left">
+              <h2 className="text-4xl md:text-5xl font-black font-headline uppercase italic tracking-tighter text-[#b90014]">VISIT US</h2>
+              <div className="space-y-2">
+                <p className="text-xl font-bold uppercase tracking-widest">Absolute Soccer</p>
+                <p className="text-zinc-400 font-medium">5600 Rose Cherry Place, Mississauga, Ontario</p>
+                <p className="text-zinc-400 font-medium">Phone: 905-593-3600</p>
+              </div>
+              <div className="pt-4">
+                <a 
+                  href="https://www.instagram.com/absolutemississauga?igsh=MXNrOW15Mmhna2Q5ZA==" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-block bg-[#b90014] text-white px-8 py-3.5 font-headline font-bold uppercase tracking-widest hover:bg-white hover:text-zinc-950 transition-colors"
+                >
+                  Follow on Instagram
+                </a>
+              </div>
+            </div>
 
-          <div className="border-t border-zinc-800 pt-10 px-4">
-            <h3 className="text-xl font-bold uppercase tracking-widest mb-4">Visit Us</h3>
-            <p className="text-zinc-400 mb-2">5600 Rose Cherry Place, Mississauga Ontario</p>
-            <p className="text-zinc-400 mb-6">905-593-3600</p>
-            <a 
-              href="https://www.instagram.com/absolutemississauga?igsh=MXNrOW15Mmhna2Q5ZA==" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="inline-block bg-zinc-800 text-white px-6 py-3 font-bold uppercase tracking-widest hover:bg-[#b90014] transition-colors"
-            >
-              Follow on Instagram
-            </a>
+            {/* Google Map */}
+            <div className="w-full h-[280px] rounded-lg overflow-hidden border-2 border-zinc-800 shadow-xl relative bg-zinc-900">
+              <iframe
+                title="Absolute Soccer Location Map"
+                src="https://maps.google.com/maps?q=5600%20Rose%20Cherry%20Place,%20Mississauga%20Ontario&amp;t=&amp;z=15&amp;ie=UTF8&amp;iwloc=&amp;output=embed"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen={false}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="grayscale opacity-75 hover:grayscale-0 hover:opacity-100 transition-all duration-500"
+              />
+            </div>
           </div>
         </div>
       </section>
