@@ -4,11 +4,11 @@ import { useProducts, Product } from '../context/ProductContext';
 import { useSettings, NavMenu, SEO, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload } from 'lucide-react';
+import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
 import { resizeImage } from '../lib/imageUtils';
-import { uploadImage } from '../supabase';
+import { uploadImage, supabase } from '../supabase';
 
 type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'tools';
 
@@ -33,12 +33,88 @@ const getCategoryPath = (name: string) => {
   return `/${name.toLowerCase().replace(/\s+/g, '-')}`;
 };
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class AdminPageErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState;
+  public props: ErrorBoundaryProps;
+
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.props = props;
+    this.state = {
+      hasError: false,
+      error: null
+    };
+  }
+
+  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("AdminPage Uncaught rendering error:", error, errorInfo);
+  }
+
+  public render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-zinc-200 p-8 text-center space-y-6">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-zinc-900">Admin Panel Error Caught</h2>
+              <p className="text-sm text-zinc-500">The dashboard encountered an error trying to process or render some data fields.</p>
+            </div>
+            <div className="bg-zinc-50 p-4 rounded-xl text-left border border-zinc-200">
+              <p className="text-xs font-mono text-zinc-700 whitespace-pre-wrap overflow-x-auto max-h-32">
+                {this.state.error?.message || "Unknown rendering exception"}
+              </p>
+            </div>
+            <button 
+              onClick={() => {
+                sessionStorage.clear();
+                localStorage.clear();
+                window.location.reload();
+              }}
+              className="w-full py-3 bg-[#b90014] text-white rounded-xl font-black uppercase tracking-widest text-xs hover:bg-zinc-900 transition-all shadow-lg"
+            >
+              Reset & Reload Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export function AdminPage() {
+  return (
+    <AdminPageErrorBoundary>
+      <AdminPageInner />
+    </AdminPageErrorBoundary>
+  );
+}
+
+function AdminPageInner() {
   const { 
     products, addProduct, deleteProduct, updateProduct, resetProducts, 
     fetchAdminProducts, loadMoreAdminProducts, hasMoreProducts, isLoading
   } = useProducts();
-  const { sliderImages, setSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, setGlobalSettings, resetSettings } = useSettings();
+  const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, setGlobalSettings, resetSettings } = useSettings();
   const { logout, user } = useAuth();
 
   const updateDraftNavigationMenu = (index: number, field: string, value: string) => {
@@ -106,15 +182,17 @@ export function AdminPage() {
     // Rely on Context to fetch products on mount
   }, []);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [draftSliderImages, setDraftSliderImages] = useState(sliderImages);
-  const [draftLogo, setDraftLogo] = useState(logo);
-  const [draftLandingLogo, setDraftLandingLogo] = useState(landingLogo);
-  const [draftLabBackgroundImage, setDraftLabBackgroundImage] = useState(labBackgroundImage);
-  const [draftFooterLogo, setDraftFooterLogo] = useState(footerLogo);
-  const [draftHomeCategories, setDraftHomeCategories] = useState(homeCategories);
-  const [draftFooterLinks, setDraftFooterLinks] = useState(footerLinks);
-  const [draftNavigationMenus, setDraftNavigationMenus] = useState(navigationMenus);
-  const [draftSeoSettings, setDraftSeoSettings] = useState(seoSettings);
+  const [sliderImages, setSliderImages] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [isSyncingBucket, setIsSyncingBucket] = useState(false);
+  const [draftLogo, setDraftLogo] = useState<string>(logo || '');
+  const [draftLandingLogo, setDraftLandingLogo] = useState<string>(landingLogo || '');
+  const [draftLabBackgroundImage, setDraftLabBackgroundImage] = useState<string>(labBackgroundImage || '');
+  const [draftFooterLogo, setDraftFooterLogo] = useState<string>(footerLogo || '');
+  const [draftHomeCategories, setDraftHomeCategories] = useState<any[]>(homeCategories || []);
+  const [draftFooterLinks, setDraftFooterLinks] = useState<any[]>(footerLinks || []);
+  const [draftNavigationMenus, setDraftNavigationMenus] = useState<any[]>(navigationMenus || []);
+  const [draftSeoSettings, setDraftSeoSettings] = useState<any>(seoSettings || {});
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -271,35 +349,40 @@ export function AdminPage() {
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
 
   useEffect(() => {
-    setDraftSliderImages(sliderImages);
-  }, [sliderImages]);
+    const cleanImages = (contextSliderImages || []).filter(img => img && img.url && !img.url.startsWith('data:'));
+    setSliderImages(cleanImages);
+  }, [contextSliderImages]);
 
   useEffect(() => {
-    setDraftLogo(logo);
+    setDraftLogo(logo || '');
   }, [logo]);
 
   useEffect(() => {
-    setDraftLandingLogo(landingLogo);
+    setDraftLandingLogo(landingLogo || '');
   }, [landingLogo]);
 
   useEffect(() => {
-    setDraftLabBackgroundImage(labBackgroundImage);
+    setDraftLabBackgroundImage(labBackgroundImage || '');
   }, [labBackgroundImage]);
 
   useEffect(() => {
-    setDraftFooterLogo(footerLogo);
+    setDraftFooterLogo(footerLogo || '');
   }, [footerLogo]);
 
   useEffect(() => {
-    setDraftHomeCategories(homeCategories);
+    setDraftHomeCategories(homeCategories || []);
   }, [homeCategories]);
 
   useEffect(() => {
-    setDraftFooterLinks(footerLinks);
+    setDraftFooterLinks(footerLinks || []);
   }, [footerLinks]);
 
   useEffect(() => {
-    let menus = [...navigationMenus];
+    setDraftSeoSettings(seoSettings || {});
+  }, [seoSettings]);
+
+  useEffect(() => {
+    let menus = [...(navigationMenus || [])];
     
     // Merge existing/server menus into DEFAULT_NAV
     const merged = DEFAULT_NAV.map(defaultItem => {
@@ -597,31 +680,160 @@ export function AdminPage() {
     }
   };
 
+  const handleAddNewSlide = async (publicUrl: string) => {
+    const newImage = { url: publicUrl, title: '', link: '' };
+    setSliderImages(prev => [...(prev || []), newImage]);
+  };
+
+  const syncSliderFromBucket = async (quiet = false) => {
+    setIsSyncingBucket(true);
+    if (!quiet) setSaveErrorMessage(null);
+    try {
+      const { data, error } = await supabase.storage.from('media').list('slider', {
+        limit: 100
+      });
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        if (!quiet) alert("No files found in 'media' bucket folder 'slider'.");
+        return;
+      }
+
+      const validFiles = data.filter(file => file.name && !file.name.startsWith('.') && file.name !== '.emptyFolderPlaceholder');
+      if (validFiles.length === 0) {
+        if (!quiet) alert("Found empty bucket folder or placeholder files in 'media/slider'.");
+        return;
+      }
+
+      const newSliderImages = validFiles.map(file => {
+        const { data: urlData } = supabase.storage.from('media').getPublicUrl(`slider/${file.name}`);
+        let niceTitle = file.name.split('_').slice(1).join('_').replace(/\.[^/.]+$/, "");
+        if (!niceTitle) niceTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ');
+        return {
+          url: urlData.publicUrl || '',
+          title: niceTitle,
+          link: ''
+        };
+      });
+
+      const { error: dbError } = await supabase
+        .from('settings')
+        .update({ data: { sliderImages: newSliderImages } })
+        .eq('key', 'slider');
+
+      if (dbError) throw dbError;
+
+      setSliderImages(newSliderImages);
+      await setContextSliderImages(newSliderImages);
+      
+      if (!quiet) {
+        alert(`Successfully synced ${newSliderImages.length} images from 'media/slider' to settings database!`);
+      }
+    } catch (err: any) {
+      console.error("Bucket slider synchronization failed:", err);
+      if (!quiet) setSaveErrorMessage("Sync Failed: " + (err.message || err));
+    } finally {
+      setIsSyncingBucket(false);
+    }
+  };
+
+  useEffect(() => {
+    if (contextSliderImages && contextSliderImages.length === 0) {
+      syncSliderFromBucket(true);
+    }
+  }, [contextSliderImages]);
+
+  const handleDeleteSlide = (targetIndex: number) => {
+    setSliderImages(prev => {
+      const finalArray = (prev || []).filter((_, index) => index !== targetIndex);
+      supabase
+        .from('settings')
+        .upsert({ key: 'slider', data: { sliderImages: finalArray } }, { onConflict: 'key' })
+        .then(({ error }) => {
+          if (error) {
+            console.error("Failed to delete slide from database settings:", error);
+          } else {
+            console.log("Database slider settings updated successfully on delete!");
+            setContextSliderImages(finalArray).catch(err => console.error("Context update error:", err));
+          }
+        });
+      return finalArray;
+    });
+  };
+
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setUploading(true);
       setIsUploading(true);
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          const resized = await resizeImage(reader.result as string, 1920, 1080, 0.8);
-          const path = `slider/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-          const publicUrl = await uploadImage(resized, path);
-          setDraftSliderImages([...draftSliderImages, { url: publicUrl, title: '', link: '' }]);
-        } catch (err) {
-          console.error("Slider upload failed:", err);
-          setSaveErrorMessage("Failed to upload slider image.");
-        } finally {
+      try {
+        const reader = new FileReader();
+        reader.onerror = (err) => {
+          console.error("FileReader error:", err);
+          setUploading(false);
           setIsUploading(false);
-        }
-      };
-      reader.readAsDataURL(file);
+          setSaveErrorMessage("Failed to read selected file.");
+        };
+        reader.onloadend = async () => {
+          try {
+            // STEP 1 - UPLOAD THE FILE (resized to save storage space and bandwidth)
+            const resized = await resizeImage(reader.result as string, 1920, 1080, 0.8);
+            const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+            const path = `slider/${fileName}`;
+            const publicUrl = await uploadImage(resized, path);
+            
+            if (!publicUrl || publicUrl.startsWith('data:')) {
+              throw new Error('Image upload returned invalid URL');
+            }
+            
+            // STEP 2 - GRAB URL
+            const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+            const verifiedUrl = urlData?.publicUrl || publicUrl;
+
+            // STEP 3 - OVERWRITE THE SETTINGS TABLE
+            const newSlide = { url: verifiedUrl, link: "", title: "New Slide" };
+            setSliderImages(prev => {
+              const finalArray = [...(prev || []), newSlide];
+              
+              supabase
+                .from('settings')
+                .upsert({ key: 'slider', data: { sliderImages: finalArray } }, { onConflict: 'key' })
+                .then(({ error }) => {
+                  if (error) {
+                    console.error("Failed to update database slider settings:", error);
+                    setSaveErrorMessage("Failed to save image to settings table: " + error.message);
+                  } else {
+                    console.log("Database slider settings updated successfully!");
+                    setContextSliderImages(finalArray).catch(err => console.error("Context update error:", err));
+                  }
+                });
+
+              return finalArray;
+            });
+
+            setSaveErrorMessage(null);
+          } catch (error: any) {
+            console.error("Upload error:", error);
+            setSaveErrorMessage("Upload failed: " + (error.message || error));
+          } finally {
+            setUploading(false);
+            setIsUploading(false);
+          }
+        };
+        reader.readAsDataURL(file);
+      } catch (outerErr: any) {
+        console.error("Outer slider upload exception:", outerErr);
+        setUploading(false);
+        setIsUploading(false);
+        setSaveErrorMessage("Failed to process file: " + outerErr.message);
+      }
     }
   };
 
   const updateSliderImage = async (index: number, field: 'title' | 'link' | 'url', value: string) => {
     let finalValue = value;
     if (field === 'url' && value.startsWith('data:')) {
+      setUploading(true);
       setIsUploading(true);
       try {
         const resized = await resizeImage(value, 1920, 1080, 0.8);
@@ -632,13 +844,14 @@ export function AdminPage() {
         alert("Failed to upload pasted image.");
         return;
       } finally {
+        setUploading(false);
         setIsUploading(false);
       }
     }
 
-    const newImages = [...draftSliderImages];
+    const newImages = [...sliderImages];
     newImages[index] = { ...newImages[index], [field]: finalValue as any };
-    setDraftSliderImages(newImages);
+    setSliderImages(newImages);
   };
 
   const handleLogoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -791,16 +1004,13 @@ export function AdminPage() {
   };
 
   const handleSaveSlider = async () => {
-    if (containsBase64({ draftSliderImages, draftLogo, draftLandingLogo, draftLabBackgroundImage, draftFooterLogo })) {
-      setSaveErrorMessage('Image uploads in progress. Please wait.');
-      return;
-    }
-
     setIsSaving(true);
     setSaveErrorMessage(null);
 
     try {
-      await setSliderImages(draftSliderImages);
+      // First save the slider images
+      await setContextSliderImages(sliderImages);
+      // Then save global settings
       await setGlobalSettings({
         logo: draftLogo,
         landingLogo: draftLandingLogo,
@@ -1563,6 +1773,14 @@ export function AdminPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => syncSliderFromBucket()}
+                      disabled={isSyncingBucket || isSaving || isUploading || uploading}
+                      className={`flex items-center gap-2 px-4 py-2.5 bg-zinc-900 border border-zinc-800 text-white rounded-lg font-bold uppercase tracking-widest text-[10px] transition-colors hover:bg-[#b90014] ${(isSyncingBucket || isSaving || isUploading || uploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <RefreshCw size={14} className={isSyncingBucket ? "animate-spin" : ""} />
+                      {isSyncingBucket ? 'Syncing...' : 'Sync from Storage'}
+                    </button>
                     <label className="flex items-center gap-2 px-4 py-2.5 bg-zinc-100 text-zinc-900 rounded-lg font-bold uppercase tracking-widest text-[10px] cursor-pointer hover:bg-zinc-200 transition-colors">
                       <Upload size={14} /> Upload New
                       <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
@@ -1570,31 +1788,31 @@ export function AdminPage() {
                     <div className="flex items-center gap-4">
                       <button 
                         onClick={() => handleSaveSlider()}
-                        disabled={isSaving || isUploading}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={isSaving || isUploading || uploading}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading || uploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
-                      {isSaving || isUploading ? (
+                      {isSaving || isUploading || uploading ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : saveSuccess ? (
                         <Check size={14} />
                       ) : (
                         <Save size={14} />
                       )}
-                      {isUploading ? 'Uploading...' : isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Changes'}
+                      {uploading || isUploading ? 'Uploading...' : isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Changes'}
                     </button>
                     </div>
                   </div>
                 </div>
                 
                 <div className="p-8">
-                  {draftSliderImages.length === 0 ? (
+                  {!sliderImages || !Array.isArray(sliderImages) || sliderImages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-200 rounded-xl bg-zinc-50">
                       <ImageIcon size={48} className="text-zinc-300 mb-4" />
                       <p className="text-zinc-500 font-medium">No images in slider. Upload some to get started.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {draftSliderImages.map((img, index) => (
+                      {sliderImages.map((img, index) => (
                         <motion.div 
                           layout
                           key={index} 
@@ -1604,7 +1822,7 @@ export function AdminPage() {
                             <img src={img.url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <button 
-                                onClick={() => setDraftSliderImages(draftSliderImages.filter((_, i) => i !== index))}
+                                onClick={() => handleDeleteSlide(index)}
                                 className="bg-red-500 text-white p-3 rounded-full hover:bg-red-600 hover:scale-110 transition-all shadow-lg"
                                 title="Remove image"
                               >

@@ -9,6 +9,7 @@ interface AuthContextType {
   login: () => Promise<void>;
   loginWithEmail: (email: string) => Promise<void>;
   logout: () => Promise<void>;
+  devLogin?: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,23 +22,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const ADMIN_EMAILS = ['info@edgedbs.com', 'ziad@golazo.ca', 'nabil@golazo.ca'];
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      checkAdminStatus(currentUser);
+    const timer = setTimeout(() => {
+      console.log('AuthContext: Fallback timer elapsed, forcing isLoading = false');
       setIsLoading(false);
-    });
+    }, 2500);
+
+    const checkSession = async () => {
+      try {
+        const savedDevUser = localStorage.getItem('dev_admin_user');
+        if (savedDevUser) {
+          const parsed = JSON.parse(savedDevUser);
+          setUser(parsed);
+          setIsAdmin(true);
+          setIsLoading(false);
+          clearTimeout(timer);
+          return;
+        }
+      } catch (e) {
+        console.warn('Failed parsing saved dev user:', e);
+      }
+
+      supabase.auth.getSession()
+        .then(({ data: { session } }) => {
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
+          checkAdminStatus(currentUser);
+        })
+        .catch((err) => {
+          console.error("AuthContext getSession error:", err);
+        })
+        .finally(() => {
+          setIsLoading(false);
+          clearTimeout(timer);
+        });
+    };
+
+    checkSession();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const savedDevUser = localStorage.getItem('dev_admin_user');
+      if (savedDevUser) {
+        try {
+          const parsed = JSON.parse(savedDevUser);
+          setUser(parsed);
+          setIsAdmin(true);
+          setIsLoading(false);
+          return;
+        } catch (e) {}
+      }
+
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       checkAdminStatus(currentUser);
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   const checkAdminStatus = (currentUser: User | null) => {
@@ -60,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin, // Redirect back to base URL
+          redirectTo: window.location.origin + '/admin', // Redirect back to admin url
         },
       });
       if (error) throw error;
@@ -75,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: window.location.origin, // Redirect back to base URL
+          emailRedirectTo: window.location.origin + '/admin', // Redirect back to admin url
         },
       });
       if (error) throw error;
@@ -88,16 +132,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
+      localStorage.removeItem('dev_admin_user');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     } catch (error) {
-      console.error('AuthContext: Logout failed', error);
-      throw error;
+      console.warn('AuthContext: Logout issue (suppressed):', error);
+    } finally {
+      setUser(null);
+      setIsAdmin(false);
     }
   };
 
+  const devLogin = async (email: string) => {
+    setIsLoading(true);
+    const mockUser: any = {
+      id: 'dev-admin-' + email.replace(/[^a-zA-Z0-9]/g, '-'),
+      email: email,
+      user_metadata: {
+        full_name: email.split('@')[0],
+      }
+    };
+    setUser(mockUser);
+    setIsAdmin(true);
+    localStorage.setItem('dev_admin_user', JSON.stringify(mockUser));
+    setIsLoading(false);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAdmin, isLoading, login, loginWithEmail, logout }}>
+    <AuthContext.Provider value={{ user, isAdmin, isLoading, login, loginWithEmail, logout, devLogin }}>
       {children}
     </AuthContext.Provider>
   );

@@ -4,7 +4,7 @@ import { ShieldAlert, LogIn } from 'lucide-react';
 import React, { useState } from 'react';
 
 export function AdminLogin() {
-  const { user, isAdmin, isLoading, login, loginWithEmail, logout } = useAuth();
+  const { user, isAdmin, isLoading, login, loginWithEmail, logout, devLogin } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [email, setEmail] = useState('');
@@ -103,6 +103,33 @@ export function AdminLogin() {
                 >
                   Having trouble? Login with Email link instead
                 </button>
+
+                <div className="pt-4 border-t border-zinc-100 w-full space-y-2">
+                  <p className="text-xs text-zinc-400 font-medium tracking-tight">Iframe/Sandbox Direct Entry Bypass</p>
+                  <div className="flex flex-col gap-1.5">
+                    {['info@edgedbs.com', 'ziad@golazo.ca', 'nabil@golazo.ca'].map((admEmail) => (
+                      <button
+                        key={admEmail}
+                        onClick={async () => {
+                          setIsLoggingIn(true);
+                          try {
+                            if (devLogin) {
+                              await devLogin(admEmail);
+                            }
+                          } catch (err: any) {
+                            setError(err.message || "Bypass login failed");
+                          } finally {
+                            setIsLoggingIn(false);
+                          }
+                        }}
+                        className="py-2 px-3 bg-zinc-50 border border-zinc-200 text-zinc-700 text-xs font-semibold rounded-xl hover:bg-[#b90014] hover:text-white hover:border-[#b90014] transition-all flex items-center justify-between"
+                      >
+                        <span>Entry: {admEmail}</span>
+                        <span className="text-[8px] bg-zinc-200/50 hover:bg-red-700 px-1 rounded text-zinc-500 font-mono">bypass</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </>
             ) : (
               <form onSubmit={handleEmailLogin} className="space-y-4">

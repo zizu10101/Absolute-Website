@@ -33,11 +33,23 @@ function AppContent() {
   const { isLoading: settingsLoading } = useSettings();
   const [isLoading, setIsLoading] = useState(true);
 
+  // Safety fallback: Never let the loading screen stay visible for more than 2.5 seconds
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2500);
+
     if (!productsLoading && !settingsLoading) {
       setIsLoading(false);
     }
+
+    return () => clearTimeout(timer);
   }, [productsLoading, settingsLoading]);
+
+  // Bypass safety check: If the user is trying to go to the admin panel, don't show the loading gate at all
+  if (window.location.pathname.startsWith('/admin') || window.location.hash.includes('/admin')) {
+    return <AppRoutes />;
+  }
 
   if (isLoading) {
     return (
@@ -116,12 +128,12 @@ export default function App() {
   return (
     <AuthProvider>
       <ProductProvider>
-        <SettingsProvider>
-          <BrowserRouter>
+        <BrowserRouter>
+          <SettingsProvider>
             <ScrollToTop />
             <AppContent />
-          </BrowserRouter>
-        </SettingsProvider>
+          </SettingsProvider>
+        </BrowserRouter>
       </ProductProvider>
     </AuthProvider>
   );

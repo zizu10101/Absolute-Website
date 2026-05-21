@@ -422,14 +422,14 @@ async function startServer() {
         const { data: menus, error: menusError } = await supabase.from('navigation_menus').select('*').order('order_index');
         const { data: items, error: itemsError } = await supabase.from('navigation_items').select('*').order('order_index');
 
-        if (settingsError || menusError || itemsError) {
-          throw new Error("Supabase fetch error");
+        if (settingsError) {
+          throw settingsError;
         }
         
         // Handle both key/data and id/config schemas if they exist
-        const results = settings.reduce((acc: any, curr: any) => {
+        const results = (settings || []).reduce((acc: any, curr: any) => {
           const k = curr.key || curr.id;
-          const d = curr.data || curr.config;
+          const d = (curr.data !== undefined && curr.data !== null) ? curr.data : curr.config;
           if (k) acc[k] = d;
           return acc;
         }, {});
@@ -454,35 +454,38 @@ async function startServer() {
         };
 
         // Reconstruct navigation to match the precise frontend NavMenu interface
-        const reconstructedMenus = (menus || []).map((menu: any) => {
-          const submenus = (items || [])
-            .filter((item: any) => item.menu_id === menu.id && !item.parent_id)
-            .map((col: any) => {
-              const linkItems = (items || [])
-                .filter((subItem: any) => subItem.parent_id === col.id)
-                .map((link: any) => ({
-                  id: link.id,
-                  label: link.label || '',
-                  path: normalizePath(link.path) || '#',
-                  logo: normalizePath(link.logo_url)
-                }));
+        let reconstructedMenus = [];
+        if (!menusError && !itemsError && menus && items) {
+          reconstructedMenus = (menus || []).map((menu: any) => {
+            const submenus = (items || [])
+              .filter((item: any) => item.menu_id === menu.id && !item.parent_id)
+              .map((col: any) => {
+                const linkItems = (items || [])
+                  .filter((subItem: any) => subItem.parent_id === col.id)
+                  .map((link: any) => ({
+                    id: link.id,
+                    label: link.label || '',
+                    path: normalizePath(link.path) || '#',
+                    logo: normalizePath(link.logo_url)
+                  }));
 
-              return {
-                id: col.id,
-                heading: col.label || '',
-                path: normalizePath(col.path) || '',
-                logo: normalizePath(col.logo_url),
-                items: linkItems
-              };
-            });
+                return {
+                  id: col.id,
+                  heading: col.label || '',
+                  path: normalizePath(col.path) || '',
+                  logo: normalizePath(col.logo_url),
+                  items: linkItems
+                };
+              });
 
-          return {
-            id: menu.id,
-            label: menu.label || menu.name || '',
-            path: normalizePath(menu.path) || '#',
-            submenus: submenus
-          };
-        });
+            return {
+              id: menu.id,
+              label: menu.label || menu.name || '',
+              path: normalizePath(menu.path) || '#',
+              submenus: submenus
+            };
+          });
+        }
         
         results.navigation = { navigationMenus: reconstructedMenus };
         
@@ -527,14 +530,12 @@ async function startServer() {
           : updates;
           
         // Use upsert with key as the conflict target
-        const upsertPayload: any = { key, data: newData, updated_at: new Date() };
+        const upsertPayload: any = { key, data: newData };
         
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('settings')
-          .upsert(upsertPayload, { onConflict: 'key' })
-          .select()
-          .single();
-
+          .upsert(upsertPayload, { onConflict: 'key' });
+ 
         if (error) {
           console.error(`Supabase upsert error for ${key}:`, error);
           
@@ -546,34 +547,10 @@ async function startServer() {
               details: error
             });
           }
-
-          // Try fallback to config column if data column fails
-          const secondTryPayload = { key, config: newData, updated_at: new Date() };
-          const { data: data2, error: error2 } = await supabase
-            .from('settings')
-            .upsert(secondTryPayload, { onConflict: 'key' })
-            .select()
-            .single();
-            
-          if (error2) {
-            console.error(`Supabase upsert error (config) for ${key}:`, error2);
-            // Last ditch effort: try using 'id' as the key column if 'key' fails
-            const thirdTryPayload = { id: key, config: newData, updated_at: new Date() };
-            const { data: data3, error: error3 } = await supabase
-              .from('settings')
-              .upsert(thirdTryPayload, { onConflict: 'id' })
-              .select()
-              .single();
-              
-            if (error3) {
-              throw error3;
-            }
-            return res.json(data3?.config || data3?.data || data3 || newData);
-          }
-          return res.json(data2?.config || data2?.data || data2 || newData);
+          throw error;
         }
         
-        return res.json(data?.data || data?.config || data || newData);
+        return res.json(newData);
       } else {
         const settings = await readSafeJson(LOCAL_SETTINGS_PATH, {});
         const existing = settings[key] || {};

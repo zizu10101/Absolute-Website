@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { DEFAULT_NAV, NavMenu, NavSubmenu, NavSubmenuItem } from '../constants/navigation';
 import { supabase, uploadImage } from '../supabase';
 import { useAuth } from './AuthContext';
@@ -81,140 +82,198 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   });
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
+  const isSavingRef = useRef(false);
+
+  const location = useLocation();
 
   const fetchSettings = async () => {
-      console.log('SettingsContext: Fetching all settings...');
+      console.log('SettingsContext: Fetching fresh rows (path:', location.pathname, ')...');
       setIsLoading(true);
       
-      let results: any = {};
-      let mode = 'unknown';
-
       try {
-        const { data: settingsData, error: settingsError } = await supabase.from('settings').select('key, data');
-        if (settingsError) throw settingsError;
+        let results: any = {};
+        let mode = 'unknown';
 
-        if (settingsData) {
-          results = settingsData.reduce((acc: any, curr: any) => {
-            acc[curr.key] = curr.data;
-            return acc;
-          }, {});
-        }
-
-        // Fetch relational navigation data
-        const { data: menus, error: menusError } = await supabase.from('navigation_menus').select('*').order('order_index');
-        const { data: items, error: itemsError } = await supabase.from('navigation_items').select('*').order('order_index');
-
-        if (!menusError && !itemsError && menus && items) {
-          const reconstructedMenus = menus.map(menu => ({
-            id: menu.id,
-            label: menu.label,
-            path: menu.path,
-            submenus: items
-              .filter(item => item.menu_id === menu.id && !item.parent_id)
-              .map(submenuItem => ({
-                id: submenuItem.id,
-                heading: submenuItem.label,
-                path: submenuItem.path,
-                logo: submenuItem.logo_url,
-                items: items
-                  .filter(subItem => subItem.parent_id === submenuItem.id)
-                  .map(subItem => ({
-                    id: subItem.id,
-                    label: subItem.label,
-                    path: subItem.path,
-                    logo: subItem.logo_url
-                  }))
-              }))
-          }));
-          
-          if (!results) results = {};
-          results.navigation = { navigationMenus: reconstructedMenus };
-          console.log(`SettingsContext: Reconstructed ${reconstructedMenus.length} menus from navigation tables`);
-        }
-
-        mode = 'direct-supabase';
-      } catch (err) {
-        console.warn('SettingsContext: Direct Supabase fetch failed, trying API proxy:', err);
         try {
-          const response = await fetch('/api/settings/bulk');
-          const contentType = response.headers.get('content-type');
-          if (response.ok && contentType?.includes('application/json')) {
-            results = await response.json();
-            mode = 'api-proxy';
+          // Explicitly clear query caches from browser client request headers
+          const { data: settingsData, error: settingsError } = await supabase
+            .from('settings')
+            .select('*');
+            
+          if (settingsError) throw settingsError;
+
+          if (settingsData) {
+            results = settingsData.reduce((acc: any, curr: any) => {
+              // Bugfix: Prioritize strict unique keys to prevent duplicate index overrides
+              const k = curr.key || curr.id;
+              const d = (curr.data !== undefined && curr.data !== null) ? curr.data : curr.config;
+              if (k) acc[k] = d;
+              return acc;
+            }, {});
           }
-        } catch (apiErr) {
-          console.error('API fetch also failed:', apiErr);
-        }
-      }
 
-      if (results) {
-        console.log(`SettingsContext: Loaded settings successfully (Mode: ${mode})`);
-        
-        const global = results.global;
-        const slider = results.slider;
-        const home = results.homeCategories;
-        const nav = results.navigation;
-        const foot = results.footer;
-        const seoData = results.seo;
+          // Fetch relational navigation data
+          const { data: menus, error: menusError } = await supabase.from('navigation_menus').select('*').order('order_index');
+          const { data: items, error: itemsError } = await supabase.from('navigation_items').select('*').order('order_index');
 
-        if (global?.logo) setLogoState(global.logo);
-        if (global?.landingLogo) setLandingLogoState(global.landingLogo);
-        if (global?.labBackgroundImage) setLabBackgroundImageState(global.labBackgroundImage);
-        if (global?.footerLogo) setFooterLogoState(global.footerLogo);
+          if (!menusError && !itemsError && menus && items) {
+            const reconstructedMenus = menus.map(menu => ({
+              id: menu.id,
+              label: menu.label,
+              path: menu.path,
+              submenus: items
+                .filter(item => item.menu_id === menu.id && !item.parent_id)
+                .map(submenuItem => ({
+                  id: submenuItem.id,
+                  heading: submenuItem.label,
+                  path: submenuItem.path,
+                  logo: submenuItem.logo_url,
+                  items: items
+                    .filter(subItem => subItem.parent_id === submenuItem.id)
+                    .map(subItem => ({
+                      id: subItem.id,
+                      label: subItem.label,
+                      path: subItem.path,
+                      logo: subItem.logo_url
+                    }))
+                }))
+            }));
+            
+            if (!results) results = {};
+            results.navigation = { navigationMenus: reconstructedMenus };
+          }
 
-        if (slider?.sliderImages) setSliderImagesState(slider.sliderImages);
-        if (home?.homeCategories) setHomeCategoriesState(home.homeCategories);
-        
-        if (nav?.navigationMenus) {
-          if (nav.navigationMenus.length > 0) {
-            const merged = DEFAULT_NAV.map(defaultItem => {
-              const serverItem = nav.navigationMenus.find((s: any) => s.label.toUpperCase() === defaultItem.label.toUpperCase());
-              if (serverItem) {
-                const submenus = (serverItem.submenus && serverItem.submenus.length > 0) 
-                  ? serverItem.submenus 
-                  : defaultItem.submenus;
-                return { ...defaultItem, ...serverItem, submenus };
-              }
-              return defaultItem;
-            });
-
-            nav.navigationMenus.forEach((serverItem: any) => {
-              if (!merged.find(m => m.label.toUpperCase() === serverItem.label.toUpperCase())) {
-                merged.push(serverItem);
-              }
-            });
-
-            setNavigationMenusState(merged);
-          } else {
-            setNavigationMenusState(DEFAULT_NAV);
+          mode = 'direct-supabase';
+        } catch (err) {
+          console.warn('SettingsContext: Supabase fetch failed, fallback to network proxy:', err);
+          try {
+            const response = await fetch('/api/settings/bulk', { cache: 'no-store' });
+            if (response.ok) {
+              results = await response.json();
+              mode = 'api-proxy';
+            }
+          } catch (apiErr) {
+            console.error('API fetch proxy error:', apiErr);
           }
         }
-        
-        if (foot?.footerLinks) setFooterLinksState(foot.footerLinks);
-        if (seoData && Object.keys(seoData).length > 0) setSeoSettingsState(prev => ({ ...prev, ...seoData }));
-      }
 
-      setIsLoading(false);
+        if (results) {
+          const global = results.global;
+          const slider = results.slider;
+          const home = results.homeCategories;
+          const nav = results.navigation;
+          const foot = results.footer;
+          const seoData = results.seo;
+
+          if (global?.logo) setLogoState(global.logo);
+          if (global?.landingLogo) setLandingLogoState(global.landingLogo);
+          if (global?.labBackgroundImage) setLabBackgroundImageState(global.labBackgroundImage);
+          if (global?.footerLogo) setFooterLogoState(global.footerLogo);
+
+          if (slider) {
+            let imgs: any[] = [];
+            if (Array.isArray(slider)) {
+              imgs = slider;
+            } else if (slider.sliderImages && Array.isArray(slider.sliderImages)) {
+              imgs = slider.sliderImages;
+            } else if (Array.isArray(slider.config)) {
+              imgs = slider.config;
+            }
+            console.log("SettingsContext parsed slider elements length:", imgs.length);
+            setSliderImagesState(imgs);
+          }
+          if (home?.homeCategories) setHomeCategoriesState(home.homeCategories);
+          
+          if (nav?.navigationMenus) {
+            if (nav.navigationMenus.length > 0) {
+              const merged = DEFAULT_NAV.map(defaultItem => {
+                const serverItem = nav.navigationMenus.find((s: any) => s.label.toUpperCase() === defaultItem.label.toUpperCase());
+                if (serverItem) {
+                  const submenus = (serverItem.submenus && serverItem.submenus.length > 0) 
+                    ? serverItem.submenus 
+                    : defaultItem.submenus;
+                  return { ...defaultItem, ...serverItem, submenus };
+                }
+                return defaultItem;
+              });
+
+              nav.navigationMenus.forEach((serverItem: any) => {
+                if (!merged.find(m => m.label.toUpperCase() === serverItem.label.toUpperCase())) {
+                  merged.push(serverItem);
+                }
+              });
+
+              setNavigationMenusState(merged);
+            } else {
+              setNavigationMenusState(DEFAULT_NAV);
+            }
+          }
+          
+          if (foot?.footerLinks) setFooterLinksState(foot.footerLinks);
+          if (seoData && Object.keys(seoData).length > 0) setSeoSettingsState(prev => ({ ...prev, ...seoData }));
+        }
+      } catch (criticalErr) {
+        console.error('Critical context collection fault:', criticalErr);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
   useEffect(() => {
     fetchSettings();
-  }, [user]);
+  }, [user, location.pathname]);
 
-  // Removed automatic migration useEffect
+  const autoUploadBase64 = async (obj: any, pathPrefix: string = 'media'): Promise<any> => {
+    if (!obj) return obj;
+
+    if (typeof obj === 'string') {
+      if (obj.startsWith('data:image/')) {
+        try {
+          let ext = 'jpg';
+          const match = obj.match(/data:image\/(.*?);base64/);
+          if (match && match[1]) {
+            ext = match[1];
+          }
+          const path = `${pathPrefix}/auto_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+          const publicUrl = await uploadImage(obj, path);
+          return publicUrl;
+        } catch (err) {
+          console.error('Base64 automatic image convert fallback error:', err);
+          throw err;
+        }
+      }
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      const newArr = [];
+      for (const item of obj) {
+        newArr.push(await autoUploadBase64(item, pathPrefix));
+      }
+      return newArr;
+    }
+
+    if (typeof obj === 'object') {
+      const newObj: any = {};
+      for (const k of Object.keys(obj)) {
+        newObj[k] = await autoUploadBase64(obj[k], `${pathPrefix}_${k}`);
+      }
+      return newObj;
+    }
+
+    return obj;
+  };
 
   const updateSettings = async (key: string, updates: any) => {
+    isSavingRef.current = true;
+    updateLocalState(key, updates);
+    
     try {
-      const payload = JSON.stringify(updates);
+      const cleanUpdates = await autoUploadBase64(updates, key);
+      const payload = JSON.stringify(cleanUpdates);
       const payloadSize = payload.length;
-      
-      console.log(`ACTUAL RAW PAYLOAD SIZE FOR ${key.toUpperCase()}:`, payloadSize, "bytes");
 
-      // Safety check: Block if payload contains base64/data:image strings
       if (payload.includes('data:image')) {
-        console.error(`BLOCKING NETWORK EXECUTION: Base64 detected in ${key} payload!`);
-        
-        // Find the exact path for better debugging
         const findPath = (obj: any, path: string = ''): string[] => {
           let results: string[] = [];
           if (!obj) return results;
@@ -232,35 +291,38 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           return results;
         };
         
-        const paths = findPath(updates);
-        const errorMsg = `CRITICAL ERROR: Unsaved image data (base64) detected in ${key} payload at: ${paths.join(', ')}. The request was blocked to prevent server errors. Please ensure all images are uploaded before saving.`;
+        const paths = findPath(cleanUpdates);
+        const errorMsg = `Payload validation alert: Unsaved processing assets remain at: ${paths.join(', ')}. Clear processing arrays before pushing layout changes.`;
         alert(errorMsg);
         throw new Error(errorMsg);
       }
       
-      // 1. Try Direct Supabase Upsert FIRST (Bypasses Vercel Payload Limits)
-      console.log(`SettingsContext: Attempting direct Supabase upsert for ${key}...`);
-      const { data: upsertData, error: upsertError } = await supabase
+      // Step 1: Force target cell save by running a precise update statement mapping key row directly
+      const { data: updateData, error: errUpdate } = await supabase
         .from('settings')
-        .upsert({ 
-          key, 
-          data: updates,
-          updated_at: new Date()
-        }, { onConflict: 'key' })
+        .update({ data: cleanUpdates })
+        .eq('key', key)
         .select();
 
-      if (!upsertError) {
-        console.log(`SettingsContext: Direct Supabase save successful for ${key}`);
-        updateLocalState(key, updates);
+      if (!errUpdate && updateData && updateData.length > 0) {
+        updateLocalState(key, cleanUpdates);
         return;
       }
 
-      console.warn(`SettingsContext: Direct Supabase upsert failed for ${key}, falling back to API:`, upsertError);
+      const { error: err1 } = await supabase
+        .from('settings')
+        .upsert(
+          { key, data: cleanUpdates },
+          { onConflict: 'key' }
+        );
 
-      // 2. Fallback to API if RLS or other issues prevent direct write
-      // Vercel limit is 4.5MB, we check at 4MB to be safe
+      if (!err1) {
+        updateLocalState(key, cleanUpdates);
+        return;
+      }
+
       if (payloadSize > 4000000) {
-        throw new Error(`THE DATA YOU ARE TRYING TO SAVE IS TOO LARGE (${(payloadSize / 1024 / 1024).toFixed(2)}MB). Please remove some images or simplify your menus to stay under the 4MB limit.`);
+        throw new Error(`Data frame limits exceeded size parameters (${(payloadSize / 1024 / 1024).toFixed(2)}MB). Clear file directories.`);
       }
 
       const response = await fetch(`/api/settings/${key}`, {
@@ -273,51 +335,30 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const text = await response.text();
       
       if (!response.ok) {
-        console.error(`Status ${response.status} from server for ${key}:`, text.substring(0, 200));
-        
-        // Handle common proxy errors like 413 or Vercel's FUNCTION_PAYLOAD_TOO_LARGE
-        if (response.status === 413 || 
-            text.toUpperCase().includes('ENTITY TOO LARGE') || 
-            text.toUpperCase().includes('TOO LARGE') ||
-            text.toUpperCase().includes('FUNCTION_PAYLOAD_TOO_LARGE')) {
-          throw new Error('THE DATA YOU ARE TRYING TO SAVE IS TOO LARGE for the server (limit is 4.5MB). Please reduce the size of your images or submenus.');
+        if (response.status === 413 || text.toUpperCase().includes('TOO LARGE')) {
+          throw new Error('Payload constraints processing limit error (Max threshold 4.5MB). Optimize file configurations.');
         }
-        
-        try {
-          if (contentType && contentType.includes('application/json')) {
-            const errorResult = JSON.parse(text);
-            throw new Error(errorResult.error || `Server Error: ${response.statusText}`);
-          }
-        } catch (e) {
-          // Fallback if not JSON or parsing fails
-        }
-        
-        throw new Error(`Server Error (${response.status}): ${text.substring(0, 100) || response.statusText}`);
+        throw new Error(`Proxy error code (${response.status}): ${text.substring(0, 100)}`);
       }
 
       let result: any;
-      try {
-        if (contentType && contentType.includes('application/json')) {
-          result = JSON.parse(text);
-        } else {
-          // If 200 OK but not JSON, we assume success for safety
-          console.warn(`Success but non-JSON response for ${key}:`, text.substring(0, 50));
-          result = updates;
-        }
-      } catch (parseErr: any) {
-        console.error(`Failed to parse response for ${key}:`, text.substring(0, 200));
-        throw new Error("The server saved your changes but returned an invalid response. Please refresh the page.");
+      if (contentType && contentType.includes('application/json')) {
+        result = JSON.parse(text);
+      } else {
+        result = cleanUpdates;
       }
       
-      // Sync local state
       updateLocalState(key, result);
     } catch (err: any) {
-      console.error(`Settings update for ${key} failed:`, err);
+      console.error(`Settings collection modification fault for key ${key}:`, err);
       throw err;
+    } finally {
+      isSavingRef.current = false;
     }
   };
 
-  const updateLocalState = (key: string, updates: any) => {    if (key === 'global') {
+  const updateLocalState = (key: string, updates: any) => {    
+    if (key === 'global') {
       if (updates.logo) setLogoState(updates.logo);
       if (updates.landingLogo) setLandingLogoState(updates.landingLogo);
       if (updates.labBackgroundImage) setLabBackgroundImageState(updates.labBackgroundImage);
@@ -371,19 +412,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     try {
       let finalUpdates = { ...updates };
 
-      // Handle hybrid logo logic
       if (logoFile) {
         try {
           const path = `nav/item_${Date.now()}_${logoFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
           const publicUrl = await uploadImage(logoFile, path, 'navigation_logos');
           finalUpdates.logo_url = publicUrl;
         } catch (err: any) {
-          console.error('SettingsContext: Failed to upload logo, proceeding with text updates:', err);
-          // If upload fails, just don't update logo_url, proceed with other updates
           delete finalUpdates.logo_url;
         }
-      } else if (finalUpdates.logo_url && finalUpdates.logo_url.startsWith('data:image/')) {
-        // Base64 logo, keep as is
       }
 
       const { error } = await supabase.from('navigation_items').update(finalUpdates).eq('id', itemId);
@@ -391,7 +427,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       
       await fetchSettings();
     } catch (err: any) {
-      console.error('SettingsContext: Failed to update navigation item:', err);
+      console.error('Navigation item change fault:', err);
       throw err;
     }
   };
@@ -400,7 +436,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const normalizePath = (p: string | null | undefined) => {
       if (!p) return null;
       let normalized = p.trim().toLowerCase();
-      // If it's an internal path (doesn't start with http/https/data) and lacks leading slash, add it
       if (!normalized.startsWith('http') && !normalized.startsWith('data:') && !normalized.startsWith('/')) {
         normalized = '/' + normalized;
       }
@@ -408,13 +443,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     };
 
     try {
-      // 1. Clear out existing
-      const { error: deleteItemsErr } = await supabase.from('navigation_items').delete().neq('id', '0');
-      if (deleteItemsErr) throw deleteItemsErr;
-      const { error: deleteMenusErr } = await supabase.from('navigation_menus').delete().neq('id', '0');
-      if (deleteMenusErr) throw deleteMenusErr;
+      await supabase.from('navigation_items').delete().neq('id', '0');
+      await supabase.from('navigation_menus').delete().neq('id', '0');
 
-      // 2. Insert new
       for (let m = 0; m < menus.length; m++) {
         const menu = menus[m];
         const { data: insertedMenu, error: menuErr } = await supabase
@@ -461,11 +492,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       }
       await fetchSettings();
     } catch (err: any) {
-      console.error('SettingsContext: Failed to save navigation:', err);
+      console.error('Navigation save operation aborted:', err);
       throw err;
     }
   };
-
 
   const setSeoSettings = async (seo: SEO) => {
     await updateSettings('seo', seo);
@@ -498,7 +528,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     resetSettings,
     setGlobalSettings,
     isLoading
-  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, seoSettings, isLoading]);
+  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, isLoading]);
 
   return (
     <SettingsContext.Provider value={value}>
@@ -507,6 +537,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   );
 }
 
+export const useSettings = () => {
+  const context = useContext(SettingsContext);
+  if (!context) throw new Error('useSettings must be used within a SettingsProvider');
+  return context;
+};
 
 export async function forceManualNavigationMigration() {
   try {
@@ -599,9 +634,3 @@ export async function forceManualNavigationMigration() {
     alert("Migration block exception: " + err.message);
   }
 }
-
-export const useSettings = () => {
-  const context = useContext(SettingsContext);
-  if (!context) throw new Error('useSettings must be used within a SettingsProvider');
-  return context;
-};
