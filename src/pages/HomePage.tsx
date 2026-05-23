@@ -46,75 +46,77 @@ export function HomePage() {
   return (
     <div className="space-y-20">
       {sliderImages.length > 0 && currentSlide && (
-        <section className="relative w-full h-[350px] sm:h-[450px] md:h-[500px] lg:h-[550px] overflow-hidden bg-zinc-900 flex items-center px-8 md:px-20">
-          <AnimatePresence mode="wait">
-            <div key={currentIndex} className="absolute inset-0 w-full h-full">
-              {currentSlide.link ? (
-                currentSlide.link.startsWith('http') ? (
-                  <a href={currentSlide.link} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
-                    <motion.img
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 0.6 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 1 }}
-                      className="w-full h-full object-cover cursor-pointer"
-                      src={currentSlide.url}
-                      alt={currentSlide.title || "Hero"}
-                      referrerPolicy="no-referrer"
-                    />
-                  </a>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+          <section className="relative w-full aspect-[21/9] md:aspect-[16/7] rounded-[2rem] overflow-hidden shadow-lg bg-zinc-900 flex items-center px-8 md:px-20">
+            <AnimatePresence mode="wait">
+              <div key={currentIndex} className="absolute inset-0 w-full h-full">
+                {currentSlide.link ? (
+                  currentSlide.link.startsWith('http') ? (
+                    <a href={currentSlide.link} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                      <motion.img
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 1 }}
+                        className="w-full h-full object-cover object-center cursor-pointer"
+                        src={currentSlide.url}
+                        alt={currentSlide.title || "Hero"}
+                        referrerPolicy="no-referrer"
+                      />
+                    </a>
+                  ) : (
+                    <Link to={currentSlide.link} className="block w-full h-full">
+                      <motion.img
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 1 }}
+                        className="w-full h-full object-cover object-center cursor-pointer"
+                        src={currentSlide.url}
+                        alt={currentSlide.title || "Hero"}
+                        referrerPolicy="no-referrer"
+                      />
+                    </Link>
+                  )
                 ) : (
-                  <Link to={currentSlide.link} className="block w-full h-full">
-                    <motion.img
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 0.6 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 1 }}
-                      className="w-full h-full object-cover cursor-pointer"
-                      src={currentSlide.url}
-                      alt={currentSlide.title || "Hero"}
-                      referrerPolicy="no-referrer"
-                    />
-                  </Link>
-                )
-              ) : (
-                <motion.img
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 0.6 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1 }}
-                  className="w-full h-full object-cover"
-                  src={currentSlide.url}
-                  alt={currentSlide.title || "Hero"}
-                  referrerPolicy="no-referrer"
-                />
+                  <motion.img
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 1 }}
+                    className="w-full h-full object-cover object-center"
+                    src={currentSlide.url}
+                    alt={currentSlide.title || "Hero"}
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+              </div>
+            </AnimatePresence>
+            
+            {sliderImages.length > 1 && (
+              <>
+                <button onClick={prevSlide} className="absolute left-4 z-20 text-white p-2 bg-black/30 rounded-full hover:bg-black/50 transition-colors">
+                  <ChevronLeft size={32} />
+                </button>
+                <button onClick={nextSlide} className="absolute right-4 z-20 text-white p-2 bg-black/30 rounded-full hover:bg-black/50 transition-colors">
+                  <ChevronRight size={32} />
+                </button>
+              </>
+            )}
+
+            <div className="relative z-10 max-w-3xl">
+              {currentSlide.title && (
+                <h1 className="font-headline text-6xl md:text-9xl font-black text-white leading-none tracking-tighter uppercase italic mb-6">
+                  {currentSlide.title.includes('<br/>') ? (
+                    <span dangerouslySetInnerHTML={{ __html: currentSlide.title.replace('<br/>', '<br/>') }} />
+                  ) : (
+                    currentSlide.title
+                  )}
+                </h1>
               )}
             </div>
-          </AnimatePresence>
-          
-          {sliderImages.length > 1 && (
-            <>
-              <button onClick={prevSlide} className="absolute left-4 z-20 text-white p-2 bg-black/30 rounded-full hover:bg-black/50 transition-colors">
-                <ChevronLeft size={32} />
-              </button>
-              <button onClick={nextSlide} className="absolute right-4 z-20 text-white p-2 bg-black/30 rounded-full hover:bg-black/50 transition-colors">
-                <ChevronRight size={32} />
-              </button>
-            </>
-          )}
-
-          <div className="relative z-10 max-w-3xl">
-            {currentSlide.title && (
-              <h1 className="font-headline text-6xl md:text-9xl font-black text-white leading-none tracking-tighter uppercase italic mb-6">
-                {currentSlide.title.includes('<br/>') ? (
-                  <span dangerouslySetInnerHTML={{ __html: currentSlide.title.replace('<br/>', '<br/>') }} />
-                ) : (
-                  currentSlide.title
-                )}
-              </h1>
-            )}
-          </div>
-        </section>
+          </section>
+        </div>
       )}
 
       {homeCategories.length > 0 && (
