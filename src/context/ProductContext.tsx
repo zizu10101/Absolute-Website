@@ -43,8 +43,38 @@ interface ProductContextType {
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
+export const sanitizeProduct = (p: any): Product => {
+  if (!p) return p;
+  const image = (typeof p.image === 'string' && p.image.startsWith('data:')) ? 'https://placehold.co/100' : p.image;
+  const images = Array.isArray(p.images)
+    ? p.images.map((img: any) => (typeof img === 'string' && img.startsWith('data:')) ? 'https://placehold.co/100' : img)
+    : [];
+  const colors = Array.isArray(p.colors)
+    ? p.colors.map((c: any) => ({
+        ...c,
+        images: Array.isArray(c.images)
+          ? c.images.map((img: any) => (typeof img === 'string' && img.startsWith('data:')) ? 'https://placehold.co/100' : img)
+          : []
+      }))
+    : undefined;
+
+  return {
+    ...p,
+    image,
+    images: images.length > 0 ? images : undefined,
+    colors
+  };
+};
+
 export function ProductProvider({ children }: { children: ReactNode }) {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [productsState, setProductsState] = useState<Product[]>([]);
+  const products = productsState;
+  const setProducts = (pOrFn: Product[] | ((prev: Product[]) => Product[])) => {
+    setProductsState(prev => {
+      const next = typeof pOrFn === 'function' ? pOrFn(prev) : pOrFn;
+      return next.map(sanitizeProduct);
+    });
+  };
   const [isLoading, setIsLoading] = useState(false);
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
 
@@ -139,7 +169,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       
       if (data) {
-        mergeProducts(data as Product[]);
+        setProducts(data as Product[]);
         setHasMoreProducts(data.length === 1000);
       }
     } catch (e) {
@@ -148,7 +178,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const response = await fetch(`/api/products?limit=1000`);
         const result = await response.json();
         if (result.data) {
-          mergeProducts(result.data);
+          setProducts(result.data);
           setHasMoreProducts(result.data.length === 1000);
         }
       } catch (apiErr) {
@@ -239,12 +269,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (!response.ok || (response.headers.get('content-type') && response.headers.get('content-type')!.includes('text/html'))) {
         throw new Error('API unavailable or returned HTML');
       }
-      return await response.json();
+      const data = await response.json();
+      return sanitizeProduct(data);
     } catch (e) {
       console.warn('API GET product by id failed, falling back to direct Supabase:', e);
       try {
         const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
-        if (data && !error) return data as Product;
+        if (data && !error) return sanitizeProduct(data) as Product;
       } catch (err) {
         console.error('Direct Supabase GET product also failed:', err);
       }
