@@ -43,6 +43,42 @@ export function HomePage() {
   const prevSlide = () => setCurrentIndex((prev) => (prev - 1 + sliderImages.length) % sliderImages.length);
   const currentSlide = sliderImages[currentIndex];
 
+  // Resolve link destination configurations safely to support same-window absolute/relative clicks
+  let sliderLinkPath = currentSlide?.link || "";
+  let isInternalLink = true;
+
+  if (sliderLinkPath) {
+    if (sliderLinkPath.startsWith('http://') || sliderLinkPath.startsWith('https://')) {
+      try {
+        const urlObj = new URL(sliderLinkPath);
+        const currentHost = window.location.hostname;
+        
+        // Treat as internal if the hostname matches, is empty, is localhost, or points to the primary site domain/preview server
+        if (
+          urlObj.hostname === currentHost ||
+          urlObj.hostname.includes('torontosoccershop.com') ||
+          urlObj.hostname.includes('run.app') ||
+          urlObj.hostname === 'localhost' ||
+          urlObj.hostname === '127.0.0.1'
+        ) {
+          sliderLinkPath = urlObj.pathname + urlObj.search + urlObj.hash;
+          isInternalLink = true;
+        } else {
+          isInternalLink = false;
+        }
+      } catch (e) {
+        isInternalLink = false;
+      }
+    } else {
+      isInternalLink = true;
+    }
+    
+    // Normalize absolute routes for react-router-dom Link context
+    if (isInternalLink && !sliderLinkPath.startsWith('/')) {
+      sliderLinkPath = '/' + sliderLinkPath;
+    }
+  }
+
   return (
     <div className="space-y-20">
       {sliderImages.length > 0 && currentSlide && (
@@ -51,21 +87,8 @@ export function HomePage() {
             <AnimatePresence mode="wait">
               <div key={currentIndex} className="absolute inset-0 w-full h-full">
                 {currentSlide.link ? (
-                  currentSlide.link.startsWith('http') ? (
-                    <a href={currentSlide.link} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
-                      <motion.img
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 1 }}
-                        className="w-full h-full object-cover object-center cursor-pointer"
-                        src={currentSlide.url}
-                        alt={currentSlide.title || "Hero"}
-                        referrerPolicy="no-referrer"
-                      />
-                    </a>
-                  ) : (
-                    <Link to={currentSlide.link} className="block w-full h-full">
+                  isInternalLink ? (
+                    <Link to={sliderLinkPath} className="block w-full h-full">
                       <motion.img
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -77,6 +100,19 @@ export function HomePage() {
                         referrerPolicy="no-referrer"
                       />
                     </Link>
+                  ) : (
+                    <a href={sliderLinkPath} className="block w-full h-full">
+                      <motion.img
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 1 }}
+                        className="w-full h-full object-cover object-center cursor-pointer"
+                        src={currentSlide.url}
+                        alt={currentSlide.title || "Hero"}
+                        referrerPolicy="no-referrer"
+                      />
+                    </a>
                   )
                 ) : (
                   <motion.img

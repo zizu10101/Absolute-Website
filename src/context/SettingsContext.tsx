@@ -409,26 +409,62 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   };
 
   const updateNavigationItem = async (itemId: string, updates: Record<string, any>, logoFile?: File) => {
-    try {
-      let finalUpdates = { ...updates };
+    let finalUpdates = { ...updates };
 
-      if (logoFile) {
-        try {
-          const path = `nav/item_${Date.now()}_${logoFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-          const publicUrl = await uploadImage(logoFile, path, 'navigation_logos');
-          finalUpdates.logo_url = publicUrl;
-        } catch (err: any) {
-          delete finalUpdates.logo_url;
-        }
+    if (logoFile) {
+      try {
+        const path = `nav/item_${Date.now()}_${logoFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+        const publicUrl = await uploadImage(logoFile, path, 'navigation_logos');
+        finalUpdates.logo_url = publicUrl;
+      } catch (err: any) {
+        delete finalUpdates.logo_url;
       }
+    }
 
+    try {
       const { error } = await supabase.from('navigation_items').update(finalUpdates).eq('id', itemId);
       if (error) throw error;
       
       await fetchSettings();
     } catch (err: any) {
-      console.error('Navigation item change fault:', err);
-      throw err;
+      console.warn('Navigation item table update failed, falling back to in-memory/key-value updates:', err);
+      
+      let updated = false;
+      const newMenus = navigationMenus.map(menu => {
+        const newSubmenus = menu.submenus.map(sub => {
+          if (sub.id === itemId) {
+            updated = true;
+            return {
+              ...sub,
+              heading: updates.label !== undefined ? updates.label : (updates.heading !== undefined ? updates.heading : sub.heading),
+              path: updates.path !== undefined ? updates.path : sub.path,
+              logo: finalUpdates.logo_url !== undefined ? finalUpdates.logo_url : (updates.logo_url !== undefined ? updates.logo_url : sub.logo),
+            };
+          }
+          const newItems = sub.items.map(item => {
+            if (item.id === itemId) {
+              updated = true;
+              return {
+                ...item,
+                label: updates.label !== undefined ? updates.label : item.label,
+                path: updates.path !== undefined ? updates.path : item.path,
+                logo: finalUpdates.logo_url !== undefined ? finalUpdates.logo_url : (updates.logo_url !== undefined ? updates.logo_url : item.logo),
+              };
+            }
+            return item;
+          });
+          return { ...sub, items: newItems };
+        });
+        return { ...menu, submenus: newSubmenus };
+      });
+
+      if (updated) {
+        console.log("Memory update succeeded, writing entire menu tree back via saveNavigation...");
+        await saveNavigation(newMenus);
+      } else {
+        console.error("Item with id not found in navigation menus:", itemId);
+        throw new Error(`Item ${itemId} not found in current navigation menus tree.`);
+      }
     }
   };
 
@@ -443,6 +479,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     };
 
     try {
+      // Try to clear and write to relational tables first if they are supported by user's schema
       await supabase.from('navigation_items').delete().neq('id', '0');
       await supabase.from('navigation_menus').delete().neq('id', '0');
 
@@ -492,8 +529,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       }
       await fetchSettings();
     } catch (err: any) {
-      console.error('Navigation save operation aborted:', err);
-      throw err;
+      console.warn('Relational navigation tables are unavailable in database. Falling back to Saving XML/JSON layout directly in key-value settings table:', err);
+      try {
+        await updateSettings('navigation', { navigationMenus: menus });
+        await fetchSettings();
+      } catch (fallbackErr: any) {
+        console.error('Settings backup save also failed:', fallbackErr);
+        throw fallbackErr;
+      }
     }
   };
 
