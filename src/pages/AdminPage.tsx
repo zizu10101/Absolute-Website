@@ -739,11 +739,8 @@ function AdminPageInner() {
     }
   };
 
-  useEffect(() => {
-    if (contextSliderImages && contextSliderImages.length === 0) {
-      syncSliderFromBucket(true);
-    }
-  }, [contextSliderImages]);
+  // Disabled auto-sync of slider to allow deletions of images. Database is the absolute single source of truth.
+  // Manual sync can be triggered from the "Sync Slider with Bucket" panel or Button by the admin.
 
   const handleDeleteSlide = (targetIndex: number) => {
     setSliderImages(prev => {
