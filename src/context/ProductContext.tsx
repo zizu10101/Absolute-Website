@@ -43,38 +43,8 @@ interface ProductContextType {
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
-export const sanitizeProduct = (p: any): Product => {
-  if (!p) return p;
-  const image = (typeof p.image === 'string' && p.image.startsWith('data:')) ? 'https://placehold.co/100' : p.image;
-  const images = Array.isArray(p.images)
-    ? p.images.map((img: any) => (typeof img === 'string' && img.startsWith('data:')) ? 'https://placehold.co/100' : img)
-    : [];
-  const colors = Array.isArray(p.colors)
-    ? p.colors.map((c: any) => ({
-        ...c,
-        images: Array.isArray(c.images)
-          ? c.images.map((img: any) => (typeof img === 'string' && img.startsWith('data:')) ? 'https://placehold.co/100' : img)
-          : []
-      }))
-    : undefined;
-
-  return {
-    ...p,
-    image,
-    images: images.length > 0 ? images : undefined,
-    colors
-  };
-};
-
 export function ProductProvider({ children }: { children: ReactNode }) {
-  const [productsState, setProductsState] = useState<Product[]>([]);
-  const products = productsState;
-  const setProducts = (pOrFn: Product[] | ((prev: Product[]) => Product[])) => {
-    setProductsState(prev => {
-      const next = typeof pOrFn === 'function' ? pOrFn(prev) : pOrFn;
-      return next.map(sanitizeProduct);
-    });
-  };
+  const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
 
@@ -269,13 +239,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (!response.ok || (response.headers.get('content-type') && response.headers.get('content-type')!.includes('text/html'))) {
         throw new Error('API unavailable or returned HTML');
       }
-      const data = await response.json();
-      return sanitizeProduct(data);
+      return await response.json();
     } catch (e) {
       console.warn('API GET product by id failed, falling back to direct Supabase:', e);
       try {
         const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
-        if (data && !error) return sanitizeProduct(data) as Product;
+        if (data && !error) return data as Product;
       } catch (err) {
         console.error('Direct Supabase GET product also failed:', err);
       }

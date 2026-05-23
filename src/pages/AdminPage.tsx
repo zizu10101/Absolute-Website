@@ -203,12 +203,6 @@ function AdminPageInner() {
   const [productSubTab, setProductSubTab] = useState<'list' | 'add' | 'bulk'>('list');
   const [productCategoryFilter, setProductCategoryFilter] = useState<string>('All');
   const [adminSearchTerm, setAdminSearchTerm] = useState('');
-  const [displayLimit, setDisplayLimit] = useState(20);
-
-  useEffect(() => {
-    setDisplayLimit(20);
-  }, [productCategoryFilter, adminSearchTerm]);
-
   const [isBulkUploading, setIsBulkUploading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'success'>('idle');
   const [confirmReset, setConfirmReset] = useState(false);
@@ -3244,76 +3238,50 @@ function AdminPageInner() {
                         </button>
                       </div>
                     ) : (
-                      filteredProducts.slice().reverse().slice(0, displayLimit).map(product => {
-                        try {
-                          return (
-                            <div key={product.id} className="p-6 flex items-center gap-6 hover:bg-zinc-50 transition-colors group">
-                              <div className="w-20 h-20 rounded-lg overflow-hidden bg-zinc-100 border border-zinc-200 flex-shrink-0">
-                                <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h3 className="font-bold text-zinc-900 truncate">{product.name}</h3>
-                                  {product.isNewArrival && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-black uppercase rounded tracking-widest">New</span>}
-                                  {product.isOnSale && <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[8px] font-black uppercase rounded tracking-widest">Sale</span>}
-                                </div>
-                                <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest mb-1">
-                                  {product.category} {product.submenus && product.submenus.length > 0 ? `• ${product.submenus.join(', ')}` : product.submenu && `• ${product.submenu}`} • 
-                                  {product.isOnSale && product.salePrice ? (
-                                    <span className="ml-1">
-                                      <span className="line-through opacity-50 mr-1">${product.price}</span>
-                                      <span className="text-[#b90014] font-bold">${product.salePrice}</span>
-                                    </span>
-                                  ) : (
-                                    <span className="ml-1">${product.price}</span>
-                                  )}
-                                </p>
-                                <p className="text-[10px] text-zinc-400 line-clamp-1">{product.description}</p>
-                              </div>
-                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button 
-                                  onClick={() => setEditingProduct(product)}
-                                  className="p-2.5 text-zinc-400 hover:text-zinc-900 hover:bg-white rounded-lg border border-transparent hover:border-zinc-200 transition-all shadow-sm"
-                                >
-                                  <Edit2 size={16} />
-                                </button>
-                                <button 
-                                  onClick={() => handleDelete(product.id)}
-                                  className="p-2.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all shadow-sm"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
+                      filteredProducts.slice().reverse().map(product => (
+                        <div key={product.id} className="p-6 flex items-center gap-6 hover:bg-zinc-50 transition-colors group">
+                          <div className="w-20 h-20 rounded-lg overflow-hidden bg-zinc-100 border border-zinc-200 flex-shrink-0">
+                            <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-bold text-zinc-900 truncate">{product.name}</h3>
+                              {product.isNewArrival && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-black uppercase rounded tracking-widest">New</span>}
+                              {product.isOnSale && <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[8px] font-black uppercase rounded tracking-widest">Sale</span>}
                             </div>
-                          );
-                        } catch (err) {
-                          console.error("Failed to render item", product, err);
-                          return (
-                            <div key={product?.id || Math.random().toString()} className="p-4 bg-red-50 text-red-700 text-xs font-bold uppercase tracking-widest">
-                              Corrupt product record (skipped rendering detailed fields)
-                            </div>
-                          );
-                        }
-                      })
+                            <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest mb-1">
+                              {product.category} {product.submenus && product.submenus.length > 0 ? `• ${product.submenus.join(', ')}` : product.submenu && `• ${product.submenu}`} • 
+                              {product.isOnSale && product.salePrice ? (
+                                <span className="ml-1">
+                                  <span className="line-through opacity-50 mr-1">${product.price}</span>
+                                  <span className="text-[#b90014] font-bold">${product.salePrice}</span>
+                                </span>
+                              ) : (
+                                <span className="ml-1">${product.price}</span>
+                              )}
+                            </p>
+                            <p className="text-[10px] text-zinc-400 line-clamp-1">{product.description}</p>
+                          </div>
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => setEditingProduct(product)}
+                              className="p-2.5 text-zinc-400 hover:text-zinc-900 hover:bg-white rounded-lg border border-transparent hover:border-zinc-200 transition-all shadow-sm"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(product.id)}
+                              className="p-2.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all shadow-sm"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
                   
-                  {filteredProducts.length > displayLimit && (
-                    <div className="p-8 border-t border-zinc-100 bg-zinc-50 flex flex-col items-center gap-2 justify-center">
-                      <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
-                        Showing {displayLimit} of {filteredProducts.length} Products
-                      </p>
-                      <button
-                        onClick={() => setDisplayLimit(prev => prev + 25)}
-                        className="flex items-center gap-2 px-8 py-3 bg-white border border-zinc-200 text-zinc-900 rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-zinc-900 hover:text-white transition-all shadow-sm"
-                      >
-                        <RefreshCw size={14} className="animate-spin" />
-                        Show More Products
-                      </button>
-                    </div>
-                  )}
-                  
-                  {hasMoreProducts && productCategoryFilter === 'All' && !adminSearchTerm && filteredProducts.length <= displayLimit && (
+                  {hasMoreProducts && productCategoryFilter === 'All' && !adminSearchTerm && (
                     <div className="p-8 border-t border-zinc-100 bg-zinc-50 flex justify-center">
                       <button
                         onClick={loadMoreAdminProducts}
@@ -3325,7 +3293,7 @@ function AdminPageInner() {
                         ) : (
                           <>
                             <CloudDownload size={16} />
-                            Load More Products (DB)
+                            Load More Products
                           </>
                         )}
                       </button>
