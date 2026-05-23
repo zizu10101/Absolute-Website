@@ -580,6 +580,7 @@ function AdminPageInner() {
           delete productData.salePrice;
         }
         await updateProduct(productData);
+        await fetchAdminProducts();
         setEditingProduct(null);
         alert('Product updated successfully!');
       } catch (error: any) {
@@ -595,6 +596,7 @@ function AdminPageInner() {
     if (confirm('Are you sure you want to delete this product?')) {
       try {
         await deleteProduct(id);
+        await fetchAdminProducts();
         alert('Product deleted successfully!');
       } catch (error: any) {
         console.error('AdminPage: Failed to delete product', error);

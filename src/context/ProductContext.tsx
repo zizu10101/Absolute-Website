@@ -31,6 +31,7 @@ interface ProductContextType {
   hasMoreProducts: boolean;
   fetchProductsByCategory: (category?: string, submenu?: string) => Promise<void>;
   fetchAdminProducts: () => Promise<void>;
+  fetchProducts: () => Promise<void>; // Alias for admin products fetch
   loadMoreAdminProducts: () => Promise<void>;
   fetchFeaturedProducts: () => Promise<void>;
   fetchProductById: (id: string) => Promise<Product | null>;
@@ -127,28 +128,28 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const fetchAdminProducts = async () => {
     setIsLoading(true);
     try {
-      console.log('ProductContext: Fetching first batch of admin products directly from Supabase...');
+      console.log('ProductContext: Fetching all admin products directly from Supabase...');
       
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(PAGE_SIZE);
+        .range(0, 999);
       
       if (error) throw error;
       
       if (data) {
         mergeProducts(data as Product[]);
-        setHasMoreProducts(data.length === PAGE_SIZE);
+        setHasMoreProducts(data.length === 1000);
       }
     } catch (e) {
       console.warn('Direct Supabase admin fetch failed, falling back to API:', e);
       try {
-        const response = await fetch(`/api/products?limit=${PAGE_SIZE}`);
+        const response = await fetch(`/api/products?limit=1000`);
         const result = await response.json();
         if (result.data) {
           mergeProducts(result.data);
-          setHasMoreProducts(result.data.length === PAGE_SIZE);
+          setHasMoreProducts(result.data.length === 1000);
         }
       } catch (apiErr) {
         console.error('API admin fetch also failed:', apiErr);
@@ -157,6 +158,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   };
+
+  const fetchProducts = fetchAdminProducts;
 
   const loadMoreAdminProducts = async () => {
     if (isLoading || !hasMoreProducts) return;
@@ -283,12 +286,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
       const newProduct = await response.json();
       setProducts(prev => [...prev, { ...productData as any, ...newProduct }]);
+      await fetchAdminProducts();
     } catch (e) {
       console.warn('API add product failed, trying direct Supabase:', e);
       try {
         const { data, error } = await supabase.from('products').insert([productData]).select().single();
         if (error) throw error;
-        if (data) setProducts(prev => [...prev, data as Product]);
+        if (data) {
+          setProducts(prev => [...prev, data as Product]);
+          await fetchAdminProducts();
+        }
       } catch (supErr) {
         console.error('Direct Supabase add product also failed:', supErr);
         throw supErr;
@@ -330,6 +337,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
       const data = await response.json();
       setProducts(prev => prev.map(p => p.id === (data?.id || updatedProduct.id) ? { ...updatedProduct, ...data } : p));
+      await fetchAdminProducts();
     } catch (e) {
       console.warn('API update product failed, trying direct Supabase:', e);
       try {
@@ -337,6 +345,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase.from('products').update(rest).eq('id', id).select().single();
         if (error) throw error;
         setProducts(prev => prev.map(p => p.id === id ? { ...updatedProduct, ...(data || {}) } : p));
+        await fetchAdminProducts();
       } catch (supErr) {
         console.error('Direct Supabase update product also failed:', supErr);
         throw supErr;
@@ -351,12 +360,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         throw new Error(`API failed: ${response.status}`);
       }
       setProducts(prev => prev.filter(p => p.id !== id));
+      await fetchAdminProducts();
     } catch (e) {
       console.warn('API delete product failed, trying direct Supabase:', e);
       try {
         const { error } = await supabase.from('products').delete().eq('id', id);
         if (error) throw error;
         setProducts(prev => prev.filter(p => p.id !== id));
+        await fetchAdminProducts();
       } catch (supErr) {
         console.error('Direct Supabase delete product also failed:', supErr);
         throw supErr;
@@ -376,6 +387,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       hasMoreProducts,
       fetchProductsByCategory,
       fetchAdminProducts,
+      fetchProducts,
       loadMoreAdminProducts,
       fetchFeaturedProducts,
       fetchProductById,
