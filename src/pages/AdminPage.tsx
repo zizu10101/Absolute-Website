@@ -742,12 +742,26 @@ function AdminPageInner() {
   const syncBucketFromSlider = async () => {
     setIsSyncingBucket(true);
     try {
-      const { data: bucketFiles, error: bucketError } = await supabase.storage.from('media').list('slider', {
-        limit: 100
-      });
-      if (bucketError) throw bucketError;
+      let allBucketFiles: any[] = [];
+      let offset = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data: bucketFiles, error: bucketError } = await supabase.storage.from('media').list('slider', {
+          limit: 100,
+          offset: offset
+        });
+        if (bucketError) throw bucketError;
+        
+        if (bucketFiles && bucketFiles.length > 0) {
+          allBucketFiles.push(...bucketFiles);
+          offset += 100;
+        } else {
+          hasMore = false;
+        }
+      }
       
-      const validFiles = bucketFiles.filter(file => file.name && !file.name.startsWith('.') && file.name !== '.emptyFolderPlaceholder');
+      const validFiles = allBucketFiles.filter(file => file.name && !file.name.startsWith('.') && file.name !== '.emptyFolderPlaceholder');
       
       const validFileNamesFromDb = sliderImages.map(img => {
           try {
@@ -3325,7 +3339,7 @@ function AdminPageInner() {
                       filteredProducts.slice().reverse().map(product => (
                         <div key={product.id} className="p-6 flex items-center gap-6 hover:bg-zinc-50 transition-colors group">
                           <div className="w-20 h-20 rounded-lg overflow-hidden bg-zinc-100 border border-zinc-200 flex-shrink-0">
-                            <img src={product.image || 'https://picsum.photos/80'} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            <img src={product.image || `https://picsum.photos/seed/${product.id}/80`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">

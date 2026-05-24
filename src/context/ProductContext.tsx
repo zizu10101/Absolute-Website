@@ -88,7 +88,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const LIST_FIELDS = 'id,name,price,category,submenu,submenus,image,images,isNewArrival,isOnSale,isFeatured,salePrice,colors';
-  const ADMIN_LIST_FIELDS = 'id,name,price,category,submenu,submenus,isNewArrival,isOnSale,isFeatured,salePrice';
+  const ADMIN_LIST_FIELDS = 'id,name,price,category,submenu,submenus,isNewArrival,isOnSale,isFeatured,salePrice,description,image';
 
   const fetchFeaturedProducts = async () => {
     setIsLoading(true);
@@ -137,6 +137,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         .order('created_at', { ascending: false })
         .range(0, 4999);
       
+      console.log('ProductContext: Supabase fetch results', { dataLength: data?.length, error });
+      
       if (error) throw error;
       
       if (data) {
@@ -148,6 +150,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       try {
         const response = await fetch(`/api/products?limit=5000&fields=${ADMIN_LIST_FIELDS}`);
         const result = await response.json();
+        console.log('ProductContext: API fetch results', { resultDataLength: result.data?.length });
         if (result.data) {
           setProducts(result.data);
           setHasMoreProducts(result.data.length === 1000);
