@@ -525,7 +525,12 @@ function AdminPageInner() {
 
     try {
       // Ensure no base64 in newProduct
-      if (containsBase64(newProduct)) {
+      const imageFields = [
+        newProduct.image,
+        ...(newProduct.images || []),
+        ...(newProduct.colors?.flatMap(c => c.images || []) || [])
+      ];
+      if (imageFields.some(f => f && f.startsWith('data:'))) {
         setAddErrorMessage('Image upload in progress or invalid image data. Please try again.');
         setAddStatus('error');
         setTimeout(() => setAddStatus('idle'), 3000);
@@ -567,14 +572,19 @@ function AdminPageInner() {
 
   const handleUpdate = async () => {
     if (editingProduct && editingProduct.name && editingProduct.price > 0) {
-      setIsUploading(true);
       try {
-        // Ensure no base64 in editingProduct
-        if (containsBase64(editingProduct)) {
+        // Ensure no base64 in editingProduct if we are currently uploading
+        const imageFields = [
+          editingProduct.image,
+          ...(editingProduct.images || []),
+          ...(editingProduct.colors?.flatMap(c => c.images || []) || [])
+        ];
+        if (imageFields.some(f => f && f.startsWith('data:'))) {
           alert('Image upload in progress. Please wait.');
           return;
         }
 
+        setIsUploading(true);
         const productData = { ...editingProduct };
         if (!productData.isOnSale) {
           delete productData.salePrice;
