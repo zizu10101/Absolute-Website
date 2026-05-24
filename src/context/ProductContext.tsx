@@ -357,24 +357,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteProduct = async (id: string) => {
+    // Optimistically remove from UI immediately
+    setProducts(prev => prev.filter(p => p.id !== id));
     try {
-      const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      if (!response.ok) {
-        throw new Error(`API failed: ${response.status}`);
-      }
-      setProducts(prev => prev.filter(p => p.id !== id));
-      await fetchAdminProducts();
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
     } catch (e) {
-      console.warn('API delete product failed, trying direct Supabase:', e);
-      try {
-        const { error } = await supabase.from('products').delete().eq('id', id);
-        if (error) throw error;
-        setProducts(prev => prev.filter(p => p.id !== id));
-        await fetchAdminProducts();
-      } catch (supErr) {
-        console.error('Direct Supabase delete product also failed:', supErr);
-        throw supErr;
-      }
+      console.error('Delete product failed:', e);
+      // Re-fetch to restore correct state if delete failed
+      await fetchAdminProducts();
+      throw e;
     }
   };
 
