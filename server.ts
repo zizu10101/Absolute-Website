@@ -221,21 +221,30 @@ async function startServer() {
   // Product DELETE
   app.delete("/api/products/:id", async (req, res) => {
     const { id } = req.params;
+    console.log(`Attempting to delete product with ID: ${id}`);
     try {
       if (supabase) {
         const { error } = await supabase.from('products').delete().eq('id', id);
-        if (error) throw error;
+        if (error) {
+          console.error(`Supabase delete error for ${id}:`, error);
+          throw error;
+        }
         clearCache('products');
+        console.log(`Product ${id} deleted successfully from Supabase`);
         return res.json({ success: true });
       } else {
         let products = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
         const initialLength = products.length;
         products = products.filter((p: any) => p.id !== id);
         
-        if (products.length === initialLength) return res.status(404).json({ error: "Product not found" });
+        if (products.length === initialLength) {
+          console.log(`Product ${id} not found in local products`);
+          return res.status(404).json({ error: "Product not found" });
+        }
         
         await fs.writeFile(LOCAL_PRODUCTS_PATH, JSON.stringify(products, null, 2));
         clearCache('products');
+        console.log(`Product ${id} deleted successfully from local storage`);
         return res.json({ success: true });
       }
     } catch (err: any) {
