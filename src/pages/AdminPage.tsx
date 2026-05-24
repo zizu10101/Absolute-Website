@@ -112,7 +112,7 @@ export function AdminPage() {
 function AdminPageInner() {
   const { 
     products, addProduct, deleteProduct, updateProduct, resetProducts, 
-    fetchAdminProducts, loadMoreAdminProducts, hasMoreProducts, isLoading
+    fetchAdminProducts, loadMoreAdminProducts, hasMoreProducts, isLoading, fetchProductById
   } = useProducts();
   const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, setGlobalSettings, resetSettings } = useSettings();
   const { logout, user } = useAuth();
@@ -3325,7 +3325,7 @@ function AdminPageInner() {
                       filteredProducts.slice().reverse().map(product => (
                         <div key={product.id} className="p-6 flex items-center gap-6 hover:bg-zinc-50 transition-colors group">
                           <div className="w-20 h-20 rounded-lg overflow-hidden bg-zinc-100 border border-zinc-200 flex-shrink-0">
-                            <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            <img src={product.image || 'https://picsum.photos/80'} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
@@ -3348,7 +3348,10 @@ function AdminPageInner() {
                           </div>
                           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
-                              onClick={() => setEditingProduct(product)}
+                              onClick={async () => {
+                                const fullProduct = await fetchProductById(product.id);
+                                if (fullProduct) setEditingProduct(fullProduct);
+                              }}
                               className="p-2.5 text-zinc-400 hover:text-zinc-900 hover:bg-white rounded-lg border border-transparent hover:border-zinc-200 transition-all shadow-sm"
                             >
                               <Edit2 size={16} />
@@ -3365,7 +3368,7 @@ function AdminPageInner() {
                     )}
                   </div>
                   
-                  {hasMoreProducts && productCategoryFilter === 'All' && !adminSearchTerm && (
+                  {hasMoreProducts && (
                     <div className="p-8 border-t border-zinc-100 bg-zinc-50 flex justify-center">
                       <button
                         onClick={loadMoreAdminProducts}

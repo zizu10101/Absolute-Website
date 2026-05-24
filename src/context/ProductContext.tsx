@@ -88,6 +88,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const LIST_FIELDS = 'id,name,price,category,submenu,submenus,image,images,isNewArrival,isOnSale,isFeatured,salePrice,colors';
+  const ADMIN_LIST_FIELDS = 'id,name,price,category,submenu,submenus,isNewArrival,isOnSale,isFeatured,salePrice';
 
   const fetchFeaturedProducts = async () => {
     setIsLoading(true);
@@ -132,20 +133,20 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select(ADMIN_LIST_FIELDS)
         .order('created_at', { ascending: false })
-        .range(0, 999);
+        .range(0, 4999);
       
       if (error) throw error;
       
       if (data) {
         setProducts(data as Product[]);
-        setHasMoreProducts(data.length === 1000);
+        setHasMoreProducts(data.length === 5000);
       }
     } catch (e) {
       console.warn('Direct Supabase admin fetch failed, falling back to API:', e);
       try {
-        const response = await fetch(`/api/products?limit=1000`);
+        const response = await fetch(`/api/products?limit=5000`);
         const result = await response.json();
         if (result.data) {
           setProducts(result.data);
@@ -170,7 +171,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select(ADMIN_LIST_FIELDS)
         .order('created_at', { ascending: false })
         .range(offset, offset + PAGE_SIZE - 1);
       
