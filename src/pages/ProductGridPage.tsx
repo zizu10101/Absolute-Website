@@ -48,17 +48,12 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     }
 
     // 2. Handle Category Filtering
-    // API already handles category filtering, we just need to ensure the displayed list 
-    // matches the requested category context
-    /*
-    if (category && category.toLowerCase() !== 'sale' && category.toLowerCase() !== 'new arrivals') {
+    if (category && category.toLowerCase() !== 'sale' && category.toLowerCase() !== 'new arrivals' && !urlQuery) {
       const targetCat = category.trim().toLowerCase();
-      // Relaxed filter: just keep it if it's broadly related
       filtered = filtered.filter(p => 
-        p.category.toLowerCase().includes(targetCat) || targetCat.includes(p.category.toLowerCase())
+        (p.category || '').trim().toLowerCase() === targetCat
       );
     }
-    */
 
     // 3. Strict Clubs Rule
     // Only filter out Clubs if we are NOT on a Clubs-specific page, Sale page, New Arrivals page, OR a Search page
