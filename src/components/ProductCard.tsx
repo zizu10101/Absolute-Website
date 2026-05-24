@@ -9,6 +9,7 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [isHovered, setIsHovered] = React.useState(false);
   const [activeImage, setActiveImage] = React.useState<string | null>(null);
+  const [activeColorIdx, setActiveColorIdx] = React.useState<number | null>(null);
   
   if (product.colors && product.colors.length > 0) {
     console.log(`Product "${product.name}" has ${product.colors.length} color(s)`);
@@ -21,7 +22,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   return (
     <div className="bg-white group cursor-pointer border border-zinc-100 relative block">
       <Link 
-        to={`/product/${product.id}`} 
+        to={`/product/${product.id}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} 
         className="block"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -54,6 +55,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               e.preventDefault();
               e.stopPropagation();
               setActiveImage(null);
+              setActiveColorIdx(null);
             }}
             onMouseEnter={() => setActiveImage(null)}
             className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === null ? 'border-[#b90014]' : 'border-zinc-100 hover:border-zinc-200'}`}
@@ -67,6 +69,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setActiveImage(color.images[0] || null);
+                setActiveColorIdx(idx);
               }}
               onMouseEnter={() => setActiveImage(color.images[0] || null)}
               className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === (color.images[0] || '___none___') ? 'border-[#b90014]' : 'border-zinc-100 hover:border-zinc-200'}`}
@@ -82,7 +85,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
       )}
 
-      <Link to={`/product/${product.id}`} className="p-6 block">
+      <Link to={`/product/${product.id}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} className="p-6 block">
         <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">
           {product.category} {product.submenu && `• ${product.submenu}`}
           {!product.submenu && product.submenus && product.submenus.length > 0 && `• ${product.submenus.join(', ')}`}

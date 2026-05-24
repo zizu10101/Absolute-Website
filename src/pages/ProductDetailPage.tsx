@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { useState, useEffect } from 'react';
 import { ShoppingBag, Heart, ChevronRight, ChevronLeft, Minus, Plus, ShieldCheck, Truck, RotateCcw, ChevronDown } from 'lucide-react';
@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const { fetchProductById, products } = useProducts();
   const [product, setProduct] = useState<any>(null);
   const [isPageLoading, setIsPageLoading] = useState(true);
@@ -27,7 +28,8 @@ export function ProductDetailPage() {
   }, [id, products]);
   
   const [selectedImage, setSelectedImage] = useState(0);
-  const [selectedColor, setSelectedColor] = useState<number | null>(null);
+  const colorParam = searchParams.get('color');
+  const [selectedColor, setSelectedColor] = useState<number | null>(colorParam !== null ? parseInt(colorParam) : null);
   const [quantity, setQuantity] = useState(1);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(true);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
