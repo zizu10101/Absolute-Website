@@ -134,8 +134,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from('products')
         .select(ADMIN_LIST_FIELDS)
-        .order('created_at', { ascending: false })
-        .range(0, 4999);
+        .order('name', { ascending: true })
+        .range(0, PAGE_SIZE - 1);
       
       console.log('ProductContext: Supabase fetch results', { dataLength: data?.length, error });
       
@@ -143,7 +143,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       if (data) {
         setProducts(data as Product[]);
-        setHasMoreProducts(data.length === 5000);
+        setHasMoreProducts(data.length === PAGE_SIZE);
       }
     } catch (e) {
       console.warn('Direct Supabase admin fetch failed, falling back to API:', e);
@@ -175,7 +175,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from('products')
         .select(ADMIN_LIST_FIELDS)
-        .order('created_at', { ascending: false })
+        .order('name', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1);
       
       if (error) throw error;
