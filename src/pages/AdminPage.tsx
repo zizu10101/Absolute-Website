@@ -199,7 +199,7 @@ function AdminPageInner() {
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const [addStatus, setAddStatus] = useState<'idle' | 'success' | 'error' | 'syncing'>('idle');
   const [addErrorMessage, setAddErrorMessage] = useState<string | null>(null);
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmClear, setConfirmClear] = useState<string | false>(false);
   const [productSubTab, setProductSubTab] = useState<'list' | 'add' | 'bulk'>('list');
   const [productCategoryFilter, setProductCategoryFilter] = useState<string>('All');
   const [adminSearchTerm, setAdminSearchTerm] = useState('');
@@ -603,15 +603,10 @@ function AdminPageInner() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this product?')) {
-      try {
-        await deleteProduct(id);
-        await fetchAdminProducts();
-        alert('Product deleted successfully!');
-      } catch (error: any) {
-        console.error('AdminPage: Failed to delete product', error);
-        alert('Failed to delete product: ' + error.message);
-      }
+    try {
+      await deleteProduct(id);
+    } catch (error: any) {
+      console.error('AdminPage: Failed to delete product', error);
     }
   };
 
@@ -2866,7 +2861,7 @@ function AdminPageInner() {
                           <select 
                             className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer" 
                             value={newProduct.category} 
-                            onChange={e => setNewProduct({...newProduct, category: e.target.value, submenu: ''})}
+                            onChange={e => setNewProduct({...newProduct, category: e.target.value, submenu: '', submenus: []})}
                           >
                             {availableCategories.map(cat => (
                               <option key={cat} value={cat}>{cat}</option>
@@ -3380,12 +3375,29 @@ function AdminPageInner() {
                             >
                               <Edit2 size={16} />
                             </button>
-                            <button 
-                              onClick={() => handleDelete(product.id)}
-                              className="p-2.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all shadow-sm"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                            {confirmClear === product.id ? (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => { handleDelete(product.id); setConfirmClear(false); }}
+                                  className="px-2 py-1 bg-red-600 text-white text-[8px] font-black uppercase rounded tracking-widest"
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  onClick={() => setConfirmClear(false)}
+                                  className="px-2 py-1 bg-zinc-200 text-zinc-600 text-[8px] font-black uppercase rounded tracking-widest"
+                                >
+                                  No
+                                </button>
+                              </div>
+                            ) : (
+                              <button 
+                                onClick={() => setConfirmClear(product.id)}
+                                className="p-2.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all shadow-sm"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))
@@ -3575,7 +3587,7 @@ function AdminPageInner() {
                       <select 
                         className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer" 
                         value={editingProduct.category} 
-                        onChange={e => setEditingProduct({...editingProduct, category: e.target.value, submenu: ''})}
+                        onChange={e => setEditingProduct({...editingProduct, category: e.target.value, submenu: '', submenus: []})}
                       >
                         {availableCategories.map(cat => (
                           <option key={cat} value={cat}>{cat}</option>
