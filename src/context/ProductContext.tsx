@@ -194,7 +194,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (category && category.toLowerCase() !== 'all') params.append('category', category);
       if (submenu) params.append('submenu', submenu);
       params.append('fields', LIST_FIELDS);
-      params.append('limit', '40');
       
       const response = await fetch(`/api/products?${params.toString()}`);
       
@@ -217,7 +216,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         if (submenu) {
           query = query.or(`submenu.ilike.${submenu},submenus.cs.{${submenu}}`);
         }
-        const { data, error } = await query.order('name').limit(100);
+        const { data, error } = await query.order('name');
         
         if (error) throw error;
         if (data) mergeProducts(data as any);

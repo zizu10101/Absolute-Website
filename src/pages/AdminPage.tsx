@@ -739,25 +739,101 @@ function AdminPageInner() {
     }
   };
 
+  const syncBucketFromSlider = async () => {
+    setIsSyncingBucket(true);
+    try {
+      const { data: bucketFiles, error: bucketError } = await supabase.storage.from('media').list('slider', {
+        limit: 100
+      });
+      if (bucketError) throw bucketError;
+      
+      const validFiles = bucketFiles.filter(file => file.name && !file.name.startsWith('.') && file.name !== '.emptyFolderPlaceholder');
+      
+      const validFileNamesFromDb = sliderImages.map(img => {
+          try {
+              const urlParts = new URL(img.url);
+              return urlParts.pathname.split('/').pop()?.split('?')[0];
+          } catch(e) {
+              return null;
+          }
+      }).filter(Boolean);
+      
+      console.log("Valid files from DB:", validFileNamesFromDb);
+      console.log("Valid files in bucket:", validFiles.map(f => f.name));
+      
+      const filesToDelete = validFiles.filter(file => !validFileNamesFromDb.includes(file.name));
+      console.log("Files to delete:", filesToDelete);
+
+      if (filesToDelete.length === 0) {
+        alert("Bucket is already in sync with database (no redundant files found).");
+        return;
+      }
+      
+      const pathsToDelete = filesToDelete.map(file => `slider/${file.name}`);
+      const { error: removeError } = await supabase.storage.from('media').remove(pathsToDelete);
+      if (removeError) throw removeError;
+      
+      alert(`Successfully removed ${filesToDelete.length} redundant files from bucket.`);
+    } catch (err: any) {
+        console.error("Bucket synchronization failed:", err);
+        alert("Bucket synchronization failed: " + (err.message || err));
+    } finally {
+        setIsSyncingBucket(false);
+    }
+  };
+
   // Disabled auto-sync of slider to allow deletions of images. Database is the absolute single source of truth.
   // Manual sync can be triggered from the "Sync Slider with Bucket" panel or Button by the admin.
 
-  const handleDeleteSlide = (targetIndex: number) => {
-    setSliderImages(prev => {
-      const finalArray = (prev || []).filter((_, index) => index !== targetIndex);
-      supabase
-        .from('settings')
-        .upsert({ key: 'slider', data: { sliderImages: finalArray } }, { onConflict: 'key' })
-        .then(({ error }) => {
-          if (error) {
-            console.error("Failed to delete slide from database settings:", error);
-          } else {
-            console.log("Database slider settings updated successfully on delete!");
-            setContextSliderImages(finalArray).catch(err => console.error("Context update error:", err));
-          }
-        });
-      return finalArray;
-    });
+  const handleDeleteSlide = async (targetIndex: number) => {
+    console.log("handleDeleteSlide clicked", targetIndex);
+    
+    const imageToDelete = sliderImages[targetIndex];
+    console.log("imageToDelete", imageToDelete);
+    if (!imageToDelete) {
+      console.log("No image to delete found at index", targetIndex);
+      return;
+    }
+    
+    // 1. Remove the URL from local state (immediate UI response)
+    const finalArray = (sliderImages || []).filter((_, index) => index !== targetIndex);
+    setSliderImages(finalArray);
+    
+    // 2. Remove the URL from DB (via SettingsContext)
+    try {
+      await setContextSliderImages(finalArray);
+      console.log("Context updated");
+    } catch (error) {
+      console.error("Failed to update database slider settings:", error);
+      alert("Failed to update database.");
+      setSliderImages(sliderImages); // Revert local state
+      return;
+    }
+    
+    // 3. Remove from storage
+    if (imageToDelete.url) {
+      try {
+        let path = '';
+        if (imageToDelete.url.includes('/slider/')) {
+           path = 'slider/' + imageToDelete.url.split('/slider/')[1];
+        } else {
+             const urlParts = new URL(imageToDelete.url);
+             const fileName = urlParts.pathname.split('/').pop();
+             path = `slider/${fileName}`;
+        }
+        
+        console.log("Removing from storage path:", path);
+        
+        const { error } = await supabase.storage.from('media').remove([path]);
+        if (error) {
+          console.error("Failed to remove slide from storage:", error);
+        } else {
+            console.log("Removed from storage successfully");
+        }
+      } catch (err) {
+        console.error("Storage removal error:", err);
+      }
+    }
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -1780,6 +1856,14 @@ function AdminPageInner() {
                       <RefreshCw size={14} className={isSyncingBucket ? "animate-spin" : ""} />
                       {isSyncingBucket ? 'Syncing...' : 'Sync from Storage'}
                     </button>
+                    <button 
+                      onClick={() => syncBucketFromSlider()}
+                      disabled={isSyncingBucket || isSaving || isUploading || uploading}
+                      className={`flex items-center gap-2 px-4 py-2.5 bg-zinc-100 border border-zinc-200 text-zinc-900 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-colors hover:bg-zinc-200 ${(isSyncingBucket || isSaving || isUploading || uploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <RefreshCw size={14} className={isSyncingBucket ? "animate-spin" : ""} />
+                      {isSyncingBucket ? 'Syncing...' : 'Sync to Storage (Clean Up)'}
+                    </button>
                     <label className="flex items-center gap-2 px-4 py-2.5 bg-zinc-100 text-zinc-900 rounded-lg font-bold uppercase tracking-widest text-[10px] cursor-pointer hover:bg-zinc-200 transition-colors">
                       <Upload size={14} /> Upload New
                       <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
@@ -1818,7 +1902,7 @@ function AdminPageInner() {
                           className="group relative rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200 shadow-sm flex flex-col"
                         >
                           <div className="relative aspect-video">
-                            <img src={img.url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            <img src={img.url} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <button 
                                 onClick={() => handleDeleteSlide(index)}
