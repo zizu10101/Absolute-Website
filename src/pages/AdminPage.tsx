@@ -179,7 +179,7 @@ function AdminPageInner() {
   const isSupabaseConnected = dbMode === 'supabase';
 
   useEffect(() => {
-    // Rely on Context to fetch products on mount
+    fetchAdminProducts();
   }, []);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [sliderImages, setSliderImages] = useState<any[]>([]);

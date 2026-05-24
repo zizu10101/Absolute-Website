@@ -146,7 +146,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.warn('Direct Supabase admin fetch failed, falling back to API:', e);
       try {
-        const response = await fetch(`/api/products?limit=5000`);
+        const response = await fetch(`/api/products?limit=5000&fields=${ADMIN_LIST_FIELDS}`);
         const result = await response.json();
         if (result.data) {
           setProducts(result.data);
