@@ -1412,7 +1412,7 @@ function AdminPageInner() {
       setIsUploading(true);
       try {
         const path = `nav/submenu_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase()}`;
-        const publicUrl = await uploadImage(file, path, 'navigation_logos');
+        const publicUrl = await uploadImage(file, path);
         const sub = draftNavigationMenus[menuIndex].submenus[submenuIndex];
 
         // Update local state IMMEDIATELY so the user sees the preview
@@ -1474,7 +1474,7 @@ function AdminPageInner() {
       setIsUploading(true);
       try {
         const path = `nav/item_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase()}`;
-        const publicUrl = await uploadImage(file, path, 'navigation_logos');
+        const publicUrl = await uploadImage(file, path);
         const item = draftNavigationMenus[menuIndex].submenus[submenuIndex].items[itemIndex];
         
         // Update local state IMMEDIATELY
