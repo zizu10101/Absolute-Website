@@ -23,6 +23,7 @@ export interface Product {
   isFeatured?: boolean;
   salePrice?: number;
   colors?: ColorVariant[];
+  is_online?: boolean;
 }
 
 interface ProductContextType {
@@ -39,9 +40,83 @@ interface ProductContextType {
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   resetProducts: () => Promise<void>;
+  markAllProductsOnline: () => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
+
+export const mapProductFromDb = (p: any): Product => {
+  if (!p) return p;
+  
+  let sub: string[] = [];
+  if (Array.isArray(p.submenus)) {
+    sub = p.submenus;
+  } else if (typeof p.submenus === 'string' && p.submenus) {
+    try {
+      sub = JSON.parse(p.submenus);
+    } catch (_) {
+      try {
+        sub = p.submenus.replace(/[{}]/g, '').split(',').map((s: string) => s.trim());
+      } catch (_) {
+        sub = [];
+      }
+    }
+  }
+
+  const isOnlineValue = 
+    p.is_online === true || 
+    p.is_online === 'true' || 
+    p.is_online === 1 || 
+    p.is_online === '1' ||
+    sub.some((s: string) => s && s.toUpperCase() === 'ONLINE') ||
+    (p.submenu && p.submenu.toUpperCase() === 'ONLINE');
+
+  let rawPrice = p.price;
+  if (typeof rawPrice === 'string') {
+    const parsed = parseFloat(rawPrice);
+    if (!isNaN(parsed)) rawPrice = parsed;
+  }
+  
+  let rawSalePrice = p.salePrice;
+  if (typeof rawSalePrice === 'string') {
+    const parsed = parseFloat(rawSalePrice);
+    if (!isNaN(parsed)) rawSalePrice = parsed;
+  }
+
+  return {
+    ...p,
+    price: rawPrice,
+    salePrice: rawSalePrice,
+    submenus: sub,
+    is_online: isOnlineValue
+  };
+};
+
+export const mapProductToDb = (p: any): any => {
+  if (!p) return p;
+  const { is_online, ...rest } = p;
+  
+  let sub = Array.isArray(p.submenus) ? [...p.submenus] : [];
+  let submenuVal = p.submenu;
+
+  if (is_online === true) {
+    if (!sub.some((s: string) => s && s.toUpperCase() === 'ONLINE')) {
+      sub.push('online');
+    }
+  } else {
+    sub = sub.filter((s: string) => s && s.toUpperCase() !== 'ONLINE');
+    if (submenuVal && submenuVal.toUpperCase() === 'ONLINE') {
+      submenuVal = '';
+    }
+  }
+  
+  return {
+    ...rest,
+    submenu: submenuVal,
+    submenus: sub,
+    is_online
+  };
+};
 
 export function ProductProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -49,12 +124,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
 
   const { user } = useAuth();
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 1000;
 
   const mergeProducts = (newProducts: Product[]) => {
+    const mapped = newProducts.map(mapProductFromDb);
     setProducts(prev => {
       const productMap = new Map(prev.map(p => [p.id, p]));
-      newProducts.forEach(p => productMap.set(p.id, p));
+      mapped.forEach(p => productMap.set(p.id, p));
       return Array.from(productMap.values());
     });
   };
@@ -142,7 +218,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       
       if (data) {
-        setProducts(data as Product[]);
+        setProducts((data as Product[]).map(mapProductFromDb));
         setHasMoreProducts(data.length === PAGE_SIZE);
       }
     } catch (e) {
@@ -152,8 +228,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const result = await response.json();
         console.log('ProductContext: API fetch results', { resultDataLength: result.data?.length });
         if (result.data) {
-          setProducts(result.data);
-          setHasMoreProducts(result.data.length === 1000);
+          setProducts((result.data as Product[]).map(mapProductFromDb));
+          setHasMoreProducts(result.data.length === PAGE_SIZE);
         }
       } catch (apiErr) {
         console.error('API admin fetch also failed:', apiErr);
@@ -242,12 +318,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (!response.ok || (response.headers.get('content-type') && response.headers.get('content-type')!.includes('text/html'))) {
         throw new Error('API unavailable or returned HTML');
       }
-      return await response.json();
+      const raw = await response.json();
+      return mapProductFromDb(raw);
     } catch (e) {
       console.warn('API GET product by id failed, falling back to direct Supabase:', e);
       try {
         const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
-        if (data && !error) return data as Product;
+        if (data && !error) return mapProductFromDb(data as Product);
       } catch (err) {
         console.error('Direct Supabase GET product also failed:', err);
       }
@@ -278,28 +355,37 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       submenus: productData.submenus?.map(s => normalizeString(s))
     };
 
+    // Serialize is_online to submenus properly and strip it out for table schema safety
+    const payload = mapProductToDb(normalizedData);
+
     try {
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(normalizedData)
+        body: JSON.stringify(payload)
       });
       if (!response.ok) {
-        throw new Error(`API failed: ${response.status}`);
+        const errPayload = await response.json().catch(() => ({}));
+        throw new Error(errPayload.message || errPayload.error || `API failed: ${response.status}`);
       }
       const newProduct = await response.json();
-      setProducts(prev => [...prev, { ...productData as any, ...newProduct }]);
+      setProducts(prev => [...prev, mapProductFromDb({ ...productData as any, ...newProduct })]);
       await fetchAdminProducts();
-    } catch (e) {
-      console.warn('API add product failed, trying direct Supabase:', e);
+    } catch (e: any) {
+      console.warn('API add product failed:', e);
+      if (e.message?.includes('RLS') || e.message?.includes('row-level security')) {
+        throw e;
+      }
       try {
-        const { data, error } = await supabase.from('products').insert([productData]).select().single();
+        console.log('Trying direct Supabase fallback...');
+        const { is_online, ...payloadWithoutOnline } = payload;
+        const { data, error } = await supabase.from('products').insert([payloadWithoutOnline]).select().single();
         if (error) throw error;
         if (data) {
-          setProducts(prev => [...prev, data as Product]);
+          setProducts(prev => [...prev, mapProductFromDb(data as Product)]);
           await fetchAdminProducts();
         }
-      } catch (supErr) {
+      } catch (supErr: any) {
         console.error('Direct Supabase add product also failed:', supErr);
         throw supErr;
       }
@@ -329,27 +415,35 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       submenus: updatedProduct.submenus?.map(s => normalizeString(s))
     };
 
+    // Serialize is_online to submenus and strip column for table schema compatibility
+    const payload = mapProductToDb(normalizedData);
+
     try {
       const response = await fetch(`/api/products/${updatedProduct.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(normalizedData)
+        body: JSON.stringify(payload)
       });
       if (!response.ok) {
-        throw new Error(`API failed: ${response.status}`);
+        const errPayload = await response.json().catch(() => ({}));
+        throw new Error(errPayload.message || errPayload.error || `API failed: ${response.status}`);
       }
       const data = await response.json();
-      setProducts(prev => prev.map(p => p.id === (data?.id || updatedProduct.id) ? { ...updatedProduct, ...data } : p));
+      setProducts(prev => prev.map(p => p.id === (data?.id || updatedProduct.id) ? mapProductFromDb({ ...updatedProduct, ...data }) : p));
       await fetchAdminProducts();
-    } catch (e) {
-      console.warn('API update product failed, trying direct Supabase:', e);
+    } catch (e: any) {
+      console.warn('API update product failed:', e);
+      if (e.message?.includes('RLS') || e.message?.includes('row-level security')) {
+        throw e;
+      }
       try {
-        const { id, ...rest } = updatedProduct;
+        console.log('Trying direct Supabase fallback...');
+        const { id, is_online, ...rest } = payload;
         const { data, error } = await supabase.from('products').update(rest).eq('id', id).select().single();
         if (error) throw error;
-        setProducts(prev => prev.map(p => p.id === id ? { ...updatedProduct, ...(data || {}) } : p));
+        setProducts(prev => prev.map(p => p.id === id ? mapProductFromDb({ ...updatedProduct, ...(data || {}) }) : p));
         await fetchAdminProducts();
-      } catch (supErr) {
+      } catch (supErr: any) {
         console.error('Direct Supabase update product also failed:', supErr);
         throw supErr;
       }
@@ -360,19 +454,61 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     // Optimistically remove from UI immediately
     setProducts(prev => prev.filter(p => p.id !== id));
     try {
-      const { error } = await supabase.from('products').delete().eq('id', id);
-      if (error) throw error;
-    } catch (e) {
-      console.error('Delete product failed:', e);
-      // Re-fetch to restore correct state if delete failed
-      await fetchAdminProducts();
-      throw e;
+      const response = await fetch(`/api/products/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const errPayload = await response.json().catch(() => ({}));
+        throw new Error(errPayload.message || errPayload.error || `API failed: ${response.status}`);
+      }
+      console.log(`Product ${id} deleted successfully via API`);
+    } catch (e: any) {
+      console.warn('API delete product failed:', e);
+      if (e.message?.includes('RLS') || e.message?.includes('row-level security')) {
+        // Restore product list if we can't delete due to permissions
+        await fetchAdminProducts();
+        throw e;
+      }
+      try {
+        console.log('Trying direct Supabase fallback...');
+        const { error } = await supabase.from('products').delete().eq('id', id);
+        if (error) throw error;
+      } catch (supErr: any) {
+        console.error('Direct Supabase delete product also failed:', supErr);
+        await fetchAdminProducts();
+        throw supErr;
+      }
     }
   };
 
   const resetProducts = async () => {
     setProducts([]);
     await fetchAdminProducts();
+  };
+
+  const markAllProductsOnline = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/products-mark-all-online', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) {
+        throw new Error(`API failed with status ${response.status}`);
+      }
+      await fetchAdminProducts();
+    } catch (err) {
+      console.error('Failed to mark all online via API, falling back to sequential batch updating in-app:', err);
+      // Fallback: update local / in-state items sequential batch updating
+      for (const p of products) {
+        if (!p.is_online) {
+          const updated = { ...p, is_online: true };
+          await updateProduct(updated);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -389,7 +525,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       addProduct, 
       updateProduct, 
       deleteProduct, 
-      resetProducts
+      resetProducts,
+      markAllProductsOnline
     }}>
       {children}
     </ProductContext.Provider>

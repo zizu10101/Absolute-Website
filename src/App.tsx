@@ -11,6 +11,7 @@ import { ScrollToTop } from './components/ScrollToTop';
 import { HomePage } from './pages/HomePage';
 import { AdminLogin } from './pages/AdminLogin';
 import { ProductProvider, useProducts } from './context/ProductContext';
+import { CustomerProvider } from './context/CustomerContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { AuthProvider } from './context/AuthContext';
 import { ProductGridPage } from './pages/ProductGridPage';
@@ -128,12 +129,14 @@ export default function App() {
   return (
     <AuthProvider>
       <ProductProvider>
-        <BrowserRouter>
-          <SettingsProvider>
-            <ScrollToTop />
-            <AppContent />
-          </SettingsProvider>
-        </BrowserRouter>
+        <CustomerProvider>
+          <BrowserRouter>
+            <SettingsProvider>
+              <ScrollToTop />
+              <AppContent />
+            </SettingsProvider>
+          </BrowserRouter>
+        </CustomerProvider>
       </ProductProvider>
     </AuthProvider>
   );

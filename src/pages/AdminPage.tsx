@@ -4,13 +4,14 @@ import { useProducts, Product } from '../context/ProductContext';
 import { useSettings, NavMenu, SEO, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw } from 'lucide-react';
+import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
 import { resizeImage } from '../lib/imageUtils';
 import { uploadImage, supabase } from '../supabase';
+import { PosRegister } from '../components/PosRegister';
 
-type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'tools';
+type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'tools' | 'pos';
 
 const CATEGORIES = [
   'Footwear',
@@ -111,7 +112,7 @@ export function AdminPage() {
 
 function AdminPageInner() {
   const { 
-    products, addProduct, deleteProduct, updateProduct, resetProducts, 
+    products, addProduct, deleteProduct, updateProduct, resetProducts, markAllProductsOnline,
     fetchAdminProducts, loadMoreAdminProducts, hasMoreProducts, isLoading, fetchProductById
   } = useProducts();
   const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, setGlobalSettings, resetSettings } = useSettings();
@@ -141,6 +142,7 @@ function AdminPageInner() {
     isNewArrival: true,
     isOnSale: false,
     isFeatured: true,
+    is_online: true,
     salePrice: 0,
     colors: []
   });
@@ -182,6 +184,7 @@ function AdminPageInner() {
     fetchAdminProducts();
   }, []);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [originalProduct, setOriginalProduct] = useState<Product | null>(null);
   const [sliderImages, setSliderImages] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [isSyncingBucket, setIsSyncingBucket] = useState(false);
@@ -199,6 +202,8 @@ function AdminPageInner() {
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const [addStatus, setAddStatus] = useState<'idle' | 'success' | 'error' | 'syncing'>('idle');
   const [addErrorMessage, setAddErrorMessage] = useState<string | null>(null);
+  const [editStatus, setEditStatus] = useState<'idle' | 'success' | 'error' | 'saving'>('idle');
+  const [editErrorMessage, setEditErrorMessage] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState<string | false>(false);
   const [productSubTab, setProductSubTab] = useState<'list' | 'add' | 'bulk'>('list');
   const [productCategoryFilter, setProductCategoryFilter] = useState<string>('All');
@@ -206,6 +211,9 @@ function AdminPageInner() {
   const [isBulkUploading, setIsBulkUploading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'success'>('idle');
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmMarkAllOnline, setConfirmMarkAllOnline] = useState(false);
+  const [isMarkingAllOnline, setIsMarkingAllOnline] = useState(false);
+  const [markAllOnlineStatus, setMarkAllOnlineStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isSyncingLocal, setIsSyncingLocal] = useState(false);
   const [localSyncStatus, setLocalSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isRestoringLocal, setIsRestoringLocal] = useState(false);
@@ -557,6 +565,7 @@ function AdminPageInner() {
         isNewArrival: true,
         isOnSale: false,
         isFeatured: true,
+        is_online: true,
         salePrice: 0,
         colors: []
       });
@@ -571,33 +580,76 @@ function AdminPageInner() {
   };
 
   const handleUpdate = async () => {
-    if (editingProduct && editingProduct.name && editingProduct.price > 0) {
+    if (editingProduct) {
+      setEditErrorMessage(null);
+      setEditStatus('saving');
+
+      if (!editingProduct.name) {
+        setEditErrorMessage('Product Name is required.');
+        setEditStatus('error');
+        return;
+      }
+      
+      const priceNum = typeof editingProduct.price === 'string' ? parseFloat(editingProduct.price) : editingProduct.price;
+      if (typeof priceNum !== 'number' || isNaN(priceNum) || priceNum <= 0) {
+        setEditErrorMessage('Product Price must be a valid number greater than 0.');
+        setEditStatus('error');
+        return;
+      }
+
       try {
-        // Ensure no base64 in editingProduct if we are currently uploading
+        const isNewBase64Image = (str: string | undefined) => {
+          if (!str || !str.startsWith('data:')) return false;
+          if (originalProduct) {
+            if (originalProduct.image === str) return false;
+            if (originalProduct.images?.includes(str)) return false;
+            const originalColorImages = originalProduct.colors?.flatMap(c => c.images || []) || [];
+            if (originalColorImages.includes(str)) return false;
+          }
+          return true;
+        };
+
+        // Ensure no new base64 in editingProduct if we are currently uploading
         const imageFields = [
           editingProduct.image,
           ...(editingProduct.images || []),
           ...(editingProduct.colors?.flatMap(c => c.images || []) || [])
         ];
-        if (imageFields.some(f => f && f.startsWith('data:'))) {
-          alert('Image upload in progress. Please wait.');
+        if (imageFields.some(f => f && isNewBase64Image(f))) {
+          setEditErrorMessage('Image upload in progress. Please wait.');
+          setEditStatus('error');
           return;
         }
 
-        setIsUploading(true);
-        const productData = { ...editingProduct };
+        const productData = { 
+          ...editingProduct,
+          price: priceNum
+        };
         if (!productData.isOnSale) {
           delete productData.salePrice;
+        } else if (productData.salePrice !== undefined) {
+          const sPriceNum = typeof productData.salePrice === 'string' ? parseFloat(productData.salePrice) : productData.salePrice;
+          productData.salePrice = isNaN(sPriceNum) ? 0 : sPriceNum;
         }
+
         await updateProduct(productData);
         await fetchAdminProducts();
-        setEditingProduct(null);
-        alert('Product updated successfully!');
+        
+        setEditStatus('success');
+        setTimeout(() => {
+          setEditingProduct(null);
+          setOriginalProduct(null);
+          setEditStatus('idle');
+          setEditErrorMessage(null);
+        }, 1200);
       } catch (error: any) {
         console.error('AdminPage: Failed to update product', error);
-        alert('Failed to update product: ' + error.message);
-      } finally {
-        setIsUploading(false);
+        setEditStatus('error');
+        if (error.message?.includes('RLS') || error.message?.toLowerCase().includes('row-level security')) {
+          setEditErrorMessage("SUPABASE ROW-LEVEL SECURITY BLOCK! Please add 'SUPABASE_SERVICE_ROLE_KEY' to your Google AI Studio Settings using your Supabase project's service_role API credential.");
+        } else {
+          setEditErrorMessage('Failed to update product: ' + (error.message || error));
+        }
       }
     }
   };
@@ -1274,17 +1326,31 @@ function AdminPageInner() {
     if (!editingProduct) return;
     let finalValue = value;
     if (value.startsWith('data:')) {
-      setIsUploading(true);
-      try {
-        const resized = await resizeImage(value, 1000, 1250, 0.8);
-        const path = `products/${Date.now()}_pasted`;
-        finalValue = await uploadImage(resized, path);
-      } catch (err) {
-        console.error("Editing product image upload failed:", err);
-        alert("Failed to upload pasted image.");
-        return;
-      } finally {
-        setIsUploading(false);
+      // Check if this is the original product's loaded asset string
+      let isOriginalValue = false;
+      if (originalProduct) {
+        if (field === 'image' && originalProduct.image === value) {
+          isOriginalValue = true;
+        } else if (field === 'additional' && index !== undefined && originalProduct.images?.[index] === value) {
+          isOriginalValue = true;
+        } else if (field === 'color' && colorIndex !== undefined && index !== undefined && originalProduct.colors?.[colorIndex]?.images?.[index] === value) {
+          isOriginalValue = true;
+        }
+      }
+
+      if (!isOriginalValue) {
+        setIsUploading(true);
+        try {
+          const resized = await resizeImage(value, 1000, 1250, 0.8);
+          const path = `products/${Date.now()}_pasted`;
+          finalValue = await uploadImage(resized, path);
+        } catch (err) {
+          console.error("Editing product image upload failed:", err);
+          alert("Failed to upload pasted image.");
+          return;
+        } finally {
+          setIsUploading(false);
+        }
       }
     }
 
@@ -1790,10 +1856,27 @@ function AdminPageInner() {
             >
               <Zap size={16} /> Database Sync
             </button>
+            <button 
+              onClick={() => setActiveTab('pos')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'pos' ? 'bg-[#b90014] text-white shadow-md' : 'text-zinc-500 hover:text-[#b90014] hover:bg-red-50'}`}
+            >
+              <CreditCard size={16} /> POS
+            </button>
           </div>
         </div>
 
         <AnimatePresence mode="wait">
+          {activeTab === 'pos' && (
+            <motion.div 
+              key="pos"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <PosRegister />
+            </motion.div>
+          )}
+
           {activeTab === 'slider' && (
             <motion.div 
               key="slider"
@@ -3104,6 +3187,10 @@ function AdminPageInner() {
                     </div>
                     <div className="flex flex-col gap-3 pt-2">
                       <label className="flex items-center gap-3 cursor-pointer group">
+                        <input type="checkbox" className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.is_online} onChange={e => setNewProduct({...newProduct, is_online: e.target.checked})} />
+                        <span className="text-sm font-medium text-zinc-700 group-hover:text-zinc-900 transition-colors">Available in Online Store</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer group">
                         <input type="checkbox" className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.isNewArrival} onChange={e => setNewProduct({...newProduct, isNewArrival: e.target.checked})} />
                         <span className="text-sm font-medium text-zinc-700 group-hover:text-zinc-900 transition-colors">Mark as New Arrival</span>
                       </label>
@@ -3169,6 +3256,29 @@ function AdminPageInner() {
                         {addErrorMessage}
                       </p>
                     )}
+                    {addStatus === 'error' && addErrorMessage && (addErrorMessage.includes('RLS') || addErrorMessage.toLowerCase().includes('row-level security')) && (
+                      <div className="mt-4 p-5 bg-red-50 rounded-xl border border-red-200 text-left space-y-3.5 shadow-sm">
+                        <div className="flex items-start gap-2.5 text-red-800">
+                          <AlertTriangle className="text-red-600 shrink-0 mt-0.5 animate-bounce" size={16} />
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-wider">How to Fix Row-Level Security (RLS) Block</p>
+                            <p className="text-xs mt-1 text-red-700/90 leading-relaxed font-semibold">
+                              This happens because your Supabase table has Row-Level Security enabled and you are running on an unauthenticated client connection. To allow administrative uploads securely, please add your service_role key to the environment.
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="text-[10px] space-y-2 text-red-950 font-bold leading-normal uppercase tracking-wider pl-6 select-all">
+                          <p className="text-[#b90014] font-black underline">💡 Fix inside Google AI Studio Build (10 seconds):</p>
+                          <ol className="list-decimal pl-4 space-y-1 text-[9.5px]">
+                            <li>Open the <span className="font-extrabold text-[#b90014]">Settings</span> menu (located at the top right of the Google AI Studio console).</li>
+                            <li>Add a new secret environment variable named: <span className="font-mono bg-red-100 px-1 py-0.5 rounded select-all font-black text-[#b90014]">SUPABASE_SERVICE_ROLE_KEY</span></li>
+                            <li>Set its value to your Supabase Project's <span className="underline font-black text-[#b90014]">service_role</span> API token (find this inside your Supabase.com Dashboard under Settings &gt; API).</li>
+                            <li>Submit &amp; Reload. The app's Node framework will securely pull the key to execute admin-level database edits instantly!</li>
+                          </ol>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -3233,6 +3343,48 @@ function AdminPageInner() {
                             </motion.div>
                           )}
                         </button>
+                        <div className="relative">
+                          <button 
+                            onClick={() => setConfirmMarkAllOnline(true)}
+                            disabled={isMarkingAllOnline}
+                            className="text-[10px] font-bold text-zinc-400 hover:text-[#b90014] uppercase tracking-widest disabled:opacity-50"
+                          >
+                            {isMarkingAllOnline ? 'Marking...' : markAllOnlineStatus === 'success' ? 'All Online ✓' : 'Mark All Online'}
+                          </button>
+                          {confirmMarkAllOnline && (
+                            <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-zinc-200 rounded-lg shadow-xl p-4 z-50">
+                              <p className="text-[10px] font-bold text-zinc-900 mb-3 text-left normal-case">Mark all products as available in the online store?</p>
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={async () => {
+                                    setConfirmMarkAllOnline(false);
+                                    setIsMarkingAllOnline(true);
+                                    setMarkAllOnlineStatus('idle');
+                                    try {
+                                      await markAllProductsOnline();
+                                      setMarkAllOnlineStatus('success');
+                                      setTimeout(() => setMarkAllOnlineStatus('idle'), 3000);
+                                    } catch (e) {
+                                      setMarkAllOnlineStatus('error');
+                                      setTimeout(() => setMarkAllOnlineStatus('idle'), 5000);
+                                    } finally {
+                                      setIsMarkingAllOnline(false);
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 bg-[#b90014] text-white text-[8px] font-black uppercase rounded tracking-widest text-center"
+                                >
+                                  Yes, Do It
+                                </button>
+                                <button 
+                                  onClick={() => setConfirmMarkAllOnline(false)}
+                                  className="flex-1 px-2 py-1 bg-zinc-100 text-zinc-600 text-[8px] font-black uppercase rounded tracking-widest text-center"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                         <div className="relative">
                           <button 
                             onClick={() => setConfirmReset(true)}
@@ -3347,8 +3499,13 @@ function AdminPageInner() {
                             <img src={product.image || `https://picsum.photos/seed/${product.id}/80`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 col-span-1 flex-wrap">
                               <h3 className="font-bold text-zinc-900 truncate">{product.name}</h3>
+                              {product.is_online ? (
+                                <span className="px-2 py-0.5 bg-zinc-900 text-white text-[8px] font-black uppercase rounded tracking-widest shadow-xs">Online</span>
+                              ) : (
+                                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[8px] font-black uppercase rounded tracking-widest">In-Store Only</span>
+                              )}
                               {product.isNewArrival && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-black uppercase rounded tracking-widest">New</span>}
                               {product.isOnSale && <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[8px] font-black uppercase rounded tracking-widest">Sale</span>}
                             </div>
@@ -3369,7 +3526,10 @@ function AdminPageInner() {
                             <button 
                               onClick={async () => {
                                 const fullProduct = await fetchProductById(product.id);
-                                if (fullProduct) setEditingProduct(fullProduct);
+                                if (fullProduct) {
+                                  setEditingProduct(fullProduct);
+                                  setOriginalProduct(fullProduct);
+                                }
                               }}
                               className="p-2.5 text-zinc-400 hover:text-zinc-900 hover:bg-white rounded-lg border border-transparent hover:border-zinc-200 transition-all shadow-sm"
                             >
@@ -3645,6 +3805,10 @@ function AdminPageInner() {
                     </div>
                     <div className="flex flex-col gap-4 pt-4">
                       <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014]" checked={editingProduct.is_online} onChange={e => setEditingProduct({...editingProduct, is_online: e.target.checked})} />
+                        <span className="text-sm font-medium text-zinc-700">Available in Online Store</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014]" checked={editingProduct.isNewArrival} onChange={e => setEditingProduct({...editingProduct, isNewArrival: e.target.checked})} />
                         <span className="text-sm font-medium text-zinc-700">New Arrival</span>
                       </label>
@@ -3855,31 +4019,45 @@ function AdminPageInner() {
                   </div>
                 </div>
 
-                <div className="p-8 bg-zinc-50 flex items-center justify-end gap-4">
-                  <button 
-                    onClick={() => setEditingProduct(null)}
-                    className="px-6 py-3 text-zinc-500 font-bold uppercase tracking-widest text-xs hover:text-zinc-900 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={async () => {
-                      if (editingProduct) {
-                        await handleUpdate();
-                      }
-                    }}
-                    disabled={isUploading}
-                    className={`px-8 py-3 bg-zinc-900 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#b90014] transition-all shadow-lg shadow-zinc-900/10 flex items-center gap-2 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {isUploading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      'Save Changes'
+                <div className="p-8 bg-zinc-50 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-left flex-1">
+                    {editStatus === 'error' && editErrorMessage && (
+                      <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest">
+                        ⚠️ {editErrorMessage}
+                      </p>
                     )}
-                  </button>
+                    {editStatus === 'success' && (
+                      <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">
+                        ✨ Product updated successfully!
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 justify-end">
+                    <button 
+                      onClick={() => { setEditingProduct(null); setOriginalProduct(null); setEditStatus('idle'); setEditErrorMessage(null); }}
+                      className="px-6 py-3 text-zinc-500 font-bold uppercase tracking-widest text-xs hover:text-zinc-900 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        if (editingProduct) {
+                          await handleUpdate();
+                        }
+                      }}
+                      disabled={isUploading || editStatus === 'saving'}
+                      className={`px-8 py-3 bg-zinc-900 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#b90014] transition-all shadow-lg shadow-zinc-900/10 flex items-center gap-2 ${(isUploading || editStatus === 'saving') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {isUploading || editStatus === 'saving' ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save Changes'
+                      )}
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </div>

@@ -29,6 +29,8 @@ export const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl,
   auth: { persistSession: false }
 }) : null;
 
+export const supabaseAdmin = supabase;
+
 // File paths
 const DATA_DIR = path.join(process.cwd(), 'data');
 const LOCAL_PRODUCTS_PATH = path.join(DATA_DIR, 'products.json');
@@ -109,6 +111,17 @@ async function startServer() {
         const { category, submenu, isFeatured, isOnSale, isNewArrival, limit, offset, fields } = req.query;
         let query = supabase.from('products').select(typeof fields === 'string' ? fields : '*');
 
+        console.log("Supabase products query:", {
+          category,
+          submenu,
+          isFeatured,
+          isOnSale,
+          isNewArrival,
+          limit,
+          offset,
+          fields
+        });
+
         if (category && category !== 'All' && category !== 'all') {
           query = query.ilike('category', category as string);
         }
@@ -129,7 +142,22 @@ async function startServer() {
         query = query.range(o, o + l - 1).order('name');
 
         const { data, error } = await query;
-        if (error) throw error;
+        if (error) {
+          console.warn("Supabase products fetch with fields failed! Error:", JSON.stringify(error, null, 2));
+          const { data: dataFallback, error: errorFallback } = await supabase.from('products').select('*').range(o, o + l - 1).order('name');
+          if (errorFallback) {
+            console.error("Fallback query also failed!", JSON.stringify(errorFallback, null, 2));
+            throw errorFallback;
+          }
+          if (dataFallback && dataFallback.length > 0) {
+            console.log("Fallback product keys are:", Object.keys(dataFallback[0]));
+          } else {
+            console.log("Fallback returned 0 products.");
+          }
+          const responseData = { data: dataFallback || [], mode: 'supabase' };
+          apiCache.set(cacheKey, { data: responseData, expires: Date.now() + CACHE_TTL });
+          return res.json(responseData);
+        }
         
         const responseData = { data: data || [], mode: 'supabase' };
         apiCache.set(cacheKey, { data: responseData, expires: Date.now() + CACHE_TTL });
@@ -139,7 +167,7 @@ async function startServer() {
         return res.json({ data, mode: 'local' });
       }
     } catch (err: any) {
-      console.warn("Supabase products fetch failed:", err);
+      console.warn("Supabase products fetch failed:", JSON.stringify(err, null, 2));
       const data = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
       return res.json({ data, mode: 'local-fallback' });
     }
@@ -154,8 +182,26 @@ async function startServer() {
 
     try {
       if (supabase) {
-        const { data, error } = await supabase.from('products').insert([productData]).select().single();
-        if (error) throw error;
+        const payload = { ...productData };
+        if ('is_online' in payload) {
+          let subs = Array.isArray(payload.submenus) ? [...payload.submenus] : [];
+          if (payload.is_online) {
+            const hasOnline = subs.some(s => s && s.toUpperCase() === 'ONLINE');
+            if (!hasOnline) subs.push('online');
+          } else {
+            subs = subs.filter(s => s && s.toUpperCase() !== 'ONLINE');
+            if (payload.submenu && payload.submenu.toUpperCase() === 'ONLINE') {
+              payload.submenu = '';
+            }
+          }
+          payload.submenus = subs;
+          delete payload.is_online;
+        }
+        const { data, error } = await supabase.from('products').insert([payload]).select().single();
+        if (error) {
+          console.error("Supabase insert error:", error);
+          throw error;
+        }
         clearCache('products');
         return res.json(data);
       } else {
@@ -168,6 +214,12 @@ async function startServer() {
       }
     } catch (err: any) {
       console.error("Error adding product:", err);
+      if (err.message?.includes('row-level security') || err.message?.includes('RLS') || err.code === '42501') {
+        return res.status(403).json({
+          error: "Supabase RLS Policy Violation",
+          message: "The server is being blocked by Supabase Row-Level Security (RLS). Please add the SUPABASE_SERVICE_ROLE_KEY to your environment variables to bypass RLS for admin actions."
+        });
+      }
       res.status(500).json({ error: err.message || "Failed to add product" });
     }
   });
@@ -192,14 +244,89 @@ async function startServer() {
     }
   });
 
+  // API to mark all products available in the online store
+  app.post("/api/products-mark-all-online", async (req, res) => {
+    try {
+      if (supabase) {
+        // Fetch all products
+        const { data: allProducts, error: fetchErr } = await supabase.from('products').select('*');
+        if (fetchErr) throw fetchErr;
+
+        if (allProducts && allProducts.length > 0) {
+          // For each product, add 'online' mapping to its submenus
+          for (const product of allProducts) {
+            let subs: string[] = [];
+            if (Array.isArray(product.submenus)) {
+              subs = [...product.submenus];
+            } else if (typeof product.submenus === 'string' && product.submenus) {
+              try {
+                subs = JSON.parse(product.submenus);
+              } catch (_) {
+                subs = (product.submenus as string).replace(/[{}]/g, '').split(',').map((s: string) => s.trim());
+              }
+            }
+            
+            // Normalize submenus to lowercase or check case-insensitively
+            const lowerSubs = subs.map(s => String(s).toLowerCase());
+            if (!lowerSubs.includes('online')) {
+              subs.push('online');
+            }
+
+            await supabase.from('products').update({ submenus: subs }).eq('id', product.id);
+          }
+        }
+        clearCache('products');
+        return res.json({ success: true, count: allProducts?.length || 0 });
+      } else {
+        // Local fallback
+        let products = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
+        products = products.map((product: any) => {
+          let subs = Array.isArray(product.submenus) ? [...product.submenus] : [];
+          const lowerSubs = subs.map(s => String(s).toLowerCase());
+          if (!lowerSubs.includes('online')) {
+            subs.push('online');
+          }
+          return { ...product, submenus: subs };
+        });
+        await fs.writeFile(LOCAL_PRODUCTS_PATH, JSON.stringify(products, null, 2));
+        clearCache('products');
+        return res.json({ success: true, count: products.length });
+      }
+    } catch (err: any) {
+      console.error("Error marking all online:", err);
+      res.status(500).json({ error: err.message || "Failed to mark all products online" });
+    }
+  });
+
   // Product PUT (Update)
   app.put("/api/products/:id", async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
     try {
       if (supabase) {
-        const { data, error } = await supabase.from('products').update(updateData).eq('id', id).select().single();
-        if (error) throw error;
+        const payload = { ...updateData };
+        delete payload.id; // Prevent updating primary key ID column in Supabase
+        
+        if ('is_online' in payload) {
+          let subs = Array.isArray(payload.submenus) ? [...payload.submenus] : [];
+          if (payload.is_online) {
+            const hasOnline = subs.some(s => s && s.toUpperCase() === 'ONLINE');
+            if (!hasOnline) subs.push('online');
+          } else {
+            subs = subs.filter(s => s && s.toUpperCase() !== 'ONLINE');
+            if (payload.submenu && payload.submenu.toUpperCase() === 'ONLINE') {
+              payload.submenu = '';
+            }
+          }
+          payload.submenus = subs;
+          delete payload.is_online;
+        }
+
+        const { data, error } = await supabase.from('products').update(payload).eq('id', id).select().single();
+        if (error) {
+          console.error("Supabase update error:", error);
+          throw error;
+        }
         clearCache('products');
         return res.json(data);
       } else {
@@ -214,7 +341,13 @@ async function startServer() {
       }
     } catch (err: any) {
       console.error("Error updating product:", err);
-      res.status(500).json({ error: err.message });
+      if (err.message?.includes('row-level security') || err.message?.includes('RLS') || err.code === '42501') {
+        return res.status(403).json({
+          error: "Supabase RLS Policy Violation",
+          message: "The server is being blocked by Supabase Row-Level Security (RLS). Please add the SUPABASE_SERVICE_ROLE_KEY to your environment variables to bypass RLS for admin actions."
+        });
+      }
+      res.status(500).json({ error: err.message || "Failed to update product" });
     }
   });
 
@@ -249,7 +382,13 @@ async function startServer() {
       }
     } catch (err: any) {
       console.error("Error deleting product:", err);
-      res.status(500).json({ error: err.message });
+      if (err.message?.includes('row-level security') || err.message?.includes('RLS') || err.code === '42501') {
+        return res.status(403).json({
+          error: "Supabase RLS Policy Violation",
+          message: "The server is being blocked by Supabase Row-Level Security (RLS). Please add the SUPABASE_SERVICE_ROLE_KEY to your environment variables to bypass RLS for admin actions."
+        });
+      }
+      res.status(500).json({ error: err.message || "Failed to delete product" });
     }
   });
 
@@ -683,6 +822,170 @@ async function startServer() {
 
       res.json(stats);
     } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Customer POST
+  app.post("/api/customers", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
+    
+    console.log("CRM Server Received Data:", req.body);
+    
+    try {
+      const { data, error } = await supabase.from('customers').insert([req.body]).select();
+      
+      if (error) {
+        if (error.code === '23505') {
+          console.warn("Supabase CRM Conflict:", error);
+          return res.status(409).json({ error: "A customer with this email already exists." });
+        }
+        console.error("Supabase CRM Write Error:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      
+      return res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error("Error adding customer:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Transaction POST
+  app.post("/api/transactions", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
+    
+    console.log("POS Server Received Transaction:", req.body);
+    
+    try {
+      const { data, error } = await supabase.from('transactions').insert([req.body]).select();
+      
+      if (error) {
+        console.error("Supabase Transaction Write Error:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      
+      return res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error("Error saving transaction:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Transaction GET
+  app.get("/api/transactions", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
+    
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error("Supabase Transaction Fetch Error:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      
+      return res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error("Error fetching transactions:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Transaction Refund POST
+  app.post("/api/transactions/refund", async (req, res) => {
+    if (!supabaseAdmin) return res.status(500).json({ error: "Supabase not configured" });
+    
+    const { transactionId } = req.body;
+    
+    console.log("POS Server Received Refund Request for:", transactionId);
+    
+    try {
+      // 1. Fetch original transaction
+      const { data: original, error: fetchErr } = await supabaseAdmin
+        .from('transactions')
+        .select('*')
+        .eq('id', transactionId)
+        .single();
+        
+      if (fetchErr) {
+        console.error("Supabase Refund Fetch Error:", fetchErr);
+        return res.status(500).json({ error: `Fetch error: ${fetchErr.message}` });
+      }
+
+      if (!original) {
+        return res.status(444).json({ error: "Original transaction not found" });
+      }
+
+      // 2. Create balancing entry
+      const payload = {
+        total_amount: -Math.abs(Number(original.total_amount)),
+        method: original.method,
+        items: original.items,
+        customer_id: original.customer_id,
+        created_at: new Date().toISOString(),
+        status: 'refunded'
+      };
+      
+      console.log("Attempting to insert refund transaction:", payload);
+      const { data, error } = await supabaseAdmin.from('transactions').insert([payload]).select();
+      
+      if (error) {
+        console.error("Supabase Refund Write Error:", error);
+        return res.status(500).json({ error: `Database error: ${error.message} - ${error.details || ''}` });
+      }
+      
+      return res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error("Error processing refund:", err);
+      res.status(500).json({ error: `Server error: ${err.message}` });
+    }
+  });
+
+  // Transaction Void POST
+  app.post("/api/transactions/void", async (req, res) => {
+    if (!supabaseAdmin) return res.status(500).json({ error: "Supabase not configured" });
+    
+    const { transactionId } = req.body;
+    
+    console.log("POS Server Received Void Request:", req.body);
+    
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('transactions')
+        .update({ status: 'voided' })
+        .eq('id', transactionId)
+        .select();
+      
+      if (error) {
+        console.error("Supabase Void Write Error:", error);
+        return res.status(500).json({ error: `Database error: ${error.message} - ${error.details || ''}` });
+      }
+      
+      return res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error("Error saving void:", err);
+      res.status(500).json({ error: `Server error: ${err.message}` });
+    }
+  });
+
+  // Customer GET
+  app.get("/api/customers", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
+    
+    try {
+      const { data, error } = await supabase.from('customers').select('*').order('last_name', { ascending: true });
+      
+      if (error) {
+        console.error("Supabase CRM Fetch Error:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      
+      return res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error("Error fetching customers:", err);
       res.status(500).json({ error: err.message });
     }
   });

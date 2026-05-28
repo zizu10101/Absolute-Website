@@ -9,14 +9,22 @@ import { ProductCard } from '../components/ProductCard';
 export function HomePage() {
   const { products, fetchFeaturedProducts } = useProducts();
   const { sliderImages, homeCategories } = useSettings();
+  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   
   useEffect(() => {
     fetchFeaturedProducts();
   }, []);
 
-  const featuredProducts = products.filter(p => p.isFeatured).length > 0 
-    ? products.filter(p => p.isFeatured).slice().reverse().slice(0, 4)
-    : products.slice().reverse().slice(0, 4);
+  useEffect(() => {
+    const onlineProducts = products.filter(p => p.is_online === true);
+    const featured = onlineProducts.filter(p => p.isFeatured);
+    const sourceList = featured.length > 0 ? featured : onlineProducts;
+    if (sourceList.length > 0) {
+      // Shuffle the list and select 4 random products
+      const shuffled = [...sourceList].sort(() => 0.5 - Math.random());
+      setFeaturedProducts(shuffled.slice(0, 4));
+    }
+  }, [products]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [, setTick] = useState(0);

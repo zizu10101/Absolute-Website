@@ -32,6 +32,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             SALE {Math.round((1 - product.salePrice / product.price) * 100)}% OFF
           </div>
         )}
+        {product.isFeatured && (
+          <div className="absolute top-4 right-4 z-10 bg-zinc-950 text-white px-2 py-1 text-[10px] font-black uppercase tracking-widest italic shadow-md">
+            FEATURED
+          </div>
+        )}
         <div className="aspect-[4/5] overflow-hidden bg-zinc-50 relative">
           {displayImage ? (
             <img 
