@@ -46,12 +46,24 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
     
     if (isShoes) {
       if (age === 'Toddler') {
-        return ['4C', '5C', '6C', '7C', '8C', '9C', '10C'];
+        const toddlerShoeSizes = [];
+        for (let s = 4; s <= 13; s += 0.5) {
+          toddlerShoeSizes.push(`${s}C`);
+        }
+        return toddlerShoeSizes;
       }
       if (age === 'Youth') {
-        return ['1Y', '2Y', '3Y', '4Y', '5Y', '6Y', '7Y'];
+        const youthShoeSizes = [];
+        for (let s = 1; s <= 7; s += 0.5) {
+          youthShoeSizes.push(`${s}Y`);
+        }
+        return youthShoeSizes;
       }
-      return ['6', '7', '8', '8.5', '9', '9.5', '10', '10.5', '11', '12', '13'];
+      const adultShoeSizes = [];
+      for (let s = 4; s <= 15; s += 0.5) {
+        adultShoeSizes.push(s.toString());
+      }
+      return adultShoeSizes;
     }
 
     if (age === 'Toddler') {
@@ -90,6 +102,39 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
       barcodeInputRef.current.focus();
     }
   }, [isScanningActive, activeQueueIndex]);
+
+  // Global keydown listener for hardware scanner redirection and focus protection
+  useEffect(() => {
+    if (!isScanningActive) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Avoid hijacking native inputs if user clicked outside into another input element
+      if (document.activeElement && 
+          document.activeElement !== document.body && 
+          document.activeElement !== barcodeInputRef.current &&
+          (document.activeElement.tagName === 'INPUT' || 
+           document.activeElement.tagName === 'TEXTAREA' || 
+           document.activeElement.tagName === 'SELECT')) {
+        return;
+      }
+
+      // If barcode input is not focused, grab focus and let the character pass
+      if (document.activeElement !== barcodeInputRef.current) {
+        barcodeInputRef.current?.focus();
+        
+        // If it's a typing key, append it directly to prevent losing the first character of the barcode
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          setBarcodeInput(prev => prev + e.key);
+          e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [isScanningActive]);
 
   // Periodically force focus to scanner listener input during barcode phase
   useEffect(() => {

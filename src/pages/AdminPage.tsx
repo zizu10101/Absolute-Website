@@ -510,12 +510,24 @@ function AdminPageInner() {
     
     if (isShoes) {
       if (ageGroup === 'Toddler') {
-        return ['4C', '5C', '6C', '7C', '8C', '9C', '10C'];
+        const toddlerShoeSizes = [];
+        for (let s = 4; s <= 13; s += 0.5) {
+          toddlerShoeSizes.push(`${s}C`);
+        }
+        return toddlerShoeSizes;
       }
       if (ageGroup === 'Youth') {
-        return ['1Y', '2Y', '3Y', '4Y', '5Y', '6Y', '7Y'];
+        const youthShoeSizes = [];
+        for (let s = 1; s <= 7; s += 0.5) {
+          youthShoeSizes.push(`${s}Y`);
+        }
+        return youthShoeSizes;
       }
-      return ['6', '7', '8', '8.5', '9', '9.5', '10', '10.5', '11', '12', '13'];
+      const adultShoeSizes = [];
+      for (let s = 4; s <= 15; s += 0.5) {
+        adultShoeSizes.push(s.toString());
+      }
+      return adultShoeSizes;
     }
 
     if (ageGroup === 'Toddler') {
