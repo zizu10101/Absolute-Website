@@ -189,33 +189,56 @@ export const PosRegister: React.FC = () => {
       clearTimeout(timeout);
       
       if (e.key === "Enter") {
-        const scannedTransactionId = buffer.trim();
-        if (scannedTransactionId.length > 3) {
-          const found = transactionHistory.find(tx => tx.id === scannedTransactionId);
-          if (found) {
-            setBarSearch(scannedTransactionId);
-            
-            // Check if it's today's transaction
-            const isToday = new Date(found.created_at).toDateString() === new Date().toDateString();
-            if (isToday) {
-              setPosMode('void');
-              setIsHistoryOpen(true);
-              
-              // Automatically focus or alert after drawer opens
-              setTimeout(() => {
-                const btn = document.getElementById(`void-btn-${found.id}`);
-                if (btn) btn.focus();
-              }, 150);
-            } else {
-              setPosMode('refund');
-              setIsHistoryOpen(true);
-              
-              setTimeout(() => {
-                const btn = document.getElementById(`refund-btn-${found.id}`);
-                if (btn) btn.focus();
-              }, 150);
-            }
-          }
+        const scannedCode = buffer.trim().toUpperCase();
+        if (scannedCode.length > 2) {
+          // Check if it matches a product variant barcode first
+          fetch(`/api/variants/barcode/${scannedCode}`)
+            .then(res => res.json())
+            .then(payload => {
+              if (payload.success && payload.data && payload.data.product) {
+                const v = payload.data;
+                const formattedCartItem = {
+                  id: `var-${v.id}`,
+                  name: `${v.product.name} [${v.age_group} - ${v.size}]`,
+                  price: v.product.isOnSale && v.product.salePrice ? v.product.salePrice : v.product.price,
+                  category: v.product.category,
+                  isOnSale: v.product.isOnSale,
+                  salePrice: v.product.salePrice,
+                  image: v.product.image
+                };
+                addItem(formattedCartItem as any);
+              } else {
+                // Fall back: Treat as transaction check for Void / Refund
+                const found = transactionHistory.find(tx => tx.id === buffer.trim());
+                if (found) {
+                  setBarSearch(buffer.trim());
+                  
+                  // Check if it's today's transaction
+                  const isToday = new Date(found.created_at).toDateString() === new Date().toDateString();
+                  if (isToday) {
+                    setPosMode('void');
+                    setIsHistoryOpen(true);
+                    
+                    // Automatically focus or alert after drawer opens
+                    setTimeout(() => {
+                      const btn = document.getElementById(`void-btn-${found.id}`);
+                      if (btn) btn.focus();
+                    }, 150);
+                  } else {
+                    setPosMode('refund');
+                    setIsHistoryOpen(true);
+                    
+                    setTimeout(() => {
+                      const btn = document.getElementById(`refund-btn-${found.id}`);
+                      if (btn) btn.focus();
+                    }, 150);
+                  }
+                }
+              }
+            })
+            .catch(err => {
+              console.error("Barcode matching search error:", err);
+            });
         }
         buffer = "";
       } else {
@@ -232,7 +255,7 @@ export const PosRegister: React.FC = () => {
       window.removeEventListener("keydown", handleKey);
       clearTimeout(timeout);
     };
-  }, [transactionHistory]);
+  }, [transactionHistory, addItem]);
 
 
   const fetchHistory = async () => {
@@ -456,6 +479,33 @@ export const PosRegister: React.FC = () => {
                 placeholder="SKU OR PRODUCT NAME..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter" && searchQuery.trim()) {
+                    try {
+                      const response = await fetch(`/api/variants/barcode/${searchQuery.trim().toUpperCase()}`);
+                      if (response.ok) {
+                        const payload = await response.json();
+                        if (payload.success && payload.data && payload.data.product) {
+                          const v = payload.data;
+                          const formattedCartItem = {
+                            id: `var-${v.id}`,
+                            name: `${v.product.name} [${v.age_group} - ${v.size}]`,
+                            price: v.product.isOnSale && v.product.salePrice ? v.product.salePrice : v.product.price,
+                            category: v.product.category,
+                            isOnSale: v.product.isOnSale,
+                            salePrice: v.product.salePrice,
+                            image: v.product.image
+                          };
+                          addItem(formattedCartItem as any);
+                          setSearchQuery('');
+                          e.preventDefault();
+                        }
+                      }
+                    } catch (err) {
+                      console.error("Manual search lookup error:", err);
+                    }
+                  }
+                }}
                 className="w-full text-zinc-800 placeholder-zinc-455 bg-zinc-50 border border-zinc-200 rounded-lg pl-11 pr-4 py-3 text-xs font-semibold tracking-wide focus:outline-none focus:ring-1 focus:ring-zinc-800 transition-all uppercase"
               />
             </div>

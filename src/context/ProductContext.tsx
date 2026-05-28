@@ -36,7 +36,7 @@ interface ProductContextType {
   loadMoreAdminProducts: () => Promise<void>;
   fetchFeaturedProducts: () => Promise<void>;
   fetchProductById: (id: string) => Promise<Product | null>;
-  addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
+  addProduct: (product: Omit<Product, 'id'>) => Promise<Product | undefined>;
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   resetProducts: () => Promise<void>;
@@ -163,8 +163,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     init();
   }, [user]);
 
-  const LIST_FIELDS = 'id,name,price,category,submenu,submenus,image,images,isNewArrival,isOnSale,isFeatured,salePrice,colors';
-  const ADMIN_LIST_FIELDS = 'id,name,price,category,submenu,submenus,isNewArrival,isOnSale,isFeatured,salePrice,description,image';
+  const LIST_FIELDS = '*';
+  const ADMIN_LIST_FIELDS = '*';
 
   const fetchFeaturedProducts = async () => {
     setIsLoading(true);
@@ -188,7 +188,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       try {
         const { data, error } = await supabase
           .from('products')
-          .select(LIST_FIELDS)
+          .select(LIST_FIELDS === '*' ? undefined : LIST_FIELDS)
           .eq('isFeatured', true)
           .limit(8);
         
@@ -209,7 +209,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       const { data, error } = await supabase
         .from('products')
-        .select(ADMIN_LIST_FIELDS)
+        .select(ADMIN_LIST_FIELDS === '*' ? undefined : ADMIN_LIST_FIELDS)
         .order('name', { ascending: true })
         .range(0, PAGE_SIZE - 1);
       
@@ -218,7 +218,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       
       if (data) {
-        setProducts((data as Product[]).map(mapProductFromDb));
+        setProducts((data as any[] as Product[]).map(mapProductFromDb));
         setHasMoreProducts(data.length === PAGE_SIZE);
       }
     } catch (e) {
@@ -250,14 +250,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       const { data, error } = await supabase
         .from('products')
-        .select(ADMIN_LIST_FIELDS)
+        .select(ADMIN_LIST_FIELDS === '*' ? undefined : ADMIN_LIST_FIELDS)
         .order('name', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1);
       
       if (error) throw error;
       
       if (data) {
-        mergeProducts(data as Product[]);
+        mergeProducts(data as any[] as Product[]);
         setHasMoreProducts(data.length === PAGE_SIZE);
       }
     } catch (e) {
@@ -289,7 +289,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.warn('Categorized fetch from API failed, trying direct Supabase:', e);
       try {
-        let query = supabase.from('products').select(LIST_FIELDS);
+        let query = supabase.from('products').select(LIST_FIELDS === '*' ? undefined : LIST_FIELDS);
         if (category && category.toLowerCase() !== 'all') {
           query = query.ilike('category', category);
         }
@@ -369,8 +369,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         throw new Error(errPayload.message || errPayload.error || `API failed: ${response.status}`);
       }
       const newProduct = await response.json();
-      setProducts(prev => [...prev, mapProductFromDb({ ...productData as any, ...newProduct })]);
+      const mapped = mapProductFromDb({ ...productData as any, ...newProduct });
+      setProducts(prev => [...prev, mapped]);
       await fetchAdminProducts();
+      return mapped;
     } catch (e: any) {
       console.warn('API add product failed:', e);
       if (e.message?.includes('RLS') || e.message?.includes('row-level security')) {
@@ -382,8 +384,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase.from('products').insert([payloadWithoutOnline]).select().single();
         if (error) throw error;
         if (data) {
-          setProducts(prev => [...prev, mapProductFromDb(data as Product)]);
+          const mapped = mapProductFromDb(data as Product);
+          setProducts(prev => [...prev, mapped]);
           await fetchAdminProducts();
+          return mapped;
         }
       } catch (supErr: any) {
         console.error('Direct Supabase add product also failed:', supErr);

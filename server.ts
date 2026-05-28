@@ -35,6 +35,7 @@ export const supabaseAdmin = supabase;
 const DATA_DIR = path.join(process.cwd(), 'data');
 const LOCAL_PRODUCTS_PATH = path.join(DATA_DIR, 'products.json');
 const LOCAL_SETTINGS_PATH = path.join(DATA_DIR, 'settings_exported.json');
+const LOCAL_VARIANTS_PATH = path.join(DATA_DIR, 'product_variants.json');
 
 // Helper for safe JSON reading
 async function readSafeJson(filePath: string, defaultValue: any) {
@@ -109,7 +110,7 @@ async function startServer() {
     try {
       if (supabase) {
         const { category, submenu, isFeatured, isOnSale, isNewArrival, limit, offset, fields } = req.query;
-        let query = supabase.from('products').select(typeof fields === 'string' ? fields : '*');
+        let query = supabase.from('products').select(typeof fields === 'string' && fields !== '*' ? fields : undefined);
 
         console.log("Supabase products query:", {
           category,
@@ -968,6 +969,165 @@ async function startServer() {
     } catch (err: any) {
       console.error("Error saving void:", err);
       res.status(500).json({ error: `Server error: ${err.message}` });
+    }
+  });
+
+  // --- PRODUCT VARIANTS API ---
+
+  // Get all variants for a product
+  app.get("/api/products/:productId/variants", async (req, res) => {
+    const { productId } = req.params;
+    try {
+      if (supabaseAdmin) {
+        const { data, error } = await supabaseAdmin
+          .from('product_variants')
+          .select('*')
+          .eq('product_id', productId)
+          .order('age_group', { ascending: true })
+          .order('size', { ascending: true });
+        if (!error) {
+          return res.status(200).json({ success: true, data });
+        }
+        // Fallback if table doesn't exist yet but Supabase is configured
+        console.warn("Supabase product_variants query failed, falling back to local file:", error);
+      }
+      
+      const variants = await readSafeJson(LOCAL_VARIANTS_PATH, []);
+      const filtered = variants.filter((v: any) => v.product_id === productId);
+      return res.status(200).json({ success: true, data: filtered });
+    } catch (err: any) {
+      console.error("Error getting product variants:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Save/Create a variant
+  app.post("/api/products/:productId/variants", async (req, res) => {
+    const { productId } = req.params;
+    const variantData = req.body;
+    
+    if (!variantData.age_group || !variantData.size || !variantData.barcode) {
+      return res.status(400).json({ error: "age_group, size, and barcode are required" });
+    }
+    
+    try {
+      const payload = {
+        id: variantData.id || undefined,
+        product_id: productId,
+        age_group: variantData.age_group,
+        size: variantData.size,
+        barcode: variantData.barcode,
+        stock_quantity: Number(variantData.stock_quantity || 0)
+      };
+
+      if (supabaseAdmin) {
+        const { data, error } = await supabaseAdmin
+          .from('product_variants')
+          .upsert([payload], { onConflict: 'barcode' })
+          .select();
+          
+        if (!error) {
+          return res.status(200).json({ success: true, data });
+        }
+        console.warn("Supabase product_variants upsert failed, falling back to local file:", error);
+      }
+      
+      // Local fallback
+      const variants = await readSafeJson(LOCAL_VARIANTS_PATH, []);
+      const existingIndex = variants.findIndex((v: any) => v.barcode === payload.barcode);
+      const newId = payload.id || `variant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const finalPayload = { ...payload, id: newId };
+      
+      if (existingIndex > -1) {
+        variants[existingIndex] = { ...variants[existingIndex], ...finalPayload };
+      } else {
+        variants.push(finalPayload);
+      }
+      
+      await fs.writeFile(LOCAL_VARIANTS_PATH, JSON.stringify(variants, null, 2));
+      return res.status(200).json({ success: true, data: [finalPayload] });
+    } catch (err: any) {
+      console.error("Error creating variant:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Delete a variant
+  app.post("/api/products/:productId/variants/delete", async (req, res) => {
+    const { variantId } = req.body;
+    try {
+      if (supabaseAdmin) {
+        const { error } = await supabaseAdmin
+          .from('product_variants')
+          .delete()
+          .eq('id', variantId);
+        if (!error) {
+          return res.status(200).json({ success: true });
+        }
+        console.warn("Supabase product_variants delete failed, falling back to local file:", error);
+      }
+      
+      const variants = await readSafeJson(LOCAL_VARIANTS_PATH, []);
+      const filtered = variants.filter((v: any) => v.id !== variantId);
+      await fs.writeFile(LOCAL_VARIANTS_PATH, JSON.stringify(filtered, null, 2));
+      return res.status(200).json({ success: true });
+    } catch (err: any) {
+      console.error("Error deleting variant:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Lookup variant by barcode
+  app.get("/api/variants/barcode/:barcode", async (req, res) => {
+    const { barcode } = req.params;
+    try {
+      if (supabaseAdmin) {
+        const { data: variant, error } = await supabaseAdmin
+          .from('product_variants')
+          .select('*, products(*)')
+          .eq('barcode', barcode)
+          .single();
+          
+        if (!error && variant) {
+          let product = variant.products;
+          if (!product && variant.product_id) {
+            const { data: prodData } = await supabaseAdmin.from('products').select('*').eq('id', variant.product_id).single();
+            product = prodData;
+          }
+          const formatted = {
+            id: variant.id,
+            product_id: variant.product_id,
+            age_group: variant.age_group,
+            size: variant.size,
+            barcode: variant.barcode,
+            stock_quantity: variant.stock_quantity,
+            product: product
+          };
+          return res.status(200).json({ success: true, data: formatted });
+        }
+        console.warn("Supabase product_variants barcode lookup failed, falling back to local file:", error);
+      }
+      
+      // Local fallback
+      const variants = await readSafeJson(LOCAL_VARIANTS_PATH, []);
+      const variant = variants.find((v: any) => v.barcode === barcode);
+      if (!variant) {
+        return res.status(404).json({ error: "Variant not found" });
+      }
+      
+      const products = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
+      const product = products.find((p: any) => p.id === variant.product_id);
+      
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...variant,
+          product
+        }
+      });
+    } catch (err: any) {
+      console.error("Error looking up barcode variant:", err);
+      res.status(500).json({ error: err.message });
     }
   });
 

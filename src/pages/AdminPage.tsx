@@ -352,9 +352,179 @@ function AdminPageInner() {
     });
   }, [products, adminSearchTerm, productCategoryFilter]);
 
+  const [adminCurrentPage, setAdminCurrentPage] = useState<number>(1);
+  const adminItemsPerPage = 20;
+
+  useEffect(() => {
+    setAdminCurrentPage(1);
+  }, [adminSearchTerm, productCategoryFilter]);
+
+  const paginatedProducts = useMemo(() => {
+    const reversed = filteredProducts.slice().reverse();
+    const startIndex = (adminCurrentPage - 1) * adminItemsPerPage;
+    return reversed.slice(startIndex, startIndex + adminItemsPerPage);
+  }, [filteredProducts, adminCurrentPage, adminItemsPerPage]);
+
   const [bulkUploadStatus, setBulkUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [bulkUploadError, setBulkUploadError] = useState<string | null>(null);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
+
+  // --- Sizing Variant States & Handlers ---
+  const [editingProductVariants, setEditingProductVariants] = useState<any[]>([]);
+  const [variantsLoading, setVariantsLoading] = useState(false);
+  const [newVariantAgeGroup, setNewVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult'>('Adult');
+  const [newVariantSize, setNewVariantSize] = useState<string>('');
+  const [newVariantBarcode, setNewVariantBarcode] = useState<string>('');
+  const [newVariantQuantity, setNewVariantQuantity] = useState<number>(30);
+
+  // --- States for newly created product pending size variants ---
+  const [createdProductVariants, setCreatedProductVariants] = useState<any[]>([]);
+  const [newProductVariantAgeGroup, setNewProductVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult'>('Adult');
+  const [newProductVariantSize, setNewProductVariantSize] = useState<string>('');
+  const [newProductVariantBarcode, setNewProductVariantBarcode] = useState<string>('');
+  const [newProductVariantQuantity, setNewProductVariantQuantity] = useState<number>(30);
+
+  const getTempBarcode = (name: string, ageGroup: string, sizeName: string) => {
+    const cleanName = (name || 'PROD').slice(0, 5).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const cleanAge = (ageGroup || 'A')[0].toUpperCase();
+    const cleanSize = (sizeName || 'M').replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const randomSuffix = Math.floor(100 + Math.random() * 900);
+    return `${cleanName}-${cleanAge}-${cleanSize}-${randomSuffix}`;
+  };
+
+  const handleAddCreatedProductVariant = () => {
+    if (!newProductVariantSize.trim()) {
+      alert("Please specify a sizing label (e.g. Medium, Size 5).");
+      return;
+    }
+    const barcode = newProductVariantBarcode.trim() || getTempBarcode(newProduct.name, newProductVariantAgeGroup, newProductVariantSize);
+    
+    if (createdProductVariants.some(v => v.barcode === barcode.toUpperCase())) {
+      alert("This barcode is already assigned to another variant in this list.");
+      return;
+    }
+
+    const payload = {
+      id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      age_group: newProductVariantAgeGroup,
+      size: newProductVariantSize,
+      barcode: barcode.toUpperCase(),
+      stock_quantity: newProductVariantQuantity
+    };
+
+    setCreatedProductVariants([...createdProductVariants, payload]);
+    setNewProductVariantSize('');
+    setNewProductVariantBarcode('');
+  };
+
+  const handleDeleteCreatedProductVariant = (tempId: string) => {
+    setCreatedProductVariants(createdProductVariants.filter(v => v.id !== tempId));
+  };
+
+  useEffect(() => {
+    let active = true;
+    if (editingProduct && editingProduct.id) {
+      setVariantsLoading(true);
+      fetch(`/api/products/${editingProduct.id}/variants`)
+        .then(res => res.json())
+        .then(data => {
+          if (active) {
+            setEditingProductVariants(data.data || []);
+          }
+        })
+        .catch(err => console.error("Error loading product variants:", err))
+        .finally(() => {
+          if (active) setVariantsLoading(false);
+        });
+    } else {
+      setEditingProductVariants([]);
+    }
+    return () => { active = false; };
+  }, [editingProduct?.id]);
+
+  const handleAddVariant = async () => {
+    if (!editingProduct || !editingProduct.id) return;
+    if (!newVariantSize.trim()) {
+      alert("Please specify a sizing label (e.g. Medium, Size 5).");
+      return;
+    }
+    if (!newVariantBarcode.trim()) {
+      alert("A unique barcode is required.");
+      return;
+    }
+    try {
+      const response = await fetch(`/api/products/${editingProduct.id}/variants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          age_group: newVariantAgeGroup,
+          size: newVariantSize,
+          barcode: newVariantBarcode,
+          stock_quantity: newVariantQuantity
+        })
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          const variantsRes = await fetch(`/api/products/${editingProduct.id}/variants`);
+          const variantsData = await variantsRes.json();
+          setEditingProductVariants(variantsData.data || []);
+          setNewVariantSize('');
+          setNewVariantBarcode('');
+        } else {
+          alert('Error: ' + result.error);
+        }
+      } else {
+        const errData = await response.json();
+        alert('Failed: ' + (errData.error || response.statusText));
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('Network error when registering variant: ' + err.message);
+    }
+  };
+
+  const handleDeleteVariant = async (variantId: string) => {
+    if (!editingProduct || !editingProduct.id) return;
+    if (!confirm("Are you sure you want to delete this size variant?")) return;
+    try {
+      const response = await fetch(`/api/products/${editingProduct.id}/variants/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ variantId })
+      });
+      if (response.ok) {
+        const variantsRes = await fetch(`/api/products/${editingProduct.id}/variants`);
+        const variantsData = await variantsRes.json();
+        setEditingProductVariants(variantsData.data || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const getSuggestedSizes = (category: string = '', ageGroup: 'Toddler' | 'Youth' | 'Adult') => {
+    const cat = category.toLowerCase();
+    const isShoes = cat.includes('shoe') || cat.includes('footwear') || cat.includes('cleats');
+    
+    if (isShoes) {
+      if (ageGroup === 'Toddler') {
+        return ['4C', '5C', '6C', '7C', '8C', '9C', '10C'];
+      }
+      if (ageGroup === 'Youth') {
+        return ['1Y', '2Y', '3Y', '4Y', '5Y', '6Y', '7Y'];
+      }
+      return ['6', '7', '8', '8.5', '9', '9.5', '10', '10.5', '11', '12', '13'];
+    }
+
+    if (ageGroup === 'Toddler') {
+      return ['12M', '18M', '24M', '2T', '3T', '4T'];
+    }
+    if (ageGroup === 'Youth') {
+      return ['YXS', 'YS', 'YM', 'YL'];
+    }
+    return ['S', 'M', 'L', 'XL', 'XXL'];
+  };
 
   useEffect(() => {
     const cleanImages = (contextSliderImages || []).filter(img => img && img.url && !img.url.startsWith('data:'));
@@ -551,8 +721,29 @@ function AdminPageInner() {
       }
       
       // Perform the add
-      await addProduct(productData);
+      const savedProd = await addProduct(productData);
       
+      // Sync size variants if specified
+      if (savedProd && savedProd.id && createdProductVariants.length > 0) {
+        for (const localVar of createdProductVariants) {
+          try {
+            await fetch(`/api/products/${savedProd.id}/variants`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                age_group: localVar.age_group,
+                size: localVar.size,
+                barcode: localVar.barcode,
+                stock_quantity: localVar.stock_quantity
+              })
+            });
+          } catch (vErr) {
+            console.error("Failed to record variant for new product:", vErr);
+          }
+        }
+      }
+      
+      setCreatedProductVariants([]);
       setAddStatus('success');
       setNewProduct({
         name: '',
@@ -3219,6 +3410,157 @@ function AdminPageInner() {
                         />
                       </motion.div>
                     )}
+
+                    {/* PRODUCT SIZING & AGE GROUP VARIANT ENGINE FOR NEW PRODUCT */}
+                    <div className="mt-8 border-t border-zinc-200 pt-8" id="product-variants-creation-section">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-[#b90014] mb-3 flex items-center gap-2">
+                        <span>🏷️</span> PRODUCT SIZE VARIANT GENERATOR (AGE TIERS)
+                      </h3>
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold mb-6">
+                        Strictly account for Age Tiers to prevent overlapping size labels (e.g. Size 4Y vs 4T) at the point of sale.
+                      </p>
+
+                      <div className="bg-zinc-100 rounded-xl p-5 border border-zinc-200 space-y-4">
+                        {/* Age Group Selector */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1.5">1. Select Age Group</label>
+                          <select 
+                            className="w-full p-2.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold font-sans focus:ring-2 focus:ring-[#b90014] outline-none"
+                            value={newProductVariantAgeGroup}
+                            onChange={(e) => {
+                              const newAge = e.target.value as 'Toddler' | 'Youth' | 'Adult';
+                              setNewProductVariantAgeGroup(newAge);
+                              const suggested = getSuggestedSizes(newProduct.category, newAge);
+                              if (suggested.length > 0) {
+                                setNewProductVariantSize(suggested[0]);
+                                setNewProductVariantBarcode(getTempBarcode(newProduct.name, newAge, suggested[0]));
+                              }
+                            }}
+                          >
+                            <option value="Toddler">Toddler (Overlap Protection, e.g. 3T, 4C)</option>
+                            <option value="Youth">Youth (Overlap Protection, e.g. 4Y, YM)</option>
+                            <option value="Adult">Adult (S, M, L, Standard numeric)</option>
+                          </select>
+                        </div>
+
+                        {/* Display Dynamic Suggestions Based on Category and Age Group */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">2. Dynamic Size Suggestions (Based on {newProduct.category || 'Apparel'} + {newProductVariantAgeGroup})</label>
+                          <div className="flex flex-wrap gap-1.5 p-2 bg-zinc-200/50 rounded-lg max-h-24 overflow-y-auto font-sans">
+                            {getSuggestedSizes(newProduct.category, newProductVariantAgeGroup).map((sugg) => {
+                              const isSelected = newProductVariantSize === sugg;
+                              return (
+                                <button
+                                  key={sugg}
+                                  type="button"
+                                  onClick={() => {
+                                    setNewProductVariantSize(sugg);
+                                    setNewProductVariantBarcode(getTempBarcode(newProduct.name, newProductVariantAgeGroup, sugg));
+                                  }}
+                                  className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase transition-all tracking-wider cursor-pointer ${isSelected ? 'bg-[#b90014] text-white' : 'bg-white text-zinc-700 hover:bg-zinc-250 border border-zinc-250 shadow-xs'}`}
+                                >
+                                  {sugg}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Custom inputs */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                          <div>
+                            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Size Name</label>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. 4Y, Medium" 
+                              className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-xs font-bold focus:ring-1 focus:ring-[#b90014] outline-none"
+                              value={newProductVariantSize}
+                              onChange={(e) => {
+                                setNewProductVariantSize(e.target.value);
+                                const cleanSize = e.target.value.replace(/\s+/g, '').toUpperCase();
+                                if (cleanSize) {
+                                  setNewProductVariantBarcode(getTempBarcode(newProduct.name, newProductVariantAgeGroup, cleanSize));
+                                }
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Barcode ID</label>
+                            <input 
+                              type="text" 
+                              placeholder="Unique POS barcode code" 
+                              className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-xs font-mono font-bold uppercase focus:ring-1 focus:ring-[#b90014] outline-none"
+                              value={newProductVariantBarcode}
+                              onChange={(e) => setNewProductVariantBarcode(e.target.value.toUpperCase())}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Stock Quantity</label>
+                            <input 
+                              type="number" 
+                              placeholder="30" 
+                              className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-xs font-bold focus:ring-1 focus:ring-[#b90014] outline-none"
+                              value={newProductVariantQuantity}
+                              onChange={(e) => setNewProductVariantQuantity(Math.max(0, parseInt(e.target.value) || 0))}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="pt-2 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={handleAddCreatedProductVariant}
+                            className="px-5 py-2 bg-zinc-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#b90014] cursor-pointer transition-all flex items-center gap-1.5"
+                          >
+                            <span>＋</span> Add Size Variant
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Created Variants list */}
+                      <div className="mt-5 mb-8">
+                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2.5">Pending Variants to Register ({createdProductVariants.length})</label>
+                        
+                        {createdProductVariants.length === 0 ? (
+                          <div className="bg-zinc-50 border border-dashed border-zinc-200 rounded-xl p-6 text-center text-[10px] text-zinc-400 uppercase tracking-widest font-black">
+                            No variants registered yet. Use the tool above to generate size labels.
+                          </div>
+                        ) : (
+                          <div className="border border-zinc-200 rounded-xl overflow-hidden shadow-xs bg-white">
+                            <table className="w-full text-left border-collapse text-[10px]">
+                              <thead>
+                                <tr className="bg-zinc-50 uppercase tracking-wider text-zinc-500 border-b border-zinc-150">
+                                  <th className="p-3 font-bold">Age Group</th>
+                                  <th className="p-3 font-bold">Size</th>
+                                  <th className="p-3 font-bold">Barcode</th>
+                                  <th className="p-3 font-bold">Stock</th>
+                                  <th className="p-3 font-bold text-right">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {createdProductVariants.map((v) => (
+                                  <tr key={v.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
+                                    <td className="p-3 font-bold uppercase text-zinc-900">{v.age_group}</td>
+                                    <td className="p-3 font-mono font-bold text-zinc-700 bg-zinc-50">{v.size}</td>
+                                    <td className="p-3 font-mono font-bold text-[#b90014]">{v.barcode}</td>
+                                    <td className="p-3 font-semibold text-zinc-650">{v.stock_quantity} units</td>
+                                    <td className="p-3 text-right">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteCreatedProductVariant(v.id)}
+                                        className="text-red-600 hover:text-red-800 font-bold uppercase tracking-wider text-[9px] cursor-pointer"
+                                      >
+                                        Remove
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <button 
                       className={`w-full mt-4 p-4 rounded-xl font-headline font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 ${
                         addStatus === 'success' ? 'bg-green-600 text-white' : 
@@ -3493,7 +3835,7 @@ function AdminPageInner() {
                         </button>
                       </div>
                     ) : (
-                      filteredProducts.slice().reverse().map(product => (
+                      paginatedProducts.map(product => (
                         <div key={product.id} className="p-6 flex items-center gap-6 hover:bg-zinc-50 transition-colors group">
                           <div className="w-20 h-20 rounded-lg overflow-hidden bg-zinc-100 border border-zinc-200 flex-shrink-0">
                             <img src={product.image || `https://picsum.photos/seed/${product.id}/80`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -3563,6 +3905,36 @@ function AdminPageInner() {
                       ))
                     )}
                   </div>
+
+                  {/* High Quality Pagination Controls bar */}
+                  {filteredProducts.length > adminItemsPerPage && (
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-zinc-50/50 p-6 border-b border-zinc-100 text-xs font-sans">
+                      <div className="text-zinc-500 font-medium font-sans">
+                        Showing <span className="font-bold text-zinc-900">{(adminCurrentPage - 1) * adminItemsPerPage + 1}</span> to <span className="font-bold text-zinc-900">{Math.min(filteredProducts.length, adminCurrentPage * adminItemsPerPage)}</span> of <span className="font-bold text-[#b90014]">{filteredProducts.length}</span> matching products
+                      </div>
+                      <div className="flex gap-2 items-center font-sans">
+                        <button
+                          type="button"
+                          disabled={adminCurrentPage === 1}
+                          onClick={() => setAdminCurrentPage(prev => Math.max(1, prev - 1))}
+                          className="px-4 py-2 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 disabled:opacity-40 disabled:hover:bg-white rounded-lg font-bold uppercase tracking-wider text-[10px] transition-all cursor-pointer"
+                        >
+                          ◀ Previous
+                        </button>
+                        <span className="font-bold text-zinc-650 bg-white border border-zinc-200 px-3.5 py-2 rounded-lg text-[10px]">
+                          Page <span className="text-zinc-900">{adminCurrentPage}</span> of {Math.ceil(filteredProducts.length / adminItemsPerPage)}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={adminCurrentPage >= Math.ceil(filteredProducts.length / adminItemsPerPage)}
+                          onClick={() => setAdminCurrentPage(prev => Math.min(Math.ceil(filteredProducts.length / adminItemsPerPage), prev + 1))}
+                          className="px-4 py-2 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 disabled:opacity-40 disabled:hover:bg-white rounded-lg font-bold uppercase tracking-wider text-[10px] transition-all cursor-pointer"
+                        >
+                          Next ▶
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   
                   {hasMoreProducts && (
                     <div className="p-8 border-t border-zinc-100 bg-zinc-50 flex justify-center">
@@ -4016,6 +4388,162 @@ function AdminPageInner() {
                       value={editingProduct.description} 
                       onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} 
                     />
+                  </div>
+
+                  {/* PRODUCT SIZING & AGE GROUP VARIANT ENGINE */}
+                  <div className="mt-8 border-t border-zinc-200 pt-8" id="product-variants-section">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-[#b90014] mb-3 flex items-center gap-2">
+                      <span>🏷️</span> PRODUCT SIZE VARIANT GENERATOR (AGE TIERS)
+                    </h3>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold mb-6">
+                      Strictly account for Age Tiers to prevent overlapping size labels (e.g. Size 4Y vs 4T) at the point of sale.
+                    </p>
+
+                    <div className="bg-zinc-100 rounded-xl p-5 border border-zinc-200 space-y-4">
+                      {/* Age Group Selector */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1.5">1. Select Age Group</label>
+                        <select 
+                          className="w-full p-2.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold font-sans focus:ring-2 focus:ring-[#b90014] outline-none"
+                          value={newVariantAgeGroup}
+                          onChange={(e) => {
+                            const newAge = e.target.value as 'Toddler' | 'Youth' | 'Adult';
+                            setNewVariantAgeGroup(newAge);
+                            const suggested = getSuggestedSizes(editingProduct.category, newAge);
+                            if (suggested.length > 0) {
+                              setNewVariantSize(suggested[0]);
+                              const randomSuffix = Math.floor(100 + Math.random() * 900);
+                              setNewVariantBarcode(`${editingProduct.id.slice(0, 5).toUpperCase()}-${newAge[0].toUpperCase()}-${suggested[0].toUpperCase()}-${randomSuffix}`);
+                            }
+                          }}
+                        >
+                          <option value="Toddler">Toddler (Overlap Protection, e.g. 3T, 4C)</option>
+                          <option value="Youth">Youth (Overlap Protection, e.g. 4Y, YM)</option>
+                          <option value="Adult">Adult (S, M, L, Standard numeric)</option>
+                        </select>
+                      </div>
+
+                      {/* Display Dynamic Suggestions Based on Category and Age Group */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">2. Dynamic Size Suggestions (Based on {editingProduct.category || 'Apparel'} + {newVariantAgeGroup})</label>
+                        <div className="flex flex-wrap gap-1.5 p-2 bg-zinc-200/50 rounded-lg max-h-24 overflow-y-auto">
+                          {getSuggestedSizes(editingProduct.category, newVariantAgeGroup).map((sugg) => {
+                            const isSelected = newVariantSize === sugg;
+                            return (
+                              <button
+                                key={sugg}
+                                type="button"
+                                onClick={() => {
+                                  setNewVariantSize(sugg);
+                                  const randomSuffix = Math.floor(100 + Math.random() * 900);
+                                  setNewVariantBarcode(`${editingProduct.id.slice(0, 5).toUpperCase()}-${newVariantAgeGroup[0].toUpperCase()}-${sugg.toUpperCase()}-${randomSuffix}`);
+                                }}
+                                className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase transition-all tracking-wider cursor-pointer ${isSelected ? 'bg-[#b90014] text-white' : 'bg-white text-zinc-700 hover:bg-zinc-250 border border-zinc-250 shadow-xs'}`}
+                              >
+                                {sugg}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Custom inputs */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-zinc-550 uppercase tracking-widest mb-1.5">Size Name</label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g. 4Y, Medium" 
+                            className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-xs font-bold focus:ring-1 focus:ring-[#b90014] outline-none"
+                            value={newVariantSize}
+                            onChange={(e) => {
+                              setNewVariantSize(e.target.value);
+                              const cleanSize = e.target.value.replace(/\s+/g, '').toUpperCase();
+                              if (cleanSize) {
+                                const randomSuffix = Math.floor(100 + Math.random() * 900);
+                                setNewVariantBarcode(`${editingProduct.id.slice(0, 5).toUpperCase()}-${newVariantAgeGroup[0].toUpperCase()}-${cleanSize}-${randomSuffix}`);
+                              }
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-zinc-550 uppercase tracking-widest mb-1.5">Barcode ID</label>
+                          <input 
+                            type="text" 
+                            placeholder="Unique POS barcode code" 
+                            className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-xs font-mono font-bold uppercase focus:ring-1 focus:ring-[#b90014] outline-none"
+                            value={newVariantBarcode}
+                            onChange={(e) => setNewVariantBarcode(e.target.value.toUpperCase())}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-zinc-550 uppercase tracking-widest mb-1.5">Stock Quantity</label>
+                          <input 
+                            type="number" 
+                            placeholder="30" 
+                            className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-xs font-bold focus:ring-1 focus:ring-[#b90014] outline-none"
+                            value={newVariantQuantity}
+                            onChange={(e) => setNewVariantQuantity(Math.max(0, parseInt(e.target.value) || 0))}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="pt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleAddVariant}
+                          className="px-5 py-2 bg-zinc-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#b90014] cursor-pointer transition-all flex items-center gap-1.5"
+                        >
+                          <span>＋</span> Add Size Variant
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Active Variants list */}
+                    <div className="mt-5">
+                      <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2.5">Configured Variants ({editingProductVariants.length})</label>
+                      
+                      {variantsLoading ? (
+                        <div className="text-zinc-500 font-bold uppercase italic text-[10px] py-4">Loading variants database...</div>
+                      ) : editingProductVariants.length === 0 ? (
+                        <div className="bg-zinc-50 border border-dashed border-zinc-200 rounded-xl p-6 text-center text-[10px] text-zinc-400 uppercase tracking-widest font-black">
+                          No variants registered yet. Use the tool above to generate size labels.
+                        </div>
+                      ) : (
+                        <div className="border border-zinc-200 rounded-xl overflow-hidden shadow-xs bg-white">
+                          <table className="w-full text-left border-collapse text-[10px]">
+                            <thead>
+                              <tr className="bg-zinc-50 uppercase tracking-wider text-zinc-500 border-b border-zinc-150">
+                                <th className="p-3 font-bold">Age Group</th>
+                                <th className="p-3 font-bold">Size</th>
+                                <th className="p-3 font-bold">Barcode</th>
+                                <th className="p-3 font-bold">Stock</th>
+                                <th className="p-3 font-bold text-right">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {editingProductVariants.map((v) => (
+                                <tr key={v.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
+                                  <td className="p-3 font-bold uppercase text-zinc-900">{v.age_group}</td>
+                                  <td className="p-3 font-mono font-bold text-zinc-700 bg-zinc-50">{v.size}</td>
+                                  <td className="p-3 font-mono font-bold text-[#b90014]">{v.barcode}</td>
+                                  <td className="p-3 font-semibold text-zinc-650">{v.stock_quantity} units</td>
+                                  <td className="p-3 text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteVariant(v.id)}
+                                      className="text-red-600 hover:text-red-800 font-bold uppercase tracking-wider text-[9px] cursor-pointer"
+                                    >
+                                      Remove
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

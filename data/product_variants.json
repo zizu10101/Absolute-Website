@@ -1,0 +1,26 @@
+[
+  {
+    "id": "var- Portugal2026-Toddler",
+    "product_id": "1775281019499",
+    "age_group": "Toddler",
+    "size": "4C",
+    "barcode": "P2026-TODDLER",
+    "stock_quantity": 40
+  },
+  {
+    "id": "var- Portugal2026-Youth",
+    "product_id": "1775281019499",
+    "age_group": "Youth",
+    "size": "YM",
+    "barcode": "P2026-YOUTH",
+    "stock_quantity": 55
+  },
+  {
+    "id": "var- Portugal2026-Adult",
+    "product_id": "1775281019499",
+    "age_group": "Adult",
+    "size": "L",
+    "barcode": "P2026-ADULT",
+    "stock_quantity": 100
+  }
+]
