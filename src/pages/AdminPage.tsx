@@ -10,6 +10,7 @@ import Papa from 'papaparse';
 import { resizeImage } from '../lib/imageUtils';
 import { uploadImage, supabase } from '../supabase';
 import { PosRegister } from '../components/PosRegister';
+import { RapidScanIntakeMatrix } from '../components/RapidScanIntakeMatrix';
 
 type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'tools' | 'pos';
 
@@ -3411,119 +3412,36 @@ function AdminPageInner() {
                       </motion.div>
                     )}
 
-                    {/* PRODUCT SIZING & AGE GROUP VARIANT ENGINE FOR NEW PRODUCT */}
+                    {/* PRODUCT SIZING & AGE GROUP VARIANT ENGINE FOR NEW PRODUCT (RAPID INTENSIVE) */}
                     <div className="mt-8 border-t border-zinc-200 pt-8" id="product-variants-creation-section">
-                      <h3 className="text-xs font-black uppercase tracking-widest text-[#b90014] mb-3 flex items-center gap-2">
-                        <span>🏷️</span> PRODUCT SIZE VARIANT GENERATOR (AGE TIERS)
-                      </h3>
-                      <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold mb-6">
-                        Strictly account for Age Tiers to prevent overlapping size labels (e.g. Size 4Y vs 4T) at the point of sale.
-                      </p>
+                      <RapidScanIntakeMatrix
+                        productName={newProduct.name || 'New Product'}
+                        category={newProduct.category}
+                        existingVariants={createdProductVariants}
+                        onRegisterVariant={async (ageGroup, size, barcode, quantity) => {
+                          const payload = {
+                            id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                            age_group: ageGroup,
+                            size: size,
+                            barcode: barcode,
+                            stock_quantity: quantity
+                          };
+                          setCreatedProductVariants(prev => [...prev, payload]);
+                        }}
+                        onSuccessFinished={() => {
+                          console.log("Local variants registered in matrix!");
+                        }}
+                      />
 
-                      <div className="bg-zinc-100 rounded-xl p-5 border border-zinc-200 space-y-4">
-                        {/* Age Group Selector */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1.5">1. Select Age Group</label>
-                          <select 
-                            className="w-full p-2.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold font-sans focus:ring-2 focus:ring-[#b90014] outline-none"
-                            value={newProductVariantAgeGroup}
-                            onChange={(e) => {
-                              const newAge = e.target.value as 'Toddler' | 'Youth' | 'Adult';
-                              setNewProductVariantAgeGroup(newAge);
-                              const suggested = getSuggestedSizes(newProduct.category, newAge);
-                              if (suggested.length > 0) {
-                                setNewProductVariantSize(suggested[0]);
-                                setNewProductVariantBarcode(getTempBarcode(newProduct.name, newAge, suggested[0]));
-                              }
-                            }}
-                          >
-                            <option value="Toddler">Toddler (Overlap Protection, e.g. 3T, 4C)</option>
-                            <option value="Youth">Youth (Overlap Protection, e.g. 4Y, YM)</option>
-                            <option value="Adult">Adult (S, M, L, Standard numeric)</option>
-                          </select>
-                        </div>
-
-                        {/* Display Dynamic Suggestions Based on Category and Age Group */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">2. Dynamic Size Suggestions (Based on {newProduct.category || 'Apparel'} + {newProductVariantAgeGroup})</label>
-                          <div className="flex flex-wrap gap-1.5 p-2 bg-zinc-200/50 rounded-lg max-h-24 overflow-y-auto font-sans">
-                            {getSuggestedSizes(newProduct.category, newProductVariantAgeGroup).map((sugg) => {
-                              const isSelected = newProductVariantSize === sugg;
-                              return (
-                                <button
-                                  key={sugg}
-                                  type="button"
-                                  onClick={() => {
-                                    setNewProductVariantSize(sugg);
-                                    setNewProductVariantBarcode(getTempBarcode(newProduct.name, newProductVariantAgeGroup, sugg));
-                                  }}
-                                  className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase transition-all tracking-wider cursor-pointer ${isSelected ? 'bg-[#b90014] text-white' : 'bg-white text-zinc-700 hover:bg-zinc-250 border border-zinc-250 shadow-xs'}`}
-                                >
-                                  {sugg}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Custom inputs */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                          <div>
-                            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Size Name</label>
-                            <input 
-                              type="text" 
-                              placeholder="e.g. 4Y, Medium" 
-                              className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-xs font-bold focus:ring-1 focus:ring-[#b90014] outline-none"
-                              value={newProductVariantSize}
-                              onChange={(e) => {
-                                setNewProductVariantSize(e.target.value);
-                                const cleanSize = e.target.value.replace(/\s+/g, '').toUpperCase();
-                                if (cleanSize) {
-                                  setNewProductVariantBarcode(getTempBarcode(newProduct.name, newProductVariantAgeGroup, cleanSize));
-                                }
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Barcode ID</label>
-                            <input 
-                              type="text" 
-                              placeholder="Unique POS barcode code" 
-                              className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-xs font-mono font-bold uppercase focus:ring-1 focus:ring-[#b90014] outline-none"
-                              value={newProductVariantBarcode}
-                              onChange={(e) => setNewProductVariantBarcode(e.target.value.toUpperCase())}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Stock Quantity</label>
-                            <input 
-                              type="number" 
-                              placeholder="30" 
-                              className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-xs font-bold focus:ring-1 focus:ring-[#b90014] outline-none"
-                              value={newProductVariantQuantity}
-                              onChange={(e) => setNewProductVariantQuantity(Math.max(0, parseInt(e.target.value) || 0))}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="pt-2 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={handleAddCreatedProductVariant}
-                            className="px-5 py-2 bg-zinc-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#b90014] cursor-pointer transition-all flex items-center gap-1.5"
-                          >
-                            <span>＋</span> Add Size Variant
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Created Variants list */}
+                      {/* Created Variants list preview */}
                       <div className="mt-5 mb-8">
-                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2.5">Pending Variants to Register ({createdProductVariants.length})</label>
+                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2.5">
+                          Pending Variants Queue ({createdProductVariants.length})
+                        </label>
                         
                         {createdProductVariants.length === 0 ? (
                           <div className="bg-zinc-50 border border-dashed border-zinc-200 rounded-xl p-6 text-center text-[10px] text-zinc-400 uppercase tracking-widest font-black">
-                            No variants registered yet. Use the tool above to generate size labels.
+                            No variants registered in matrix queue yet. Enter quantities and lock sheet above to start scanning barcodes.
                           </div>
                         ) : (
                           <div className="border border-zinc-200 rounded-xl overflow-hidden shadow-xs bg-white">
@@ -4390,124 +4308,63 @@ function AdminPageInner() {
                     />
                   </div>
 
-                  {/* PRODUCT SIZING & AGE GROUP VARIANT ENGINE */}
+                  {/* PRODUCT SIZING & AGE GROUP VARIANT ENGINE (RAPID INTENSIVE) */}
                   <div className="mt-8 border-t border-zinc-200 pt-8" id="product-variants-section">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-[#b90014] mb-3 flex items-center gap-2">
-                      <span>🏷️</span> PRODUCT SIZE VARIANT GENERATOR (AGE TIERS)
-                    </h3>
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold mb-6">
-                      Strictly account for Age Tiers to prevent overlapping size labels (e.g. Size 4Y vs 4T) at the point of sale.
-                    </p>
-
-                    <div className="bg-zinc-100 rounded-xl p-5 border border-zinc-200 space-y-4">
-                      {/* Age Group Selector */}
-                      <div>
-                        <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1.5">1. Select Age Group</label>
-                        <select 
-                          className="w-full p-2.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold font-sans focus:ring-2 focus:ring-[#b90014] outline-none"
-                          value={newVariantAgeGroup}
-                          onChange={(e) => {
-                            const newAge = e.target.value as 'Toddler' | 'Youth' | 'Adult';
-                            setNewVariantAgeGroup(newAge);
-                            const suggested = getSuggestedSizes(editingProduct.category, newAge);
-                            if (suggested.length > 0) {
-                              setNewVariantSize(suggested[0]);
-                              const randomSuffix = Math.floor(100 + Math.random() * 900);
-                              setNewVariantBarcode(`${editingProduct.id.slice(0, 5).toUpperCase()}-${newAge[0].toUpperCase()}-${suggested[0].toUpperCase()}-${randomSuffix}`);
+                    {editingProduct && (
+                      <RapidScanIntakeMatrix
+                        productId={editingProduct.id}
+                        productName={editingProduct.name}
+                        category={editingProduct.category}
+                        existingVariants={editingProductVariants}
+                        onRegisterVariant={async (ageGroup, size, barcode, quantity) => {
+                          const response = await fetch(`/api/products/${editingProduct.id}/variants`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              age_group: ageGroup,
+                              size: size,
+                              barcode: barcode.toUpperCase(),
+                              stock_quantity: quantity
+                            })
+                          });
+                          if (!response.ok) {
+                            const errData = await response.json();
+                            throw new Error(errData.error || 'Server error saving variant');
+                          }
+                          const result = await response.json();
+                          if (!result.success) {
+                            throw new Error(result.error || 'Failed to save variant');
+                          }
+                        }}
+                        onSuccessFinished={async () => {
+                          // Fetch and refresh master editing product variants
+                          if (editingProduct && editingProduct.id) {
+                            setVariantsLoading(true);
+                            try {
+                              const variantsRes = await fetch(`/api/products/${editingProduct.id}/variants`);
+                              const variantsData = await variantsRes.json();
+                              setEditingProductVariants(variantsData.data || []);
+                            } catch (err) {
+                              console.error("Error refreshing variants after rapid scan:", err);
+                            } finally {
+                              setVariantsLoading(false);
                             }
-                          }}
-                        >
-                          <option value="Toddler">Toddler (Overlap Protection, e.g. 3T, 4C)</option>
-                          <option value="Youth">Youth (Overlap Protection, e.g. 4Y, YM)</option>
-                          <option value="Adult">Adult (S, M, L, Standard numeric)</option>
-                        </select>
-                      </div>
+                          }
+                        }}
+                      />
+                    )}
 
-                      {/* Display Dynamic Suggestions Based on Category and Age Group */}
-                      <div>
-                        <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">2. Dynamic Size Suggestions (Based on {editingProduct.category || 'Apparel'} + {newVariantAgeGroup})</label>
-                        <div className="flex flex-wrap gap-1.5 p-2 bg-zinc-200/50 rounded-lg max-h-24 overflow-y-auto">
-                          {getSuggestedSizes(editingProduct.category, newVariantAgeGroup).map((sugg) => {
-                            const isSelected = newVariantSize === sugg;
-                            return (
-                              <button
-                                key={sugg}
-                                type="button"
-                                onClick={() => {
-                                  setNewVariantSize(sugg);
-                                  const randomSuffix = Math.floor(100 + Math.random() * 900);
-                                  setNewVariantBarcode(`${editingProduct.id.slice(0, 5).toUpperCase()}-${newVariantAgeGroup[0].toUpperCase()}-${sugg.toUpperCase()}-${randomSuffix}`);
-                                }}
-                                className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase transition-all tracking-wider cursor-pointer ${isSelected ? 'bg-[#b90014] text-white' : 'bg-white text-zinc-700 hover:bg-zinc-250 border border-zinc-250 shadow-xs'}`}
-                              >
-                                {sugg}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Custom inputs */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                        <div>
-                          <label className="block text-[10px] font-bold text-zinc-550 uppercase tracking-widest mb-1.5">Size Name</label>
-                          <input 
-                            type="text" 
-                            placeholder="e.g. 4Y, Medium" 
-                            className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-xs font-bold focus:ring-1 focus:ring-[#b90014] outline-none"
-                            value={newVariantSize}
-                            onChange={(e) => {
-                              setNewVariantSize(e.target.value);
-                              const cleanSize = e.target.value.replace(/\s+/g, '').toUpperCase();
-                              if (cleanSize) {
-                                const randomSuffix = Math.floor(100 + Math.random() * 900);
-                                setNewVariantBarcode(`${editingProduct.id.slice(0, 5).toUpperCase()}-${newVariantAgeGroup[0].toUpperCase()}-${cleanSize}-${randomSuffix}`);
-                              }
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-zinc-550 uppercase tracking-widest mb-1.5">Barcode ID</label>
-                          <input 
-                            type="text" 
-                            placeholder="Unique POS barcode code" 
-                            className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-xs font-mono font-bold uppercase focus:ring-1 focus:ring-[#b90014] outline-none"
-                            value={newVariantBarcode}
-                            onChange={(e) => setNewVariantBarcode(e.target.value.toUpperCase())}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-zinc-550 uppercase tracking-widest mb-1.5">Stock Quantity</label>
-                          <input 
-                            type="number" 
-                            placeholder="30" 
-                            className="w-full p-2 bg-white border border-zinc-300 rounded-lg text-xs font-bold focus:ring-1 focus:ring-[#b90014] outline-none"
-                            value={newVariantQuantity}
-                            onChange={(e) => setNewVariantQuantity(Math.max(0, parseInt(e.target.value) || 0))}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="pt-2 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={handleAddVariant}
-                          className="px-5 py-2 bg-zinc-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#b90014] cursor-pointer transition-all flex items-center gap-1.5"
-                        >
-                          <span>＋</span> Add Size Variant
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Active Variants list */}
+                    {/* Active Variants list table */}
                     <div className="mt-5">
-                      <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2.5">Configured Variants ({editingProductVariants.length})</label>
+                      <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2.5">
+                        Registered Master Variants ({editingProductVariants.length})
+                      </label>
                       
                       {variantsLoading ? (
                         <div className="text-zinc-500 font-bold uppercase italic text-[10px] py-4">Loading variants database...</div>
                       ) : editingProductVariants.length === 0 ? (
                         <div className="bg-zinc-50 border border-dashed border-zinc-200 rounded-xl p-6 text-center text-[10px] text-zinc-400 uppercase tracking-widest font-black">
-                          No variants registered yet. Use the tool above to generate size labels.
+                          No variants registered in the database for this product yet. Use the tool above to add variants.
                         </div>
                       ) : (
                         <div className="border border-zinc-200 rounded-xl overflow-hidden shadow-xs bg-white">
