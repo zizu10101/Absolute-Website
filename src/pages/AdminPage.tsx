@@ -15,6 +15,7 @@ import { RapidScanIntakeMatrix } from '../components/RapidScanIntakeMatrix';
 type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'tools' | 'pos';
 
 const CATEGORIES = [
+  'Shoes',
   'Footwear',
   'Clubs',
   'National Teams',
@@ -774,7 +775,7 @@ function AdminPageInner() {
         colors: []
       });
       setTimeout(() => setAddStatus('idle'), 3000);
-      fetchAdminProducts();
+      await resetProducts();
     } catch (error: any) {
       console.error('AdminPage: Failed to add product', error);
       setAddErrorMessage(error.message || 'Failed to save to database.');
@@ -837,7 +838,7 @@ function AdminPageInner() {
         }
 
         await updateProduct(productData);
-        await fetchAdminProducts();
+        await resetProducts();
         
         setEditStatus('success');
         setTimeout(() => {
@@ -3147,7 +3148,7 @@ function AdminPageInner() {
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Category</label>
                           <select 
                             className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer" 
-                            value={newProduct.category} 
+                            value={availableCategories.find(c => c.toLowerCase() === (newProduct.category || '').toLowerCase()) || newProduct.category} 
                             onChange={e => setNewProduct({...newProduct, category: e.target.value, submenu: '', submenus: []})}
                           >
                             {availableCategories.map(cat => (
@@ -4048,7 +4049,7 @@ function AdminPageInner() {
                       <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Category</label>
                       <select 
                         className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer" 
-                        value={editingProduct.category} 
+                        value={availableCategories.find(c => c.toLowerCase() === (editingProduct.category || '').toLowerCase()) || editingProduct.category} 
                         onChange={e => setEditingProduct({...editingProduct, category: e.target.value, submenu: '', submenus: []})}
                       >
                         {availableCategories.map(cat => (

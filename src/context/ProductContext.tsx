@@ -350,7 +350,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       ...productData,
       image: normalizePath(productData.image),
       images: productData.images?.map(img => normalizePath(img)),
-      category: normalizeString(productData.category),
+      category: productData.category ? (productData.category + '').trim() : '',
       submenu: normalizeString(productData.submenu),
       submenus: productData.submenus?.map(s => normalizeString(s))
     };
@@ -414,7 +414,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       ...updatedProduct,
       image: normalizePath(updatedProduct.image),
       images: updatedProduct.images?.map(img => normalizePath(img)),
-      category: normalizeString(updatedProduct.category),
+      category: updatedProduct.category ? (updatedProduct.category + '').trim() : '',
       submenu: normalizeString(updatedProduct.submenu),
       submenus: updatedProduct.submenus?.map(s => normalizeString(s))
     };

@@ -184,6 +184,14 @@ async function startServer() {
     try {
       if (supabase) {
         const payload = { ...productData };
+        if (!payload.category || (payload.category + '').trim() === '') {
+          payload.category = 'Shoes';
+        } else {
+          payload.category = (payload.category + '').trim();
+          if (payload.category.toLowerCase() === 'shoes' || payload.category.toLowerCase() === 'footwear') {
+            payload.category = 'Shoes';
+          }
+        }
         if ('is_online' in payload) {
           let subs = Array.isArray(payload.submenus) ? [...payload.submenus] : [];
           if (payload.is_online) {
@@ -308,6 +316,17 @@ async function startServer() {
         const payload = { ...updateData };
         delete payload.id; // Prevent updating primary key ID column in Supabase
         
+        if (payload.category !== undefined) {
+          if (!payload.category || (payload.category + '').trim() === '') {
+            payload.category = 'Shoes';
+          } else {
+            payload.category = (payload.category + '').trim();
+            if (payload.category.toLowerCase() === 'shoes' || payload.category.toLowerCase() === 'footwear') {
+              payload.category = 'Shoes';
+            }
+          }
+        }
+        
         if ('is_online' in payload) {
           let subs = Array.isArray(payload.submenus) ? [...payload.submenus] : [];
           if (payload.is_online) {
@@ -422,6 +441,25 @@ async function startServer() {
         return (s + '').trim().toLowerCase();
       };
 
+      const normalizeCategory = (s: string | null | undefined) => {
+        if (!s) return 'Shoes';
+        const trimmed = (s + '').trim();
+        const lower = trimmed.toLowerCase();
+        if (lower === 'shoes' || lower === 'footwear') return 'Shoes';
+        if (lower === 'accessories') return 'Accessories';
+        if (lower === 'apparel') return 'Apparel';
+        if (lower === 'clubs') return 'Clubs';
+        if (lower === 'equipment') return 'Equipment';
+        if (lower === 'teams') return 'Teams';
+        if (lower === 'soccer balls') return 'Soccer Balls';
+        if (lower === 'shin guards') return 'Shin Guards';
+        if (lower === 'training') return 'Training';
+        if (lower === 'custom lab') return 'Custom Lab';
+        if (lower === 'uniform submission') return 'Uniform Submission';
+        if (lower === 'national teams') return 'National Teams';
+        return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+      };
+
       // 1. Standardize Products
       console.log("Standardizing products...");
       const { data: products, error: prodErr } = await supabase.from('products').select('*');
@@ -447,7 +485,7 @@ async function startServer() {
             }
           }
 
-          const normCat = normalizeString(p.category);
+          const normCat = normalizeCategory(p.category);
           if (normCat !== p.category) {
             updates.category = normCat;
             hasChanges = true;
@@ -974,11 +1012,17 @@ async function startServer() {
 
   // --- PRODUCT VARIANTS API ---
 
+  const isValidUUID = (str: string | null | undefined): boolean => {
+    if (!str) return false;
+    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return regex.test(str);
+  };
+
   // Get all variants for a product
   app.get("/api/products/:productId/variants", async (req, res) => {
     const { productId } = req.params;
     try {
-      if (supabaseAdmin) {
+      if (supabaseAdmin && isValidUUID(productId)) {
         const { data, error } = await supabaseAdmin
           .from('product_variants')
           .select('*')
@@ -989,7 +1033,7 @@ async function startServer() {
           return res.status(200).json({ success: true, data });
         }
         // Fallback if table doesn't exist yet but Supabase is configured
-        console.warn("Supabase product_variants query failed, falling back to local file:", error);
+        console.log("Using local JSON file for product variants query.");
       }
       
       const variants = await readSafeJson(LOCAL_VARIANTS_PATH, []);
@@ -1011,8 +1055,10 @@ async function startServer() {
     }
     
     try {
-      const payload = {
-        id: variantData.id || undefined,
+      const isProductUuid = isValidUUID(productId);
+      const isVariantUuid = isValidUUID(variantData.id);
+      
+      const payload: any = {
         product_id: productId,
         age_group: variantData.age_group,
         size: variantData.size,
@@ -1020,7 +1066,11 @@ async function startServer() {
         stock_quantity: Number(variantData.stock_quantity || 0)
       };
 
-      if (supabaseAdmin) {
+      if (isVariantUuid) {
+        payload.id = variantData.id;
+      }
+
+      if (supabaseAdmin && isProductUuid) {
         const { data, error } = await supabaseAdmin
           .from('product_variants')
           .upsert([payload], { onConflict: 'barcode' })
@@ -1029,13 +1079,13 @@ async function startServer() {
         if (!error) {
           return res.status(200).json({ success: true, data });
         }
-        console.warn("Supabase product_variants upsert failed, falling back to local file:", error);
+        console.log("Using local JSON file for product variants upsert.");
       }
       
       // Local fallback
       const variants = await readSafeJson(LOCAL_VARIANTS_PATH, []);
       const existingIndex = variants.findIndex((v: any) => v.barcode === payload.barcode);
-      const newId = payload.id || `variant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newId = (isVariantUuid && variantData.id) ? variantData.id : `variant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const finalPayload = { ...payload, id: newId };
       
       if (existingIndex > -1) {
@@ -1056,7 +1106,7 @@ async function startServer() {
   app.post("/api/products/:productId/variants/delete", async (req, res) => {
     const { variantId } = req.body;
     try {
-      if (supabaseAdmin) {
+      if (supabaseAdmin && isValidUUID(variantId)) {
         const { error } = await supabaseAdmin
           .from('product_variants')
           .delete()
@@ -1064,7 +1114,7 @@ async function startServer() {
         if (!error) {
           return res.status(200).json({ success: true });
         }
-        console.warn("Supabase product_variants delete failed, falling back to local file:", error);
+        console.log("Using local JSON file for product variants delete.");
       }
       
       const variants = await readSafeJson(LOCAL_VARIANTS_PATH, []);
@@ -1105,7 +1155,7 @@ async function startServer() {
           };
           return res.status(200).json({ success: true, data: formatted });
         }
-        console.warn("Supabase product_variants barcode lookup failed, falling back to local file:", error);
+        console.log("Using local JSON file for product variants barcode lookup.");
       }
       
       // Local fallback
