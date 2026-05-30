@@ -24,6 +24,7 @@ export interface Product {
   salePrice?: number;
   colors?: ColorVariant[];
   is_online?: boolean;
+  showSizes?: boolean;
 }
 
 interface ProductContextType {
@@ -63,13 +64,7 @@ export const mapProductFromDb = (p: any): Product => {
     }
   }
 
-  const isOnlineValue = 
-    p.is_online === true || 
-    p.is_online === 'true' || 
-    p.is_online === 1 || 
-    p.is_online === '1' ||
-    sub.some((s: string) => s && s.toUpperCase() === 'ONLINE') ||
-    (p.submenu && p.submenu.toUpperCase() === 'ONLINE');
+  const isOnlineValue = p.is_online !== false && p.is_online !== 0 && p.is_online !== 'false';
 
   let rawPrice = p.price;
   if (typeof rawPrice === 'string') {
@@ -88,34 +83,18 @@ export const mapProductFromDb = (p: any): Product => {
     price: rawPrice,
     salePrice: rawSalePrice,
     submenus: sub,
-    is_online: isOnlineValue
+    is_online: isOnlineValue,
+    showSizes: p.show_sizes === true || p.show_sizes === 'true' || p.show_sizes === 1 || p.showSizes === true
   };
 };
 
 export const mapProductToDb = (p: any): any => {
   if (!p) return p;
-  const { is_online, ...rest } = p;
-  
-  let sub = Array.isArray(p.submenus) ? [...p.submenus] : [];
-  let submenuVal = p.submenu;
-
-  if (is_online === true) {
-    if (!sub.some((s: string) => s && s.toUpperCase() === 'ONLINE')) {
-      sub.push('online');
-    }
-  } else {
-    sub = sub.filter((s: string) => s && s.toUpperCase() !== 'ONLINE');
-    if (submenuVal && submenuVal.toUpperCase() === 'ONLINE') {
-      submenuVal = '';
-    }
+  const dbProduct = { ...p };
+  if (p.showSizes !== undefined) {
+    dbProduct.show_sizes = p.showSizes;
   }
-  
-  return {
-    ...rest,
-    submenu: submenuVal,
-    submenus: sub,
-    is_online
-  };
+  return dbProduct;
 };
 
 export function ProductProvider({ children }: { children: ReactNode }) {
@@ -147,7 +126,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       // Also fetch a small batch of all products to have some local cache
       try {
-        const response = await fetch(`/api/products?limit=20&fields=${LIST_FIELDS}`);
+        const response = await fetch(`/api/products?limit=1000&fields=${LIST_FIELDS}`);
         const contentType = response.headers.get('content-type');
         if (!response.ok || (contentType && contentType.includes('text/html'))) {
           console.warn(`Initial product batch fetch failed: ${response.status} ${response.statusText}`);
@@ -188,7 +167,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       try {
         const { data, error } = await supabase
           .from('products')
-          .select(LIST_FIELDS === '*' ? undefined : LIST_FIELDS)
+          .select(LIST_FIELDS === '*' ? '*' : LIST_FIELDS)
           .eq('isFeatured', true)
           .limit(8);
         
@@ -209,7 +188,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       const { data, error } = await supabase
         .from('products')
-        .select(ADMIN_LIST_FIELDS === '*' ? undefined : ADMIN_LIST_FIELDS)
+        .select(ADMIN_LIST_FIELDS === '*' ? '*' : ADMIN_LIST_FIELDS)
         .order('name', { ascending: true })
         .range(0, PAGE_SIZE - 1);
       
@@ -250,7 +229,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       const { data, error } = await supabase
         .from('products')
-        .select(ADMIN_LIST_FIELDS === '*' ? undefined : ADMIN_LIST_FIELDS)
+        .select(ADMIN_LIST_FIELDS === '*' ? '*' : ADMIN_LIST_FIELDS)
         .order('name', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1);
       
@@ -270,38 +249,47 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const fetchProductsByCategory = async (category?: string, submenu?: string) => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (category && category.toLowerCase() !== 'all') params.append('category', category);
-      if (submenu) params.append('submenu', submenu);
-      params.append('fields', LIST_FIELDS);
-      
-      const response = await fetch(`/api/products?${params.toString()}`);
-      
-      const contentType = response.headers.get('content-type');
-      if (!response.ok || (contentType && contentType.includes('text/html'))) {
-        throw new Error('API unavailable');
+      console.log(`ProductContext: Fetching directly from database for category=${category}, submenu=${submenu}`);
+      let query = supabase.from('products').select('*');
+      if (category && category.toLowerCase() !== 'all') {
+        query = query.ilike('category', category);
       }
+      if (submenu) {
+        query = query.or(`submenu.ilike.${submenu},submenus.cs.{${submenu}}`);
+      }
+      const { data, error } = await query.order('name');
       
-      const result = await response.json();
-      const allFetched = result.data || [];
+      if (error) throw error;
       
-      mergeProducts(allFetched);
+      if (data) {
+        const freshMapped = data.map(mapProductFromDb);
+        setProducts(prev => {
+          const productMap = new Map(prev.map(p => [p.id, p]));
+          freshMapped.forEach(p => productMap.set(p.id, p));
+          return Array.from(productMap.values());
+        });
+      }
     } catch (e) {
-      console.warn('Categorized fetch from API failed, trying direct Supabase:', e);
+      console.warn('Direct Supabase fetch failed, trying API route as fallback:', e);
       try {
-        let query = supabase.from('products').select(LIST_FIELDS === '*' ? undefined : LIST_FIELDS);
-        if (category && category.toLowerCase() !== 'all') {
-          query = query.ilike('category', category);
-        }
-        if (submenu) {
-          query = query.or(`submenu.ilike.${submenu},submenus.cs.{${submenu}}`);
-        }
-        const { data, error } = await query.order('name');
+        const params = new URLSearchParams();
+        if (category && category.toLowerCase() !== 'all') params.append('category', category);
+        if (submenu) params.append('submenu', submenu);
+        params.append('fields', LIST_FIELDS);
         
-        if (error) throw error;
-        if (data) mergeProducts(data as any);
-      } catch (supabaseErr) {
-        console.error('Direct Supabase categorized fetch also failed:', supabaseErr);
+        const response = await fetch(`/api/products?${params.toString()}`);
+        
+        const contentType = response.headers.get('content-type');
+        if (!response.ok || (contentType && contentType.includes('text/html'))) {
+          throw new Error('API unavailable');
+        }
+        
+        const result = await response.json();
+        const allFetched = result.data || [];
+        
+        mergeProducts(allFetched);
+      } catch (fallbackErr) {
+        console.error('API categorized lookup also failed:', fallbackErr);
       }
     } finally {
       setIsLoading(false);
@@ -310,26 +298,37 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const fetchProductById = async (id: string): Promise<Product | null> => {
     try {
-      // First check local state
-      const local = products.find(p => p.id === id);
-      if (local && local.description) return local;
-
-      const response = await fetch(`/api/products/${id}`);
-      if (!response.ok || (response.headers.get('content-type') && response.headers.get('content-type')!.includes('text/html'))) {
-        throw new Error('API unavailable or returned HTML');
+      console.log(`ProductContext: Fetching product by id=${id} directly from Supabase`);
+      const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
+      if (data && !error) {
+        const mapped = mapProductFromDb(data as Product);
+        // update local state
+        setProducts(prev => {
+          const filtered = prev.filter(p => p.id !== id);
+          return [...filtered, mapped];
+        });
+        return mapped;
       }
-      const raw = await response.json();
-      return mapProductFromDb(raw);
+      if (error) throw error;
     } catch (e) {
-      console.warn('API GET product by id failed, falling back to direct Supabase:', e);
+      console.warn('API GET product by id failed, falling back to API:', e);
       try {
-        const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
-        if (data && !error) return mapProductFromDb(data as Product);
+        const response = await fetch(`/api/products/${id}`);
+        if (!response.ok || (response.headers.get('content-type') && response.headers.get('content-type')!.includes('text/html'))) {
+          throw new Error('API unavailable or returned HTML');
+        }
+        const raw = await response.json();
+        const mapped = mapProductFromDb(raw);
+        setProducts(prev => {
+          const filtered = prev.filter(p => p.id !== id);
+          return [...filtered, mapped];
+        });
+        return mapped;
       } catch (err) {
-        console.error('Direct Supabase GET product also failed:', err);
+        console.error('Direct Supabase and API GET product also failed:', err);
       }
-      return products.find(p => p.id === id) || null;
     }
+    return products.find(p => p.id === id) || null;
   };
 
   const addProduct = async (productData: Omit<Product, 'id'>) => {
@@ -380,11 +379,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
       try {
         console.log('Trying direct Supabase fallback...');
-        const { is_online, ...payloadWithoutOnline } = payload;
-        const { data, error } = await supabase.from('products').insert([payloadWithoutOnline]).select().single();
+        const allowedColumns = [
+          'name', 'price', 'category', 'submenu', 'submenus', 'image', 'images', 
+          'description', 'isNewArrival', 'isOnSale', 'isFeatured', 'salePrice', 'colors', 'is_online', 'show_sizes'
+        ];
+        const cleanPayload: any = {};
+        for (const col of allowedColumns) {
+          if (payload[col] !== undefined) {
+            cleanPayload[col] = payload[col];
+          }
+        }
+        const { data, error } = await supabase.from('products').insert([cleanPayload]).select();
         if (error) throw error;
-        if (data) {
-          const mapped = mapProductFromDb(data as Product);
+        const insertedProduct = data && data.length > 0 ? data[0] : null;
+        if (insertedProduct) {
+          const mapped = mapProductFromDb(insertedProduct as Product);
           setProducts(prev => [...prev, mapped]);
           await fetchAdminProducts();
           return mapped;
@@ -442,10 +451,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
       try {
         console.log('Trying direct Supabase fallback...');
-        const { id, is_online, ...rest } = payload;
-        const { data, error } = await supabase.from('products').update(rest).eq('id', id).select().single();
+        const { id } = payload;
+        const allowedColumns = [
+          'name', 'price', 'category', 'submenu', 'submenus', 'image', 'images', 
+          'description', 'isNewArrival', 'isOnSale', 'isFeatured', 'salePrice', 'colors', 'is_online', 'show_sizes'
+        ];
+        const cleanPayload: any = {};
+        for (const col of allowedColumns) {
+          if (payload[col] !== undefined) {
+            cleanPayload[col] = payload[col];
+          }
+        }
+        const { data, error } = await supabase.from('products').update(cleanPayload).eq('id', id).select();
         if (error) throw error;
-        setProducts(prev => prev.map(p => p.id === id ? mapProductFromDb({ ...updatedProduct, ...(data || {}) }) : p));
+        const updatedProduct = data && data.length > 0 ? data[0] : null;
+        setProducts(prev => prev.map(p => p.id === id ? mapProductFromDb({ ...updatedProduct, ...(updatedProduct || {}) }) : p));
         await fetchAdminProducts();
       } catch (supErr: any) {
         console.error('Direct Supabase update product also failed:', supErr);

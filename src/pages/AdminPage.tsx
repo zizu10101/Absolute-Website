@@ -15,7 +15,6 @@ import { RapidScanIntakeMatrix } from '../components/RapidScanIntakeMatrix';
 type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'tools' | 'pos';
 
 const CATEGORIES = [
-  'Shoes',
   'Footwear',
   'Clubs',
   'National Teams',
@@ -117,7 +116,7 @@ function AdminPageInner() {
     products, addProduct, deleteProduct, updateProduct, resetProducts, markAllProductsOnline,
     fetchAdminProducts, loadMoreAdminProducts, hasMoreProducts, isLoading, fetchProductById
   } = useProducts();
-  const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, setGlobalSettings, resetSettings } = useSettings();
+  const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, setGlobalSettings, resetSettings, showSizesOnline, setShowSizesOnline } = useSettings();
   const { logout, user } = useAuth();
 
   const updateDraftNavigationMenu = (index: number, field: string, value: string) => {
@@ -142,6 +141,7 @@ function AdminPageInner() {
     images: [],
     description: '',
     isNewArrival: true,
+    showSizes: false,
     isOnSale: false,
     isFeatured: true,
     is_online: true,
@@ -194,6 +194,7 @@ function AdminPageInner() {
   const [draftLandingLogo, setDraftLandingLogo] = useState<string>(landingLogo || '');
   const [draftLabBackgroundImage, setDraftLabBackgroundImage] = useState<string>(labBackgroundImage || '');
   const [draftFooterLogo, setDraftFooterLogo] = useState<string>(footerLogo || '');
+  const [draftShowSizesOnline, setDraftShowSizesOnline] = useState<boolean>(showSizesOnline);
   const [draftHomeCategories, setDraftHomeCategories] = useState<any[]>(homeCategories || []);
   const [draftFooterLinks, setDraftFooterLinks] = useState<any[]>(footerLinks || []);
   const [draftNavigationMenus, setDraftNavigationMenus] = useState<any[]>(navigationMenus || []);
@@ -562,6 +563,10 @@ function AdminPageInner() {
   }, [footerLogo]);
 
   useEffect(() => {
+    setDraftShowSizesOnline(showSizesOnline);
+  }, [showSizesOnline]);
+
+  useEffect(() => {
     setDraftHomeCategories(homeCategories || []);
   }, [homeCategories]);
 
@@ -768,6 +773,7 @@ function AdminPageInner() {
         submenus: [],
         image: '',
         isNewArrival: true,
+        showSizes: false,
         isOnSale: false,
         isFeatured: true,
         is_online: true,
@@ -1366,7 +1372,8 @@ function AdminPageInner() {
         logo: draftLogo,
         landingLogo: draftLandingLogo,
         labBackgroundImage: draftLabBackgroundImage,
-        footerLogo: draftFooterLogo
+        footerLogo: draftFooterLogo,
+        show_sizes_online: draftShowSizesOnline
       });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -2139,6 +2146,27 @@ function AdminPageInner() {
                     <div className="bg-zinc-900 p-8 rounded-xl border border-zinc-800 shadow-sm flex items-center justify-center h-48">
                       <img src={draftFooterLogo} alt="Footer Logo Preview" className="max-h-32 w-auto object-contain" />
                     </div>
+                  </div>
+                </div>
+
+                {/* Sizing & Storefront Controls Toggle */}
+                <div className="p-8 border-t border-zinc-100 bg-zinc-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-black uppercase tracking-wider text-zinc-900">Sizing Configuration</h3>
+                    <p className="text-xs text-zinc-500">Toggle whether shoe size selection grids are visible on product detail pages.</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="inline-flex items-center gap-3 cursor-pointer select-none bg-white border border-zinc-200 px-5 py-3 rounded-xl hover:border-zinc-300 transition-all shadow-sm">
+                      <input 
+                        type="checkbox" 
+                        className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014] cursor-pointer"
+                        checked={draftShowSizesOnline} 
+                        onChange={e => setDraftShowSizesOnline(e.target.checked)} 
+                      />
+                      <span className="text-xs font-black uppercase tracking-widest text-zinc-700">
+                        Show Shoe Sizes on Storefront
+                      </span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -3396,6 +3424,10 @@ function AdminPageInner() {
                         <span className="text-sm font-medium text-zinc-700 group-hover:text-zinc-900 transition-colors">Available in Online Store</span>
                       </label>
                       <label className="flex items-center gap-3 cursor-pointer group">
+                        <input type="checkbox" className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.showSizes || false} onChange={e => setNewProduct({...newProduct, showSizes: e.target.checked})} />
+                        <span className="text-sm font-medium text-zinc-700 group-hover:text-zinc-900 transition-colors">Show Sizes on Product Page</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer group">
                         <input type="checkbox" className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.isNewArrival} onChange={e => setNewProduct({...newProduct, isNewArrival: e.target.checked})} />
                         <span className="text-sm font-medium text-zinc-700 group-hover:text-zinc-900 transition-colors">Mark as New Arrival</span>
                       </label>
@@ -4110,6 +4142,10 @@ function AdminPageInner() {
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014]" checked={editingProduct.is_online} onChange={e => setEditingProduct({...editingProduct, is_online: e.target.checked})} />
                         <span className="text-sm font-medium text-zinc-700">Available in Online Store</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014]" checked={editingProduct.showSizes || false} onChange={e => setEditingProduct({...editingProduct, showSizes: e.target.checked})} />
+                        <span className="text-sm font-medium text-zinc-700">Show Sizes on Product Page</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014]" checked={editingProduct.isNewArrival} onChange={e => setEditingProduct({...editingProduct, isNewArrival: e.target.checked})} />

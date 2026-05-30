@@ -34,8 +34,9 @@ export function ProductGridPage({ title, category, submenu }: Props) {
   }, [urlQuery]);
 
   const filteredProducts = useMemo(() => {
-    // Only show products that are available in the online store (is_online === true)
-    let filtered = products.filter(p => p.is_online === true);
+    let filtered = [...products];
+    // Only show products available online
+    filtered = filtered.filter(p => p.is_online !== false);
     
     const isSalePage = title.toLowerCase() === 'sale' || submenu?.toLowerCase() === 'sale';
     const isNewArrivalsPage = title.toLowerCase() === 'new arrivals' || submenu?.toLowerCase() === 'new arrivals';

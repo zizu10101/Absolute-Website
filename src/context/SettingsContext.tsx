@@ -54,9 +54,11 @@ interface SettingsContextType {
   setFooterLinks: (links: FooterLink[]) => Promise<void>;
   seoSettings: SEO;
   setSeoSettings: (seo: SEO) => Promise<void>;
-  setGlobalSettings: (settings: { logo?: string; landingLogo?: string; labBackgroundImage?: string; footerLogo?: string }) => Promise<void>;
+  setGlobalSettings: (settings: { logo?: string; landingLogo?: string; labBackgroundImage?: string; footerLogo?: string; show_sizes_online?: boolean }) => Promise<void>;
   resetSettings: () => Promise<void>;
   isLoading: boolean;
+  showSizesOnline: boolean;
+  setShowSizesOnline: (show: boolean) => Promise<void>;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -79,6 +81,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     ogDescription: 'Elite performance soccer gear and custom uniform engineering.',
     twitterCard: 'summary_large_image',
     canonicalUrl: 'https://absolutesoccer.ca'
+  });
+  const [showSizesOnline, setShowSizesOnlineState] = useState<boolean>(() => {
+    const cached = localStorage.getItem('show_sizes_online');
+    return cached !== null ? cached === 'true' : false;
   });
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
@@ -165,10 +171,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           const foot = results.footer;
           const seoData = results.seo;
 
-          if (global?.logo) setLogoState(global.logo);
+          if (global?.logo) {
+            setLogoState(global.logo);
+          }
           if (global?.landingLogo) setLandingLogoState(global.landingLogo);
           if (global?.labBackgroundImage) setLabBackgroundImageState(global.labBackgroundImage);
           if (global?.footerLogo) setFooterLogoState(global.footerLogo);
+          if (global?.show_sizes_online !== undefined) setShowSizesOnlineState(global.show_sizes_online);
 
           if (slider) {
             let imgs: any[] = [];
@@ -363,6 +372,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       if (updates.landingLogo) setLandingLogoState(updates.landingLogo);
       if (updates.labBackgroundImage) setLabBackgroundImageState(updates.labBackgroundImage);
       if (updates.footerLogo) setFooterLogoState(updates.footerLogo);
+      if (updates.show_sizes_online !== undefined) setShowSizesOnlineState(updates.show_sizes_online);
     } else if (key === 'slider') {
       if (updates.sliderImages) setSliderImagesState(updates.sliderImages);
     } else if (key === 'homeCategories') {
@@ -376,8 +386,16 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const setGlobalSettings = async (settings: { logo?: string; landingLogo?: string; labBackgroundImage?: string; footerLogo?: string }) => {
+  const setGlobalSettings = async (settings: { logo?: string; landingLogo?: string; labBackgroundImage?: string; footerLogo?: string; show_sizes_online?: boolean }) => {
     await updateSettings('global', settings);
+  };
+
+  const setShowSizesOnline = async (value: boolean) => {
+    setShowSizesOnlineState(value);
+    await updateSettings('global', { 
+      logo: logo,
+      show_sizes_online: value 
+    });
   };
 
   const setSliderImages = async (images: SliderImage[]) => {
@@ -570,8 +588,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setSeoSettings,
     resetSettings,
     setGlobalSettings,
-    isLoading
-  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, isLoading]);
+    isLoading,
+    showSizesOnline,
+    setShowSizesOnline
+  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, isLoading, showSizesOnline]);
 
   return (
     <SettingsContext.Provider value={value}>

@@ -99,6 +99,21 @@ async function startServer() {
     });
   });
 
+  // Migration route to fix product categories
+  app.get("/api/migrate-categories", async (req, res) => {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('products')
+        .update({ category: 'Footwear' })
+        .in('category', ['Shoes', 'shoes', 'SHOES']);
+        
+      if (error) throw error;
+      res.json({ success: true, message: "Migration complete" });
+    } catch (err) {
+      res.status(500).json({ error: (err as any).message });
+    }
+  });
+
   // Products GET
   app.get("/api/products", async (req, res) => {
     const cacheKey = `products_${JSON.stringify(req.query)}`;
@@ -110,7 +125,7 @@ async function startServer() {
     try {
       if (supabase) {
         const { category, submenu, isFeatured, isOnSale, isNewArrival, limit, offset, fields } = req.query;
-        let query = supabase.from('products').select(typeof fields === 'string' && fields !== '*' ? fields : undefined);
+        let query = supabase.from('products').select(typeof fields === 'string' && fields !== '*' && fields ? fields : '*');
 
         console.log("Supabase products query:", {
           category,
@@ -174,6 +189,32 @@ async function startServer() {
     }
   });
 
+  const cleanProductPayload = (rawPayload: any): any => {
+    const allowedColumns = [
+      'id',
+      'name',
+      'price',
+      'category',
+      'submenu',
+      'submenus',
+      'image',
+      'images',
+      'description',
+      'isNewArrival',
+      'isOnSale',
+      'isFeatured',
+      'salePrice',
+      'colors'
+    ];
+    const cleaned: any = {};
+    for (const col of allowedColumns) {
+      if (rawPayload[col] !== undefined) {
+        cleaned[col] = rawPayload[col];
+      }
+    }
+    return cleaned;
+  };
+
   // Product POST (Individual Add)
   app.post("/api/products", async (req, res) => {
     const productData = req.body;
@@ -183,36 +224,39 @@ async function startServer() {
 
     try {
       if (supabase) {
-        const payload = { ...productData };
-        if (!payload.category || (payload.category + '').trim() === '') {
-          payload.category = 'Shoes';
+        let prepared = { ...productData };
+        if (!prepared.category || (prepared.category + '').trim() === '') {
+          prepared.category = 'Footwear';
         } else {
-          payload.category = (payload.category + '').trim();
-          if (payload.category.toLowerCase() === 'shoes' || payload.category.toLowerCase() === 'footwear') {
-            payload.category = 'Shoes';
+          prepared.category = (prepared.category + '').trim();
+          if (prepared.category.toLowerCase() === 'shoes' || prepared.category.toLowerCase() === 'footwear') {
+            prepared.category = 'Footwear';
           }
         }
-        if ('is_online' in payload) {
-          let subs = Array.isArray(payload.submenus) ? [...payload.submenus] : [];
-          if (payload.is_online) {
+        if ('is_online' in prepared) {
+          let subs = Array.isArray(prepared.submenus) ? [...prepared.submenus] : [];
+          if (prepared.is_online) {
             const hasOnline = subs.some(s => s && s.toUpperCase() === 'ONLINE');
             if (!hasOnline) subs.push('online');
           } else {
             subs = subs.filter(s => s && s.toUpperCase() !== 'ONLINE');
-            if (payload.submenu && payload.submenu.toUpperCase() === 'ONLINE') {
-              payload.submenu = '';
+            if (prepared.submenu && prepared.submenu.toUpperCase() === 'ONLINE') {
+              prepared.submenu = '';
             }
           }
-          payload.submenus = subs;
-          delete payload.is_online;
+          prepared.submenus = subs;
+          delete prepared.is_online;
         }
-        const { data, error } = await supabase.from('products').insert([payload]).select().single();
+
+        const payload = cleanProductPayload(prepared);
+        const { data, error } = await supabase.from('products').insert([payload]).select();
         if (error) {
           console.error("Supabase insert error:", error);
           throw error;
         }
+        const insertedProduct = data && data.length > 0 ? data[0] : null;
         clearCache('products');
-        return res.json(data);
+        return res.json(insertedProduct);
       } else {
         const products = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
         const newProduct = { ...productData, id: Date.now().toString() };
@@ -313,42 +357,44 @@ async function startServer() {
     const updateData = req.body;
     try {
       if (supabase) {
-        const payload = { ...updateData };
-        delete payload.id; // Prevent updating primary key ID column in Supabase
+        let prepared = { ...updateData };
+        delete prepared.id; // Prevent updating primary key ID column in Supabase
         
-        if (payload.category !== undefined) {
-          if (!payload.category || (payload.category + '').trim() === '') {
-            payload.category = 'Shoes';
+        if (prepared.category !== undefined) {
+          if (!prepared.category || (prepared.category + '').trim() === '') {
+            prepared.category = 'Footwear';
           } else {
-            payload.category = (payload.category + '').trim();
-            if (payload.category.toLowerCase() === 'shoes' || payload.category.toLowerCase() === 'footwear') {
-              payload.category = 'Shoes';
+            prepared.category = (prepared.category + '').trim();
+            if (prepared.category.toLowerCase() === 'shoes' || prepared.category.toLowerCase() === 'footwear') {
+              prepared.category = 'Footwear';
             }
           }
         }
         
-        if ('is_online' in payload) {
-          let subs = Array.isArray(payload.submenus) ? [...payload.submenus] : [];
-          if (payload.is_online) {
+        if ('is_online' in prepared) {
+          let subs = Array.isArray(prepared.submenus) ? [...prepared.submenus] : [];
+          if (prepared.is_online) {
             const hasOnline = subs.some(s => s && s.toUpperCase() === 'ONLINE');
             if (!hasOnline) subs.push('online');
           } else {
             subs = subs.filter(s => s && s.toUpperCase() !== 'ONLINE');
-            if (payload.submenu && payload.submenu.toUpperCase() === 'ONLINE') {
-              payload.submenu = '';
+            if (prepared.submenu && prepared.submenu.toUpperCase() === 'ONLINE') {
+              prepared.submenu = '';
             }
           }
-          payload.submenus = subs;
-          delete payload.is_online;
+          prepared.submenus = subs;
+          delete prepared.is_online;
         }
 
-        const { data, error } = await supabase.from('products').update(payload).eq('id', id).select().single();
+        const payload = cleanProductPayload(prepared);
+        const { data, error } = await supabase.from('products').update(payload).eq('id', id).select();
         if (error) {
           console.error("Supabase update error:", error);
           throw error;
         }
+        const updatedProduct = data && data.length > 0 ? data[0] : null;
         clearCache('products');
-        return res.json(data);
+        return res.json(updatedProduct);
       } else {
         let products = await readSafeJson(LOCAL_PRODUCTS_PATH, []);
         const index = products.findIndex((p: any) => p.id === id);
@@ -939,41 +985,32 @@ async function startServer() {
     
     const { transactionId } = req.body;
     
-    console.log("POS Server Received Refund Request for:", transactionId);
-    
     try {
-      // 1. Fetch original transaction
       const { data: original, error: fetchErr } = await supabaseAdmin
         .from('transactions')
         .select('*')
         .eq('id', transactionId)
         .single();
         
-      if (fetchErr) {
-        console.error("Supabase Refund Fetch Error:", fetchErr);
-        return res.status(500).json({ error: `Fetch error: ${fetchErr.message}` });
+      if (fetchErr || !original) {
+        return res.status(404).json({ error: "Original transaction not found or fetch error" });
       }
 
-      if (!original) {
-        return res.status(444).json({ error: "Original transaction not found" });
-      }
-
-      // 2. Create balancing entry
+      // Payload targets active columns
       const payload = {
-        total_amount: -Math.abs(Number(original.total_amount)),
-        method: original.method,
+        total_amount: Number(original.total_amount) * -1,
+        method: original.method, 
+        status: 'refunded',
         items: original.items,
         customer_id: original.customer_id,
-        created_at: new Date().toISOString(),
-        status: 'refunded'
+        created_at: new Date().toISOString()
       };
       
-      console.log("Attempting to insert refund transaction:", payload);
       const { data, error } = await supabaseAdmin.from('transactions').insert([payload]).select();
       
       if (error) {
         console.error("Supabase Refund Write Error:", error);
-        return res.status(500).json({ error: `Database error: ${error.message} - ${error.details || ''}` });
+        return res.status(500).json({ error: `Database error: ${error.message}` });
       }
       
       return res.status(200).json({ success: true, data });
@@ -989,9 +1026,8 @@ async function startServer() {
     
     const { transactionId } = req.body;
     
-    console.log("POS Server Received Void Request:", req.body);
-    
     try {
+      // Clean UPDATE query
       const { data, error } = await supabaseAdmin
         .from('transactions')
         .update({ status: 'voided' })
@@ -1000,7 +1036,7 @@ async function startServer() {
       
       if (error) {
         console.error("Supabase Void Write Error:", error);
-        return res.status(500).json({ error: `Database error: ${error.message} - ${error.details || ''}` });
+        return res.status(500).json({ error: `Database error: ${error.message}` });
       }
       
       return res.status(200).json({ success: true, data });

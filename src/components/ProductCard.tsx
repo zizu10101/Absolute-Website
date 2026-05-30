@@ -37,12 +37,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             FEATURED
           </div>
         )}
-        <div className="aspect-[4/5] overflow-hidden bg-zinc-50 relative">
+        <div className="aspect-[4/5] overflow-hidden bg-white relative flex items-center justify-center">
           {displayImage ? (
             <img 
               src={displayImage} 
               alt={product.name} 
-              className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
+              className="w-full h-full object-contain transition-all duration-500 group-hover:scale-105 p-2"
               referrerPolicy="no-referrer"
               loading="lazy"
             />

@@ -1,7 +1,7 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { useState, useEffect } from 'react';
-import { ShoppingBag, Heart, ChevronRight, ChevronLeft, Minus, Plus, ShieldCheck, Truck, RotateCcw, ChevronDown } from 'lucide-react';
+import { ShoppingBag, Heart, ChevronRight, ChevronLeft, Minus, Plus, ShieldCheck, Truck, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function ProductDetailPage() {
@@ -10,7 +10,24 @@ export function ProductDetailPage() {
   const { fetchProductById, products } = useProducts();
   const [product, setProduct] = useState<any>(null);
   const [isPageLoading, setIsPageLoading] = useState(true);
-  
+
+  // Variant States
+  const [variants, setVariants] = useState<any[]>([]);
+  const [variantsLoading, setVariantsLoading] = useState(false);
+  const [selectedAgeGroup, setSelectedAgeGroup] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+
+  // Buy Box States
+  const [quantity, setQuantity] = useState(1);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isAdded, setIsAdded] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(0);
+  const [isDescriptionOpen, setIsDescriptionOpen] = useState(true);
+
+  const colorParam = searchParams.get('color');
+  const [selectedColor, setSelectedColor] = useState<number | null>(colorParam !== null ? parseInt(colorParam) : null);
+
+  // Fetch Product
   useEffect(() => {
     if (id) {
       const existingProduct = products.find(p => p.id === id);
@@ -26,13 +43,28 @@ export function ProductDetailPage() {
       }
     }
   }, [id, products]);
-  
-  const [selectedImage, setSelectedImage] = useState(0);
-  const colorParam = searchParams.get('color');
-  const [selectedColor, setSelectedColor] = useState<number | null>(colorParam !== null ? parseInt(colorParam) : null);
-  const [quantity, setQuantity] = useState(1);
-  const [isDescriptionOpen, setIsDescriptionOpen] = useState(true);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+
+  // Fetch Variants for Single Product Item
+  useEffect(() => {
+    if (product?.id) {
+      setVariantsLoading(true);
+      fetch(`/api/products/${product.id}/variants`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && Array.isArray(data.data)) {
+            setVariants(data.data);
+            
+            // Auto Select first available age group
+            const ageGroups = Array.from(new Set(data.data.map((v: any) => v.age_group)));
+            if (ageGroups.length > 0) {
+              setSelectedAgeGroup(ageGroups[0] as string);
+            }
+          }
+        })
+        .catch(err => console.error("Error loading product variants:", err))
+        .finally(() => setVariantsLoading(false));
+    }
+  }, [product?.id]);
 
   const displayPrice = product ? (selectedColor !== null && product.colors?.[selectedColor]?.price 
     ? product.colors[selectedColor].price 
@@ -65,6 +97,12 @@ export function ProductDetailPage() {
     }
   }, [product]);
 
+  // Handle Age Group change
+  const handleAgeGroupChange = (group: string) => {
+    setSelectedAgeGroup(group);
+    setSelectedSize(null); // Reset size selection when tier changes
+  };
+
   if (isPageLoading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
@@ -83,15 +121,109 @@ export function ProductDetailPage() {
     );
   }
 
-  const sizes = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
+  // Grouping sizes
+  const uniqueAgeGroups = Array.from(new Set(variants.map(v => v.age_group))) as string[];
+  
+  // Sizes list based on active/fallback structures
+  const shoeSizes = ['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '12.5', '13'];
+  const apparelSizes = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
+  
+  let displayedSizesList = (variants.length > 0 
+    ? Array.from(new Set(
+        variants
+          .filter(v => !selectedAgeGroup || v.age_group === selectedAgeGroup)
+          .map(v => v.size)
+      ))
+    : (product.category === 'Footwear' ? shoeSizes : apparelSizes)) as string[];
+
+  if (product.category === 'Footwear') {
+      displayedSizesList = shoeSizes;
+  } else {
+      displayedSizesList = displayedSizesList.filter(s => apparelSizes.includes(s));
+  }
+
+  // Get stock level for currently selected size and age group
+  const activeVariant = variants.find(v => 
+    (!selectedAgeGroup || v.age_group === selectedAgeGroup) && 
+    (!selectedSize || v.size === selectedSize)
+  );
+
+  const isStockDefined = variants.length > 0;
+  const currentStock = activeVariant ? (activeVariant.stock_quantity ?? 0) : null;
+  const isOutOfStock = currentStock !== null && currentStock <= 0;
+
+  // Render stock alert
+  const renderStockStatus = () => {
+    if (!isStockDefined) return null;
+    if (!selectedSize) return (
+      <p className="text-xs text-zinc-400 font-medium">Please select a size to check live availability</p>
+    );
+
+    if (currentStock === null || isOutOfStock) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-xs text-[#b90014] font-black uppercase tracking-wider">
+          <AlertTriangle size={14} className="stroke-[2.5px]" /> SOLD OUT (OUT OF STOCK)
+        </span>
+      );
+    } else if (currentStock <= 5) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 font-black uppercase tracking-wider animate-pulse">
+          <AlertTriangle size={14} className="stroke-[2.5px]" /> ONLY {currentStock} LEFT IN STOCK!
+        </span>
+      );
+    } else {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 font-black uppercase tracking-wider">
+          <CheckCircle2 size={14} className="stroke-[2.5px]" /> IN STOCK ({currentStock} AVAILABLE)
+        </span>
+      );
+    }
+  };
+
+  const handleAddToCart = () => {
+    if (displayedSizesList.length > 0 && !selectedSize) {
+      // Prompt selection
+      alert("Please choose a size first.");
+      return;
+    }
+
+    setIsAdding(true);
+    setTimeout(() => {
+      setIsAdding(false);
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 3500);
+    }, 850);
+  };
 
   return (
-    <div className="max-w-[1600px] mx-auto px-8 py-12">
+    <div className="max-w-[1600px] mx-auto px-8 py-12" id="storefront-product-detail-container">
+      {/* Toast Notice */}
+      <AnimatePresence>
+        {isAdded && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-8 right-8 z-50 bg-[#b90014] text-white p-5 shadow-2xl flex items-center gap-4 border border-red-700/50"
+          >
+            <div className="bg-white/10 p-2 rounded-full">
+              <ShoppingBag size={20} className="text-white" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest leading-none mb-1">ADDED TO SQUAD BAG</p>
+              <p className="text-[10px] text-red-100 uppercase tracking-tight">
+                {product.name} ({selectedAgeGroup ? `${selectedAgeGroup} • ` : ''}size {selectedSize}) x {quantity}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
         
         {/* Left: Image Gallery */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="aspect-[4/5] bg-zinc-50 overflow-hidden relative group">
+        <div className="lg:col-span-12 xl:col-span-7 space-y-4">
+          <div className="aspect-[4/5] bg-zinc-50 overflow-hidden relative group border border-zinc-100">
             {allImages[selectedImage] ? (
               <img 
                 src={allImages[selectedImage]} 
@@ -106,13 +238,13 @@ export function ProductDetailPage() {
               <>
                 <button 
                   onClick={() => setSelectedImage(prev => (prev - 1 + allImages.length) % allImages.length)}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-zinc-900 border border-zinc-100"
                 >
                   <ChevronLeft size={24} />
                 </button>
                 <button 
                   onClick={() => setSelectedImage(prev => (prev + 1) % allImages.length)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-zinc-900 border border-zinc-100"
                 >
                   <ChevronRight size={24} />
                 </button>
@@ -139,10 +271,10 @@ export function ProductDetailPage() {
           )}
         </div>
 
-        {/* Right: Product Info */}
-        <div className="lg:col-span-5 space-y-8">
+        {/* Right: Product Info & Buy Box */}
+        <div className="lg:col-span-12 xl:col-span-5 space-y-8">
           <div>
-            <p className="text-zinc-400 text-xs font-bold uppercase tracking-[0.2em] mb-2">{product.category}</p>
+            <p className="text-zinc-400 text-xs font-black uppercase tracking-[0.2em] mb-2">{product.category}</p>
             <h1 className="text-4xl font-black font-headline uppercase italic tracking-tighter text-zinc-900 leading-none mb-4">
               {product.name}
             </h1>
@@ -185,8 +317,152 @@ export function ProductDetailPage() {
             </div>
           )}
 
+          {/* Age Tiers Selector (If variants has age groups defined) */}
+          {uniqueAgeGroups.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Select Category Level</span>
+              <div className="flex gap-2.5">
+                {uniqueAgeGroups.map((group) => (
+                  <button
+                    key={group}
+                    onClick={() => handleAgeGroupChange(group)}
+                    className={`px-5 py-2.5 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedAgeGroup === group ? 'border-zinc-950 bg-zinc-950 text-white' : 'border-zinc-100 text-zinc-500 hover:border-zinc-200 bg-white'}`}
+                  >
+                    {group}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Sizing grid and Buy Box conditional layout */}
+          {!product.showSizes ? (
+            <div className="p-8 border-2 border-dashed border-zinc-200 bg-zinc-50/50 rounded-2xl text-center my-8 shadow-sm">
+              <p className="text-sm font-headline font-black uppercase tracking-widest text-zinc-600">
+                Sizing information and online ordering coming soon.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Dynamic Size Picker Grid (Disables SOLD OUT size variants) */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Select Size</span>
+                  {renderStockStatus()}
+                </div>
+                
+                <div className="grid grid-cols-4 gap-3">
+                  {displayedSizesList.map((size) => {
+                    const isItemOutOfStock = variants.length > 0 
+                      ? (() => {
+                          const optVariant = variants.find(v => 
+                            (!selectedAgeGroup || v.age_group === selectedAgeGroup) && 
+                            v.size === size
+                          );
+                          return optVariant ? (optVariant.stock_quantity ?? 0) <= 0 : true;
+                        })()
+                      : true; // If variants exist but this size is not in the variants, treat as out of stock
+
+                    const isSelected = selectedSize === size;
+
+                    return (
+                      <button
+                        key={size}
+                        disabled={isItemOutOfStock}
+                        onClick={() => setSelectedSize(isSelected ? null : size)}
+                        className={`h-12 flex flex-col justify-center items-center border-[1.5px] transition-all relative rounded-lg ${
+                          isItemOutOfStock
+                            ? 'border-zinc-200 text-zinc-300 opacity-[0.35] cursor-not-allowed bg-zinc-50/30'
+                            : isSelected
+                              ? 'border-[#b90014] bg-[#b90014]/5 text-zinc-900 font-extrabold shadow-sm'
+                              : 'border-zinc-200 text-zinc-700 hover:border-zinc-900 font-bold bg-white'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wider">{size}</span>
+                        {isItemOutOfStock && (
+                          <svg className="absolute inset-0 w-full h-full text-zinc-300 pointer-events-none" preserveAspectRatio="none">
+                            <line x1="0" y1="100%" x2="100%" y2="0" stroke="currentColor" strokeWidth="1.5" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Buy Box controls (Qty Selector + Actions) */}
+              <div className="border-t border-b border-zinc-100 py-6 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+                {/* Quantity select */}
+                <div className="flex items-center border-2 border-zinc-200 h-14 px-2 select-none justify-between sm:w-44">
+                  <button 
+                    onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                    className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"
+                    title="Decrease quantity"
+                  >
+                    <Minus size={14} className="stroke-[2.5px]" />
+                  </button>
+                  <span className="text-sm font-black font-headline text-zinc-900">{quantity}</span>
+                  <button 
+                    onClick={() => setQuantity(prev => prev + 1)}
+                    className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"
+                    title="Increase quantity"
+                  >
+                    <Plus size={14} className="stroke-[2.5px]" />
+                  </button>
+                </div>
+
+                {/* Main Action Button */}
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isAdding || isOutOfStock}
+                  className="flex-1 h-14 bg-[#b90014] text-white flex items-center justify-center gap-3 font-black uppercase tracking-widest text-xs italic hover:bg-black active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-red-950/10"
+                >
+                  <ShoppingBag size={16} className="stroke-[2.5px]" />
+                  {isAdding 
+                    ? 'Processing...' 
+                    : isOutOfStock 
+                      ? 'SOLD OUT' 
+                      : 'ADD TO SQUAD BAG'}
+                </button>
+
+                {/* Wishlist Button */}
+                <button 
+                  className="h-14 w-14 border-2 border-zinc-200 flex items-center justify-center text-zinc-400 hover:text-[#b90014] hover:border-[#b90014] transition-all hover:bg-red-50/20"
+                  title="Add to wishlist"
+                >
+                  <Heart size={18} className="stroke-[2px]" />
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Shipping & Certifications bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-zinc-500 font-medium">
+            <div className="flex items-center gap-3">
+              <Truck size={18} className="text-[#b90014] flex-shrink-0" />
+              <div className="leading-tight">
+                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-800 leading-none mb-1">Free Delivery</p>
+                <p className="text-[9px] text-zinc-400 leading-none">On all club orders over $150</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <RotateCcw size={18} className="text-[#b90014] flex-shrink-0" />
+              <div className="leading-tight">
+                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-800 leading-none mb-1">Easy Returns</p>
+                <p className="text-[9px] text-zinc-400 leading-none">30 days custom refund policy</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <ShieldCheck size={18} className="text-[#b90014] flex-shrink-0" />
+              <div className="leading-tight">
+                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-800 leading-none mb-1">100% Authentic</p>
+                <p className="text-[9px] text-zinc-400 leading-none">Official tournament licensed gear</p>
+              </div>
+            </div>
+          </div>
+
           {/* Product Details Accordion */}
-          <div className="border-t border-zinc-100 pt-8">
+          <div className="border-t border-zinc-100 pt-8 animate-fade-in">
             <button 
               onClick={() => setIsDescriptionOpen(!isDescriptionOpen)}
               className="w-full flex items-center justify-between bg-[#b90014] text-white p-4 font-black uppercase tracking-widest text-xs italic"
@@ -206,17 +482,18 @@ export function ProductDetailPage() {
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="overflow-hidden"
+                  className="overflow-hidden bg-zinc-50 border-x border-b border-zinc-100"
                 >
-                  <div className="py-6 space-y-4 text-sm text-zinc-600 leading-relaxed">
+                  <div className="p-6 space-y-4 text-xs text-zinc-600 leading-relaxed">
                     <p className="font-bold text-zinc-900 uppercase tracking-tight">{product.name}</p>
-                    <p className="whitespace-pre-line">{product.description}</p>
+                    <p className="whitespace-pre-line leading-relaxed">{product.description}</p>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </div>
+
       </div>
     </div>
   );

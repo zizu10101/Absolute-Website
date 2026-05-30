@@ -38,6 +38,18 @@ export const PosRegister: React.FC = () => {
   const [customerForm, setCustomerForm] = useState({ first_name: '', last_name: '', email: '', phone: '', club_affinity: '' });
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [posMode, setPosMode] = useState<"history" | "void" | "refund" | null>(null);
+
+  useEffect(() => {
+    const handleBarcodeScanner = (e: KeyboardEvent) => {
+      // Very simple barcode listener: listen for Enter key if posMode is void or refund
+      if ((posMode === 'void' || posMode === 'refund') && e.key === 'Enter') {
+        // Assume barSearch is updated via onScan/onChange event listeners
+      }
+    };
+    window.addEventListener('keydown', handleBarcodeScanner);
+    return () => window.removeEventListener('keydown', handleBarcodeScanner);
+  }, [posMode]);
 
   const resetCustomerForm = () => {
     setCustomerForm({ first_name: '', last_name: '', email: '', phone: '', club_affinity: '' });
@@ -176,7 +188,6 @@ export const PosRegister: React.FC = () => {
   const [historyFilter, setHistoryFilter] = useState<'LAST' | 'DAY' | 'WEEK' | 'MONTH' | 'YEAR'>('DAY');
   const [historyPage, setHistoryPage] = useState(0);
   
-  const [posMode, setPosMode] = useState<"history" | "void" | "refund" | null>(null);
   const [barSearch, setBarSearch] = useState("");
 
   // Barcode Scanner Listener
@@ -335,7 +346,7 @@ export const PosRegister: React.FC = () => {
       setTimeout(() => setSuccessMessage(null), 2000);
     } catch (e: any) {
       console.error('Void failed:', e);
-      alert('Action failed: ' + e.message);
+      alert("Server Error: " + e.message);
     }
   };
 
@@ -354,7 +365,7 @@ export const PosRegister: React.FC = () => {
       setTimeout(() => setSuccessMessage(null), 2000);
     } catch (e: any) {
       console.error('Refund failed:', e);
-      alert('Action failed: ' + e.message);
+      alert("Server Error: " + e.message);
     }
   };
 

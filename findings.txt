@@ -1,0 +1,4 @@
+src/pages/AdminPage.tsx:509:    const isShoes = cat.includes('shoe') || cat.includes('footwear') || cat.includes('cleats');
+src/pages/AdminPage.tsx:511:    if (isShoes) {
+src/components/RapidScanIntakeMatrix.tsx:45:    const isShoes = cat.includes('shoe') || cat.includes('footwear') || cat.includes('cleats');
+src/components/RapidScanIntakeMatrix.tsx:47:    if (isShoes) {
