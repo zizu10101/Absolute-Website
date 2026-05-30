@@ -211,13 +211,19 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
     if (!code) return;
 
     // Check bar cache duplication in database or current list
-    const isDuplicate = existingVariants.some(v => v.barcode.toUpperCase() === code) ||
-                        scannedResults.some(r => r.barcode === code);
-    if (isDuplicate) {
-      if (!confirm(`Warning: Barcode "${code}" already exists in stock. Assign it to this sizing variant anyway?`)) {
-        setBarcodeInput('');
-        return;
-      }
+    const isDuplicateInSession = scannedResults.some(r => r.barcode === code);
+    const isDuplicateInDb = existingVariants.some(v => v.barcode?.toUpperCase() === code);
+
+    if (isDuplicateInSession) {
+      alert(`⚠️ Barcode "${code}" was already scanned in this session for another size. Please scan a different barcode.`);
+      setBarcodeInput('');
+      return;
+    }
+
+    if (isDuplicateInDb) {
+      alert(`⚠️ Barcode "${code}" already exists in the database for this product. Please scan a different barcode.`);
+      setBarcodeInput('');
+      return;
     }
 
     setIsSaving(true);
