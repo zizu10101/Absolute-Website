@@ -445,7 +445,20 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
         if (error) throw error;
 
-        setProducts(prev => prev.map(p => p.id === id ? { ...p, ...product } : p));
+        // Force fresh fetch from Supabase to get the actual saved data
+        const { data: fresh, error: fetchErr } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (!fetchErr && fresh) {
+          const mapped = mapProductFromDb(fresh);
+          setProducts(prev => prev.map(p => p.id === id ? mapped : p));
+        } else {
+          setProducts(prev => prev.map(p => p.id === id ? { ...p, ...product } : p));
+        }
+
         clearProductCache();
         return product;
       }
