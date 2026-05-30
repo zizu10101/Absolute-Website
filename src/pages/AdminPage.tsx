@@ -1940,6 +1940,14 @@ function AdminPageInner() {
     }
   };
 
+  // Sanitize editing product images to prevent undefined crashes
+  if (editingProduct) {
+    if (editingProduct.image === undefined) editingProduct.image = '';
+    if (editingProduct.images) {
+      editingProduct.images = editingProduct.images.filter((i: any) => i !== null && i !== undefined).map((i: any) => String(i));
+    }
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
@@ -1956,7 +1964,7 @@ function AdminPageInner() {
                     if (!resp.ok) {
                       const text = await resp.text();
                       console.error('Server error response:', text);
-                      throw new Error(`Server returned ${resp.status}: ${text.substring(0, 100)}...`);
+                      throw new Error(`Server returned ${resp.status}: ${(text || '').substring(0, 100)}...`);
                     }
 
                     const data = await resp.json();
@@ -4098,7 +4106,7 @@ function AdminPageInner() {
                            <div className="py-4 text-center text-zinc-400 italic">No products currently loaded in memory.</div>
                         ) : products.map(p => (
                           <div key={p.id} className="mb-1 border-b border-zinc-50 pb-1 flex justify-between">
-                            <span>ID: {p.id} | NAME: {p.name.substring(0, 30)}...</span>
+                            <span>ID: {p.id} | NAME: {(p.name || '').substring(0, 30)}...</span>
                             <span className="text-zinc-300">[{p.category}]</span>
                           </div>
                         ))}
@@ -4264,93 +4272,97 @@ function AdminPageInner() {
                       Product Images <span className="text-zinc-400 normal-case font-normal">(first image is the main one)</span>
                     </label>
                     <div className="space-y-3">
-                      {[editingProduct.image, ...(editingProduct.images || [])].filter(img => img !== null && img !== undefined).map((img, idx) => {
-                        const allImgs = [editingProduct.image, ...(editingProduct.images || [])].filter(img => img !== null && img !== undefined);
-                        const isMain = idx === 0;
-                        return (
-                          <div key={idx} className="flex gap-2 items-center">
-                            <div className="flex flex-col gap-1">
+                      {(() => {
+                        const allImgs = [editingProduct.image, ...(editingProduct.images || [])]
+                          .filter(img => img !== null && img !== undefined)
+                          .map(i => String(i || ''));
+                        return allImgs.map((img_safe, idx) => {
+                          const isMain = idx === 0;
+                          return (
+                            <div key={idx} className="flex gap-2 items-center">
+                              <div className="flex flex-col gap-1">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => {
+                                    const imgs = [editingProduct.image, ...(editingProduct.images || [])];
+                                    [imgs[idx - 1], imgs[idx]] = [imgs[idx], imgs[idx - 1]];
+                                    setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
+                                  }}
+                                  className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
+                                >▲</button>
+                                <button
+                                  type="button"
+                                  disabled={idx === allImgs.length - 1}
+                                  onClick={() => {
+                                    const imgs = [editingProduct.image, ...(editingProduct.images || [])];
+                                    [imgs[idx + 1], imgs[idx]] = [imgs[idx], imgs[idx + 1]];
+                                    setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
+                                  }}
+                                  className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
+                                >▼</button>
+                              </div>
+                              <div className="relative w-10 h-10 rounded bg-zinc-100 border border-zinc-200 overflow-hidden flex-shrink-0">
+                                {img_safe ? (
+                                  <img src={img_safe} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-zinc-300">
+                                    <ImageIcon size={14} />
+                                  </div>
+                                )}
+                                {isMain && (
+                                  <span className="absolute bottom-0 left-0 right-0 bg-zinc-900/70 text-white text-[6px] font-black uppercase text-center tracking-widest py-0.5">Main</span>
+                                )}
+                              </div>
+                              <div className="flex-1 flex flex-col gap-2">
+                                <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-100 text-zinc-900 rounded font-bold uppercase tracking-widest text-[8px] cursor-pointer hover:bg-zinc-200 transition-colors w-fit">
+                                  <Upload size={12} /> Upload
+                                  <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    setIsUploading(true);
+                                    const reader = new FileReader();
+                                    reader.onloadend = async () => {
+                                      try {
+                                        const resized = await resizeImage(reader.result as string, 1000, 1250, 0.8);
+                                        const path = `products/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+                                        const publicUrl = await uploadImage(resized, path);
+                                        const imgs = [editingProduct.image, ...(editingProduct.images || [])];
+                                        imgs[idx] = publicUrl;
+                                        setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
+                                      } catch (err) {
+                                        console.error("Image upload failed:", err);
+                                      } finally {
+                                        setIsUploading(false);
+                                      }
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }} />
+                                </label>
+                                <input
+                                  className="flex-1 p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[#b90014] outline-none"
+                                  placeholder="Or paste image URL..."
+                                  value={img_safe || ''}
+                                  onChange={e => {
+                                    const imgs = [editingProduct.image, ...(editingProduct.images || [])];
+                                    imgs[idx] = e.target.value;
+                                    setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
+                                  }}
+                                />
+                              </div>
                               <button
-                                type="button"
-                                disabled={idx === 0}
                                 onClick={() => {
-                                  const imgs = [editingProduct.image, ...(editingProduct.images || [])];
-                                  [imgs[idx - 1], imgs[idx]] = [imgs[idx], imgs[idx - 1]];
-                                  setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
+                                  const imgs = [editingProduct.image, ...(editingProduct.images || [])].filter((_, i) => i !== idx);
+                                  setEditingProduct({...editingProduct, image: imgs[0] || '', images: imgs.slice(1)});
                                 }}
-                                className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                              >▲</button>
-                              <button
-                                type="button"
-                                disabled={idx === allImgs.length - 1}
-                                onClick={() => {
-                                  const imgs = [editingProduct.image, ...(editingProduct.images || [])];
-                                  [imgs[idx + 1], imgs[idx]] = [imgs[idx], imgs[idx + 1]];
-                                  setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
-                                }}
-                                className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                              >▼</button>
+                                className="p-2 text-zinc-400 hover:text-red-600 transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
                             </div>
-                            <div className="relative w-10 h-10 rounded bg-zinc-100 border border-zinc-200 overflow-hidden flex-shrink-0">
-                              {img ? (
-                                <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                                  <ImageIcon size={14} />
-                                </div>
-                              )}
-                              {isMain && (
-                                <span className="absolute bottom-0 left-0 right-0 bg-zinc-900/70 text-white text-[6px] font-black uppercase text-center tracking-widest py-0.5">Main</span>
-                              )}
-                            </div>
-                            <div className="flex-1 flex flex-col gap-2">
-                              <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-100 text-zinc-900 rounded font-bold uppercase tracking-widest text-[8px] cursor-pointer hover:bg-zinc-200 transition-colors w-fit">
-                                <Upload size={12} /> Upload
-                                <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  setIsUploading(true);
-                                  const reader = new FileReader();
-                                  reader.onloadend = async () => {
-                                    try {
-                                      const resized = await resizeImage(reader.result as string, 1000, 1250, 0.8);
-                                      const path = `products/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-                                      const publicUrl = await uploadImage(resized, path);
-                                      const imgs = [editingProduct.image, ...(editingProduct.images || [])];
-                                      imgs[idx] = publicUrl;
-                                      setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
-                                    } catch (err) {
-                                      console.error("Image upload failed:", err);
-                                    } finally {
-                                      setIsUploading(false);
-                                    }
-                                  };
-                                  reader.readAsDataURL(file);
-                                }} />
-                              </label>
-                              <input
-                                className="flex-1 p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[#b90014] outline-none"
-                                placeholder="Or paste image URL..."
-                                value={img || ''}
-                                onChange={e => {
-                                  const imgs = [editingProduct.image, ...(editingProduct.images || [])];
-                                  imgs[idx] = e.target.value;
-                                  setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
-                                }}
-                              />
-                            </div>
-                            <button
-                              onClick={() => {
-                                const imgs = [editingProduct.image, ...(editingProduct.images || [])].filter((_, i) => i !== idx);
-                                setEditingProduct({...editingProduct, image: imgs[0] || '', images: imgs.slice(1)});
-                              }}
-                              className="p-2 text-zinc-400 hover:text-red-600 transition-colors"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
                       <button
                         onClick={() => setEditingProduct({...editingProduct, images: [...(editingProduct.images || []), '']})}
                         className="w-full py-2 border border-dashed border-zinc-200 rounded text-[10px] font-bold text-zinc-400 hover:text-zinc-900 transition-all uppercase tracking-widest"
