@@ -850,11 +850,28 @@ function AdminPageInner() {
         const allImages = [editingProduct.image, ...(editingProduct.images || [])]
           .filter(i => i !== null && i !== undefined && typeof i === 'string' && i !== '');
 
+        // Upload any base64 images to Supabase Storage first
+        setIsUploading(true);
+        const uploadedImages = await Promise.all(allImages.map(async (img) => {
+          if (img && img.startsWith('data:')) {
+            try {
+              const resized = await resizeImage(img, 1000, 1250, 0.8);
+              const path = `products/${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+              return await uploadImage(resized, path);
+            } catch (err) {
+              console.error("Image upload failed:", err);
+              return img;
+            }
+          }
+          return img;
+        }));
+        setIsUploading(false);
+
         const productData = { 
           ...editingProduct,
           price: priceNum,
-          image: allImages[0] || editingProduct.image || '',
-          images: allImages.slice(1)
+          image: uploadedImages[0] || editingProduct.image || '',
+          images: uploadedImages.slice(1)
         };
         if (!productData.isOnSale) {
           delete productData.salePrice;
