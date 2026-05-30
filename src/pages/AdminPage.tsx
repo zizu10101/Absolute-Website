@@ -840,8 +840,8 @@ function AdminPageInner() {
           editingProduct.image,
           ...(editingProduct.images || []),
           ...(editingProduct.colors?.flatMap(c => c.images || []) || [])
-        ];
-        if (imageFields.some(f => f && isNewBase64Image(f))) {
+        ].filter(f => f !== null && f !== undefined && typeof f === 'string');
+        if (imageFields.some(f => isNewBase64Image(f))) {
           setEditErrorMessage('Image upload in progress. Please wait.');
           setEditStatus('error');
           return;
@@ -849,7 +849,9 @@ function AdminPageInner() {
 
         const productData = { 
           ...editingProduct,
-          price: priceNum
+          price: priceNum,
+          image: editingProduct.image || '',
+          images: (editingProduct.images || []).filter(i => i !== null && i !== undefined && typeof i === 'string')
         };
         if (!productData.isOnSale) {
           delete productData.salePrice;
@@ -1311,8 +1313,12 @@ function AdminPageInner() {
   };
 
   const containsBase64 = (obj: any): boolean => {
-    const str = JSON.stringify(obj);
-    return str.includes('data:image');
+    try {
+      const str = JSON.stringify(obj);
+      return str ? str.includes('data:image') : false;
+    } catch {
+      return false;
+    }
   };
 
   const sanitizeNavMenus = async (menus: NavMenu[]): Promise<NavMenu[]> => {
@@ -4258,8 +4264,8 @@ function AdminPageInner() {
                       Product Images <span className="text-zinc-400 normal-case font-normal">(first image is the main one)</span>
                     </label>
                     <div className="space-y-3">
-                      {[editingProduct.image, ...(editingProduct.images || [])].map((img, idx) => {
-                        const allImgs = [editingProduct.image, ...(editingProduct.images || [])];
+                      {[editingProduct.image, ...(editingProduct.images || [])].filter(img => img !== null && img !== undefined).map((img, idx) => {
+                        const allImgs = [editingProduct.image, ...(editingProduct.images || [])].filter(img => img !== null && img !== undefined);
                         const isMain = idx === 0;
                         return (
                           <div key={idx} className="flex gap-2 items-center">
