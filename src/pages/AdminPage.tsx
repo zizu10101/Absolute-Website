@@ -146,7 +146,8 @@ function AdminPageInner() {
     isFeatured: true,
     is_online: true,
     salePrice: 0,
-    colors: []
+    colors: [],
+    release_date: null
   });
 
   const availableCategories = useMemo(() => {
@@ -779,7 +780,8 @@ function AdminPageInner() {
         isFeatured: true,
         is_online: true,
         salePrice: 0,
-        colors: []
+        colors: [],
+        release_date: null
       });
       setTimeout(() => setAddStatus('idle'), 3000);
       await resetProducts();
@@ -3458,6 +3460,27 @@ function AdminPageInner() {
                       </motion.div>
                     )}
 
+                    <div className="pt-2">
+                      <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
+                        Release Date (optional — hides sizes until this date)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={newProduct.release_date ? new Date(newProduct.release_date).toISOString().slice(0, 16) : ''}
+                        onChange={e => setNewProduct({...newProduct, release_date: e.target.value ? new Date(e.target.value).toISOString() : null})}
+                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                      />
+                      {newProduct.release_date && (
+                        <button
+                          type="button"
+                          onClick={() => setNewProduct({...newProduct, release_date: null})}
+                          className="mt-1 text-[9px] text-red-500 hover:underline uppercase tracking-widest font-bold cursor-pointer"
+                        >
+                          Clear release date
+                        </button>
+                      )}
+                    </div>
+
                     {/* PRODUCT SIZING & AGE GROUP VARIANT ENGINE FOR NEW PRODUCT (RAPID INTENSIVE) */}
                     <div className="mt-8 border-t border-zinc-200 pt-8" id="product-variants-creation-section">
                       <RapidScanIntakeMatrix
@@ -4171,6 +4194,26 @@ function AdminPageInner() {
                               onChange={e => setEditingProduct({...editingProduct, salePrice: parseFloat(e.target.value)})} 
                             />
                           </div>
+                        )}
+                      </div>
+                      <div className="pt-2">
+                        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
+                          Release Date (optional — hides sizes until this date)
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={editingProduct.release_date ? new Date(editingProduct.release_date).toISOString().slice(0, 16) : ''}
+                          onChange={e => setEditingProduct({...editingProduct, release_date: e.target.value ? new Date(e.target.value).toISOString() : null})}
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                        />
+                        {editingProduct.release_date && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingProduct({...editingProduct, release_date: null})}
+                            className="mt-1 text-[9px] text-red-500 hover:underline uppercase tracking-widest font-bold cursor-pointer"
+                          >
+                            Clear release date
+                          </button>
                         )}
                       </div>
                     </div>

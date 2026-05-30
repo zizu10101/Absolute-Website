@@ -194,7 +194,7 @@ async function startServer() {
     const allowedColumns = [
       'id', 'name', 'price', 'category', 'submenu', 'submenus',
       'image', 'images', 'description', 'isNewArrival', 'isOnSale',
-      'isFeatured', 'salePrice', 'colors'
+      'isFeatured', 'salePrice', 'colors', 'show_sizes', 'is_online', 'release_date'
     ];
     const cleaned: any = {};
     for (const col of allowedColumns) {

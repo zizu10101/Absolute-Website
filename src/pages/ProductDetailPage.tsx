@@ -334,11 +334,20 @@ export function ProductDetailPage() {
           )}
 
           {/* Sizing grid and Buy Box conditional layout */}
-          {!product.showSizes ? (
-            <div className="p-8 border-2 border-dashed border-zinc-200 bg-zinc-50/50 rounded-2xl text-center my-8 shadow-sm">
-              <p className="text-sm font-headline font-black uppercase tracking-widest text-zinc-600">
-                Sizing information and online ordering coming soon.
-              </p>
+          {!product.showSizes || (product.release_date && new Date(product.release_date) > new Date()) ? (
+            <div className="p-6 bg-[#b90014] rounded-xl text-center my-6 shadow-lg shadow-red-900/20">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                <p className="text-sm font-black uppercase tracking-widest text-white">
+                  Coming Soon
+                </p>
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              </div>
+              {product.release_date && new Date(product.release_date) > new Date() && (
+                <p className="text-[10px] text-red-200 mt-1 uppercase tracking-widest font-bold">
+                  Available {new Date(product.release_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                </p>
+              )}
             </div>
           ) : (
             <>

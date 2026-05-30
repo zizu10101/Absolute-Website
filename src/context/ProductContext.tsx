@@ -25,6 +25,7 @@ export interface Product {
   colors?: ColorVariant[];
   is_online?: boolean;
   showSizes?: boolean;
+  release_date?: string | null;
 }
 
 interface ProductContextType {
@@ -84,7 +85,8 @@ export const mapProductFromDb = (p: any): Product => {
     salePrice: rawSalePrice,
     submenus: sub,
     is_online: isOnlineValue,
-    showSizes: p.show_sizes === true || p.show_sizes === 'true' || p.show_sizes === 1 || p.showSizes === true
+    showSizes: p.show_sizes === true || p.show_sizes === 'true' || p.show_sizes === 1 || p.showSizes === true,
+    release_date: p.release_date || null
   };
 };
 
@@ -381,7 +383,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         console.log('Trying direct Supabase fallback...');
         const allowedColumns = [
           'name', 'price', 'category', 'submenu', 'submenus', 'image', 'images', 
-          'description', 'isNewArrival', 'isOnSale', 'isFeatured', 'salePrice', 'colors', 'is_online', 'show_sizes'
+          'description', 'isNewArrival', 'isOnSale', 'isFeatured', 'salePrice', 'colors', 'is_online', 'show_sizes', 'release_date'
         ];
         const cleanPayload: any = {};
         for (const col of allowedColumns) {
@@ -454,7 +456,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         const { id } = payload;
         const allowedColumns = [
           'name', 'price', 'category', 'submenu', 'submenus', 'image', 'images', 
-          'description', 'isNewArrival', 'isOnSale', 'isFeatured', 'salePrice', 'colors', 'is_online', 'show_sizes'
+          'description', 'isNewArrival', 'isOnSale', 'isFeatured', 'salePrice', 'colors', 'is_online', 'show_sizes', 'release_date'
         ];
         const cleanPayload: any = {};
         for (const col of allowedColumns) {
