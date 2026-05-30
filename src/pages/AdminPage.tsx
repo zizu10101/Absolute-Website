@@ -847,11 +847,14 @@ function AdminPageInner() {
           return;
         }
 
+        const allImages = [editingProduct.image, ...(editingProduct.images || [])]
+          .filter(i => i !== null && i !== undefined && typeof i === 'string' && i !== '');
+
         const productData = { 
           ...editingProduct,
           price: priceNum,
-          image: editingProduct.image || '',
-          images: (editingProduct.images || []).filter(i => i !== null && i !== undefined && typeof i === 'string')
+          image: allImages[0] || editingProduct.image || '',
+          images: allImages.slice(1)
         };
         if (!productData.isOnSale) {
           delete productData.salePrice;
@@ -860,6 +863,7 @@ function AdminPageInner() {
           productData.salePrice = isNaN(sPriceNum) ? 0 : sPriceNum;
         }
 
+        console.log('Saving product with images:', productData.image, productData.images);
         await updateProduct(productData);
         await resetProducts();
         
