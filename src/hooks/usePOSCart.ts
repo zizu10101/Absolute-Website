@@ -10,6 +10,7 @@ export interface CartItem {
   discountPercent?: number; // percentage (0 - 100)
   isOnSale?: boolean;
   salePrice?: number;
+  variantId?: string;
 }
 
 export function usePOSCart() {
@@ -26,6 +27,7 @@ export function usePOSCart() {
       const activePrice = product.isOnSale && product.salePrice ? product.salePrice : product.price;
       return [...prev, { 
         id: product.id, 
+        variantId: product.variantId || (product.id.startsWith('var-') ? product.id.replace('var-', '') : undefined),
         name: product.name, 
         price: activePrice, 
         originalPrice: product.price, 

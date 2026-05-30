@@ -210,6 +210,7 @@ export const PosRegister: React.FC = () => {
                 const v = payload.data;
                 const formattedCartItem = {
                   id: `var-${v.id}`,
+                  variantId: v.id,
                   name: `${v.product.name} [${v.age_group} - ${v.size}]`,
                   price: v.product.isOnSale && v.product.salePrice ? v.product.salePrice : v.product.price,
                   category: v.product.category,
@@ -422,6 +423,29 @@ export const PosRegister: React.FC = () => {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Failed to save transaction');
 
+      // Deduct stock for each item sold
+      for (const item of cart) {
+        const variantId = item.variantId || (item.id.startsWith('var-') ? item.id.replace('var-', '') : null);
+        if (variantId) {
+          try {
+            const { data: variant } = await supabase
+              .from('product_variants')
+              .select('stock_quantity')
+              .eq('id', variantId)
+              .single();
+            if (variant) {
+              const newQty = Math.max(0, (variant.stock_quantity || 0) - (item.quantity || 1));
+              await supabase
+                .from('product_variants')
+                .update({ stock_quantity: newQty })
+                .eq('id', variantId);
+            }
+          } catch (err) {
+            console.error("Error auto-deducting stock inside POS for variantId ", variantId, err);
+          }
+        }
+      }
+
       setCheckoutSuccess({
         method,
         items: [...cart],
@@ -500,6 +524,7 @@ export const PosRegister: React.FC = () => {
                           const v = payload.data;
                           const formattedCartItem = {
                             id: `var-${v.id}`,
+                            variantId: v.id,
                             name: `${v.product.name} [${v.age_group} - ${v.size}]`,
                             price: v.product.isOnSale && v.product.salePrice ? v.product.salePrice : v.product.price,
                             category: v.product.category,

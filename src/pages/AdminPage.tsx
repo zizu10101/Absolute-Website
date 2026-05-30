@@ -4479,7 +4479,42 @@ function AdminPageInner() {
                                   <td className="p-3 font-bold uppercase text-zinc-900">{v.age_group}</td>
                                   <td className="p-3 font-mono font-bold text-zinc-700 bg-zinc-50">{v.size}</td>
                                   <td className="p-3 font-mono font-bold text-[#b90014]">{v.barcode}</td>
-                                  <td className="p-3 font-semibold text-zinc-650">{v.stock_quantity} units</td>
+                                  <td className="p-3">
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          const newQty = Math.max(0, (v.stock_quantity || 0) - 1);
+                                          await supabase.from('product_variants').update({ stock_quantity: newQty }).eq('id', v.id);
+                                          setEditingProductVariants(prev => prev.map(x => x.id === v.id ? { ...x, stock_quantity: newQty } : x));
+                                        }}
+                                        className="w-6 h-6 bg-zinc-200 hover:bg-zinc-300 rounded font-bold text-zinc-700 flex items-center justify-center text-sm cursor-pointer"
+                                      >−</button>
+                                      <input
+                                        type="number"
+                                        value={v.stock_quantity || 0}
+                                        onChange={async (e) => {
+                                          const newQty = Math.max(0, parseInt(e.target.value) || 0);
+                                          setEditingProductVariants(prev => prev.map(x => x.id === v.id ? { ...x, stock_quantity: newQty } : x));
+                                        }}
+                                        onBlur={async (e) => {
+                                          const newQty = Math.max(0, parseInt(e.target.value) || 0);
+                                          await supabase.from('product_variants').update({ stock_quantity: newQty }).eq('id', v.id);
+                                        }}
+                                        className="w-16 text-center p-1 border border-zinc-200 rounded text-xs font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          const newQty = (v.stock_quantity || 0) + 1;
+                                          await supabase.from('product_variants').update({ stock_quantity: newQty }).eq('id', v.id);
+                                          setEditingProductVariants(prev => prev.map(x => x.id === v.id ? { ...x, stock_quantity: newQty } : x));
+                                        }}
+                                        className="w-6 h-6 bg-zinc-200 hover:bg-zinc-300 rounded font-bold text-zinc-700 flex items-center justify-center text-sm cursor-pointer"
+                                      >+</button>
+                                      <span className="text-[9px] text-zinc-400 uppercase tracking-widest">units</span>
+                                    </div>
+                                  </td>
                                   <td className="p-3 text-right">
                                     <button
                                       type="button"

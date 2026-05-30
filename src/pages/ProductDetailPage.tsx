@@ -166,28 +166,16 @@ export function ProductDetailPage() {
   const renderStockStatus = () => {
     if (!isStockDefined) return null;
     if (!selectedSize) return (
-      <p className="text-xs text-zinc-400 font-medium">Please select a size to check live availability</p>
+      <span className="text-xs text-zinc-500">Please select a size to check live availability</span>
     );
 
-    if (currentStock === null || isOutOfStock) {
-      return (
-        <span className="inline-flex items-center gap-1.5 text-xs text-[#b90014] font-black uppercase tracking-wider">
-          <AlertTriangle size={14} className="stroke-[2.5px]" /> SOLD OUT (OUT OF STOCK)
-        </span>
-      );
-    } else if (currentStock <= 5) {
-      return (
-        <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 font-black uppercase tracking-wider animate-pulse">
-          <AlertTriangle size={14} className="stroke-[2.5px]" /> ONLY {currentStock} LEFT IN STOCK!
-        </span>
-      );
-    } else {
-      return (
-        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 font-black uppercase tracking-wider">
-          <CheckCircle2 size={14} className="stroke-[2.5px]" /> IN STOCK ({currentStock} AVAILABLE)
-        </span>
-      );
-    }
+    const variant = variants.find(v => v.size === selectedSize && v.age_group === selectedAgeGroup);
+    const qty = variant?.stock_quantity || 0;
+    return (
+      <span className={`text-xs font-bold uppercase tracking-widest ${qty === 0 ? 'text-red-500' : qty <= 3 ? 'text-amber-500' : 'text-green-600'}`}>
+        {qty === 0 ? 'Out of Stock' : qty <= 3 ? `Only ${qty} left!` : `${qty} in stock`}
+      </span>
+    );
   };
 
   const handleAddToCart = () => {
@@ -380,15 +368,15 @@ export function ProductDetailPage() {
                         key={size}
                         disabled={isItemOutOfStock}
                         onClick={() => setSelectedSize(isSelected ? null : size)}
-                        className={`h-12 flex flex-col justify-center items-center border-[1.5px] transition-all relative rounded-lg ${
+                        className={`h-12 flex flex-col justify-center items-center border transition-all relative rounded-lg ${
                           isItemOutOfStock
-                            ? 'border-zinc-200 text-zinc-300 opacity-[0.35] cursor-not-allowed bg-zinc-50/30'
+                            ? 'border-zinc-200 text-zinc-400 cursor-not-allowed bg-zinc-50'
                             : isSelected
-                              ? 'border-[#b90014] bg-[#b90014]/5 text-zinc-900 font-extrabold shadow-sm'
-                              : 'border-zinc-200 text-zinc-700 hover:border-zinc-900 font-bold bg-white'
+                              ? 'border-2 border-zinc-900 bg-zinc-900 text-white font-extrabold shadow-sm'
+                              : 'border-zinc-300 text-zinc-900 hover:border-zinc-900 font-bold bg-white'
                         }`}
                       >
-                        <span className="text-xs uppercase tracking-wider">{size}</span>
+                        <span className={`text-xs tracking-wider ${isItemOutOfStock ? 'font-medium line-through decoration-zinc-400' : 'font-black'}`}>{size}</span>
                         {isItemOutOfStock && (
                           <svg className="absolute inset-0 w-full h-full text-zinc-300 pointer-events-none" preserveAspectRatio="none">
                             <line x1="0" y1="100%" x2="100%" y2="0" stroke="currentColor" strokeWidth="1.5" />
