@@ -3266,6 +3266,28 @@ function AdminPageInner() {
                       <div className="space-y-3">
                         {(newProduct.images || []).map((img, idx) => (
                           <div key={idx} className="flex gap-2 items-center">
+                            <div className="flex flex-col gap-1">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => {
+                                  const imgs = [...(newProduct.images || [])];
+                                  [imgs[idx - 1], imgs[idx]] = [imgs[idx], imgs[idx - 1]];
+                                  setNewProduct({...newProduct, images: imgs});
+                                }}
+                                className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
+                              >▲</button>
+                              <button
+                                type="button"
+                                disabled={idx === (newProduct.images || []).length - 1}
+                                onClick={() => {
+                                  const imgs = [...(newProduct.images || [])];
+                                  [imgs[idx + 1], imgs[idx]] = [imgs[idx], imgs[idx + 1]];
+                                  setNewProduct({...newProduct, images: imgs});
+                                }}
+                                className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
+                              >▼</button>
+                            </div>
                             <div className="w-10 h-10 rounded bg-zinc-100 border border-zinc-200 overflow-hidden flex-shrink-0">
                               {img ? (
                                 <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -4245,6 +4267,28 @@ function AdminPageInner() {
                     <div className="space-y-3">
                       {(editingProduct.images || []).map((img, idx) => (
                         <div key={idx} className="flex gap-2 items-center">
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => {
+                                const imgs = [...(editingProduct.images || [])];
+                                [imgs[idx - 1], imgs[idx]] = [imgs[idx], imgs[idx - 1]];
+                                setEditingProduct({...editingProduct, images: imgs});
+                              }}
+                              className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
+                            >▲</button>
+                            <button
+                              type="button"
+                              disabled={idx === (editingProduct.images || []).length - 1}
+                              onClick={() => {
+                                const imgs = [...(editingProduct.images || [])];
+                                [imgs[idx + 1], imgs[idx]] = [imgs[idx], imgs[idx + 1]];
+                                setEditingProduct({...editingProduct, images: imgs});
+                              }}
+                              className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
+                            >▼</button>
+                          </div>
                           <div className="w-10 h-10 rounded bg-zinc-100 border border-zinc-200 overflow-hidden flex-shrink-0">
                             {img ? (
                               <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
