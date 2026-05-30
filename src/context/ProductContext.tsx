@@ -407,72 +407,51 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateProduct = async (updatedProduct: Product) => {
-    const normalizePath = (p: string | undefined) => {
-      if (!p) return p;
-      let val = (p + '').trim();
-      if (val.startsWith('http') || val.startsWith('data:')) return val;
-      let normalized = val.toLowerCase();
-      if (!normalized.startsWith('/')) normalized = '/' + normalized;
-      return normalized;
-    };
-    const normalizeString = (s: string | undefined) => {
-      if (!s) return s;
-      return (s + '').trim().toLowerCase();
-    };
+  const clearProductCache = () => {
+    // Safely clear any product search or filtration state/cache
+  };
 
-    const normalizedData = {
-      ...updatedProduct,
-      image: normalizePath(updatedProduct.image),
-      images: updatedProduct.images?.map(img => normalizePath(img)),
-      category: updatedProduct.category ? (updatedProduct.category + '').trim() : '',
-      submenu: normalizeString(updatedProduct.submenu),
-      submenus: updatedProduct.submenus?.map(s => normalizeString(s))
-    };
-
-    // Serialize is_online to submenus and strip column for table schema compatibility
-    const payload = mapProductToDb(normalizedData);
-
+  const updateProduct = async (product: Product) => {
     try {
-      const response = await fetch(`/api/products/${updatedProduct.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!response.ok) {
-        const errPayload = await response.json().catch(() => ({}));
-        throw new Error(errPayload.message || errPayload.error || `API failed: ${response.status}`);
-      }
-      const data = await response.json();
-      setProducts(prev => prev.map(p => p.id === (data?.id || updatedProduct.id) ? mapProductFromDb({ ...updatedProduct, ...data }) : p));
-      await fetchAdminProducts();
-    } catch (e: any) {
-      console.warn('API update product failed:', e);
-      if (e.message?.includes('RLS') || e.message?.includes('row-level security')) {
-        throw e;
-      }
-      try {
-        console.log('Trying direct Supabase fallback...');
-        const { id } = payload;
-        const allowedColumns = [
-          'name', 'price', 'category', 'submenu', 'submenus', 'image', 'images', 
-          'description', 'isNewArrival', 'isOnSale', 'isFeatured', 'salePrice', 'colors', 'is_online', 'show_sizes', 'release_date'
-        ];
-        const cleanPayload: any = {};
-        for (const col of allowedColumns) {
-          if (payload[col] !== undefined) {
-            cleanPayload[col] = payload[col];
-          }
-        }
-        const { data, error } = await supabase.from('products').update(cleanPayload).eq('id', id).select();
+      if (supabase) {
+        const { id, ...rest } = product as any;
+        
+        const payload: any = {
+          name: rest.name,
+          price: rest.price,
+          category: rest.category,
+          submenu: rest.submenu,
+          submenus: rest.submenus,
+          image: rest.image,
+          images: rest.images,
+          description: rest.description,
+          isNewArrival: rest.isNewArrival,
+          isOnSale: rest.isOnSale,
+          isFeatured: rest.isFeatured,
+          salePrice: rest.salePrice,
+          colors: rest.colors,
+          show_sizes: rest.showSizes,
+          is_online: rest.is_online,
+          release_date: rest.release_date || null
+        };
+
+        // Remove undefined values
+        Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+
+        const { error } = await supabase
+          .from('products')
+          .update(payload)
+          .eq('id', id);
+
         if (error) throw error;
-        const updatedProduct = data && data.length > 0 ? data[0] : null;
-        setProducts(prev => prev.map(p => p.id === id ? mapProductFromDb({ ...updatedProduct, ...(updatedProduct || {}) }) : p));
-        await fetchAdminProducts();
-      } catch (supErr: any) {
-        console.error('Direct Supabase update product also failed:', supErr);
-        throw supErr;
+
+        setProducts(prev => prev.map(p => p.id === id ? { ...p, ...product } : p));
+        clearProductCache();
+        return product;
       }
+    } catch (err: any) {
+      console.error('Direct Supabase update failed:', err);
+      throw err;
     }
   };
 
