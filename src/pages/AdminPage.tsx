@@ -428,17 +428,30 @@ function AdminPageInner() {
     let active = true;
     if (editingProduct && editingProduct.id) {
       setVariantsLoading(true);
-      fetch(`/api/products/${editingProduct.id}/variants`)
-        .then(res => res.json())
-        .then(data => {
+      (async () => {
+        try {
+          const { data, error } = await supabase
+            .from('product_variants')
+            .select('*')
+            .eq('product_id', editingProduct.id)
+            .order('age_group')
+            .order('size');
+            
           if (active) {
-            setEditingProductVariants(data.data || []);
+            if (!error && data) {
+              setEditingProductVariants(data);
+            } else {
+              console.error("Error loading variants:", error);
+              setEditingProductVariants([]);
+            }
           }
-        })
-        .catch(err => console.error("Error loading product variants:", err))
-        .finally(() => {
+        } catch (err) {
+          console.error("Error loading variants:", err);
+          if(active) setEditingProductVariants([]);
+        } finally {
           if (active) setVariantsLoading(false);
-        });
+        }
+      })();
     } else {
       setEditingProductVariants([]);
     }
@@ -446,63 +459,52 @@ function AdminPageInner() {
   }, [editingProduct?.id]);
 
   const handleAddVariant = async () => {
-    if (!editingProduct || !editingProduct.id) return;
+    if (!editingProduct?.id) return;
     if (!newVariantSize.trim()) {
-      alert("Please specify a sizing label (e.g. Medium, Size 5).");
+      alert("Please enter a size.");
       return;
     }
-    if (!newVariantBarcode.trim()) {
-      alert("A unique barcode is required.");
-      return;
-    }
+    const barcodeValue = newVariantBarcode.trim() || 
+      `${editingProduct.id.slice(0,8)}-${newVariantAgeGroup.slice(0,1)}-${newVariantSize.replace('.','_')}-${Date.now()}`.toUpperCase();
     try {
-      const response = await fetch(`/api/products/${editingProduct.id}/variants`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { error } = await supabase
+        .from('product_variants')
+        .upsert([{
+          product_id: editingProduct.id,
           age_group: newVariantAgeGroup,
-          size: newVariantSize,
-          barcode: newVariantBarcode,
+          size: newVariantSize.trim(),
+          barcode: barcodeValue,
           stock_quantity: newVariantQuantity
-        })
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          const variantsRes = await fetch(`/api/products/${editingProduct.id}/variants`);
-          const variantsData = await variantsRes.json();
-          setEditingProductVariants(variantsData.data || []);
-          setNewVariantSize('');
-          setNewVariantBarcode('');
-        } else {
-          alert('Error: ' + result.error);
-        }
-      } else {
-        const errData = await response.json();
-        alert('Failed: ' + (errData.error || response.statusText));
-      }
+        }], { onConflict: 'barcode' });
+      if (error) throw error;
+      const { data: fresh } = await supabase
+        .from('product_variants')
+        .select('*')
+        .eq('product_id', editingProduct.id)
+        .order('size');
+      setEditingProductVariants(fresh || []);
+      setNewVariantSize('');
+      setNewVariantBarcode('');
+      setNewVariantQuantity(0);
+      alert('Variant saved!');
     } catch (err: any) {
-      console.error(err);
-      alert('Network error when registering variant: ' + err.message);
+      alert('Error: ' + err.message);
     }
   };
 
   const handleDeleteVariant = async (variantId: string) => {
-    if (!editingProduct || !editingProduct.id) return;
-    if (!confirm("Are you sure you want to delete this size variant?")) return;
     try {
-      const response = await fetch(`/api/products/${editingProduct.id}/variants/delete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ variantId })
-      });
-      if (response.ok) {
-        const variantsRes = await fetch(`/api/products/${editingProduct.id}/variants`);
-        const variantsData = await variantsRes.json();
-        setEditingProductVariants(variantsData.data || []);
-      }
-    } catch (err) {
+      const { error } = await supabase
+        .from('product_variants')
+        .delete()
+        .eq('id', variantId);
+      
+      if (error) throw error;
+      
+      setEditingProductVariants(prev => prev.filter(v => v.id !== variantId));
+    } catch (err: any) {
       console.error(err);
+      alert('Error deleting variant: ' + err.message);
     }
   };
 
@@ -746,16 +748,15 @@ function AdminPageInner() {
       if (savedProd && savedProd.id && createdProductVariants.length > 0) {
         for (const localVar of createdProductVariants) {
           try {
-            await fetch(`/api/products/${savedProd.id}/variants`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
+            await supabase
+              .from('product_variants')
+              .upsert([{
+                product_id: savedProd.id,
                 age_group: localVar.age_group,
                 size: localVar.size,
                 barcode: localVar.barcode,
                 stock_quantity: localVar.stock_quantity
-              })
-            });
+              }], { onConflict: 'barcode' });
           } catch (vErr) {
             console.error("Failed to record variant for new product:", vErr);
           }
@@ -4359,6 +4360,60 @@ function AdminPageInner() {
 
                   {/* PRODUCT SIZING & AGE GROUP VARIANT ENGINE (RAPID INTENSIVE) */}
                   <div className="mt-8 border-t border-zinc-200 pt-8" id="product-variants-section">
+                    {/* Simple Quick-Add Variant Form */}
+                    <div className="mb-6 p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-3">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-zinc-700">Quick Add Size Variant</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Age Group</label>
+                          <select
+                            value={newVariantAgeGroup}
+                            onChange={e => setNewVariantAgeGroup(e.target.value as any)}
+                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-[#b90014]"
+                          >
+                            <option value="Adult">Adult</option>
+                            <option value="Youth">Youth</option>
+                            <option value="Toddler">Toddler</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Size</label>
+                          <input
+                            type="text"
+                            value={newVariantSize}
+                            onChange={e => setNewVariantSize(e.target.value)}
+                            placeholder="e.g. 9, XL, 4Y"
+                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Barcode</label>
+                          <input
+                            type="text"
+                            value={newVariantBarcode}
+                            onChange={e => setNewVariantBarcode(e.target.value)}
+                            placeholder="Unique barcode"
+                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Stock Qty</label>
+                          <input
+                            type="number"
+                            value={newVariantQuantity}
+                            onChange={e => setNewVariantQuantity(parseInt(e.target.value) || 0)}
+                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddVariant}
+                        className="w-full py-2.5 bg-zinc-900 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-[#b90014] transition-all"
+                      >
+                        + Add Variant to Database
+                      </button>
+                    </div>
                     {editingProduct && (
                       <RapidScanIntakeMatrix
                         productId={editingProduct.id}
@@ -4366,38 +4421,29 @@ function AdminPageInner() {
                         category={editingProduct.category}
                         existingVariants={editingProductVariants}
                         onRegisterVariant={async (ageGroup, size, barcode, quantity) => {
-                          const response = await fetch(`/api/products/${editingProduct.id}/variants`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
+                          const { error } = await supabase
+                            .from('product_variants')
+                            .upsert([{
+                              product_id: editingProduct.id,
                               age_group: ageGroup,
                               size: size,
                               barcode: barcode.toUpperCase(),
                               stock_quantity: quantity
-                            })
-                          });
-                          if (!response.ok) {
-                            const errData = await response.json();
-                            throw new Error(errData.error || 'Server error saving variant');
-                          }
-                          const result = await response.json();
-                          if (!result.success) {
-                            throw new Error(result.error || 'Failed to save variant');
-                          }
+                            }], { onConflict: 'barcode' });
+                          
+                          if (error) throw new Error(error.message);
                         }}
                         onSuccessFinished={async () => {
-                          // Fetch and refresh master editing product variants
                           if (editingProduct && editingProduct.id) {
                             setVariantsLoading(true);
-                            try {
-                              const variantsRes = await fetch(`/api/products/${editingProduct.id}/variants`);
-                              const variantsData = await variantsRes.json();
-                              setEditingProductVariants(variantsData.data || []);
-                            } catch (err) {
-                              console.error("Error refreshing variants after rapid scan:", err);
-                            } finally {
-                              setVariantsLoading(false);
-                            }
+                            const { data } = await supabase
+                              .from('product_variants')
+                              .select('*')
+                              .eq('product_id', editingProduct.id)
+                              .order('age_group')
+                              .order('size');
+                            setEditingProductVariants(data || []);
+                            setVariantsLoading(false);
                           }
                         }}
                       />

@@ -103,7 +103,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
 
   const { user } = useAuth();
-  const PAGE_SIZE = 1000;
+  const PAGE_SIZE = 500;
 
   const mergeProducts = (newProducts: Product[]) => {
     const mapped = newProducts.map(mapProductFromDb);
@@ -188,9 +188,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       
       const { data, error } = await supabase
         .from('products')
-        .select(ADMIN_LIST_FIELDS === '*' ? '*' : ADMIN_LIST_FIELDS)
+        .select('id,name,price,category,submenu,submenus,isNewArrival,isOnSale,isFeatured,salePrice,description,image,is_online,show_sizes')
         .order('name', { ascending: true })
-        .range(0, PAGE_SIZE - 1);
+        .limit(200);
       
       console.log('ProductContext: Supabase fetch results', { dataLength: data?.length, error });
       
@@ -231,7 +231,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         .from('products')
         .select(ADMIN_LIST_FIELDS === '*' ? '*' : ADMIN_LIST_FIELDS)
         .order('name', { ascending: true })
-        .range(offset, offset + PAGE_SIZE - 1);
+        .range(offset, offset + 99);
       
       if (error) throw error;
       

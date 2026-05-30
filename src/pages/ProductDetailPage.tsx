@@ -1,6 +1,7 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { useState, useEffect } from 'react';
+import { supabase } from '../supabase';
 import { ShoppingBag, Heart, ChevronRight, ChevronLeft, Minus, Plus, ShieldCheck, Truck, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -48,21 +49,30 @@ export function ProductDetailPage() {
   useEffect(() => {
     if (product?.id) {
       setVariantsLoading(true);
-      fetch(`/api/products/${product.id}/variants`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && Array.isArray(data.data)) {
-            setVariants(data.data);
+      (async () => {
+        try {
+          const { data, error } = await supabase
+            .from('product_variants')
+            .select('*')
+            .eq('product_id', product.id)
+            .order('age_group')
+            .order('size');
             
-            // Auto Select first available age group
-            const ageGroups = Array.from(new Set(data.data.map((v: any) => v.age_group)));
+          if (!error && Array.isArray(data)) {
+            setVariants(data);
+            const ageGroups = Array.from(new Set(data.map((v: any) => v.age_group)));
             if (ageGroups.length > 0) {
               setSelectedAgeGroup(ageGroups[0] as string);
             }
+          } else if (error) {
+            console.error("Error loading product variants:", error);
           }
-        })
-        .catch(err => console.error("Error loading product variants:", err))
-        .finally(() => setVariantsLoading(false));
+        } catch (err) {
+          console.error("Error loading product variants:", err);
+        } finally {
+          setVariantsLoading(false);
+        }
+      })();
     }
   }, [product?.id]);
 

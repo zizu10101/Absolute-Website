@@ -125,8 +125,9 @@ async function startServer() {
     try {
       if (supabase) {
         const { category, submenu, isFeatured, isOnSale, isNewArrival, limit, offset, fields } = req.query;
-        let query = supabase.from('products').select(typeof fields === 'string' && fields !== '*' && fields ? fields : '*');
-
+        // Revert to * for now to avoid field selection errors
+        let query = supabase.from('products').select('*');
+        
         console.log("Supabase products query:", {
           category,
           submenu,
@@ -159,7 +160,7 @@ async function startServer() {
 
         const { data, error } = await query;
         if (error) {
-          console.warn("Supabase products fetch with fields failed! Error:", JSON.stringify(error, null, 2));
+          console.warn("Supabase products fetch failed! Error code:", error.code, "Message:", error.message, "Details:", error.details, "Hint:", error.hint);
           const { data: dataFallback, error: errorFallback } = await supabase.from('products').select('*').range(o, o + l - 1).order('name');
           if (errorFallback) {
             console.error("Fallback query also failed!", JSON.stringify(errorFallback, null, 2));
@@ -191,20 +192,9 @@ async function startServer() {
 
   const cleanProductPayload = (rawPayload: any): any => {
     const allowedColumns = [
-      'id',
-      'name',
-      'price',
-      'category',
-      'submenu',
-      'submenus',
-      'image',
-      'images',
-      'description',
-      'isNewArrival',
-      'isOnSale',
-      'isFeatured',
-      'salePrice',
-      'colors'
+      'id', 'name', 'price', 'category', 'submenu', 'submenus',
+      'image', 'images', 'description', 'isNewArrival', 'isOnSale',
+      'isFeatured', 'salePrice', 'colors'
     ];
     const cleaned: any = {};
     for (const col of allowedColumns) {
@@ -232,20 +222,6 @@ async function startServer() {
           if (prepared.category.toLowerCase() === 'shoes' || prepared.category.toLowerCase() === 'footwear') {
             prepared.category = 'Footwear';
           }
-        }
-        if ('is_online' in prepared) {
-          let subs = Array.isArray(prepared.submenus) ? [...prepared.submenus] : [];
-          if (prepared.is_online) {
-            const hasOnline = subs.some(s => s && s.toUpperCase() === 'ONLINE');
-            if (!hasOnline) subs.push('online');
-          } else {
-            subs = subs.filter(s => s && s.toUpperCase() !== 'ONLINE');
-            if (prepared.submenu && prepared.submenu.toUpperCase() === 'ONLINE') {
-              prepared.submenu = '';
-            }
-          }
-          prepared.submenus = subs;
-          delete prepared.is_online;
         }
 
         const payload = cleanProductPayload(prepared);
@@ -369,21 +345,6 @@ async function startServer() {
               prepared.category = 'Footwear';
             }
           }
-        }
-        
-        if ('is_online' in prepared) {
-          let subs = Array.isArray(prepared.submenus) ? [...prepared.submenus] : [];
-          if (prepared.is_online) {
-            const hasOnline = subs.some(s => s && s.toUpperCase() === 'ONLINE');
-            if (!hasOnline) subs.push('online');
-          } else {
-            subs = subs.filter(s => s && s.toUpperCase() !== 'ONLINE');
-            if (prepared.submenu && prepared.submenu.toUpperCase() === 'ONLINE') {
-              prepared.submenu = '';
-            }
-          }
-          prepared.submenus = subs;
-          delete prepared.is_online;
         }
 
         const payload = cleanProductPayload(prepared);

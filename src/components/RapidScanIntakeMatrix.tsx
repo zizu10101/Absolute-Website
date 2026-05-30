@@ -60,7 +60,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
         return youthShoeSizes;
       }
       const adultShoeSizes = [];
-      for (let s = 4; s <= 15; s += 0.5) {
+      for (let s = 4; s <= 13; s += 0.5) {
         adultShoeSizes.push(s.toString());
       }
       return adultShoeSizes;
@@ -311,7 +311,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
           </div>
 
           {/* Sizing sheet Matrix Grid wrapper */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
             {suggestedSizesList.map((size) => {
               const qty = quantities[size] || 0;
               const hasQty = qty > 0;
@@ -331,7 +331,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                       : {}
                   }
                   transition={{ duration: 0.5, repeat: isActiveTarget ? Infinity : 0 }}
-                  className={`relative p-3.5 border rounded-xl flex flex-col justify-between transition-all ${
+                  className={`relative p-4 border-2 rounded-2xl flex flex-col gap-3 transition-all min-h-[100px] ${
                     isActiveTarget 
                       ? 'border-blue-500 bg-blue-50/75 ring-2 ring-blue-500'
                       : isFlashing
@@ -341,19 +341,19 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                       : isUnusedInScan
                       ? 'border-zinc-100 bg-zinc-50/30 opacity-40'
                       : hasQty 
-                      ? 'border-zinc-900 bg-zinc-50 shadow-xs' 
-                      : 'border-zinc-200 bg-white'
+                      ? 'border-zinc-900 bg-zinc-50 shadow-sm' 
+                      : 'border-zinc-200 bg-white hover:border-zinc-400'
                   }`}
                 >
                   {/* Size Label */}
-                  <div className="text-center font-mono font-black text-sm tracking-tight text-zinc-900 border-b border-zinc-100 pb-1.5 uppercase">
+                  <div className="text-center font-mono font-black text-lg tracking-tight text-zinc-900 border-b border-zinc-100 pb-2 uppercase">
                     {size}
                   </div>
 
                   {/* Quantity input box */}
-                  <div className="mt-2.5">
-                    <label className="block text-[8px] font-black text-zinc-400 uppercase tracking-widest text-center mb-1">
-                      Qty to Add
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-widest text-center">
+                      Qty
                     </label>
                     <input
                       type="number"
@@ -364,11 +364,12 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                         setQuantities(prev => ({ ...prev, [size]: val }));
                       }}
                       placeholder="0"
-                      className={`w-full text-center py-1.5 px-1 border rounded-lg text-sm font-black focus:outline-none focus:ring-1 focus:ring-[#b90014] ${
+                      style={{ MozAppearance: 'textfield' }}
+                      className={`w-full text-center py-2.5 px-2 border-2 rounded-xl text-base font-black focus:outline-none focus:ring-2 focus:ring-[#b90014] transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                         hasQty 
-                          ? 'border-zinc-900 bg-white text-zinc-900 font-extrabold' 
+                          ? 'border-zinc-900 bg-white text-zinc-900' 
                           : 'border-zinc-200 bg-zinc-50 text-zinc-400'
-                      } ${isScanningActive ? 'bg-zinc-100 border-transparent text-zinc-800 cursor-not-allowed font-medium' : ''}`}
+                      } ${isScanningActive ? 'bg-zinc-100 border-transparent text-zinc-800 cursor-not-allowed' : ''}`}
                     />
                   </div>
 
@@ -391,7 +392,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
 
             {/* Manual Size Extension Block */}
             {!isScanningActive && (
-              <form onSubmit={handleCustomSizeAdd} className="p-3 border border-dashed border-zinc-300 rounded-xl flex flex-col justify-between bg-zinc-50/30 hover:bg-zinc-50 transition-colors">
+              <form onSubmit={handleCustomSizeAdd} className="p-4 border-2 border-dashed border-zinc-300 rounded-2xl flex flex-col gap-3 bg-zinc-50/30 hover:bg-zinc-50 transition-colors min-h-[100px]">
                 <label className="block text-[8px] font-black text-zinc-400 uppercase tracking-widest text-center mb-1">
                   ＋ Custom Size
                 </label>
