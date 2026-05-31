@@ -2,7 +2,7 @@ import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
-import { ShoppingBag, Heart, ChevronRight, ChevronLeft, Minus, Plus, ShieldCheck, Truck, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ShoppingBag, ChevronRight, ChevronLeft, ShieldCheck, Truck, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function ProductDetailPage() {
@@ -434,48 +434,23 @@ export function ProductDetailPage() {
                     </div>
                   </div>
 
-                  {/* Buy Box controls (Qty Selector + Actions) */}
-                  <div className="border-t border-b border-zinc-100 py-6 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-                    {/* Quantity select */}
-                    <div className="flex items-center border-2 border-zinc-200 h-14 px-2 select-none justify-between sm:w-44">
-                      <button 
-                        onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
-                        className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"
-                        title="Decrease quantity"
-                      >
-                        <Minus size={14} className="stroke-[2.5px]" />
-                      </button>
-                      <span className="text-sm font-black font-headline text-zinc-900">{quantity}</span>
-                      <button 
-                        onClick={() => setQuantity(prev => prev + 1)}
-                        className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"
-                        title="Increase quantity"
-                      >
-                        <Plus size={14} className="stroke-[2.5px]" />
-                      </button>
-                    </div>
-
-                    {/* Main Action Button */}
-                    <button
-                      onClick={handleAddToCart}
-                      disabled={isAdding || isOutOfStock}
-                      className="flex-1 h-14 bg-[#b90014] text-white flex items-center justify-center gap-3 font-black uppercase tracking-widest text-xs italic hover:bg-black active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-red-950/10"
+                  {/* Call to Order CTA */}
+                  <div className="border-t border-b border-zinc-100 py-6 space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">
+                      Ready to order? Call us directly
+                    </p>
+                    <a
+                      href="tel:9055933600"
+                      className="flex items-center justify-center gap-3 w-full h-14 bg-[#b90014] text-white font-black uppercase tracking-widest text-sm hover:bg-zinc-900 transition-all shadow-xl shadow-red-950/10 rounded-lg"
                     >
-                      <ShoppingBag size={16} className="stroke-[2.5px]" />
-                      {isAdding 
-                        ? 'Processing...' 
-                        : isOutOfStock 
-                          ? 'SOLD OUT' 
-                          : 'ADD TO SQUAD BAG'}
-                    </button>
-
-                    {/* Wishlist Button */}
-                    <button 
-                      className="h-14 w-14 border-2 border-zinc-200 flex items-center justify-center text-zinc-400 hover:text-[#b90014] hover:border-[#b90014] transition-all hover:bg-red-50/20"
-                      title="Add to wishlist"
-                    >
-                      <Heart size={18} className="stroke-[2px]" />
-                    </button>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                      </svg>
+                      Call to Order — 905-593-3600
+                    </a>
+                    <p className="text-[10px] text-zinc-400 text-center uppercase tracking-widest">
+                      Online ordering coming soon — visit us or call to purchase
+                    </p>
                   </div>
                 </>
               )}
