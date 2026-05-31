@@ -41,7 +41,11 @@ export function ProductDetailPage() {
             .single();
 
           if (!error && data) {
-            setProduct(data);
+            setProduct({
+              ...data,
+              showSizes: data.show_sizes === true || data.show_sizes === 'true',
+              is_online: data.is_online !== false
+            });
           } else {
             // Fallback to context
             const existingProduct = products.find(p => p.id === id);
@@ -154,18 +158,23 @@ export function ProductDetailPage() {
   const shoeSizes = ['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '12.5', '13'];
   const apparelSizes = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
   
-  let displayedSizesList = (variants.length > 0 
-    ? Array.from(new Set(
-        variants
-          .filter(v => !selectedAgeGroup || v.age_group === selectedAgeGroup)
-          .map(v => v.size)
-      ))
-    : (product.category === 'Footwear' ? shoeSizes : apparelSizes)) as string[];
+  let displayedSizesList: string[] = [];
 
-  if (product.category === 'Footwear') {
-      displayedSizesList = shoeSizes;
+  if (variants.length > 0) {
+    // Use actual variant sizes from database
+    displayedSizesList = Array.from(new Set(
+      variants
+        .filter(v => !selectedAgeGroup || v.age_group === selectedAgeGroup)
+        .map(v => v.size)
+    ));
+    
+    // Sort shoe sizes numerically, apparel sizes by standard order
+    if (product.category === 'Footwear') {
+      displayedSizesList.sort((a, b) => parseFloat(a) - parseFloat(b));
+    }
   } else {
-      displayedSizesList = displayedSizesList.filter(s => apparelSizes.includes(s));
+    // Fallback to default lists when no variants exist
+    displayedSizesList = product.category === 'Footwear' ? shoeSizes : apparelSizes;
   }
 
   // Get stock level for currently selected size and age group
@@ -350,7 +359,7 @@ export function ProductDetailPage() {
           )}
 
           {/* Sizing grid and Buy Box conditional layout */}
-          {!product.showSizes || (product.release_date && new Date(product.release_date) > new Date()) ? (
+          {(product.release_date && new Date(product.release_date) > new Date()) ? (
             <div className="p-6 bg-[#b90014] rounded-xl text-center my-6 shadow-lg shadow-red-900/20">
               <div className="flex items-center justify-center gap-2 mb-1">
                 <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
@@ -367,95 +376,109 @@ export function ProductDetailPage() {
             </div>
           ) : (
             <>
-              {/* Dynamic Size Picker Grid (Disables SOLD OUT size variants) */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Select Size</span>
-                  {renderStockStatus()}
+              {!product.showSizes ? (
+                <div className="p-6 bg-[#b90014] rounded-xl text-center my-6 shadow-lg shadow-red-900/20">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                    <p className="text-sm font-black uppercase tracking-widest text-white">
+                      Coming Soon
+                    </p>
+                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                  </div>
                 </div>
-                
-                <div className="grid grid-cols-4 gap-3">
-                  {displayedSizesList.map((size) => {
-                    const isItemOutOfStock = variants.length > 0 
-                      ? (() => {
-                          const optVariant = variants.find(v => 
-                            (!selectedAgeGroup || v.age_group === selectedAgeGroup) && 
-                            v.size === size
-                          );
-                          return optVariant ? (optVariant.stock_quantity ?? 0) <= 0 : true;
-                        })()
-                      : true; // If variants exist but this size is not in the variants, treat as out of stock
+              ) : (
+                <>
+                  {/* Dynamic Size Picker Grid (Disables SOLD OUT size variants) */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Select Size</span>
+                      {renderStockStatus()}
+                    </div>
+                    
+                    <div className="grid grid-cols-4 gap-3">
+                      {displayedSizesList.map((size) => {
+                        const isItemOutOfStock = variants.length > 0 
+                          ? (() => {
+                              const optVariant = variants.find(v => 
+                                (!selectedAgeGroup || v.age_group === selectedAgeGroup) && 
+                                v.size === size
+                              );
+                              return optVariant ? (optVariant.stock_quantity ?? 0) <= 0 : true;
+                            })()
+                          : true; // If variants exist but this size is not in the variants, treat as out of stock
 
-                    const isSelected = selectedSize === size;
+                        const isSelected = selectedSize === size;
 
-                    return (
-                      <button
-                        key={size}
-                        disabled={isItemOutOfStock}
-                        onClick={() => setSelectedSize(isSelected ? null : size)}
-                        className={`h-12 flex flex-col justify-center items-center border transition-all relative rounded-lg ${
-                          isItemOutOfStock
-                            ? 'border-zinc-200 text-zinc-400 cursor-not-allowed bg-zinc-50'
-                            : isSelected
-                              ? 'border-2 border-zinc-900 bg-zinc-900 text-white font-extrabold shadow-sm'
-                              : 'border-zinc-300 text-zinc-900 hover:border-zinc-900 font-bold bg-white'
-                        }`}
+                        return (
+                          <button
+                            key={size}
+                            disabled={isItemOutOfStock}
+                            onClick={() => setSelectedSize(isSelected ? null : size)}
+                            className={`h-12 flex flex-col justify-center items-center border transition-all relative rounded-lg ${
+                              isItemOutOfStock
+                                ? 'border-zinc-200 text-zinc-400 cursor-not-allowed bg-zinc-50'
+                                : isSelected
+                                  ? 'border-2 border-zinc-900 bg-zinc-900 text-white font-extrabold shadow-sm'
+                                  : 'border-zinc-300 text-zinc-900 hover:border-zinc-900 font-bold bg-white'
+                            }`}
+                          >
+                            <span className={`text-xs tracking-wider ${isItemOutOfStock ? 'font-medium line-through decoration-zinc-400' : 'font-black'}`}>{size}</span>
+                            {isItemOutOfStock && (
+                              <svg className="absolute inset-0 w-full h-full text-zinc-300 pointer-events-none" preserveAspectRatio="none">
+                                <line x1="0" y1="100%" x2="100%" y2="0" stroke="currentColor" strokeWidth="1.5" />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Buy Box controls (Qty Selector + Actions) */}
+                  <div className="border-t border-b border-zinc-100 py-6 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+                    {/* Quantity select */}
+                    <div className="flex items-center border-2 border-zinc-200 h-14 px-2 select-none justify-between sm:w-44">
+                      <button 
+                        onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                        className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"
+                        title="Decrease quantity"
                       >
-                        <span className={`text-xs tracking-wider ${isItemOutOfStock ? 'font-medium line-through decoration-zinc-400' : 'font-black'}`}>{size}</span>
-                        {isItemOutOfStock && (
-                          <svg className="absolute inset-0 w-full h-full text-zinc-300 pointer-events-none" preserveAspectRatio="none">
-                            <line x1="0" y1="100%" x2="100%" y2="0" stroke="currentColor" strokeWidth="1.5" />
-                          </svg>
-                        )}
+                        <Minus size={14} className="stroke-[2.5px]" />
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
+                      <span className="text-sm font-black font-headline text-zinc-900">{quantity}</span>
+                      <button 
+                        onClick={() => setQuantity(prev => prev + 1)}
+                        className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"
+                        title="Increase quantity"
+                      >
+                        <Plus size={14} className="stroke-[2.5px]" />
+                      </button>
+                    </div>
 
-              {/* Buy Box controls (Qty Selector + Actions) */}
-              <div className="border-t border-b border-zinc-100 py-6 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-                {/* Quantity select */}
-                <div className="flex items-center border-2 border-zinc-200 h-14 px-2 select-none justify-between sm:w-44">
-                  <button 
-                    onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
-                    className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"
-                    title="Decrease quantity"
-                  >
-                    <Minus size={14} className="stroke-[2.5px]" />
-                  </button>
-                  <span className="text-sm font-black font-headline text-zinc-900">{quantity}</span>
-                  <button 
-                    onClick={() => setQuantity(prev => prev + 1)}
-                    className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"
-                    title="Increase quantity"
-                  >
-                    <Plus size={14} className="stroke-[2.5px]" />
-                  </button>
-                </div>
+                    {/* Main Action Button */}
+                    <button
+                      onClick={handleAddToCart}
+                      disabled={isAdding || isOutOfStock}
+                      className="flex-1 h-14 bg-[#b90014] text-white flex items-center justify-center gap-3 font-black uppercase tracking-widest text-xs italic hover:bg-black active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-red-950/10"
+                    >
+                      <ShoppingBag size={16} className="stroke-[2.5px]" />
+                      {isAdding 
+                        ? 'Processing...' 
+                        : isOutOfStock 
+                          ? 'SOLD OUT' 
+                          : 'ADD TO SQUAD BAG'}
+                    </button>
 
-                {/* Main Action Button */}
-                <button
-                  onClick={handleAddToCart}
-                  disabled={isAdding || isOutOfStock}
-                  className="flex-1 h-14 bg-[#b90014] text-white flex items-center justify-center gap-3 font-black uppercase tracking-widest text-xs italic hover:bg-black active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-red-950/10"
-                >
-                  <ShoppingBag size={16} className="stroke-[2.5px]" />
-                  {isAdding 
-                    ? 'Processing...' 
-                    : isOutOfStock 
-                      ? 'SOLD OUT' 
-                      : 'ADD TO SQUAD BAG'}
-                </button>
-
-                {/* Wishlist Button */}
-                <button 
-                  className="h-14 w-14 border-2 border-zinc-200 flex items-center justify-center text-zinc-400 hover:text-[#b90014] hover:border-[#b90014] transition-all hover:bg-red-50/20"
-                  title="Add to wishlist"
-                >
-                  <Heart size={18} className="stroke-[2px]" />
-                </button>
-              </div>
+                    {/* Wishlist Button */}
+                    <button 
+                      className="h-14 w-14 border-2 border-zinc-200 flex items-center justify-center text-zinc-400 hover:text-[#b90014] hover:border-[#b90014] transition-all hover:bg-red-50/20"
+                      title="Add to wishlist"
+                    >
+                      <Heart size={18} className="stroke-[2px]" />
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           )}
 
