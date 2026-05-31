@@ -31,19 +31,35 @@ export function ProductDetailPage() {
   // Fetch Product
   useEffect(() => {
     if (id) {
-      const existingProduct = products.find(p => p.id === id);
-      if (existingProduct) {
-        setProduct(existingProduct);
-        setIsPageLoading(false);
-      } else {
-        setIsPageLoading(true);
-        fetchProductById(id).then(res => {
-          setProduct(res);
+      setIsPageLoading(true);
+      (async () => {
+        try {
+          const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+          if (!error && data) {
+            setProduct(data);
+          } else {
+            // Fallback to context
+            const existingProduct = products.find(p => p.id === id);
+            if (existingProduct) {
+              setProduct(existingProduct);
+            } else {
+              const res = await fetchProductById(id);
+              if (res) setProduct(res);
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching product:", err);
+        } finally {
           setIsPageLoading(false);
-        });
-      }
+        }
+      })();
     }
-  }, [id, products]);
+  }, [id]);
 
   // Fetch Variants for Single Product Item
   useEffect(() => {
