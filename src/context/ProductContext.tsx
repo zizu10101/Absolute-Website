@@ -257,7 +257,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         query = query.ilike('category', category);
       }
       if (submenu) {
-        query = query.or(`submenu.ilike.${submenu},submenus.cs.{${submenu}}`);
+        query = query.or(`submenu.ilike.${submenu.toLowerCase()},submenus.cs.{${submenu.toLowerCase()}}`);
       }
       const { data, error } = await query.order('name');
       

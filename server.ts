@@ -144,7 +144,7 @@ async function startServer() {
         }
 
         if (submenu) {
-          const sub = submenu as string;
+          const sub = (submenu as string).toLowerCase();
           // Filter by submenu (string) or submenus (array)
           query = query.or(`submenu.ilike.${sub},submenus.cs.{${sub}}`);
         }
