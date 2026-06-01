@@ -107,7 +107,7 @@ async function importProduct(product) {
   const [inserted] = await supabaseFetch('/products', 'POST', {
     name: product.name,
     price: product.price,
-    category: 'Balls',
+    category: product.subcategory === 'BASKETBALL' ? 'Basketball' : 'Soccer Balls',
     submenu,
     submenus: ['online'],
     colors: [product.colorName],
