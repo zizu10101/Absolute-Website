@@ -17,6 +17,21 @@ const BASE_HEADERS = {
   Prefer: 'return=representation',
 }
 
+const CLUB_KEYWORDS = [
+  'AC Milan', 'ACM', 'Manchester City', 'MCFC', 'Real Madrid', 'Ream Madrid',
+  'Manchester United', 'MUFC', 'FC Barcelona', 'FCB', 'Chelsea', 'CFC',
+  'Arsenal', 'Juventus', 'JUVE', 'Liverpool', 'Bayern', 'Benfica',
+  'Roma', 'PSG', 'River Plate', 'Celtic',
+]
+
+function getCategory(name) {
+  const upper = name.toUpperCase()
+  for (const kw of CLUB_KEYWORDS) {
+    if (upper.includes(kw.toUpperCase())) return 'Clubs'
+  }
+  return 'National Teams'
+}
+
 const SUBMENU_MAP = {
   Jerseys: 'jerseys',
   KITS: 'kits',
@@ -133,7 +148,7 @@ async function importProduct(product) {
   const [inserted] = await supabaseFetch('/products', 'POST', {
     name: product.name,
     price: product.price,
-    category: 'Licensed',
+    category: getCategory(product.name),
     submenu,
     submenus: ['online'],
     colors: [product.colorDesc],
