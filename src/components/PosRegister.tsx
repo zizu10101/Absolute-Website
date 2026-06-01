@@ -135,7 +135,8 @@ export const PosRegister: React.FC = () => {
   } = usePOSCart();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'ALL' | 'FOOTWEAR' | 'KITS'>('ALL');
+  type TabId = 'ALL' | 'FOOTWEAR' | 'KITS' | 'BALLS' | 'EQUIPMENT' | 'TEAMWEAR' | 'GLOVES';
+  const [activeTab, setActiveTab] = useState<TabId>('ALL');
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [isLoadingAll, setIsLoadingAll] = useState(true);
@@ -382,21 +383,25 @@ export const PosRegister: React.FC = () => {
     return '—';
   };
 
-  const matchesCategory = (p: any, tab: 'ALL' | 'FOOTWEAR' | 'KITS') => {
+  const matchesCategory = (p: any, tab: TabId) => {
     if (tab === 'ALL') return true;
     const cat = (p.category || '').trim().toLowerCase();
     const sub = (p.submenu || '').trim().toLowerCase();
+    const name = (p.name || '').trim().toLowerCase();
+    const subs: string[] = Array.isArray(p.submenus) ? p.submenus.map((s: string) => s.toLowerCase()) : [];
+
     if (tab === 'FOOTWEAR')
       return cat === 'footwear' || cat === 'footwear / boots' || sub === 'boots' || sub === 'footwear';
     if (tab === 'KITS')
-      return (
-        cat === 'national team kits' ||
-        cat === 'national teams' ||
-        cat === 'clubs' ||
-        cat === 'kits' ||
-        sub === 'jerseys' ||
-        sub === 'kits'
-      );
+      return cat === 'national teams' || cat === 'clubs' || cat === 'national team kits' || sub === 'jerseys' || sub === 'kits';
+    if (tab === 'BALLS')
+      return cat === 'soccer balls' || cat.includes('ball') || sub.includes('ball') || subs.some(s => s.includes('ball'));
+    if (tab === 'EQUIPMENT')
+      return cat === 'equipment' || cat === 'shin guards' || cat === 'accessories' || sub === 'shin guards' || sub === 'equipment' || sub === 'accessories' || sub === 'bags';
+    if (tab === 'TEAMWEAR')
+      return cat === 'apparel' || cat === 'training' || cat === 'teams' || ['training', 'teamwear', 'tops', 'shorts', 'hoodies', 'jackets', 'pants', 'socks', 't-shirts'].includes(sub);
+    if (tab === 'GLOVES')
+      return sub === 'gloves' || sub.includes('glove') || name.includes('glove') || cat.includes('glove');
     return true;
   };
 
@@ -615,18 +620,22 @@ export const PosRegister: React.FC = () => {
               </div>
             </label>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
             {[
-              { id: 'ALL', label: 'ALL ITEMS', desc: 'Entire inventory', icon: '⚽' },
-              { id: 'FOOTWEAR', label: 'FOOTWEAR', desc: 'Boots, lifestyle & indoor', icon: '👟' },
-              { id: 'KITS', label: 'KITS', desc: 'Jerseys, clubs & nationals', icon: '👕' },
+              { id: 'ALL',       label: 'ALL',       desc: 'Entire inventory',       icon: '🏪' },
+              { id: 'FOOTWEAR',  label: 'FOOTWEAR',  desc: 'Boots & cleats',         icon: '👟' },
+              { id: 'KITS',      label: 'KITS',      desc: 'Jerseys & licensed',     icon: '👕' },
+              { id: 'BALLS',     label: 'BALLS',     desc: 'Soccer, futsal & more',  icon: '⚽' },
+              { id: 'EQUIPMENT', label: 'EQUIPMENT', desc: 'Shin guards & bags',     icon: '🛡️' },
+              { id: 'TEAMWEAR',  label: 'TEAM WEAR', desc: 'Training & apparel',     icon: '🎽' },
+              { id: 'GLOVES',    label: 'GLOVES',    desc: 'Goalkeeper gloves',      icon: '🧤' },
             ].map(tab => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex flex-col items-start p-3 rounded-lg border-2 text-left transition-all active:scale-[0.98] ${
+                  className={`flex flex-col items-start p-3 rounded-lg border-2 text-left transition-all active:scale-[0.98] shrink-0 w-28 ${
                     isActive
                       ? 'bg-zinc-950 border-[#b90014] text-white shadow-md'
                       : 'bg-white border-zinc-200 hover:border-zinc-400 text-zinc-800 hover:bg-zinc-50'
