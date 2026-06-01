@@ -84,25 +84,25 @@ function AppRoutes() {
               />
             </Fragment>
           ))}
-          {navigationMenus.flatMap(menu => 
-            menu.submenus.map(submenu => (
+          {navigationMenus.flatMap(menu =>
+            (menu.submenus || []).filter(s => s && typeof s === 'object' && s.heading).map(submenu => (
               <Fragment key={submenu.heading + (submenu.path || '')}>
                 {submenu.path && (
-                  <Route 
-                    path={submenu.path.startsWith('/') ? submenu.path.slice(1) : submenu.path} 
-                    element={<ProductGridPage title={submenu.heading} category={menu.label} submenu={submenu.heading} />} 
+                  <Route
+                    path={submenu.path.startsWith('/') ? submenu.path.slice(1) : submenu.path}
+                    element={<ProductGridPage title={submenu.heading} category={menu.label} submenu={submenu.heading} />}
                   />
                 )}
               </Fragment>
             ))
           )}
-          {navigationMenus.flatMap(menu => 
-            menu.submenus.flatMap(submenu => 
-              submenu.items.map(item => (
+          {navigationMenus.flatMap(menu =>
+            (menu.submenus || []).filter(s => s && typeof s === 'object' && Array.isArray(s.items)).flatMap(submenu =>
+              submenu.items.filter(item => item && typeof item === 'object' && item.path).map(item => (
                 <Fragment key={item.path}>
-                  <Route 
-                    path={item.path.startsWith('/') ? item.path.slice(1) : item.path} 
-                    element={<ProductGridPage title={item.label} category={menu.label} submenu={item.label} />} 
+                  <Route
+                    path={item.path.startsWith('/') ? item.path.slice(1) : item.path}
+                    element={<ProductGridPage title={item.label} category={menu.label} submenu={item.label} />}
                   />
                 </Fragment>
               ))
