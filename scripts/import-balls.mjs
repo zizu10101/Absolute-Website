@@ -117,7 +117,7 @@ async function importProduct(product) {
     isOnSale: false,
     isFeatured: false,
     images: [],
-    description: `${product.brand} ${product.name}`,
+    description: `${product.brand} ${product.name} | ${product.sku}`,
   })
 
   await supabaseFetch(
