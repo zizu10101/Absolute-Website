@@ -3,41 +3,76 @@ import { useState, useMemo } from 'react';
 export interface CartItem {
   id: string;
   name: string;
-  price: number; // Current modified unit price
-  originalPrice: number; // Original unit price
+  price: number;
+  originalPrice: number;
   quantity: number;
   category: string;
-  discountPercent?: number; // percentage (0 - 100)
+  discountPercent?: number;
   isOnSale?: boolean;
   salePrice?: number;
   variantId?: string;
+  size?: string;
+  ageGroup?: string;
+  stockQuantity?: number;
+  barcode?: string;
+  image?: string;
 }
 
 export function usePOSCart() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isTaxExempt, setIsTaxExempt] = useState(false);
 
-  const addItem = (product: any) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+  // Returns an error string if the item cannot be added, null on success
+  const addItem = (product: any): string | null => {
+    const stockQty: number | undefined =
+      product.stockQuantity !== undefined ? product.stockQuantity :
+      product.stock_quantity !== undefined ? product.stock_quantity :
+      undefined;
+
+    const existing = cart.find(item => item.id === product.id);
+
+    if (existing) {
+      if (stockQty !== undefined && existing.quantity + 1 > stockQty) {
+        return `Only ${stockQty} in stock`;
       }
-      // If the product is on sale on the site, use the sale price as the default active unit price in POS
-      const activePrice = product.isOnSale && product.salePrice ? product.salePrice : product.price;
-      return [...prev, { 
-        id: product.id, 
-        variantId: product.variantId || (product.id.startsWith('var-') ? product.id.replace('var-', '') : undefined),
-        name: product.name, 
-        price: activePrice, 
-        originalPrice: product.price, 
-        quantity: 1, 
-        category: product.category,
+      setCart(prev =>
+        prev.map(item =>
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        )
+      );
+      return null;
+    }
+
+    if (stockQty !== undefined && stockQty <= 0) {
+      return 'Out of stock';
+    }
+
+    const activePrice =
+      product.isOnSale && product.salePrice ? product.salePrice : product.price;
+
+    setCart(prev => [
+      ...prev,
+      {
+        id: product.id,
+        variantId:
+          product.variantId ||
+          (product.id?.startsWith?.('var-') ? product.id.replace('var-', '') : undefined),
+        name: product.name,
+        price: activePrice,
+        originalPrice: product.price,
+        quantity: 1,
+        category: product.category || '',
         discountPercent: 0,
         isOnSale: product.isOnSale,
-        salePrice: product.salePrice
-      }];
-    });
+        salePrice: product.salePrice,
+        size: product.size,
+        ageGroup: product.ageGroup || product.age_group,
+        stockQuantity: stockQty,
+        barcode: product.barcode,
+        image: product.image,
+      },
+    ]);
+    return null;
   };
 
   const removeItem = (id: string) => {
@@ -45,15 +80,27 @@ export function usePOSCart() {
   };
 
   const updateItemPrice = (id: string, newPrice: number) => {
-    setCart(prev => prev.map(item => item.id === id ? { ...item, price: Math.max(0, newPrice) } : item));
+    setCart(prev =>
+      prev.map(item => (item.id === id ? { ...item, price: Math.max(0, newPrice) } : item))
+    );
   };
 
   const updateItemDiscount = (id: string, discountPercent: number) => {
-    setCart(prev => prev.map(item => item.id === id ? { ...item, discountPercent: Math.max(0, Math.min(100, discountPercent)) } : item));
+    setCart(prev =>
+      prev.map(item =>
+        item.id === id
+          ? { ...item, discountPercent: Math.max(0, Math.min(100, discountPercent)) }
+          : item
+      )
+    );
   };
 
   const updateItemQuantity = (id: string, quantity: number) => {
-    setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, quantity) } : item));
+    setCart(prev =>
+      prev.map(item =>
+        item.id === id ? { ...item, quantity: Math.max(1, quantity) } : item
+      )
+    );
   };
 
   const clearCart = () => {
@@ -61,37 +108,40 @@ export function usePOSCart() {
     setIsTaxExempt(false);
   };
 
-  const totalDiscount = useMemo(() => {
-    return cart.reduce((sum, item) => {
-      const discount = (item.price * (item.discountPercent || 0) / 100) * item.quantity;
-      return sum + discount;
-    }, 0);
-  }, [cart]);
+  const totalDiscount = useMemo(
+    () =>
+      cart.reduce((sum, item) => {
+        const discount = (item.price * (item.discountPercent || 0) / 100) * item.quantity;
+        return sum + discount;
+      }, 0),
+    [cart]
+  );
 
-  const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => {
-      const discountedPrice = item.price * (1 - (item.discountPercent || 0) / 100);
-      return sum + (discountedPrice * item.quantity);
-    }, 0);
-  }, [cart]);
+  const subtotal = useMemo(
+    () =>
+      cart.reduce((sum, item) => {
+        const discountedPrice = item.price * (1 - (item.discountPercent || 0) / 100);
+        return sum + discountedPrice * item.quantity;
+      }, 0),
+    [cart]
+  );
 
   const hst = isTaxExempt ? 0 : subtotal * 0.13;
   const grandTotal = subtotal + hst;
 
-  return { 
-    cart, 
-    addItem, 
-    removeItem, 
-    updateItemPrice, 
-    updateItemDiscount, 
+  return {
+    cart,
+    addItem,
+    removeItem,
+    updateItemPrice,
+    updateItemDiscount,
     updateItemQuantity,
-    clearCart, 
-    subtotal, 
+    clearCart,
+    subtotal,
     totalDiscount,
-    hst, 
+    hst,
     grandTotal,
     isTaxExempt,
-    setIsTaxExempt
+    setIsTaxExempt,
   };
 }
-
