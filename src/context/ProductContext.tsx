@@ -192,15 +192,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         .from('products')
         .select('id,name,price,category,submenu,submenus,isNewArrival,isOnSale,isFeatured,salePrice,description,image,is_online,show_sizes')
         .order('name', { ascending: true })
-        .limit(200);
-      
+        .limit(1000);
+
       console.log('ProductContext: Supabase fetch results', { dataLength: data?.length, error });
-      
+
       if (error) throw error;
-      
+
       if (data) {
         setProducts((data as any[] as Product[]).map(mapProductFromDb));
-        setHasMoreProducts(data.length === PAGE_SIZE);
+        setHasMoreProducts(data.length === 1000);
       }
     } catch (e) {
       console.warn('Direct Supabase admin fetch failed, falling back to API:', e);
