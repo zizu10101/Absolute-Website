@@ -53,7 +53,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       </Link>
 
       {/* Color Thumbnails */}
-      {product.colors && product.colors.length > 0 && (
+      {product.colors && product.colors.length > 0 && typeof product.colors[0] === 'object' && (
         <div className="px-6 pb-4 flex gap-2 overflow-x-auto no-scrollbar relative z-20">
           <button 
             onClick={(e) => {

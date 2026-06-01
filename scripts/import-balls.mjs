@@ -110,7 +110,7 @@ async function importProduct(product) {
     category: product.subcategory === 'BASKETBALL' ? 'Basketball' : 'Soccer Balls',
     submenu,
     submenus: ['online'],
-    colors: [product.colorName],
+    colors: [],
     is_online: true,
     show_sizes: true,
     isNewArrival: false,

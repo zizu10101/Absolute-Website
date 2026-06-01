@@ -151,7 +151,7 @@ async function importProduct(product) {
     category: getCategory(product.name),
     submenu,
     submenus: ['online'],
-    colors: [product.colorDesc],
+    colors: [],
     is_online: true,
     show_sizes: true,
     isNewArrival: false,
