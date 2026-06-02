@@ -30,12 +30,15 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   const fetchCustomers = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .order('last_name', { ascending: true });
-      if (error) throw error;
-      setCustomers(data || []);
+      const res = await fetch('/api/customers');
+      const text = await res.text();
+      let result: any;
+      try { result = JSON.parse(text); } catch { throw new Error('Server error: unexpected response'); }
+      if (!res.ok) throw new Error(result?.error || 'Failed to fetch');
+      const sorted = (result?.data || []).sort((a: Customer, b: Customer) =>
+        (a.last_name || '').localeCompare(b.last_name || '')
+      );
+      setCustomers(sorted);
     } catch (e: any) {
       console.error('Failed to fetch customers:', e.message);
     } finally {
@@ -63,14 +66,15 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
 
   const updateCustomer = async (id: string, data: Partial<Customer>): Promise<Customer | null> => {
     try {
-      const { data: updated, error } = await supabase
-        .from('customers')
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      setCustomers(prev => prev.map(c => c.id === id ? updated : c));
+      const res = await fetch('/api/customers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...data }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      const updated = result.data || null;
+      if (updated) setCustomers(prev => prev.map(c => c.id === id ? updated : c));
       return updated;
     } catch (e: any) {
       console.error('Failed to update customer:', e.message);

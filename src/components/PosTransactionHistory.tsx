@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import Barcode from 'react-barcode';
-import { supabase } from '../supabase';
 import { useCustomers } from '../context/CustomerContext';
 import {
   Search, ChevronDown, ChevronUp, Printer,
@@ -50,13 +49,16 @@ export const PosTransactionHistory: React.FC = () => {
   const fetchTransactions = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setTransactions(data || []);
+      const res = await fetch('/api/transactions');
+      const text = await res.text();
+      let result: any;
+      try { result = JSON.parse(text); } catch { throw new Error(`Server error: unexpected response`); }
+      if (!res.ok) throw new Error(result?.error || 'Failed to fetch');
+      setTransactions((result?.data || []).sort((a: any, b: any) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      ));
     } catch (e: any) {
+      console.error('Transaction fetch error:', e);
       setErrorMsg('Failed to load transactions');
     } finally {
       setIsLoading(false);

@@ -1,5 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { supabase } from '../supabase';
+import React, { useState, useMemo } from 'react';
 import { useCustomers, Customer } from '../context/CustomerContext';
 import {
   Search, User, ArrowLeft, Edit2, Save, X, Plus,
@@ -38,13 +37,16 @@ export const PosCustomerManager: React.FC = () => {
   const loadCustomerTransactions = async (customerId: string) => {
     setTxLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('customer_id', customerId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setCustomerTxns(data || []);
+      const res = await fetch(`/api/transactions?customer_id=${encodeURIComponent(customerId)}`);
+      const text = await res.text();
+      let result: any;
+      try { result = JSON.parse(text); } catch { throw new Error('Server error'); }
+      if (!res.ok) throw new Error(result?.error);
+      // Filter to this customer and sort
+      const filtered = (result?.data || [])
+        .filter((t: any) => t.customer_id === customerId)
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setCustomerTxns(filtered);
     } catch {
       setCustomerTxns([]);
     } finally {
