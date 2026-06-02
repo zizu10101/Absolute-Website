@@ -282,10 +282,12 @@ export const PosRegister: React.FC = () => {
   // ── Transaction history ──────────────────────────────────────────────────
   const fetchHistory = async () => {
     try {
-      const response = await fetch('/api/transactions');
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Failed to fetch history');
-      setTransactionHistory(result.data || []);
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setTransactionHistory(data || []);
     } catch (e) {
       console.error('Failed to fetch history:', e);
     }
@@ -341,39 +343,42 @@ export const PosRegister: React.FC = () => {
     return filteredHistory.slice(start, start + 10);
   }, [filteredHistory, historyPage]);
 
+  const apiPost = async (url: string, body: object) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    let json: any;
+    try { json = JSON.parse(text); } catch {
+      throw new Error(`Server error (${res.status}): unexpected response`);
+    }
+    if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+    return json;
+  };
+
   const handleVoid = async (tx: any) => {
     if (!confirm('Are you sure you want to void this transaction?')) return;
     try {
-      const response = await fetch('/api/transactions/void', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionId: tx.id }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
+      await apiPost('/api/transactions/void', { transactionId: tx.id });
       setSuccessMessage('TRANSACTION SUCCESSFULLY VOIDED');
       fetchHistory();
       setTimeout(() => setSuccessMessage(null), 2000);
     } catch (e: any) {
-      alert('Server Error: ' + e.message);
+      alert('Error: ' + e.message);
     }
   };
 
   const handleRefund = async (tx: any) => {
     if (!confirm('Are you sure you want to issue a refund for this transaction?')) return;
     try {
-      const response = await fetch('/api/transactions/refund', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionId: tx.id }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
+      await apiPost('/api/transactions/refund', { transactionId: tx.id });
       setSuccessMessage('REFUND SUCCESSFULLY ISSUED');
       fetchHistory();
       setTimeout(() => setSuccessMessage(null), 2000);
     } catch (e: any) {
-      alert('Server Error: ' + e.message);
+      alert('Error: ' + e.message);
     }
   };
 
@@ -441,13 +446,8 @@ export const PosRegister: React.FC = () => {
         created_at: new Date().toISOString(),
       };
 
-      const response = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Failed to save transaction');
+      // Save transaction via API (RLS blocks direct anon insert)
+      const result = await apiPost('/api/transactions', payload);
 
       // Deduct stock for each variant-tracked cart item
       for (const item of cart) {
@@ -475,7 +475,7 @@ export const PosRegister: React.FC = () => {
       }
 
       setReceipt({
-        transactionId: result.data?.[0]?.id,
+        transactionId: result?.data?.[0]?.id,
         method,
         items: [...cart],
         subtotal,
