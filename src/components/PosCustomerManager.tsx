@@ -105,48 +105,6 @@ export const PosCustomerManager: React.FC = () => {
     return new Date(completed[0].created_at).toLocaleDateString();
   }, [customerTxns]);
 
-  // ─── Render helpers ───────────────────────────────────────────────────────
-
-  const Flash = () => (
-    <>
-      {successMsg && <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={13} /> {successMsg}</div>}
-      {errorMsg && <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-red-700 text-[11px] font-bold"><AlertTriangle size={13} /> {errorMsg}</div>}
-    </>
-  );
-
-  const FormFields = () => (
-    <div className="grid grid-cols-2 gap-3">
-      {[
-        { key: 'first_name', label: 'First Name *', half: true },
-        { key: 'last_name', label: 'Last Name *', half: true },
-        { key: 'email', label: 'Email', half: false },
-        { key: 'phone', label: 'Phone', half: false },
-        { key: 'boot_size', label: 'Boot Size', half: true },
-        { key: 'club_affinity', label: 'Club', half: true },
-        { key: 'notes', label: 'Notes', half: false },
-      ].map(({ key, label, half }) => (
-        <div key={key} className={half ? '' : 'col-span-2'}>
-          <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{label}</label>
-          {key === 'notes' ? (
-            <textarea
-              value={(form as any)[key]}
-              onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
-              rows={2}
-              className="w-full text-xs border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-800 resize-none"
-            />
-          ) : (
-            <input
-              type={key === 'email' ? 'email' : 'text'}
-              value={(form as any)[key]}
-              onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
-              className="w-full text-xs border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-800"
-            />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-
   // ─── Views ────────────────────────────────────────────────────────────────
 
   if (view === 'create' || view === 'edit') {
@@ -161,8 +119,40 @@ export const PosCustomerManager: React.FC = () => {
           </h2>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          <Flash />
-          <FormFields />
+          <>
+            {successMsg && <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={13} /> {successMsg}</div>}
+            {errorMsg && <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-red-700 text-[11px] font-bold"><AlertTriangle size={13} /> {errorMsg}</div>}
+          </>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { key: 'first_name', label: 'First Name *', half: true },
+              { key: 'last_name', label: 'Last Name *', half: true },
+              { key: 'email', label: 'Email', half: false },
+              { key: 'phone', label: 'Phone', half: false },
+              { key: 'boot_size', label: 'Boot Size', half: true },
+              { key: 'club_affinity', label: 'Club', half: true },
+              { key: 'notes', label: 'Notes', half: false },
+            ].map(({ key, label, half }) => (
+              <div key={key} className={half ? '' : 'col-span-2'}>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{label}</label>
+                {key === 'notes' ? (
+                  <textarea
+                    value={(form as any)[key]}
+                    onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                    rows={2}
+                    className="w-full text-xs border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-800 resize-none"
+                  />
+                ) : (
+                  <input
+                    type={key === 'email' ? 'email' : 'text'}
+                    value={(form as any)[key]}
+                    onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                    className="w-full text-xs border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-800"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
         <div className="p-5 border-t bg-white flex gap-3">
           <button onClick={() => setView(view === 'create' ? 'list' : 'profile')} className="flex-1 py-3 border border-zinc-200 rounded-xl text-[11px] font-black uppercase">Cancel</button>
@@ -192,7 +182,10 @@ export const PosCustomerManager: React.FC = () => {
               <Edit2 size={12} /> Edit
             </button>
           </div>
-          <Flash />
+          <>
+            {successMsg && <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={13} /> {successMsg}</div>}
+            {errorMsg && <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-red-700 text-[11px] font-bold"><AlertTriangle size={13} /> {errorMsg}</div>}
+          </>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">

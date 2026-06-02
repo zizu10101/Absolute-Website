@@ -23,12 +23,12 @@ export default async (req: any, res: any) => {
 
   if (req.method === 'GET') {
     try {
-      const { data, error } = await supabase
+      const { data, error, count } = await supabase
         .from('transactions')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('created_at', { ascending: false });
       if (error) return res.status(500).json({ error: error.message });
-      return res.status(200).json({ success: true, data });
+      return res.status(200).json({ success: true, data, count });
     } catch (e: any) {
       return res.status(500).json({ error: e.message });
     }
