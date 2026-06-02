@@ -92,15 +92,9 @@ export const PosRegister: React.FC = () => {
         phone: customerForm.phone.trim() || null,
         club_affinity: customerForm.club_affinity.trim() || null,
       };
-      const response = await fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Failed to register customer');
+      const result = await apiPost('/api/customers', payload);
       await fetchCustomers();
-      if (result.data && result.data[0]) {
+      if (result?.data && result.data[0]) {
         const newCustomer = result.data[0];
         setSelectedCustomerId(newCustomer.id);
         setCustomerSearchTerm(`${newCustomer.first_name} ${newCustomer.last_name}`);
