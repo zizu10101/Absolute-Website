@@ -2116,19 +2116,20 @@ function AdminPageInner() {
             >
               <Globe size={16} /> SEO
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('tools')}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'tools' ? 'bg-[#b90014] text-white shadow-md' : 'text-zinc-500 hover:text-[#b90014] hover:bg-red-50'}`}
             >
               <Zap size={16} /> Database Sync
             </button>
-            <button 
-              onClick={() => setActiveTab('pos')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'pos' ? 'bg-[#b90014] text-white shadow-md' : 'text-zinc-500 hover:text-[#b90014] hover:bg-red-50'}`}
-            >
-              <CreditCard size={16} /> POS
-            </button>
           </div>
+
+          <button
+            onClick={() => setActiveTab('pos')}
+            className={`w-full flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest text-sm transition-all ${activeTab === 'pos' ? 'bg-[#b90014] text-white shadow-lg shadow-red-900/30' : 'bg-[#b90014] text-white hover:bg-red-800 shadow-lg shadow-red-900/30'}`}
+          >
+            <CreditCard size={20} /> POS
+          </button>
         </div>
 
         <AnimatePresence mode="wait">
