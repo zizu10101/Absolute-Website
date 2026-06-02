@@ -32,7 +32,14 @@ interface Receipt {
   time: string;
 }
 
-export const PosRegister: React.FC = () => {
+type PosTab = 'register' | 'history' | 'customers';
+
+interface PosRegisterProps {
+  posTab?: PosTab;
+  setPosTab?: (tab: PosTab) => void;
+}
+
+export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', setPosTab }) => {
   const {
     products: contextProducts,
     loadMoreAdminProducts,
@@ -56,7 +63,6 @@ export const PosRegister: React.FC = () => {
   });
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [posMode, setPosMode] = useState<'history' | 'void' | 'refund' | null>(null);
 
   // Barcode scanner
   const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -182,12 +188,7 @@ export const PosRegister: React.FC = () => {
   }, [contextProducts]);
 
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [transactionHistory, setTransactionHistory] = useState<any[]>([]);
-  const [historyFilter, setHistoryFilter] = useState<'LAST' | 'DAY' | 'WEEK' | 'MONTH' | 'YEAR'>('DAY');
-  const [historyPage, setHistoryPage] = useState(0);
-  const [barSearch, setBarSearch] = useState('');
 
   // ── Barcode scanner handler ──────────────────────────────────────────────
   const handleBarcodeScan = async (rawBarcode: string) => {
@@ -273,69 +274,6 @@ export const PosRegister: React.FC = () => {
     }
   };
 
-  // ── Transaction history ──────────────────────────────────────────────────
-  const fetchHistory = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setTransactionHistory(data || []);
-    } catch (e) {
-      console.error('Failed to fetch history:', e);
-    }
-  };
-
-  useEffect(() => {
-    if (isHistoryOpen) fetchHistory();
-  }, [isHistoryOpen]);
-
-  const filteredHistory = useMemo(() => {
-    const now = new Date();
-    let filtered = [...transactionHistory];
-
-    if (posMode === 'void') {
-      filtered = filtered.filter(t => {
-        const d = new Date(t.created_at);
-        return d.toDateString() === now.toDateString() && t.status !== 'voided';
-      });
-    } else if (posMode === 'refund') {
-      filtered = filtered.filter(t => {
-        const d = new Date(t.created_at);
-        return (
-          d.toDateString() !== now.toDateString() &&
-          t.status !== 'voided' &&
-          t.status !== 'refunded' &&
-          t.total_amount > 0
-        );
-      });
-    } else {
-      if (historyFilter === 'LAST') return filtered.slice(0, 1);
-      filtered = filtered.filter(t => {
-        const d = new Date(t.created_at);
-        if (historyFilter === 'DAY') return d.toDateString() === now.toDateString();
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        if (historyFilter === 'WEEK') return d >= weekAgo;
-        if (historyFilter === 'MONTH')
-          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        if (historyFilter === 'YEAR') return d.getFullYear() === now.getFullYear();
-        return true;
-      });
-    }
-
-    if (barSearch.trim()) {
-      const s = barSearch.trim().toLowerCase();
-      filtered = filtered.filter(t => t.id.toLowerCase().includes(s));
-    }
-    return filtered;
-  }, [transactionHistory, historyFilter, posMode, barSearch]);
-
-  const pagedHistory = useMemo(() => {
-    const start = historyPage * 10;
-    return filteredHistory.slice(start, start + 10);
-  }, [filteredHistory, historyPage]);
 
   const apiPost = async (url: string, body: object) => {
     const res = await fetch(url, {
@@ -725,9 +663,7 @@ export const PosRegister: React.FC = () => {
           <span className="text-xl font-black text-white tracking-wide">${grandTotal.toFixed(2)}</span>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => { setPosMode('void'); setIsHistoryOpen(true); }} className="flex items-center gap-2 px-4 py-3 border border-zinc-700 rounded-lg bg-red-900 hover:bg-red-800 text-white transition-all text-xs font-bold uppercase tracking-widest"><RotateCcw size={16} /> Void</button>
-          <button onClick={() => { setPosMode('refund'); setIsHistoryOpen(true); }} className="flex items-center gap-2 px-4 py-3 border border-zinc-700 rounded-lg bg-amber-800 hover:bg-amber-700 text-white transition-all text-xs font-bold uppercase tracking-widest"><RotateCcw size={16} /> Refund</button>
-          <button onClick={() => { setPosMode('history'); setIsHistoryOpen(true); }} className="flex items-center gap-2 px-4 py-3 border border-zinc-700 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white transition-all text-xs font-bold uppercase tracking-widest"><RotateCcw size={16} /> History</button>
+          <button onClick={() => setPosTab?.('history')} className="flex items-center gap-2 px-4 py-3 border border-zinc-700 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white transition-all text-xs font-bold uppercase tracking-widest"><RotateCcw size={16} /> History</button>
           <button disabled={totalCartItemsCount === 0} onClick={() => setIsCheckoutOpen(true)} className="p-3 border border-zinc-800 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all" title="View Order"><Receipt size={18} /></button>
           <button disabled={totalCartItemsCount === 0} onClick={() => { if (confirm('Clear the active POS ticket?')) clearCart(); }} className="p-3 border border-zinc-800 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all" title="Clear Ticket"><Trash2 size={18} /></button>
           <button disabled={totalCartItemsCount === 0} onClick={() => setIsCheckoutOpen(true)} className="bg-[#b90014] hover:bg-red-700 active:scale-[0.98] text-white px-8 py-3 rounded-md text-[11px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2.5 disabled:opacity-40 disabled:cursor-not-allowed text-nowrap">
@@ -928,115 +864,6 @@ export const PosRegister: React.FC = () => {
                   </div>
                 </>
               )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ── History / Void / Refund drawer ── */}
-      <AnimatePresence>
-        {isHistoryOpen && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-55 flex justify-end">
-            <div className="flex-1" onClick={() => { setIsHistoryOpen(false); setBarSearch(''); }} />
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full max-w-lg bg-white h-full flex flex-col shadow-2xl"
-            >
-              <div className="p-6 border-b flex justify-between items-center bg-zinc-950 text-white">
-                <div className="flex items-center gap-2">
-                  <RotateCcw size={18} className="text-[#b90014]" />
-                  <h2 className="text-xs font-black uppercase tracking-widest">
-                    {posMode === 'void' ? 'VOID TRANSACTION'
-                      : posMode === 'refund' ? 'REFUND MANAGER'
-                      : 'TRANSACTION HISTORY'}
-                  </h2>
-                </div>
-                <button onClick={() => { setIsHistoryOpen(false); setBarSearch(''); }} className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors">
-                  <X size={18} />
-                </button>
-              </div>
-
-              {posMode === 'history' ? (
-                <div className="p-4 bg-zinc-100 flex gap-2 overflow-x-auto text-[10px] font-bold">
-                  {(['LAST', 'DAY', 'WEEK', 'MONTH', 'YEAR'] as const).map(f => (
-                    <button key={f} onClick={() => { setHistoryFilter(f); setHistoryPage(0); }} className={`px-3 py-1.5 rounded ${historyFilter === f ? 'bg-zinc-900 text-white' : 'bg-white'}`}>{f}</button>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 bg-zinc-900 border-b border-zinc-800 space-y-2">
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Scan or Enter Receipt ID</label>
-                  <input
-                    type="text"
-                    value={barSearch}
-                    onChange={e => setBarSearch(e.target.value)}
-                    placeholder="Scan Receipt Barcode..."
-                    autoFocus
-                    className="w-full px-3 py-2 border border-zinc-800 bg-zinc-950 text-white rounded-md text-xs font-mono focus:outline-none focus:border-red-500"
-                  />
-                </div>
-              )}
-
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {successMessage ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-                    <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
-                      <CheckCircle2 size={40} />
-                    </div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-emerald-700">{successMessage}</h3>
-                  </div>
-                ) : pagedHistory.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center p-12 text-zinc-400 text-center space-y-2">
-                    <p className="text-xs font-bold uppercase tracking-widest">No matching transactions</p>
-                  </div>
-                ) : (
-                  pagedHistory.map(tx => (
-                    <div key={tx.id} className="bg-white border rounded p-4 text-[10px] space-y-2">
-                      <div className="flex justify-between font-bold">
-                        <span>ID: {tx.id.slice(0, 8)}</span>
-                        <span className={tx.total_amount < 0 || tx.status === 'voided' ? 'text-red-600 line-through' : 'text-emerald-600'}>
-                          ${tx.total_amount.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-zinc-500">
-                        <span>{new Date(tx.created_at).toLocaleString()}</span>
-                        <span className="font-semibold uppercase">{tx.method}</span>
-                      </div>
-                      <div className="flex justify-center bg-white p-2 border rounded">
-                        <Barcode value={tx.id} width={1.5} height={30} fontSize={10} />
-                      </div>
-                      {tx.status && (
-                        <p className="text-[9px] font-bold uppercase tracking-widest">
-                          Status:{' '}
-                          <span className={tx.status === 'voided' ? 'text-red-500' : tx.status === 'refunded' ? 'text-amber-500' : 'text-emerald-500'}>
-                            {tx.status}
-                          </span>
-                        </p>
-                      )}
-                      <div className="flex gap-2 pt-1 border-t border-zinc-100">
-                        {posMode === 'void' && (
-                          <button id={`void-btn-${tx.id}`} onClick={() => handleVoid(tx)} className="w-full py-2 rounded font-black text-[10px] uppercase tracking-widest bg-red-600 text-white hover:bg-red-700 transition-all">
-                            Confirm Void
-                          </button>
-                        )}
-                        {posMode === 'refund' && (
-                          <button id={`refund-btn-${tx.id}`} onClick={() => handleRefund(tx)} className="w-full py-2 rounded font-black text-[10px] uppercase tracking-widest bg-amber-500 text-white hover:bg-amber-600 transition-all">
-                            Issue Refund
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="p-4 border-t flex justify-between items-center text-[10px] font-black uppercase text-zinc-500">
-                <button disabled={historyPage === 0} onClick={() => setHistoryPage(p => p - 1)} className="px-3 py-1 cursor-pointer hover:bg-zinc-100 border rounded disabled:opacity-40">◀ Prev</button>
-                <span>Page {historyPage + 1}</span>
-                <button disabled={pagedHistory.length < 10} onClick={() => setHistoryPage(p => p + 1)} className="px-3 py-1 cursor-pointer hover:bg-zinc-100 border rounded disabled:opacity-40">Next ▶</button>
-              </div>
             </motion.div>
           </div>
         )}

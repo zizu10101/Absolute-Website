@@ -2163,7 +2163,7 @@ function AdminPageInner() {
 
               {/* POS content based on sub-tab */}
               <div className="flex-1 overflow-hidden">
-                {posTab === 'register' && <PosRegister />}
+                {posTab === 'register' && <PosRegister posTab={posTab} setPosTab={setPosTab} />}
                 {posTab === 'history' && <PosTransactionHistory />}
                 {posTab === 'customers' && <PosCustomerManager />}
               </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Barcode from 'react-barcode';
 import { useCustomers } from '../context/CustomerContext';
+import { useSettings } from '../context/SettingsContext';
 import { generateThermalReceiptHTML } from '../utils/thermalReceipt';
 import {
   Search, ChevronDown, ChevronUp, Printer,
@@ -36,6 +37,7 @@ const apiPost = async (url: string, body: object) => {
 
 export const PosTransactionHistory: React.FC = () => {
   const { customers } = useCustomers();
+  const { logo } = useSettings();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -158,6 +160,7 @@ export const PosTransactionHistory: React.FC = () => {
       paymentMethod: tx.method,
       createdAt: new Date(tx.created_at),
       status: tx.status,
+      logoUrl: logo,
     });
 
     const win = window.open('', '_blank');

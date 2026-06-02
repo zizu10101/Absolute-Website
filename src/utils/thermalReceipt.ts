@@ -14,6 +14,7 @@ export interface ReceiptData {
   paymentMethod: string;
   createdAt: Date;
   status?: string;
+  logoUrl?: string;
 }
 
 export const generateThermalReceiptHTML = (data: ReceiptData): string => {
@@ -73,6 +74,12 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     .header {
       text-align: center;
       margin-bottom: 8px;
+    }
+    .logo {
+      max-width: 180px;
+      height: auto;
+      margin: 0 auto 6px;
+      display: block;
     }
     .store-name {
       font-size: 14px;
@@ -152,7 +159,8 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
   <div class="receipt">
     <!-- Header -->
     <div class="header">
-      <div class="store-name">TORONTO SOCCER SHOP</div>
+      ${data.logoUrl ? `<img src="${data.logoUrl}" alt="Logo" class="logo">` : ''}
+      <div class="store-name">ABSOLUTE SOCCER MISSISSAUGA</div>
       <div class="store-info">
         <div>Phone: 905-593-3600</div>
         <div>Web: torontosoccershop.com</div>
