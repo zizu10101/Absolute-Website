@@ -2065,7 +2065,7 @@ function AdminPageInner() {
                 >
                   <Package size={14} /> Restore All Local JSON Data
                 </button>
-                <button 
+                <button
                   onClick={async () => {
                     if (window.confirm('Reset all settings (slider, logos, menus) to defaults?')) {
                       await resetSettings();
@@ -2074,6 +2074,12 @@ function AdminPageInner() {
                   className="flex items-center gap-2 px-4 py-2 bg-zinc-100 text-zinc-600 rounded-lg border border-zinc-200 hover:bg-zinc-200 transition-all text-[10px] font-bold uppercase tracking-widest"
                 >
                   <LayoutDashboard size={14} /> Restore Default Settings
+                </button>
+                <button
+                  onClick={() => setActiveTab('pos')}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'pos' ? 'bg-[#b90014] text-white shadow-md' : 'bg-[#b90014] text-white hover:bg-red-800 shadow-md'}`}
+                >
+                  <CreditCard size={16} /> POS
                 </button>
               </div>
             </div>
@@ -2123,13 +2129,6 @@ function AdminPageInner() {
               <Zap size={16} /> Database Sync
             </button>
           </div>
-
-          <button
-            onClick={() => setActiveTab('pos')}
-            className={`w-full flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest text-sm transition-all ${activeTab === 'pos' ? 'bg-[#b90014] text-white shadow-lg shadow-red-900/30' : 'bg-[#b90014] text-white hover:bg-red-800 shadow-lg shadow-red-900/30'}`}
-          >
-            <CreditCard size={20} /> POS
-          </button>
         </div>
 
         <AnimatePresence mode="wait">
