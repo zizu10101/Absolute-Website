@@ -7,7 +7,7 @@ import {
 
 type View = 'list' | 'profile' | 'create' | 'edit';
 
-const EMPTY_FORM = { first_name: '', last_name: '', email: '', phone: '', boot_size: '', club_affinity: '', notes: '' };
+const EMPTY_FORM = { first_name: '', last_name: '', email: '', phone: '', boot_size: '', club_affinity: '' };
 
 export const PosCustomerManager: React.FC = () => {
   const { customers, fetchCustomers, addCustomer, updateCustomer } = useCustomers();
@@ -69,7 +69,6 @@ export const PosCustomerManager: React.FC = () => {
       phone: selected.phone || '',
       boot_size: selected.boot_size || '',
       club_affinity: selected.club_affinity || '',
-      notes: (selected as any).notes || '',
     });
     setView('edit');
   };
@@ -131,25 +130,15 @@ export const PosCustomerManager: React.FC = () => {
               { key: 'phone', label: 'Phone', half: false },
               { key: 'boot_size', label: 'Boot Size', half: true },
               { key: 'club_affinity', label: 'Club', half: true },
-              { key: 'notes', label: 'Notes', half: false },
             ].map(({ key, label, half }) => (
               <div key={key} className={half ? '' : 'col-span-2'}>
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{label}</label>
-                {key === 'notes' ? (
-                  <textarea
-                    value={(form as any)[key]}
-                    onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
-                    rows={2}
-                    className="w-full text-xs border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-800 resize-none"
-                  />
-                ) : (
-                  <input
-                    type={key === 'email' ? 'email' : 'text'}
-                    value={(form as any)[key]}
-                    onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
-                    className="w-full text-xs border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-800"
-                  />
-                )}
+                <input
+                  type={key === 'email' ? 'email' : 'text'}
+                  value={(form as any)[key]}
+                  onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                  className="w-full text-xs border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-800"
+                />
               </div>
             ))}
           </div>
@@ -212,12 +201,6 @@ export const PosCustomerManager: React.FC = () => {
                   <p className="font-bold text-zinc-800">{value}</p>
                 </div>
               ))}
-              {(selected as any).notes && (
-                <div className="col-span-2">
-                  <p className="text-zinc-400 font-bold text-[9px] uppercase tracking-widest">Notes</p>
-                  <p className="font-bold text-zinc-800">{(selected as any).notes}</p>
-                </div>
-              )}
             </div>
           </div>
 

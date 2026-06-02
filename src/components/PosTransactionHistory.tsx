@@ -42,7 +42,7 @@ export const PosTransactionHistory: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Filters
-  const [dateFilter, setDateFilter] = useState<DateFilter>('today');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
 

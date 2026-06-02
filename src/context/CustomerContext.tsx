@@ -9,7 +9,6 @@ export interface Customer {
   phone: string | null;
   boot_size: string | null;
   club_affinity: string | null;
-  notes: string | null;
   created_at: string;
 }
 
