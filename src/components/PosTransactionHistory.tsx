@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Barcode from 'react-barcode';
 import { useCustomers } from '../context/CustomerContext';
 import {
