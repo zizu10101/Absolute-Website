@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Barcode from 'react-barcode';
 import { useCustomers } from '../context/CustomerContext';
+import { generateThermalReceiptHTML } from '../utils/thermalReceipt';
 import {
   Search, ChevronDown, ChevronUp, Printer,
   RotateCcw, CheckCircle2, XCircle, AlertTriangle, RefreshCw,
@@ -135,26 +136,34 @@ export const PosTransactionHistory: React.FC = () => {
 
   const handlePrint = (tx: Transaction) => {
     const customerName = getCustomerName(tx);
-    const win = window.open('', '_blank', 'width=400,height=700');
+
+    // Calculate totals (assume 13% HST)
+    const total = Math.abs(Number(tx.total_amount));
+    const subtotal = total / 1.13;
+    const hst = total - subtotal;
+
+    const html = generateThermalReceiptHTML({
+      transactionId: tx.id,
+      customerName,
+      items: (tx.items || []).map((item: any) => ({
+        name: item.name || 'Item',
+        quantity: item.quantity || 1,
+        price: Number(item.price),
+        size: item.size,
+        ageGroup: item.ageGroup,
+      })),
+      subtotal,
+      hst,
+      total,
+      paymentMethod: tx.method,
+      createdAt: new Date(tx.created_at),
+      status: tx.status,
+    });
+
+    const win = window.open('', '_blank');
     if (!win) return;
-    const items = (tx.items || []).map((item: any) =>
-      `<tr><td>${item.name || ''}${item.size ? ` · Sz ${item.size}` : ''}</td><td style="text-align:right">×${item.quantity}</td><td style="text-align:right">$${(Number(item.price) * (item.quantity || 1)).toFixed(2)}</td></tr>`
-    ).join('');
-    win.document.write(`
-      <html><head><title>Receipt</title>
-      <style>body{font-family:monospace;font-size:12px;padding:20px}table{width:100%}td{padding:2px 4px}hr{border-top:1px dashed #000}</style>
-      </head><body>
-      <div style="text-align:center"><h2 style="margin:0">ABSOLUTE SOCCER</h2><p style="margin:4px 0">${new Date(tx.created_at).toLocaleString()}</p></div>
-      <hr/>
-      <p><b>TXN:</b> ${tx.id.slice(0, 8).toUpperCase()}<br/><b>Customer:</b> ${customerName}<br/><b>Payment:</b> ${tx.method}</p>
-      <hr/>
-      <table><thead><tr><th style="text-align:left">Item</th><th>Qty</th><th>Amount</th></tr></thead><tbody>${items}</tbody></table>
-      <hr/>
-      <p style="text-align:right"><b>TOTAL: $${Number(tx.total_amount).toFixed(2)}</b></p>
-      <p style="text-align:center;margin-top:16px">Status: ${(tx.status || 'completed').toUpperCase()}</p>
-      </body></html>`);
+    win.document.write(html);
     win.document.close();
-    win.print();
   };
 
   const statusBadge = (status: string) => {

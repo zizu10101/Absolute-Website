@@ -5,6 +5,99 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Absolute Soccer</title>
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <style>
+      @media print {
+        * {
+          margin: 0 !important;
+          padding: 0 !important;
+          box-sizing: border-box !important;
+        }
+
+        html, body {
+          width: 80mm !important;
+          height: auto !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
+        body {
+          font-family: 'Courier New', monospace !important;
+          font-size: 12px !important;
+          line-height: 1.3 !important;
+          color: #000 !important;
+        }
+
+        /* Hide everything except receipt during print */
+        #root > * {
+          display: none !important;
+        }
+
+        /* Show only the checkout drawer receipt */
+        [class*="bg-black"] {
+          display: block !important;
+          background: white !important;
+        }
+
+        [class*="motion"] {
+          position: static !important;
+          transform: none !important;
+        }
+
+        /* Receipt styling for thermal printer */
+        [class*="flex-1"][class*="overflow-y-auto"] {
+          display: block !important;
+          overflow: visible !important;
+        }
+
+        /* Ensure text stays black and visible */
+        div, p, span {
+          color: #000 !important;
+          background: white !important;
+        }
+
+        /* Hide buttons and interactive elements */
+        button, [role="button"] {
+          display: none !important;
+        }
+
+        /* Format text for thermal printer */
+        h2, h3, h4 {
+          font-size: 14px !important;
+          font-weight: bold !important;
+          text-align: center !important;
+        }
+
+        /* Remove shadows, borders, and styling */
+        [class*="shadow"], [class*="border"] {
+          box-shadow: none !important;
+          border: none !important;
+        }
+
+        /* Dividers as dashes */
+        [class*="border-dashed"] {
+          border: none !important;
+          text-align: center !important;
+        }
+
+        [class*="border-dashed"]::before {
+          content: "- - - - - - - - - - - - - - - -" !important;
+          display: block !important;
+        }
+
+        /* Page break handling */
+        .receipt {
+          page-break-after: avoid !important;
+          page-break-inside: avoid !important;
+        }
+
+        /* Thermal printer margins */
+        @page {
+          size: 80mm auto;
+          margin: 0;
+          padding: 0;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
