@@ -10,9 +10,12 @@ import Papa from 'papaparse';
 import { resizeImage } from '../lib/imageUtils';
 import { uploadImage, supabase } from '../supabase';
 import { PosRegister } from '../components/PosRegister';
+import { PosTransactionHistory } from '../components/PosTransactionHistory';
+import { PosCustomerManager } from '../components/PosCustomerManager';
 import { RapidScanIntakeMatrix } from '../components/RapidScanIntakeMatrix';
 
 type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'tools' | 'pos';
+type PosTab = 'register' | 'history' | 'customers';
 
 const CATEGORIES = [
   'Footwear',
@@ -169,6 +172,7 @@ function AdminPageInner() {
   }, [availableCategories, newProduct.category]);
 
   const [activeTab, setActiveTab] = useState<Tab>('slider');
+  const [posTab, setPosTab] = useState<PosTab>('register');
   const [dbMode, setDbMode] = useState<'supabase' | 'fallback' | 'unknown'>('unknown');
 
   useEffect(() => {
@@ -2129,13 +2133,40 @@ function AdminPageInner() {
 
         <AnimatePresence mode="wait">
           {activeTab === 'pos' && (
-            <motion.div 
+            <motion.div
               key="pos"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
+              className="flex flex-col h-full"
             >
-              <PosRegister />
+              {/* POS Sub-tabs */}
+              <div className="bg-white border-b border-zinc-200 p-3 flex gap-2">
+                {[
+                  { id: 'register', label: 'Register' },
+                  { id: 'history', label: 'History' },
+                  { id: 'customers', label: 'Customers' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setPosTab(tab.id as PosTab)}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors ${
+                      posTab === tab.id
+                        ? 'bg-zinc-900 text-white'
+                        : 'bg-zinc-50 border border-zinc-200 text-zinc-600 hover:border-zinc-400'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* POS content based on sub-tab */}
+              <div className="flex-1 overflow-hidden">
+                {posTab === 'register' && <PosRegister />}
+                {posTab === 'history' && <PosTransactionHistory />}
+                {posTab === 'customers' && <PosCustomerManager />}
+              </div>
             </motion.div>
           )}
 

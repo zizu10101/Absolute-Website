@@ -5,10 +5,11 @@ export interface Customer {
   id: string;
   first_name: string;
   last_name: string;
-  email: string;
-  phone: string;
-  boot_size: string;
-  club_affinity: string;
+  email: string | null;
+  phone: string | null;
+  boot_size: string | null;
+  club_affinity: string | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -16,6 +17,8 @@ interface CustomerContextType {
   customers: Customer[];
   isLoading: boolean;
   fetchCustomers: () => Promise<void>;
+  addCustomer: (data: Partial<Customer>) => Promise<Customer | null>;
+  updateCustomer: (id: string, data: Partial<Customer>) => Promise<Customer | null>;
 }
 
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
@@ -25,28 +28,60 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchCustomers = async () => {
-    console.log("CRM: fetchCustomers loop triggered...");
     setIsLoading(true);
     try {
-      const response = await fetch('/api/customers');
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Failed to fetch customers');
-      
-      console.log(`CRM: Successfully loaded ${result.data.length} customers from database.`, result.data);
-      setCustomers(result.data);
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('last_name', { ascending: true });
+      if (error) throw error;
+      setCustomers(data || []);
     } catch (e: any) {
-      console.error("CRM: Critical failure loading customers from API:", e);
+      console.error('Failed to fetch customers:', e.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
+  const addCustomer = async (data: Partial<Customer>): Promise<Customer | null> => {
+    try {
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      const newCustomer = result.data?.[0] || null;
+      if (newCustomer) setCustomers(prev => [...prev, newCustomer].sort((a, b) => a.last_name.localeCompare(b.last_name)));
+      return newCustomer;
+    } catch (e: any) {
+      console.error('Failed to add customer:', e.message);
+      return null;
+    }
+  };
+
+  const updateCustomer = async (id: string, data: Partial<Customer>): Promise<Customer | null> => {
+    try {
+      const { data: updated, error } = await supabase
+        .from('customers')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      setCustomers(prev => prev.map(c => c.id === id ? updated : c));
+      return updated;
+    } catch (e: any) {
+      console.error('Failed to update customer:', e.message);
+      return null;
+    }
+  };
+
+  useEffect(() => { fetchCustomers(); }, []);
 
   return (
-    <CustomerContext.Provider value={{ customers, isLoading, fetchCustomers }}>
+    <CustomerContext.Provider value={{ customers, isLoading, fetchCustomers, addCustomer, updateCustomer }}>
       {children}
     </CustomerContext.Provider>
   );
