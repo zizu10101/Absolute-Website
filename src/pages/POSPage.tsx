@@ -456,7 +456,7 @@ export function POSPage() {
   // Select customer
   const handleSelectCustomer = (customerId: string) => {
     setSelectedCustomerId(customerId);
-    setShowCustomersPanel(false);
+    setPosTab('register');
   };
 
   if (!isAuthenticated) {
@@ -496,8 +496,11 @@ export function POSPage() {
         </div>
       </div>
 
-      {/* Barcode Scanner */}
-      <div className="bg-[#1a2236] border-b border-[#2d3547] px-6 py-3">
+      {/* Register Tab Content */}
+      {posTab === 'register' && (
+        <>
+          {/* Barcode Scanner */}
+          <div className="bg-[#1a2236] border-b border-[#2d3547] px-6 py-3">
         <div className={`flex items-center gap-3 rounded-lg border-2 px-4 py-2 transition-all ${
           barcodeError ? 'border-red-500 bg-red-50/10' :
           barcodeSuccess ? 'border-green-500 bg-green-50/10' :
@@ -708,17 +711,43 @@ export function POSPage() {
               <button onClick={() => setShowVoidRefundModal(true)} className="py-2 bg-[#b90014] hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase">
                 Void/Refund
               </button>
-              <button onClick={() => setShowHistoryPanel(true)} className="py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
+              <button onClick={() => setPosTab('history')} className="py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
                 History
               </button>
             </div>
 
-            <button onClick={() => setShowCustomersPanel(true)} className="w-full py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
+            <button onClick={() => setPosTab('customers')} className="w-full py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
               Customers
             </button>
           </div>
         </div>
       </div>
+        </>
+      )}
+
+      {/* History Tab Content */}
+      {posTab === 'history' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-[#2d3547] bg-[#0f1117]">
+            <h2 className="text-sm font-bold text-white">Transaction History</h2>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <PosTransactionHistory />
+          </div>
+        </div>
+      )}
+
+      {/* Customers Tab Content */}
+      {posTab === 'customers' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-[#2d3547] bg-[#0f1117]">
+            <h2 className="text-sm font-bold text-white">Customers</h2>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <PosCustomerManager onSelectCustomer={handleSelectCustomer} />
+          </div>
+        </div>
+      )}
 
       {/* Checkout Modal */}
       <AnimatePresence>
@@ -848,38 +877,6 @@ export function POSPage() {
               )}
             </motion.div>
           </div>
-        )}
-      </AnimatePresence>
-
-      {/* History Panel */}
-      <AnimatePresence>
-        {showHistoryPanel && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowHistoryPanel(false)} className="absolute inset-0 bg-black/50 z-40" />
-            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="absolute right-0 top-0 bottom-0 w-96 bg-[#1a2236] border-l border-[#2d3547] z-50 flex flex-col">
-              <div className="p-4 border-b border-[#2d3547] flex items-center justify-between">
-                <h2 className="text-sm font-bold">Order History</h2>
-                <button onClick={() => setShowHistoryPanel(false)} className="text-gray-400 hover:text-white"><X size={18} /></button>
-              </div>
-              <div className="flex-1 overflow-hidden"><PosTransactionHistory /></div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Customers Panel */}
-      <AnimatePresence>
-        {showCustomersPanel && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCustomersPanel(false)} className="absolute inset-0 bg-black/50 z-40" />
-            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="absolute right-0 top-0 bottom-0 w-96 bg-[#1a2236] border-l border-[#2d3547] z-50 flex flex-col">
-              <div className="p-4 border-b border-[#2d3547] flex items-center justify-between">
-                <h2 className="text-sm font-bold">Customers</h2>
-                <button onClick={() => setShowCustomersPanel(false)} className="text-gray-400 hover:text-white"><X size={18} /></button>
-              </div>
-              <div className="flex-1 overflow-hidden"><PosCustomerManager onSelectCustomer={handleSelectCustomer} /></div>
-            </motion.div>
-          </>
         )}
       </AnimatePresence>
 
