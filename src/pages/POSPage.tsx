@@ -702,39 +702,74 @@ export function POSPage() {
               </div>
 
               {receipt ? (
-                /* Receipt View */
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <div className="p-4 bg-green-900/30 border-b border-green-700">
-                    <p className="text-xs font-bold text-green-400">Sale Complete</p>
-                    <p className="text-[10px] text-gray-400">{receipt.time} · {receipt.method}</p>
+                /* Receipt View - Epson Printer Format */
+                <div className="flex-1 flex flex-col overflow-hidden bg-white text-black">
+                  <div className="p-4 bg-green-50 border-b border-green-200 flex items-center gap-3">
+                    <CheckCircle2 size={20} className="text-green-600 shrink-0" />
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-green-800">Sale Complete</p>
+                      <p className="text-[10px] text-green-600 font-bold">{receipt.time} · {receipt.method}</p>
+                    </div>
                   </div>
+
                   {receipt.transactionId && (
-                    <div className="px-4 py-3 bg-[#0f1117] flex justify-center">
-                      <Barcode value={receipt.transactionId} width={1} height={30} fontSize={10} />
+                    <div className="px-4 py-3 bg-white border-b border-zinc-100 flex justify-center">
+                      <Barcode value={receipt.transactionId} width={1.5} height={36} fontSize={10} />
                     </div>
                   )}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3 text-[10px]">
-                    {receipt.items.map((item, i) => (
-                      <div key={i} className="border-b border-[#2d3547] pb-2">
-                        <p className="font-bold text-white">{item.name}</p>
-                        <p className="text-gray-400">Qty {item.quantity} × ${Number(item.price).toFixed(2)}</p>
-                        <p className="text-[#b90014] font-bold">${(Number(item.price) * item.quantity).toFixed(2)}</p>
+
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {receipt.transactionId && (
+                      <p className="text-[10px] font-mono text-zinc-500 text-center">
+                        TXN: {receipt.transactionId.slice(0, 8).toUpperCase()}
+                      </p>
+                    )}
+                    {receipt.customer && (
+                      <p className="text-[10px] font-bold text-black uppercase">
+                        Customer: {receipt.customer.first_name} {receipt.customer.last_name}
+                      </p>
+                    )}
+
+                    <div className="border-t border-dashed border-zinc-300 pt-3 space-y-2">
+                      {receipt.items.map((item, i) => (
+                        <div key={i} className="flex justify-between text-[10px]">
+                          <div className="flex-1 pr-3">
+                            <p className="font-bold text-black uppercase leading-tight">{item.name}</p>
+                            {(item.size || item.ageGroup) && (
+                              <p className="text-zinc-600 font-medium">
+                                {item.ageGroup && `${item.ageGroup} · `}Size {item.size}
+                              </p>
+                            )}
+                            <p className="text-zinc-600">Qty {item.quantity} × ${Number(item.price).toFixed(2)}</p>
+                          </div>
+                          <p className="font-black text-black shrink-0">${(Number(item.price) * item.quantity).toFixed(2)}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="border-t border-dashed border-zinc-300 pt-3 space-y-1 text-[10px] font-bold text-zinc-700">
+                      <div className="flex justify-between"><span>Subtotal</span><span>${receipt.subtotal.toFixed(2)}</span></div>
+                      {discountAmount > 0 && (
+                        <div className="flex justify-between text-red-600"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>
+                      )}
+                      <div className="flex justify-between"><span>HST {receipt.isTaxExempt ? '(Exempt)' : '(13%)'}</span><span>${receipt.hst.toFixed(2)}</span></div>
+                      <div className="flex justify-between text-sm font-black text-black pt-1 border-t border-zinc-300">
+                        <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
                       </div>
-                    ))}
-                  </div>
-                  <div className="p-4 border-t border-[#2d3547] space-y-2 text-[10px]">
-                    <div className="flex justify-between"><span>Subtotal</span><span>${receipt.subtotal.toFixed(2)}</span></div>
-                    {discountAmount > 0 && <div className="flex justify-between text-red-400"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>}
-                    <div className="flex justify-between"><span>HST</span><span>${receipt.hst.toFixed(2)}</span></div>
-                    <div className="flex justify-between font-bold text-base border-t border-[#2d3547] pt-2">
-                      <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
                     </div>
                   </div>
-                  <div className="p-4 border-t border-[#2d3547] flex gap-2">
-                    <button onClick={() => window.print()} className="flex-1 flex items-center justify-center gap-2 border border-[#2d3547] rounded py-2 text-[10px] font-bold hover:bg-[#2d3547]">
-                      <Printer size={12} /> Print
+
+                  <div className="p-4 border-t border-zinc-200 flex gap-3">
+                    <button
+                      onClick={() => window.print()}
+                      className="flex-1 flex items-center justify-center gap-2 border border-zinc-200 rounded-lg py-3 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-colors text-black"
+                    >
+                      <Printer size={14} /> Print
                     </button>
-                    <button onClick={handleNewTransaction} className="flex-1 bg-[#b90014] hover:bg-red-700 rounded py-2 text-[10px] font-bold text-white">
+                    <button
+                      onClick={handleNewTransaction}
+                      className="flex-1 bg-[#b90014] text-white rounded-lg py-3 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
+                    >
                       New Transaction
                     </button>
                   </div>
