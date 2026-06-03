@@ -30,9 +30,10 @@ export const PosDiscountModal: React.FC<PosDiscountModalProps> = ({
         finalTotal: subtotal - amount,
       };
     } else {
+      // Custom price is the new total, not a discount
       return {
-        discountAmount: customValue,
-        finalTotal: subtotal - customValue,
+        discountAmount: Math.max(0, subtotal - customValue),
+        finalTotal: customValue,
       };
     }
   }, [tab, percentageValue, customValue, subtotal]);
@@ -45,8 +46,8 @@ export const PosDiscountModal: React.FC<PosDiscountModalProps> = ({
       }
       onApply({ type: 'percentage', value: percentageValue });
     } else {
-      if (customValue < 0 || customValue > subtotal) {
-        alert('Custom discount cannot be negative or exceed subtotal');
+      if (customValue < 0) {
+        alert('Custom total price cannot be negative');
         return;
       }
       onApply({ type: 'custom', value: customValue });
@@ -142,17 +143,16 @@ export const PosDiscountModal: React.FC<PosDiscountModalProps> = ({
             <>
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-2">
-                  Custom Amount to Charge
+                  Custom Total Price
                 </label>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-black">$</span>
+                  <span className="text-lg font-black text-zinc-900">$</span>
                   <input
                     type="number"
                     min="0"
-                    max={subtotal}
                     step="0.01"
                     value={customValue}
-                    onChange={(e) => setCustomValue(Math.max(0, Math.min(subtotal, Number(e.target.value))))}
+                    onChange={(e) => setCustomValue(Math.max(0, Number(e.target.value)))}
                     onKeyDown={(e) => {
                       // Allow number keys, decimal point, backspace, delete, arrow keys
                       if (/^\d$/.test(e.key) || ['.', 'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
@@ -161,15 +161,17 @@ export const PosDiscountModal: React.FC<PosDiscountModalProps> = ({
                       e.preventDefault();
                     }}
                     autoFocus={tab === 'custom'}
-                    className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-bold"
+                    className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-bold text-black"
                   />
                 </div>
               </div>
               <div className="bg-zinc-50 p-3 rounded-lg space-y-1">
                 <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Preview</p>
-                <p className="text-sm font-bold text-zinc-900">Original Total: ${subtotal.toFixed(2)}</p>
-                <p className="text-xs font-bold text-red-600">−Discount: ${discountPreview.discountAmount.toFixed(2)}</p>
-                <p className="text-sm font-black text-zinc-950 pt-1 border-t border-zinc-200">
+                <p className="text-sm font-bold text-black">Original Total: ${subtotal.toFixed(2)}</p>
+                {discountPreview.discountAmount > 0 && (
+                  <p className="text-xs font-bold text-red-600">−Discount: ${discountPreview.discountAmount.toFixed(2)}</p>
+                )}
+                <p className="text-sm font-black text-black pt-1 border-t border-zinc-200">
                   New Total: ${discountPreview.finalTotal.toFixed(2)}
                 </p>
               </div>

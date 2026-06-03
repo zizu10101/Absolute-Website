@@ -51,6 +51,10 @@ export function POSPage() {
   // Products
   const [products, setProducts] = useState<any[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [showOnlineOnly, setShowOnlineOnly] = useState(() => {
+    const saved = localStorage.getItem('pos_show_online_only');
+    return saved ? JSON.parse(saved) : false;
+  });
 
   // Barcode scanner
   const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -66,6 +70,11 @@ export function POSPage() {
   // Checkout
   const [isConfirming, setIsConfirming] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+
+  // Void/Refund
+  const [showVoidRefundModal, setShowVoidRefundModal] = useState(false);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [selectedTransactionForVoid, setSelectedTransactionForVoid] = useState<any | null>(null);
 
   // Hooks
   const {
@@ -97,10 +106,32 @@ export function POSPage() {
     }
   }, []);
 
-  // Save dark mode preference
+  // Save preferences
   useEffect(() => {
     localStorage.setItem('pos_dark_mode', String(isDarkMode));
   }, [isDarkMode]);
+
+  useEffect(() => {
+    localStorage.setItem('pos_show_online_only', JSON.stringify(showOnlineOnly));
+  }, [showOnlineOnly]);
+
+  // Fetch recent transactions for void/refund
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const res = await fetch('/api/transactions?limit=20');
+        const result = await res.json();
+        if (result.data) {
+          setRecentTransactions(result.data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+        }
+      } catch (err) {
+        console.error('Failed to fetch transactions:', err);
+      }
+    };
+    if (isAuthenticated) {
+      fetchTransactions();
+    }
+  }, [isAuthenticated]);
 
   // Fetch products
   useEffect(() => {
@@ -236,14 +267,39 @@ export function POSPage() {
     return true;
   };
 
+  // Void/Refund handler
+  const handleVoidRefund = async (transactionId: string, action: 'void' | 'refund') => {
+    try {
+      const res = await fetch(`/api/transactions/${transactionId}/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result?.error || 'Failed to process request');
+
+      alert(`Transaction ${action === 'void' ? 'voided' : 'refunded'} successfully`);
+      setShowVoidRefundModal(false);
+
+      // Refresh transactions
+      const txRes = await fetch('/api/transactions?limit=20');
+      const txResult = await txRes.json();
+      if (txResult.data) {
+        setRecentTransactions(txResult.data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      }
+    } catch (e: any) {
+      alert(`Error: ${e.message}`);
+    }
+  };
+
   // Filter products
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
+      if (showOnlineOnly && p.is_online !== true) return false;
       if (!matchesCategory(p, activeCategory)) return false;
       const q = searchQuery.toLowerCase();
       return !q || p.name?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q);
     });
-  }, [products, activeCategory, searchQuery]);
+  }, [products, activeCategory, searchQuery, showOnlineOnly]);
 
   // Filter customers
   const filteredCustomers = useMemo(() => {
@@ -385,7 +441,7 @@ export function POSPage() {
       {/* Top Bar */}
       <div className="bg-[#1a2236] border-b border-[#2d3547] px-6 py-3 flex items-center justify-between h-16">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#2563eb] rounded flex items-center justify-center">
+          <div className="w-8 h-8 bg-[#b90014] rounded flex items-center justify-center">
             <span className="text-white font-black text-xs">AS</span>
           </div>
           <div>
@@ -451,7 +507,7 @@ export function POSPage() {
                 placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[#1a2236] border border-[#2d3547] rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#2563eb]"
+                className="w-full pl-10 pr-4 py-2 bg-[#1a2236] border border-[#2d3547] rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#b90014]"
               />
             </div>
 
@@ -471,7 +527,7 @@ export function POSPage() {
                   onClick={() => setActiveCategory(tab.id)}
                   className={`px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap transition-colors ${
                     activeCategory === tab.id
-                      ? 'bg-[#2563eb] text-white'
+                      ? 'bg-[#b90014] text-white'
                       : 'bg-[#1a2236] text-gray-400 hover:text-white'
                   }`}
                 >
@@ -479,6 +535,17 @@ export function POSPage() {
                 </button>
               ))}
             </div>
+
+            {/* Online Items Toggle */}
+            <label className="flex items-center gap-2 cursor-pointer bg-[#1a2236] p-2 rounded">
+              <input
+                type="checkbox"
+                checked={showOnlineOnly}
+                onChange={e => setShowOnlineOnly(e.target.checked)}
+                className="w-4 h-4 cursor-pointer"
+              />
+              <span className="text-xs font-bold text-gray-300">Show Online Items Only</span>
+            </label>
           </div>
 
           {/* Products Grid */}
@@ -493,7 +560,7 @@ export function POSPage() {
                   <button
                     key={product.id}
                     onClick={() => addItem(product)}
-                    className="bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#2563eb] rounded-lg p-2 flex flex-col items-center justify-center gap-1 transition-colors group text-center min-h-28"
+                    className="bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#b90014] rounded-lg p-2 flex flex-col items-center justify-center gap-1 transition-colors group text-center min-h-28"
                   >
                     {product.image && (
                       <img src={product.image} alt={product.name} className="w-14 h-14 object-cover rounded bg-[#0f1117]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -501,7 +568,7 @@ export function POSPage() {
                     <span className="text-[10px] font-semibold text-gray-300 group-hover:text-white line-clamp-2">
                       {product.name}
                     </span>
-                    <span className="text-[10px] text-[#2563eb]">${product.price?.toFixed(2) || '0.00'}</span>
+                    <span className="text-[10px] text-[#b90014]">${product.price?.toFixed(2) || '0.00'}</span>
                   </button>
                 ))}
               </div>
@@ -515,7 +582,7 @@ export function POSPage() {
           {selectedCustomer && (
             <div className="px-4 py-3 border-b border-[#2d3547] bg-[#2d3547]">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-[#2563eb] rounded-full"></div>
+                <div className="w-2 h-2 bg-[#b90014] rounded-full"></div>
                 <div>
                   <p className="text-sm font-semibold">{selectedCustomer.first_name} {selectedCustomer.last_name}</p>
                   <p className="text-xs text-gray-400">Returning customer</p>
@@ -548,7 +615,7 @@ export function POSPage() {
                         <span className="text-xs font-bold w-5 text-center">{item.quantity}</span>
                         <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">+</button>
                       </div>
-                      <p className="text-xs font-bold text-[#2563eb]">${(item.price * item.quantity).toFixed(2)}</p>
+                      <p className="text-xs font-bold text-[#b90014]">${(item.price * item.quantity).toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
@@ -581,7 +648,7 @@ export function POSPage() {
               </div>
               <div className="flex justify-between font-bold text-base pt-2 border-t border-[#2d3547]">
                 <span>Total Due</span>
-                <span className="text-lg text-[#2563eb]">${grandTotal.toFixed(2)}</span>
+                <span className="text-lg text-[#b90014]">${grandTotal.toFixed(2)}</span>
               </div>
             </div>
 
@@ -602,14 +669,20 @@ export function POSPage() {
             <button
               onClick={() => setShowCheckout(true)}
               disabled={cart.length === 0}
-              className="w-full py-3 bg-[#2563eb] hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-sm uppercase"
+              className="w-full py-3 bg-[#b90014] hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-sm uppercase"
             >
               Checkout ({totalCartItems})
             </button>
 
-            <button onClick={() => setShowHistoryPanel(true)} className="w-full py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
-              Order History
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setShowVoidRefundModal(true)} className="py-2 bg-[#b90014] hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase">
+                Void/Refund
+              </button>
+              <button onClick={() => setShowHistoryPanel(true)} className="py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
+                History
+              </button>
+            </div>
+
             <button onClick={() => setShowCustomersPanel(true)} className="w-full py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
               Customers
             </button>
@@ -647,7 +720,7 @@ export function POSPage() {
                       <div key={i} className="border-b border-[#2d3547] pb-2">
                         <p className="font-bold text-white">{item.name}</p>
                         <p className="text-gray-400">Qty {item.quantity} × ${Number(item.price).toFixed(2)}</p>
-                        <p className="text-[#2563eb] font-bold">${(Number(item.price) * item.quantity).toFixed(2)}</p>
+                        <p className="text-[#b90014] font-bold">${(Number(item.price) * item.quantity).toFixed(2)}</p>
                       </div>
                     ))}
                   </div>
@@ -663,7 +736,7 @@ export function POSPage() {
                     <button onClick={() => window.print()} className="flex-1 flex items-center justify-center gap-2 border border-[#2d3547] rounded py-2 text-[10px] font-bold hover:bg-[#2d3547]">
                       <Printer size={12} /> Print
                     </button>
-                    <button onClick={handleNewTransaction} className="flex-1 bg-[#2563eb] hover:bg-blue-700 rounded py-2 text-[10px] font-bold text-white">
+                    <button onClick={handleNewTransaction} className="flex-1 bg-[#b90014] hover:bg-red-700 rounded py-2 text-[10px] font-bold text-white">
                       New Transaction
                     </button>
                   </div>
@@ -680,7 +753,7 @@ export function POSPage() {
                       <div key={item.id} className="border border-[#2d3547] rounded p-2">
                         <p className="font-bold text-white">{item.name}</p>
                         <p className="text-gray-400">Qty {item.quantity} × ${Number(item.price).toFixed(2)}</p>
-                        <p className="text-[#2563eb] font-bold">${(Number(item.price) * item.quantity).toFixed(2)}</p>
+                        <p className="text-[#b90014] font-bold">${(Number(item.price) * item.quantity).toFixed(2)}</p>
                       </div>
                     ))}
                   </div>
@@ -699,7 +772,7 @@ export function POSPage() {
                           key={method}
                           disabled={isConfirming}
                           onClick={() => handleConfirmSale(method)}
-                          className="bg-[#2563eb] hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
+                          className="bg-[#b90014] hover:bg-red-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
                         >
                           {method}
                         </button>
@@ -767,8 +840,62 @@ export function POSPage() {
               ))}
               <div className="flex gap-2">
                 <button onClick={() => { setShowCustomerModal(false); setCustomerForm({ first_name: '', last_name: '', email: '', phone: '', club_affinity: '' }); }} className="flex-1 p-2 bg-[#2d3547] rounded text-xs text-white">Cancel</button>
-                <button disabled={isAddingCustomer} onClick={handleAddCustomer} className="flex-1 p-2 bg-[#2563eb] hover:bg-blue-700 disabled:opacity-50 rounded text-xs font-bold text-white uppercase">
+                <button disabled={isAddingCustomer} onClick={handleAddCustomer} className="flex-1 p-2 bg-[#b90014] hover:bg-red-700 disabled:opacity-50 rounded text-xs font-bold text-white uppercase">
                   {isAddingCustomer ? 'Adding...' : 'Save'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Void/Refund Modal */}
+      <AnimatePresence>
+        {showVoidRefundModal && (
+          <div className="fixed inset-0 bg-black/50 z-60 flex items-center justify-center p-6">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#1a2236] p-6 rounded-lg w-full max-w-2xl space-y-4 border border-[#2d3547] max-h-96 overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-white uppercase">Void or Refund Transaction</h2>
+                <button onClick={() => setShowVoidRefundModal(false)} className="text-gray-400 hover:text-white"><X size={18} /></button>
+              </div>
+
+              {recentTransactions.length === 0 ? (
+                <p className="text-gray-400 text-sm">No recent transactions to void/refund</p>
+              ) : (
+                <div className="space-y-2">
+                  {recentTransactions.slice(0, 10).map((tx) => (
+                    <div key={tx.id} className="bg-[#0f1117] border border-[#2d3547] p-3 rounded flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-white">{tx.method} · ${Number(tx.total_amount).toFixed(2)}</p>
+                        <p className="text-[10px] text-gray-400">{new Date(tx.created_at).toLocaleString()}</p>
+                        {tx.customer_id && (
+                          <p className="text-[10px] text-gray-400">
+                            Customer: {tx.customer_id.slice(0, 8)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { handleVoidRefund(tx.id, 'void'); }}
+                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase"
+                        >
+                          Void
+                        </button>
+                        <button
+                          onClick={() => { handleVoidRefund(tx.id, 'refund'); }}
+                          className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-[10px] font-bold uppercase"
+                        >
+                          Refund
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <button onClick={() => setShowVoidRefundModal(false)} className="px-4 py-2 bg-[#2d3547] hover:bg-[#3d4557] text-white rounded text-xs font-bold uppercase">
+                  Close
                 </button>
               </div>
             </motion.div>
