@@ -146,7 +146,8 @@ export function usePOSCart() {
     if (discount.type === 'percentage') {
       return subtotal * (discount.value / 100);
     }
-    return discount.value;
+    // For custom type: discount.value is the NEW TOTAL price, not the discount amount
+    return Math.max(0, subtotal - discount.value);
   }, [subtotal, discount]);
 
   const subtotalAfterDiscount = subtotal - discountAmount;
