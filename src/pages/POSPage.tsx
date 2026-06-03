@@ -968,11 +968,38 @@ export function POSPage() {
         )}
       </AnimatePresence>
 
-      {/* Bottom Bar */}
-      <div className="bg-[#1a2236] border-t border-[#2d3547] h-12 px-6 flex items-center justify-between text-xs text-gray-400">
-        <div className="flex items-center gap-2"><Home size={14} /><span>Dashboard</span></div>
-        <span>{cashierName}</span>
-        <span>v1.0.0</span>
+      {/* Bottom Tab Bar */}
+      <div className="bg-[#1a2236] border-t border-[#2d3547] h-12 px-6 flex items-center justify-start gap-2">
+        <button
+          onClick={() => setPosTab('register')}
+          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
+            posTab === 'register'
+              ? 'bg-[#b90014] text-white'
+              : 'bg-[#2d3547] text-gray-400 hover:text-white'
+          }`}
+        >
+          Register
+        </button>
+        <button
+          onClick={() => setPosTab('history')}
+          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
+            posTab === 'history'
+              ? 'bg-[#b90014] text-white'
+              : 'bg-[#2d3547] text-gray-400 hover:text-white'
+          }`}
+        >
+          History
+        </button>
+        <button
+          onClick={() => setPosTab('customers')}
+          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
+            posTab === 'customers'
+              ? 'bg-[#b90014] text-white'
+              : 'bg-[#2d3547] text-gray-400 hover:text-white'
+          }`}
+        >
+          Customers
+        </button>
       </div>
     </div>
   );
