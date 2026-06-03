@@ -10,6 +10,7 @@ import { Meta } from './components/Meta';
 import { ScrollToTop } from './components/ScrollToTop';
 import { HomePage } from './pages/HomePage';
 import { AdminLogin } from './pages/AdminLogin';
+import { POSPage } from './pages/POSPage';
 import { ProductProvider, useProducts } from './context/ProductContext';
 import { CustomerProvider } from './context/CustomerContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
@@ -47,8 +48,8 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, [productsLoading, settingsLoading]);
 
-  // Bypass safety check: If the user is trying to go to the admin panel, don't show the loading gate at all
-  if (window.location.pathname.startsWith('/admin') || window.location.hash.includes('/admin')) {
+  // Bypass safety check: If the user is trying to go to the admin panel or /pos, don't show the loading gate at all
+  if (window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/pos') || window.location.hash.includes('/admin')) {
     return <AppRoutes />;
   }
 
@@ -120,6 +121,7 @@ function AppRoutes() {
           <Route path="product/:id" element={<ProductDetailPage />} />
         </Route>
         <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/pos" element={<POSPage />} />
       </Routes>
     </>
   );

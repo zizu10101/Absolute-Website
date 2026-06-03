@@ -290,30 +290,6 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
     return json;
   };
 
-  const handleVoid = async (tx: any) => {
-    if (!confirm('Are you sure you want to void this transaction?')) return;
-    try {
-      await apiPost('/api/transactions/void', { transactionId: tx.id });
-      setSuccessMessage('TRANSACTION SUCCESSFULLY VOIDED');
-      fetchHistory();
-      setTimeout(() => setSuccessMessage(null), 2000);
-    } catch (e: any) {
-      alert('Error: ' + e.message);
-    }
-  };
-
-  const handleRefund = async (tx: any) => {
-    if (!confirm('Are you sure you want to issue a refund for this transaction?')) return;
-    try {
-      await apiPost('/api/transactions/refund', { transactionId: tx.id });
-      setSuccessMessage('REFUND SUCCESSFULLY ISSUED');
-      fetchHistory();
-      setTimeout(() => setSuccessMessage(null), 2000);
-    } catch (e: any) {
-      alert('Error: ' + e.message);
-    }
-  };
-
   const getStockCount = (product: any) => {
     if (product.stock !== undefined) return product.stock;
     if (product.inventory_quantity !== undefined) return product.inventory_quantity;
