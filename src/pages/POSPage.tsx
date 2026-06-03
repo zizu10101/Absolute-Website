@@ -269,12 +269,18 @@ export function POSPage() {
 
   // Void/Refund handler
   const handleVoidRefund = async (transactionId: string, action: 'void' | 'refund') => {
+    const url = `/api/transactions/${action}`;
+    console.log(`🔴 handleVoidRefund called: transactionId=${transactionId}, action=${action}, url=${url}`);
+
     try {
-      const res = await fetch(`/api/transactions/${transactionId}/${action}`, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionId }),
       });
+      console.log(`📥 Response status: ${res.status}`);
       const result = await res.json();
+      console.log(`📦 Response data:`, result);
       if (!res.ok) throw new Error(result?.error || 'Failed to process request');
 
       alert(`Transaction ${action === 'void' ? 'voided' : 'refunded'} successfully`);

@@ -921,89 +921,116 @@ async function startServer() {
   // Transaction GET
   app.get("/api/transactions", async (req, res) => {
     if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
-    
+
     try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      let query = supabase.from('transactions').select('*').order('created_at', { ascending: false });
+
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const { data, error } = await query;
+
       if (error) {
         console.error("Supabase Transaction Fetch Error:", error);
         return res.status(500).json({ error: error.message });
       }
-      
+
       return res.status(200).json({ success: true, data });
     } catch (err: any) {
       console.error("Error fetching transactions:", err);
-      res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: err.message });
     }
   });
 
   // Transaction Refund POST
   app.post("/api/transactions/refund", async (req, res) => {
-    if (!supabaseAdmin) return res.status(500).json({ error: "Supabase not configured" });
-    
+    console.log("🟠 REFUND endpoint called with body:", req.body);
+
+    if (!supabaseAdmin) {
+      console.error("❌ Supabase not configured");
+      return res.status(500).json({ error: "Supabase not configured" });
+    }
+
     const { transactionId } = req.body;
-    
+    console.log("📝 Processing refund for:", transactionId);
+
     try {
       const { data: original, error: fetchErr } = await supabaseAdmin
         .from('transactions')
         .select('*')
         .eq('id', transactionId)
         .single();
-        
+
+      console.log("🔍 Original transaction - error:", fetchErr, "data exists:", !!original);
+
       if (fetchErr || !original) {
+        console.error("❌ Transaction not found");
         return res.status(404).json({ error: "Original transaction not found or fetch error" });
       }
 
       // Payload targets active columns
       const payload = {
         total_amount: Number(original.total_amount) * -1,
-        method: original.method, 
+        method: original.method,
         status: 'refunded',
         items: original.items,
         customer_id: original.customer_id,
         created_at: new Date().toISOString()
       };
-      
+
+      console.log("💾 Creating refund record:", payload);
+
       const { data, error } = await supabaseAdmin.from('transactions').insert([payload]).select();
-      
+
+      console.log("✅ Refund response - error:", error, "data:", data);
+
       if (error) {
-        console.error("Supabase Refund Write Error:", error);
+        console.error("❌ Supabase Refund Write Error:", error);
         return res.status(500).json({ error: `Database error: ${error.message}` });
       }
-      
+
+      console.log("✅ Sending success response");
       return res.status(200).json({ success: true, data });
     } catch (err: any) {
-      console.error("Error processing refund:", err);
-      res.status(500).json({ error: `Server error: ${err.message}` });
+      console.error("❌ Error processing refund:", err);
+      return res.status(500).json({ error: `Server error: ${err.message}` });
     }
   });
 
   // Transaction Void POST
   app.post("/api/transactions/void", async (req, res) => {
-    if (!supabaseAdmin) return res.status(500).json({ error: "Supabase not configured" });
-    
+    console.log("🔵 VOID endpoint called with body:", req.body);
+
+    if (!supabaseAdmin) {
+      console.error("❌ Supabase not configured");
+      return res.status(500).json({ error: "Supabase not configured" });
+    }
+
     const { transactionId } = req.body;
-    
+    console.log("📝 Processing void for:", transactionId);
+
     try {
-      // Clean UPDATE query
+      // Delete the transaction (void it)
       const { data, error } = await supabaseAdmin
         .from('transactions')
-        .update({ status: 'voided' })
+        .delete()
         .eq('id', transactionId)
         .select();
-      
+
+      console.log("✅ Void response - error:", error, "data:", data);
+
       if (error) {
-        console.error("Supabase Void Write Error:", error);
+        console.error("❌ Supabase Void Error:", error);
         return res.status(500).json({ error: `Database error: ${error.message}` });
       }
-      
-      return res.status(200).json({ success: true, data });
+
+      console.log("✅ Sending success response");
+      return res.status(200).json({ success: true, data, message: "Transaction voided successfully" });
     } catch (err: any) {
-      console.error("Error saving void:", err);
-      res.status(500).json({ error: `Server error: ${err.message}` });
+      console.error("❌ Error voiding transaction:", err);
+      return res.status(500).json({ error: `Server error: ${err.message}` });
     }
   });
 
