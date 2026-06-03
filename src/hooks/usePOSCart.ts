@@ -18,9 +18,15 @@ export interface CartItem {
   image?: string;
 }
 
+export interface Discount {
+  type: 'percentage' | 'custom';
+  value: number; // percentage (0-100) or custom amount
+}
+
 export function usePOSCart() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isTaxExempt, setIsTaxExempt] = useState(false);
+  const [discount, setDiscount] = useState<Discount | null>(null);
 
   // Returns an error string if the item cannot be added, null on success
   const addItem = (product: any): string | null => {
@@ -106,6 +112,15 @@ export function usePOSCart() {
   const clearCart = () => {
     setCart([]);
     setIsTaxExempt(false);
+    setDiscount(null);
+  };
+
+  const applyDiscount = (discountData: Discount) => {
+    setDiscount(discountData);
+  };
+
+  const removeDiscount = () => {
+    setDiscount(null);
   };
 
   const totalDiscount = useMemo(
@@ -126,8 +141,17 @@ export function usePOSCart() {
     [cart]
   );
 
-  const hst = isTaxExempt ? 0 : subtotal * 0.13;
-  const grandTotal = subtotal + hst;
+  const discountAmount = useMemo(() => {
+    if (!discount) return 0;
+    if (discount.type === 'percentage') {
+      return subtotal * (discount.value / 100);
+    }
+    return discount.value;
+  }, [subtotal, discount]);
+
+  const subtotalAfterDiscount = subtotal - discountAmount;
+  const hst = isTaxExempt ? 0 : subtotalAfterDiscount * 0.13;
+  const grandTotal = subtotalAfterDiscount + hst;
 
   return {
     cart,
@@ -143,5 +167,9 @@ export function usePOSCart() {
     grandTotal,
     isTaxExempt,
     setIsTaxExempt,
+    discount,
+    discountAmount,
+    applyDiscount,
+    removeDiscount,
   };
 }

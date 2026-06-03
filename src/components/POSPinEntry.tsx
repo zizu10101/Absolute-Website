@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Delete } from 'lucide-react';
 
 interface POSPinEntryProps {
@@ -10,6 +10,7 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [shaking, setShaking] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDigitClick = (digit: string) => {
     if (pin.length < 6) {
@@ -63,6 +64,10 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
     }
   }, [pin]);
 
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
   const bgClass = isDarkMode ? 'bg-[#1a1a1a]' : 'bg-white';
   const textClass = isDarkMode ? 'text-white' : 'text-zinc-900';
   const borderClass = isDarkMode ? 'border-zinc-700' : 'border-zinc-200';
@@ -81,6 +86,17 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
             <h1 className={`text-2xl font-black uppercase tracking-wider ${textClass}`}>POS System</h1>
             <p className={isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}>Enter your PIN to access</p>
           </div>
+
+          {/* Hidden keyboard input */}
+          <input
+            ref={inputRef}
+            type="text"
+            value={pin}
+            onChange={() => {}}
+            onKeyDown={handleKeyDown}
+            className="sr-only"
+            aria-label="PIN entry"
+          />
 
           {/* PIN display */}
           <div className={`w-full flex justify-center gap-2 py-6 px-4 rounded-lg ${isDarkMode ? 'bg-zinc-800/50' : 'bg-zinc-100'}`}>

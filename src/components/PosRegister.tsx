@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Barcode from 'react-barcode';
 import { useProducts, mapProductFromDb } from '../context/ProductContext';
 import { useCustomers } from '../context/CustomerContext';
-import { usePOSCart, CartItem } from '../hooks/usePOSCart';
+import { usePOSCart, CartItem, Discount } from '../hooks/usePOSCart';
 import { supabase } from '../supabase';
+import { PosDiscountModal } from './PosDiscountModal';
 import {
   Search,
   Trash2,
@@ -17,6 +18,7 @@ import {
   AlertTriangle,
   ScanLine,
   Printer,
+  Percent,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -132,7 +134,13 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
     grandTotal,
     isTaxExempt,
     setIsTaxExempt,
+    discount,
+    discountAmount,
+    applyDiscount,
+    removeDiscount,
   } = usePOSCart();
+
+  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   type TabId = 'ALL' | 'FOOTWEAR' | 'KITS' | 'BALLS' | 'EQUIPMENT' | 'TEAMWEAR' | 'GLOVES';
@@ -352,6 +360,8 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
             ? selectedCustomerId.trim()
             : null,
         created_at: new Date().toISOString(),
+        discount: discount ? { type: discount.type, value: discount.value } : null,
+        discount_amount: discountAmount > 0 ? Number(discountAmount.toFixed(2)) : 0,
       };
 
       // Save transaction via API (RLS blocks direct anon insert)
@@ -722,6 +732,9 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
 
                     <div className="border-t border-dashed border-zinc-300 pt-3 space-y-1 text-[10px] font-bold text-zinc-600">
                       <div className="flex justify-between"><span>Subtotal</span><span>${receipt.subtotal.toFixed(2)}</span></div>
+                      {discountAmount > 0 && (
+                        <div className="flex justify-between text-red-600"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>
+                      )}
                       <div className="flex justify-between"><span>HST {receipt.isTaxExempt ? '(Exempt)' : '(13%)'}</span><span>${receipt.hst.toFixed(2)}</span></div>
                       <div className="flex justify-between text-sm font-black text-zinc-950 pt-1 border-t border-zinc-200">
                         <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
@@ -817,9 +830,28 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                       />
                       <label htmlFor="tax-exempt" className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest cursor-pointer">Tax Exempt</label>
                     </div>
+
+                    <button
+                      onClick={() => setIsDiscountModalOpen(true)}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white border border-zinc-200 rounded text-[10px] font-bold uppercase tracking-wide text-zinc-700 hover:bg-zinc-50 transition-colors"
+                    >
+                      <Percent size={14} /> {discount ? 'Edit Discount' : 'Add Discount'}
+                    </button>
+
                     <div className="space-y-1.5 text-xs font-bold text-zinc-600">
                       <div className="flex justify-between"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-                      {totalDiscount > 0 && <div className="flex justify-between text-red-600"><span>Discount</span><span>−${totalDiscount.toFixed(2)}</span></div>}
+                      {totalDiscount > 0 && <div className="flex justify-between text-red-600"><span>Item Discount</span><span>−${totalDiscount.toFixed(2)}</span></div>}
+                      {discountAmount > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <button
+                            onClick={removeDiscount}
+                            className="text-[10px] font-bold text-red-600 hover:underline flex items-center gap-1"
+                          >
+                            Order Discount <X size={12} />
+                          </button>
+                          <span>−${discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between"><span>HST {isTaxExempt ? '(Exempt)' : '(13%)'}</span><span>${hst.toFixed(2)}</span></div>
                       <div className="flex justify-between text-base font-black text-zinc-950 pt-2 border-t border-zinc-200">
                         <span>Total Due</span><span>${grandTotal.toFixed(2)}</span>
@@ -844,6 +876,15 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── Discount Modal ── */}
+      <PosDiscountModal
+        isOpen={isDiscountModalOpen}
+        onClose={() => setIsDiscountModalOpen(false)}
+        onApply={applyDiscount}
+        currentDiscount={discount}
+        subtotal={subtotal}
+      />
 
       {/* ── Add Customer modal ── */}
       <AnimatePresence>
