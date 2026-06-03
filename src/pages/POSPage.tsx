@@ -1,33 +1,32 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Moon, Sun, LogOut, History, Users } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Moon, Sun, LogOut, Search, Users, Percent, FileText, Trash2,
+  Barcode, DollarSign, Home, AlertCircle, X, Check
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PosRegister } from '../components/PosRegister';
 import { PosTransactionHistory } from '../components/PosTransactionHistory';
 import { PosCustomerManager } from '../components/PosCustomerManager';
 import { POSPinEntry } from '../components/POSPinEntry';
-
-type PosTab = 'register' | 'history' | 'customers';
+import { usePOSCart } from '../hooks/usePOSCart';
+import { useCustomers } from '../context/CustomerContext';
 
 export function POSPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [posTab, setPosTab] = useState<PosTab>('register');
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode for Shopify look
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [showCustomersPanel, setShowCustomersPanel] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [cashierName] = useState('Cashier');
+  const { cart, clearCart, discount } = usePOSCart();
+  const { customers } = useCustomers();
+  const selectedCustomerId = ''; // From cart context
 
   // Check authentication on mount
   useEffect(() => {
     const stored = sessionStorage.getItem('pos_authenticated');
     if (stored === 'true') {
       setIsAuthenticated(true);
-    }
-  }, []);
-
-  // Load dark mode preference
-  useEffect(() => {
-    const stored = localStorage.getItem('pos_dark_mode');
-    if (stored !== null) {
-      setIsDarkMode(stored === 'true');
     }
   }, []);
 
@@ -52,147 +51,259 @@ export function POSPage() {
     return <POSPinEntry onPinSubmit={handlePinSubmit} isDarkMode={isDarkMode} />;
   }
 
-  const bgClass = isDarkMode ? 'bg-[#1a1a1a]' : 'bg-white';
-  const textClass = isDarkMode ? 'text-white' : 'text-zinc-900';
-  const borderClass = isDarkMode ? 'border-zinc-700' : 'border-zinc-200';
+  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
 
   return (
-    <div className={`fixed inset-0 flex flex-col ${bgClass} ${textClass} font-sans`}>
-      {/* Header */}
-      <header className={`border-b ${borderClass} px-4 py-3 flex items-center justify-between bg-white ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : ''}`}>
+    <div className="fixed inset-0 flex flex-col bg-[#0f1117] text-white font-sans">
+      {/* Top Bar - Shopify POS Style */}
+      <div className="bg-[#1a2236] border-b border-[#2d3547] px-6 py-3 flex items-center justify-between h-16">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#b90014] rounded-lg flex items-center justify-center">
-            <span className="text-white font-black text-xs tracking-wider">AS</span>
+          <div className="w-8 h-8 bg-[#2563eb] rounded flex items-center justify-center">
+            <span className="text-white font-black text-xs">AS</span>
           </div>
           <div>
-            <h1 className="text-xs font-black uppercase tracking-widest">Absolute Soccer</h1>
-            <p className={`text-[10px] ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>Mississauga</p>
+            <h1 className="text-sm font-bold">Absolute Soccer</h1>
+            <p className="text-[10px] text-gray-400">Mississauga</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-300">{cashierName}</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-[10px] text-gray-400">Online</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowHistoryPanel(true)}
-            title="Order History"
-            className={`p-2.5 rounded-lg transition-colors ${
-              isDarkMode
-                ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
-                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600'
-            }`}
-          >
-            <History size={18} />
-          </button>
-
-          <button
-            onClick={() => setShowCustomersPanel(true)}
-            title="Customers"
-            className={`p-2.5 rounded-lg transition-colors ${
-              isDarkMode
-                ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
-                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600'
-            }`}
-          >
-            <Users size={18} />
-          </button>
-
-          <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            title="Toggle dark mode"
-            className={`p-2.5 rounded-lg transition-colors ${
-              isDarkMode
-                ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
-                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600'
-            }`}
+            className="p-1.5 hover:bg-[#2d3547] rounded transition-colors"
           >
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-
           <button
             onClick={handleLockPOS}
-            title="Lock POS (Ctrl+L)"
-            className="p-2.5 rounded-lg bg-[#b90014] hover:bg-red-700 text-white transition-colors"
+            className="p-1.5 hover:bg-[#2d3547] rounded transition-colors text-red-400"
           >
-            <LogOut size={18} />
+            <LogOut size={16} />
           </button>
         </div>
-      </header>
+      </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left column - Product browser */}
-        <div className={`flex-1 border-r ${borderClass} overflow-hidden flex flex-col`}>
-          <PosRegister posTab={posTab} setPosTab={setPosTab} />
+      {/* Main Content - Two Column */}
+      <div className="flex-1 flex overflow-hidden gap-0">
+        {/* LEFT PANEL - Action Tiles & Search */}
+        <div className="w-1/2 bg-[#0f1117] border-r border-[#2d3547] flex flex-col overflow-hidden">
+          {/* Search Bar */}
+          <div className="p-4 border-b border-[#2d3547]">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-3 text-gray-500" />
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-[#1a2236] border border-[#2d3547] rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#2563eb]"
+              />
+            </div>
+          </div>
+
+          {/* Action Tiles Grid */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="grid grid-cols-2 gap-3">
+              {/* Add Customer */}
+              <button
+                onClick={() => setShowCustomersPanel(true)}
+                className="bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#2563eb] rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors group"
+              >
+                <Users size={24} className="text-[#2563eb] group-hover:text-[#60a5fa]" />
+                <span className="text-xs font-semibold text-gray-300 group-hover:text-white">Add Customer</span>
+              </button>
+
+              {/* Add Discount */}
+              <button
+                className="bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#2563eb] rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors group"
+                // onClick will be passed from PosRegister
+              >
+                <Percent size={24} className="text-[#2563eb] group-hover:text-[#60a5fa]" />
+                <span className="text-xs font-semibold text-gray-300 group-hover:text-white">Add Discount</span>
+              </button>
+
+              {/* Add Note */}
+              <button className="bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#2563eb] rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors group">
+                <FileText size={24} className="text-[#2563eb] group-hover:text-[#60a5fa]" />
+                <span className="text-xs font-semibold text-gray-300 group-hover:text-white">Add Note</span>
+              </button>
+
+              {/* Clear Cart */}
+              <button
+                onClick={() => {
+                  if (confirm('Clear all items from cart?')) {
+                    clearCart();
+                  }
+                }}
+                className="bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-red-600 rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors group"
+              >
+                <Trash2 size={24} className="text-red-500 group-hover:text-red-400" />
+                <span className="text-xs font-semibold text-gray-300 group-hover:text-white">Clear Cart</span>
+              </button>
+
+              {/* Custom Sale */}
+              <button className="bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#2563eb] rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors group">
+                <DollarSign size={24} className="text-[#2563eb] group-hover:text-[#60a5fa]" />
+                <span className="text-xs font-semibold text-gray-300 group-hover:text-white">Custom Sale</span>
+              </button>
+
+              {/* Barcode Scan */}
+              <button className="bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#2563eb] rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors group">
+                <Barcode size={24} className="text-[#2563eb] group-hover:text-[#60a5fa]" />
+                <span className="text-xs font-semibold text-gray-300 group-hover:text-white">Barcode Scan</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Right column - History panel (slide-over) */}
-        <AnimatePresence>
-          {showHistoryPanel && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowHistoryPanel(false)}
-                className="absolute inset-0 bg-black/30 z-40"
-              />
-              <motion.div
-                initial={{ x: '100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-                className={`w-full max-w-md ${bgClass} ${isDarkMode ? 'bg-zinc-900 border-l border-zinc-800' : 'border-l border-zinc-200'} flex flex-col z-50 absolute right-0 top-0 bottom-0`}
-              >
-                <div className={`p-4 border-b ${borderClass} flex items-center justify-between bg-zinc-950 text-white`}>
-                  <h2 className="text-xs font-black uppercase tracking-widest">Order History</h2>
-                  <button
-                    onClick={() => setShowHistoryPanel(false)}
-                    className="p-1 hover:bg-zinc-800 rounded transition-colors"
-                  >
-                    ✕
-                  </button>
+        {/* RIGHT PANEL - Cart & Checkout */}
+        <div className="w-1/2 bg-[#1a2236] flex flex-col overflow-hidden">
+          {/* Customer Tag */}
+          {selectedCustomer && (
+            <div className="px-4 py-3 border-b border-[#2d3547] bg-[#2d3547]">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-[#2563eb] rounded-full"></div>
+                <div>
+                  <p className="text-sm font-semibold">{selectedCustomer.first_name} {selectedCustomer.last_name}</p>
+                  <p className="text-xs text-gray-400">Returning customer</p>
                 </div>
-                <div className="flex-1 overflow-hidden">
-                  <PosTransactionHistory />
-                </div>
-              </motion.div>
-            </>
+              </div>
+            </div>
           )}
-        </AnimatePresence>
 
-        {/* Customers panel (slide-over) */}
-        <AnimatePresence>
-          {showCustomersPanel && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowCustomersPanel(false)}
-                className="absolute inset-0 bg-black/30 z-40"
-              />
-              <motion.div
-                initial={{ x: '100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-                className={`w-full max-w-md ${bgClass} ${isDarkMode ? 'bg-zinc-900 border-l border-zinc-800' : 'border-l border-zinc-200'} flex flex-col z-50 absolute right-0 top-0 bottom-0`}
-              >
-                <div className={`p-4 border-b ${borderClass} flex items-center justify-between bg-zinc-950 text-white`}>
-                  <h2 className="text-xs font-black uppercase tracking-widest">Customers</h2>
-                  <button
-                    onClick={() => setShowCustomersPanel(false)}
-                    className="p-1 hover:bg-zinc-800 rounded transition-colors"
-                  >
-                    ✕
-                  </button>
+          {/* Cart Items List */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+            {cart.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <AlertCircle size={32} className="mb-2" />
+                <p className="text-sm">No items in cart</p>
+              </div>
+            ) : (
+              cart.map((item) => (
+                <div key={item.id} className="bg-[#0f1117] rounded-lg p-3 border border-[#2d3547]">
+                  <div className="flex gap-3">
+                    {item.image && (
+                      <img src={item.image} alt={item.name} className="w-12 h-12 rounded object-cover bg-[#2d3547]" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{item.name}</p>
+                      <p className="text-xs text-gray-400">Qty: {item.quantity}</p>
+                      <p className="text-xs font-bold text-[#2563eb] mt-1">${(item.price * item.quantity).toFixed(2)}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-1 overflow-hidden">
-                  <PosCustomerManager />
+              ))
+            )}
+          </div>
+
+          {/* Totals & Checkout */}
+          <div className="border-t border-[#2d3547] p-4 space-y-3">
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between text-gray-400">
+                <span>Subtotal</span>
+                <span>${cartTotal.toFixed(2)}</span>
+              </div>
+              {discount && (
+                <div className="flex justify-between text-red-400">
+                  <span>Discount</span>
+                  <span>-${(cartTotal * (discount.type === 'percentage' ? discount.value / 100 : discount.value)).toFixed(2)}</span>
                 </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+              )}
+              <div className="flex justify-between font-bold pt-2 border-t border-[#2d3547]">
+                <span>Total</span>
+                <span className="text-lg text-[#2563eb]">${cartTotal.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <button
+              disabled={cart.length === 0}
+              className="w-full py-3 bg-[#2563eb] hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-sm uppercase tracking-wide"
+            >
+              Checkout
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* History Panel (Slide-over) */}
+      <AnimatePresence>
+        {showHistoryPanel && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowHistoryPanel(false)}
+              className="absolute inset-0 bg-black/50 z-40"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              className="absolute right-0 top-0 bottom-0 w-96 bg-[#1a2236] border-l border-[#2d3547] z-50 flex flex-col"
+            >
+              <div className="p-4 border-b border-[#2d3547] flex items-center justify-between">
+                <h2 className="text-sm font-bold">Order History</h2>
+                <button onClick={() => setShowHistoryPanel(false)} className="text-gray-400 hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <PosTransactionHistory />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Customers Panel (Slide-over) */}
+      <AnimatePresence>
+        {showCustomersPanel && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCustomersPanel(false)}
+              className="absolute inset-0 bg-black/50 z-40"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              className="absolute right-0 top-0 bottom-0 w-96 bg-[#1a2236] border-l border-[#2d3547] z-50 flex flex-col"
+            >
+              <div className="p-4 border-b border-[#2d3547] flex items-center justify-between">
+                <h2 className="text-sm font-bold">Customers</h2>
+                <button onClick={() => setShowCustomersPanel(false)} className="text-gray-400 hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <PosCustomerManager />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Bottom Bar */}
+      <div className="bg-[#1a2236] border-t border-[#2d3547] h-12 px-6 flex items-center justify-between text-xs text-gray-400">
+        <div className="flex items-center gap-2">
+          <Home size={14} />
+          <span>Dashboard</span>
+        </div>
+        <span>{cashierName}</span>
+        <span>v1.0.0</span>
       </div>
 
       {/* Keyboard shortcut for lock */}
