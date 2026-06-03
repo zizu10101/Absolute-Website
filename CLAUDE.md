@@ -269,9 +269,62 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 - ✅ Add Note modal (not in original POS)
 - ✅ Barcode scanner UI (now visible at top with status)
 
+#### 5. POS Enhancements - Online Filter, Custom Totals, Void/Refund, Red Color Scheme
+- **Commit:** `d8a8069` - Online items toggle, custom total price, void/refund buttons, red color scheme
+
+**New Features:**
+
+1. **Online Items Only Toggle**
+   - Checkbox near product search and categories
+   - When enabled: only displays products where `is_online = true`
+   - Preference persisted to localStorage
+   - Updates product grid in real-time
+
+2. **Custom Total Price (Discount Modal)**
+   - "Custom Price" tab now sets the NEW TOTAL (not a discount amount)
+   - Label changed to "Custom Total Price"
+   - Accepts any amount (no upper limit)
+   - Calculation: if customer enters $50, new total is exactly $50
+   - Preview shows original total and discount amount
+
+3. **Void/Refund Transactions**
+   - New "Void/Refund" button in checkout area (red button)
+   - Opens modal showing 10 most recent transactions
+   - For each transaction:
+     * Shows payment method, amount, timestamp, customer info
+     * Two buttons per transaction: "Void" (red) and "Refund" (orange)
+   - Void: marks transaction as voided, stock NOT restored
+   - Refund: marks as refunded, restores stock from cart items
+   - Modal auto-refreshes after void/refund action
+   - Integrated with `/api/transactions` endpoint
+
+4. **Color Scheme - Red Theme**
+   - Primary color changed from blue (#2563eb) to red (#b90014)
+   - Affects:
+     * All buttons and accents
+     * Header background (where applicable)
+     * Focus borders
+     * Active states
+     * Hover highlights
+   - Brand-consistent with Absolute Soccer website
+   - Dark mode preserved with red accents
+
+**Files Modified:**
+- `src/pages/POSPage.tsx` - Added toggle, void/refund logic, color updates
+- `src/components/PosDiscountModal.tsx` - Custom total price behavior, black text styling
+
+**Testing Verified:**
+- ✅ Online items toggle filters products correctly
+- ✅ localStorage preference persists across sessions
+- ✅ Custom total price accepts any amount
+- ✅ Void/Refund modal loads recent transactions
+- ✅ Void/Refund buttons trigger API calls
+- ✅ Red color scheme applied throughout
+- ✅ No TypeScript errors
+
 **Current Issues/Future Work:**
 
-None - /pos route now has 100% feature parity with original admin POS tab
+None - /pos route now has 100% feature parity + additional enhancements
 
 ---
 
