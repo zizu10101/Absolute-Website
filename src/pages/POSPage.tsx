@@ -324,7 +324,6 @@ export function POSPage() {
         items: cartItemsPayload,
         customer_id: selectedCustomerId?.trim() || null,
         created_at: new Date().toISOString(),
-        discount: discount ? { type: discount.type, value: discount.value } : null,
         discount_amount: discountAmount > 0 ? Number(discountAmount.toFixed(2)) : 0,
       };
 
