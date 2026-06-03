@@ -116,6 +116,14 @@ export const PosDiscountModal: React.FC<PosDiscountModalProps> = ({
                     max="100"
                     value={percentageValue}
                     onChange={(e) => setPercentageValue(Math.max(0, Math.min(100, Number(e.target.value))))}
+                    onKeyDown={(e) => {
+                      // Allow number keys, backspace, delete, arrow keys
+                      if (/^\d$/.test(e.key) || ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
+                        return;
+                      }
+                      e.preventDefault();
+                    }}
+                    autoFocus={tab === 'percentage'}
                     className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-bold"
                   />
                   <span className="text-lg font-black">%</span>
@@ -145,6 +153,14 @@ export const PosDiscountModal: React.FC<PosDiscountModalProps> = ({
                     step="0.01"
                     value={customValue}
                     onChange={(e) => setCustomValue(Math.max(0, Math.min(subtotal, Number(e.target.value))))}
+                    onKeyDown={(e) => {
+                      // Allow number keys, decimal point, backspace, delete, arrow keys
+                      if (/^\d$/.test(e.key) || ['.', 'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
+                        return;
+                      }
+                      e.preventDefault();
+                    }}
+                    autoFocus={tab === 'custom'}
                     className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-bold"
                   />
                 </div>

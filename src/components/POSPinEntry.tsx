@@ -73,7 +73,10 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
   const borderClass = isDarkMode ? 'border-zinc-700' : 'border-zinc-200';
 
   return (
-    <div className={`fixed inset-0 ${isDarkMode ? 'bg-zinc-950' : 'bg-zinc-50'} flex items-center justify-center p-4 z-50`}>
+    <div
+      className={`fixed inset-0 ${isDarkMode ? 'bg-zinc-950' : 'bg-zinc-50'} flex items-center justify-center p-4 z-50`}
+      onClick={() => inputRef.current?.focus()}
+    >
       <div className={`${bgClass} rounded-2xl shadow-2xl p-8 w-full max-w-sm border ${borderClass} ${shaking ? 'animate-shake' : ''}`}>
         <div className="flex flex-col items-center space-y-6">
           {/* Logo */}

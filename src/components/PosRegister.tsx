@@ -75,11 +75,6 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
   // Receipt after checkout
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
-  // Auto-focus barcode input on mount
-  useEffect(() => {
-    barcodeInputRef.current?.focus();
-  }, []);
-
   const resetCustomerForm = () => {
     setCustomerForm({ first_name: '', last_name: '', email: '', phone: '', club_affinity: '' });
     setFormError(null);
@@ -198,6 +193,13 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Auto-focus barcode input on mount, unless modals are open
+  useEffect(() => {
+    if (!isCheckoutOpen && !isCustomerModalOpen && !isDiscountModalOpen) {
+      barcodeInputRef.current?.focus();
+    }
+  }, [isCheckoutOpen, isCustomerModalOpen, isDiscountModalOpen]);
+
   // ── Barcode scanner handler ──────────────────────────────────────────────
   const handleBarcodeScan = async (rawBarcode: string) => {
     const barcode = rawBarcode.trim().toUpperCase();
@@ -278,7 +280,10 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
       setTimeout(() => setBarcodeError(null), 4000);
     } finally {
       setBarcodeInput('');
-      setTimeout(() => barcodeInputRef.current?.focus(), 60);
+      // Only re-focus barcode input if no modals are open
+      if (!isCheckoutOpen && !isCustomerModalOpen && !isDiscountModalOpen) {
+        setTimeout(() => barcodeInputRef.current?.focus(), 60);
+      }
     }
   };
 
@@ -417,6 +422,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
     setCustomerSearchTerm('');
     setIsCheckoutOpen(false);
     setReceipt(null);
+    setIsDiscountModalOpen(false);
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
@@ -441,8 +447,19 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
               value={barcodeInput}
               onChange={e => setBarcodeInput(e.target.value)}
               onKeyDown={e => {
-                if (e.key === 'Enter') {
+                // Only scan on Enter if no modals are open
+                if (e.key === 'Enter' && !isCheckoutOpen && !isCustomerModalOpen && !isDiscountModalOpen) {
                   handleBarcodeScan(barcodeInput);
+                }
+                // Allow normal text input behavior when discount modal is open
+                if (isDiscountModalOpen) {
+                  e.preventDefault();
+                }
+              }}
+              onFocus={() => {
+                // Don't auto-focus barcode if a modal is open
+                if (isCheckoutOpen || isCustomerModalOpen || isDiscountModalOpen) {
+                  barcodeInputRef.current?.blur();
                 }
               }}
               placeholder="SCAN BARCODE OR TYPE AND PRESS ENTER..."
