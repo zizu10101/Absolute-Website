@@ -8,19 +8,24 @@ import { PosRegister } from '../components/PosRegister';
 import { PosTransactionHistory } from '../components/PosTransactionHistory';
 import { PosCustomerManager } from '../components/PosCustomerManager';
 import { POSPinEntry } from '../components/POSPinEntry';
+import { PosDiscountModal } from '../components/PosDiscountModal';
 import { usePOSCart } from '../hooks/usePOSCart';
-import { useCustomers } from '../context/CustomerContext';
+import { useCustomers, Customer } from '../context/CustomerContext';
+import { Product } from '../context/ProductContext';
 
 export function POSPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode for Shopify look
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [showCustomersPanel, setShowCustomersPanel] = useState(false);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [cashierName] = useState('Cashier');
-  const { cart, clearCart, discount } = usePOSCart();
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const { cart, clearCart, discount, addItem, applyDiscount, subtotal } = usePOSCart();
   const { customers } = useCustomers();
-  const selectedCustomerId = ''; // From cart context
 
   // Check authentication on mount
   useEffect(() => {
@@ -28,6 +33,23 @@ export function POSPage() {
     if (stored === 'true') {
       setIsAuthenticated(true);
     }
+  }, []);
+
+  // Fetch products on mount
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch('/api/products');
+        const data = await res.json();
+        setProducts(data.data || []);
+      } catch (err) {
+        console.error('Failed to fetch products:', err);
+      } finally {
+        setProductsLoading(false);
+      }
+    };
+
+    fetchProducts();
   }, []);
 
   // Save dark mode preference
@@ -46,6 +68,20 @@ export function POSPage() {
     setShowHistoryPanel(false);
     setShowCustomersPanel(false);
   };
+
+  const handleSelectCustomer = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    setShowCustomersPanel(false);
+  };
+
+  const handleApplyDiscount = (discountData: any) => {
+    applyDiscount(discountData);
+  };
+
+  const filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (!isAuthenticated) {
     return <POSPinEntry onPinSubmit={handlePinSubmit} isDarkMode={isDarkMode} />;
@@ -111,7 +147,7 @@ export function POSPage() {
           </div>
 
           {/* Action Tiles Grid */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               {/* Add Customer */}
               <button
@@ -124,8 +160,8 @@ export function POSPage() {
 
               {/* Add Discount */}
               <button
+                onClick={() => setShowDiscountModal(true)}
                 className="bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#2563eb] rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors group"
-                // onClick will be passed from PosRegister
               >
                 <Percent size={24} className="text-[#2563eb] group-hover:text-[#60a5fa]" />
                 <span className="text-xs font-semibold text-gray-300 group-hover:text-white">Add Discount</span>
@@ -161,6 +197,44 @@ export function POSPage() {
                 <Barcode size={24} className="text-[#2563eb] group-hover:text-[#60a5fa]" />
                 <span className="text-xs font-semibold text-gray-300 group-hover:text-white">Barcode Scan</span>
               </button>
+            </div>
+
+            {/* Product Grid */}
+            <div>
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Products</h3>
+              {productsLoading ? (
+                <div className="text-center py-4 text-gray-500 text-sm">Loading products...</div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="text-center py-4 text-gray-500 text-sm">No products found</div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {filteredProducts.slice(0, 12).map((product) => (
+                    <button
+                      key={product.id}
+                      onClick={() => {
+                        const result = addItem(product);
+                        if (result) {
+                          alert(result);
+                        }
+                      }}
+                      className="bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#2563eb] rounded-lg p-2 flex flex-col items-center justify-center gap-1 transition-colors group text-center min-h-24"
+                    >
+                      {product.image && (
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-12 h-12 object-cover rounded bg-[#0f1117]"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      )}
+                      <span className="text-[10px] font-semibold text-gray-300 group-hover:text-white line-clamp-2">
+                        {product.name}
+                      </span>
+                      <span className="text-[10px] text-[#2563eb]">${product.price.toFixed(2)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -289,11 +363,22 @@ export function POSPage() {
                 </button>
               </div>
               <div className="flex-1 overflow-hidden">
-                <PosCustomerManager />
+                <PosCustomerManager onSelectCustomer={handleSelectCustomer} />
               </div>
             </motion.div>
           </>
         )}
+      </AnimatePresence>
+
+      {/* Discount Modal */}
+      <AnimatePresence>
+        <PosDiscountModal
+          isOpen={showDiscountModal}
+          onClose={() => setShowDiscountModal(false)}
+          onApply={handleApplyDiscount}
+          currentDiscount={discount}
+          subtotal={subtotal}
+        />
       </AnimatePresence>
 
       {/* Bottom Bar */}

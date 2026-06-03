@@ -2,14 +2,18 @@ import React, { useState, useMemo } from 'react';
 import { useCustomers, Customer } from '../context/CustomerContext';
 import {
   Search, User, ArrowLeft, Edit2, Save, X, Plus,
-  ShoppingBag, DollarSign, Clock, CheckCircle2, AlertTriangle,
+  ShoppingBag, DollarSign, Clock, CheckCircle2, AlertTriangle, Check,
 } from 'lucide-react';
 
 type View = 'list' | 'profile' | 'create' | 'edit';
 
 const EMPTY_FORM = { first_name: '', last_name: '', email: '', phone: '', boot_size: '', club_affinity: '' };
 
-export const PosCustomerManager: React.FC = () => {
+interface PosCustomerManagerProps {
+  onSelectCustomer?: (customerId: string) => void;
+}
+
+export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelectCustomer }) => {
   const { customers, fetchCustomers, addCustomer, updateCustomer } = useCustomers();
   const [view, setView] = useState<View>('list');
   const [selected, setSelected] = useState<Customer | null>(null);
@@ -167,9 +171,21 @@ export const PosCustomerManager: React.FC = () => {
               <ArrowLeft size={16} />
             </button>
             <h2 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex-1">Customer Profile</h2>
-            <button onClick={openEdit} className="flex items-center gap-1.5 px-3 py-2 border border-zinc-200 rounded-lg text-[10px] font-black uppercase hover:bg-zinc-50">
-              <Edit2 size={12} /> Edit
-            </button>
+            <div className="flex items-center gap-2">
+              {onSelectCustomer && selected && (
+                <button
+                  onClick={() => {
+                    onSelectCustomer(selected.id);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-[#2563eb] text-white rounded-lg text-[10px] font-black uppercase hover:bg-blue-700"
+                >
+                  <Check size={12} /> Select
+                </button>
+              )}
+              <button onClick={openEdit} className="flex items-center gap-1.5 px-3 py-2 border border-zinc-200 rounded-lg text-[10px] font-black uppercase hover:bg-zinc-50">
+                <Edit2 size={12} /> Edit
+              </button>
+            </div>
           </div>
           <>
             {successMsg && <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={13} /> {successMsg}</div>}
