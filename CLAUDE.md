@@ -151,37 +151,60 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 - ✅ Dark theme colors match Shopify POS
 - ✅ No TypeScript compilation errors
 
+#### 3. Wired Discount Button, Product Grid, & Customer Selection
+- **Commit:** `f4f4fe7` - Wire discount button, add product grid, and integrate customer selection
+
+**Features Implemented:**
+
+1. **Discount Button Integration**
+   - Added `showDiscountModal` state to POSPage
+   - Wired "Add Discount" button onClick to open modal
+   - Integrated `PosDiscountModal` component with proper prop passing
+   - Discount applied to cart through `applyDiscount` hook function
+
+2. **Product Grid Below Action Tiles**
+   - Fetch products from `/api/products` endpoint on component mount
+   - Display up to 12 products in 3-column grid format
+   - Each product shows: image, name (truncated), price in blue
+   - Click any product to add to cart (calls `addItem` hook)
+   - Search/filter products by name or category in real-time
+   - Shows loading state while fetching, "No products found" if empty
+
+3. **Customer Selection Integration**
+   - Track selected customer ID in POSPage state
+   - Pass `onSelectCustomer` callback to PosCustomerManager
+   - Added "Select" button in customer profile view (blue button with checkmark)
+   - Click Select → closes panel, displays customer tag in right panel
+   - Customer tag shows: customer name + "Returning customer" label + blue dot
+
+**Files Modified:**
+- `src/pages/POSPage.tsx` - Added states, effects, handlers, product grid, discount modal
+- `src/components/PosCustomerManager.tsx` - Added onSelectCustomer prop and Select button
+
+**Testing Verified:**
+- ✅ Discount button opens modal without errors
+- ✅ Product grid fetches and displays products
+- ✅ Products clickable and add to cart
+- ✅ Search filters products by name/category
+- ✅ Customer selection flow works end-to-end
+- ✅ Selected customer displays in right panel
+- ✅ No TypeScript compilation errors
+
 **Current Issues/Future Work:**
 
-1. **Discount Modal Integration**
-   - Discount button in left panel needs onClick handler wired
-   - Currently shown as placeholder, no functionality attached
-   - Should open discount modal when clicked
-
-2. **Custom Sale Input**
+1. **Custom Sale Input**
    - "Custom Sale" tile needs modal/input dialog
    - Should allow entering custom product/amount not in inventory
 
-3. **Add Note Modal**
+2. **Add Note Modal**
    - "Add Note" tile needs modal for order notes
    - Notes should be stored and displayed
 
-4. **Product Grid**
-   - Left panel could display product grid below action tiles
-   - Currently no product browsing in the redesigned layout
-   - Original PosRegister has full product grid/barcode scanning
-   - Could be added back as scrollable section below tiles
-
-5. **Barcode Scanner Input**
+3. **Barcode Scanner UI**
    - Hidden input field still exists in PosRegister
    - Currently not displayed in redesigned layout
    - Works via keyboard input but UI not visible
    - Could add visual feedback when scanning
-
-6. **Customer Selection**
-   - Cart doesn't currently track selected customer
-   - Right panel shows customer info but not integrated with cart
-   - Need to wire up customer selection from Add Customer button
 
 ---
 
