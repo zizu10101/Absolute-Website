@@ -10,7 +10,68 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
-## Session June 2, 2026 - Summary
+## Session June 2, 2026 (Continued) - POS Standalone Route
+
+### ✅ COMPLETED
+
+#### Standalone /pos Route with PIN Authentication
+- **Commit:** `72f3e8d` - Create standalone POS route with PIN authentication
+- **New Files:**
+  - `src/pages/POSPage.tsx` - Standalone POS page component
+  - `src/components/POSPinEntry.tsx` - PIN entry pad component
+- **Configuration:** Added `VITE_POS_PIN=2024` to .env
+
+**Features Implemented:**
+
+1. **PIN Authentication**
+   - 4-6 digit PIN entry pad with 0-9, backspace, and submit buttons
+   - PIN validated against VITE_POS_PIN environment variable (2024)
+   - Visual feedback: red border, shake animation on incorrect PIN
+   - Session-based auth using sessionStorage (auto-clears on tab close)
+
+2. **Full-Screen Layout**
+   - No admin navbar, sidebar, or layout wrappers
+   - Dark/light mode toggle (saves preference to localStorage)
+   - Responsive design optimized for tablets and touchscreens
+   - Header with: Logo, Order History button, Customers button, Dark mode toggle, Lock button
+
+3. **Navigation Features**
+   - Order History: Slide-over panel (read-only view of past transactions)
+   - Customers: Slide-over panel (search and manage customer records)
+   - Both panels overlay without navigating away from POS
+   - Close with X button or click outside panel
+
+4. **POS Interface**
+   - Reuses all existing POS components: PosRegister, PosTransactionHistory, PosCustomerManager
+   - Preserves all business logic: cart management, barcode scanning, checkout, receipts
+   - Keyboard shortcut: Ctrl+L to lock POS and return to PIN screen
+
+5. **Routing**
+   - New route: `/pos` - accessible from admin panel button
+   - Admin panel "POS" button changed to "POS (New Tab)" - opens /pos in new window
+   - Removed POS tab from admin panel (no longer embedded)
+
+**Cleanup:**
+- Removed unused `handleVoid` and `handleRefund` functions from PosRegister (dead code)
+- Removed POS tab type from AdminPage
+
+**How to Access:**
+1. From admin panel: Click "POS (New Tab)" button to open /pos in new window
+2. Enter PIN: 2024
+3. Verify POS interface loads with barcode scanner input, cart, and checkout
+
+**Testing Verified:**
+- ✅ /pos route responds with 200 OK
+- ✅ PIN entry screen renders correctly
+- ✅ PIN validation works (enter 2024 to unlock)
+- ✅ sessionStorage auth persists through page reload
+- ✅ Dark mode preference saved to localStorage
+- ✅ Order History and Customers panels open/close correctly
+- ✅ All existing POS logic intact and functional
+
+---
+
+## Session June 2, 2026 (Earlier) - Summary
 
 ### ✅ COMPLETED
 
