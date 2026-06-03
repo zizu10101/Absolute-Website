@@ -12,8 +12,10 @@ import { POSPinEntry } from '../components/POSPinEntry';
 import { PosDiscountModal } from '../components/PosDiscountModal';
 import { usePOSCart, CartItem } from '../hooks/usePOSCart';
 import { useCustomers, Customer } from '../context/CustomerContext';
+import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../supabase';
 import { mapProductFromDb } from '../context/ProductContext';
+import { generateThermalReceiptHTML } from '../utils/thermalReceipt';
 
 type CategoryTab = 'ALL' | 'FOOTWEAR' | 'KITS' | 'BALLS' | 'EQUIPMENT' | 'TEAMWEAR' | 'GLOVES';
 
@@ -34,8 +36,7 @@ export function POSPage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   // Panels
-  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
-  const [showCustomersPanel, setShowCustomersPanel] = useState(false);
+  const [posTab, setPosTab] = useState<'register' | 'history' | 'customers'>('register');
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -96,6 +97,7 @@ export function POSPage() {
   } = usePOSCart();
 
   const { customers, fetchCustomers } = useCustomers();
+  const { logo } = useSettings();
   const safeCustomers = Array.isArray(customers) ? customers : [];
 
   // Auth
@@ -388,6 +390,30 @@ export function POSPage() {
     setShowCheckout(false);
     setReceipt(null);
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
+  };
+
+  // Print thermal receipt
+  const handlePrintReceipt = () => {
+    if (!receipt) return;
+
+    const receiptHtml = generateThermalReceiptHTML({
+      transactionId: receipt.transactionId || 'N/A',
+      customerName: receipt.customer ? `${receipt.customer.first_name} ${receipt.customer.last_name}` : 'Walk-in',
+      items: receipt.items,
+      subtotal: receipt.subtotal,
+      hst: receipt.hst,
+      total: receipt.total,
+      paymentMethod: receipt.method,
+      createdAt: new Date(),
+      logoUrl: logo || '/logo.svg',
+    });
+
+    // Open in new window for printing
+    const printWindow = window.open('', '', 'width=800,height=600');
+    if (printWindow) {
+      printWindow.document.write(receiptHtml);
+      printWindow.document.close();
+    }
   };
 
   // Add customer
@@ -767,7 +793,7 @@ export function POSPage() {
 
                   <div className="p-4 border-t border-zinc-200 flex gap-3">
                     <button
-                      onClick={() => window.print()}
+                      onClick={handlePrintReceipt}
                       className="flex-1 flex items-center justify-center gap-2 border border-zinc-200 rounded-lg py-3 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-colors text-black"
                     >
                       <Printer size={14} /> Print
