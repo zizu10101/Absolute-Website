@@ -69,6 +69,73 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 - ✅ Order History and Customers panels open/close correctly
 - ✅ All existing POS logic intact and functional
 
+#### PIN Pad Keyboard Input & Discount Feature
+- **Commit:** `41d2f25` - Add PIN keyboard input and discount feature
+- **New File:**
+  - `src/components/PosDiscountModal.tsx` - Discount management modal
+
+**PIN Keyboard Input Features:**
+1. **Auto-Focus on Load**
+   - Hidden input field with useRef auto-focuses when PIN screen loads
+   - Staff can start typing PIN immediately without clicking
+
+2. **Full Keyboard Support**
+   - Number keys (0-9) type PIN digits
+   - Backspace key deletes last digit
+   - Enter key submits PIN
+   - Visual PIN dots update in real-time
+   - On-screen numpad buttons still work for touch/tablet devices
+
+3. **Implementation:**
+   - useRef hook for input element reference
+   - useEffect hook for auto-focus on mount
+   - handleKeyDown event listener for keyboard input
+   - Seamless integration with existing PIN validation
+
+**Discount Feature:**
+1. **Discount Modal with Two Tabs**
+   - **% Discount Tab:** Percentage-based discount (0-100%)
+   - **Custom Price Tab:** Exact amount to charge customer
+   - Real-time preview showing discounted total before applying
+
+2. **Cart Integration**
+   - Discount applied to entire order (separate from item discounts)
+   - Shows as "Order Discount" line item in checkout
+   - Removable via X button in totals section
+   - Updates HST calculation after discount
+
+3. **Data Persistence**
+   - Discount stored in Supabase transaction:
+     * `discount` object: `{ type: 'percentage' | 'custom', value: number }`
+     * `discount_amount`: calculated discount in dollars
+   - Included in receipt display
+   - Available for reporting and analytics
+
+4. **State Management**
+   - Added to usePOSCart hook:
+     * `discount` state
+     * `discountAmount` calculated value
+     * `applyDiscount()` function
+     * `removeDiscount()` function
+   - Discount cleared on cart clear or new transaction
+
+**Files Modified:**
+- `src/components/POSPinEntry.tsx` - Add keyboard focus and input handling
+- `src/hooks/usePOSCart.ts` - Add Discount interface and state management
+- `src/components/PosRegister.tsx` - Add discount modal integration and UI
+
+**Testing Verified:**
+- ✅ PIN entry auto-focuses on load
+- ✅ Keyboard input (0-9, Backspace, Enter) works
+- ✅ On-screen buttons still functional
+- ✅ Discount modal opens/closes
+- ✅ % discount calculation correct
+- ✅ Custom price validation works
+- ✅ Discount preview updates in real-time
+- ✅ Discount line item shows in checkout
+- ✅ Discount removable and recalculates totals
+- ✅ Discount saved to Supabase on checkout
+
 ---
 
 ## Session June 2, 2026 (Earlier) - Summary
