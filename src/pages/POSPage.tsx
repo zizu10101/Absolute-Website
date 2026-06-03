@@ -324,7 +324,6 @@ export function POSPage() {
         items: cartItemsPayload,
         customer_id: selectedCustomerId?.trim() || null,
         created_at: new Date().toISOString(),
-        discount_amount: discountAmount > 0 ? Number(discountAmount.toFixed(2)) : 0,
       };
 
       const res = await fetch('/api/transactions', {
