@@ -78,10 +78,12 @@ export function POSPage() {
     applyDiscount(discountData);
   };
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProducts = products.filter(p => {
+    const query = searchQuery.toLowerCase();
+    const nameMatch = p.name && p.name.toLowerCase().includes(query);
+    const categoryMatch = p.category && p.category.toLowerCase().includes(query);
+    return nameMatch || categoryMatch;
+  });
 
   if (!isAuthenticated) {
     return <POSPinEntry onPinSubmit={handlePinSubmit} isDarkMode={isDarkMode} />;
