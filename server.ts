@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs/promises";
+import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
@@ -899,18 +900,18 @@ async function startServer() {
 
   // Transaction POST
   app.post("/api/transactions", async (req, res) => {
-    if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
-    
+    if (!supabaseAdmin) return res.status(500).json({ error: "Supabase not configured" });
+
     console.log("POS Server Received Transaction:", req.body);
-    
+
     try {
-      const { data, error } = await supabase.from('transactions').insert([req.body]).select();
-      
+      const { data, error } = await supabaseAdmin.from('transactions').insert([req.body]).select();
+
       if (error) {
         console.error("Supabase Transaction Write Error:", error);
         return res.status(500).json({ error: error.message });
       }
-      
+
       return res.status(200).json({ success: true, data });
     } catch (err: any) {
       console.error("Error saving transaction:", err);
@@ -920,17 +921,38 @@ async function startServer() {
 
   // Transaction GET
   app.get("/api/transactions", async (req, res) => {
-    if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
+    if (!supabaseAdmin) return res.status(500).json({ error: "Supabase not configured" });
 
     try {
+      console.log("📥 GET /api/transactions called");
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
-      let query = supabase.from('transactions').select('*').order('created_at', { ascending: false });
+      const customer_id = req.query.customer_id as string | undefined;
+
+      console.log("📥 Query params - limit:", limit, "customer_id:", customer_id);
+
+      let query = supabaseAdmin.from('transactions').select('*').order('created_at', { ascending: false });
+
+      // Filter by customer_id if provided
+      if (customer_id) {
+        query = query.eq('customer_id', customer_id);
+      }
 
       if (limit) {
         query = query.limit(limit);
       }
 
       const { data, error } = await query;
+
+      console.log("📥 Query result - error:", error ? error.message : "none", "data count:", data ? data.length : 0);
+
+      if (data && data.length > 0) {
+        console.log("📥 First 3 transactions:", data.slice(0, 3).map((t: any) => ({
+          id: t.id.slice(0, 8),
+          status: t.status,
+          created_at: t.created_at,
+          total_amount: t.total_amount
+        })));
+      }
 
       if (error) {
         console.error("Supabase Transaction Fetch Error:", error);
@@ -946,90 +968,185 @@ async function startServer() {
 
   // Transaction Refund POST
   app.post("/api/transactions/refund", async (req, res) => {
-    console.log("🟠 REFUND endpoint called with body:", req.body);
+    console.log("🟠 STEP 1: REFUND endpoint called");
+    console.log("🟠 STEP 1a: Full request body:", JSON.stringify(req.body, null, 2));
 
     if (!supabaseAdmin) {
-      console.error("❌ Supabase not configured");
+      console.error("❌ STEP 1b: Supabase not configured");
       return res.status(500).json({ error: "Supabase not configured" });
     }
+    console.log("🟠 STEP 1c: Supabase admin client exists");
 
     const { transactionId } = req.body;
-    console.log("📝 Processing refund for:", transactionId);
+    console.log("🟠 STEP 2: Extracted transactionId:", transactionId);
+
+    if (!transactionId) {
+      console.error("❌ STEP 2a: transactionId is missing or null");
+      return res.status(400).json({ error: "transactionId is required" });
+    }
 
     try {
+      // Fetch original transaction
+      console.log("🟠 STEP 3: Fetching original transaction...");
       const { data: original, error: fetchErr } = await supabaseAdmin
         .from('transactions')
         .select('*')
         .eq('id', transactionId)
         .single();
 
-      console.log("🔍 Original transaction - error:", fetchErr, "data exists:", !!original);
+      console.log("🟠 STEP 3a: Fetch result - error:", fetchErr ? fetchErr.message : "none", "data exists:", !!original);
 
       if (fetchErr || !original) {
-        console.error("❌ Transaction not found");
+        console.error("❌ STEP 3b: Transaction not found - error:", fetchErr);
         return res.status(404).json({ error: "Original transaction not found or fetch error" });
       }
 
-      // Payload targets active columns
-      const payload = {
+      console.log("🟠 STEP 3c: Original transaction found - current status:", original.status);
+
+      // Update original transaction status to 'refunded'
+      console.log("🟠 STEP 4: Updating original transaction status to 'refunded'...");
+      const { data: updateData, error: updateErr } = await supabaseAdmin
+        .from('transactions')
+        .update({ status: 'refunded' })
+        .eq('id', transactionId)
+        .select();
+
+      console.log("🟠 STEP 4a: UPDATE response - error:", updateErr ? updateErr.message : "none");
+      console.log("🟠 STEP 4b: UPDATE data:", updateData ? JSON.stringify(updateData, null, 2) : "null");
+
+      if (updateErr) {
+        console.error("❌ STEP 4c: Supabase UPDATE error:", updateErr.message, updateErr.details, updateErr.hint);
+        return res.status(500).json({ error: `Database error: ${updateErr.message}` });
+      }
+
+      if (!updateData || updateData.length === 0) {
+        console.warn("⚠️ STEP 4d: UPDATE succeeded but no rows returned (RLS or constraints issue?)");
+      }
+
+      // Also create a refund record for tracking
+      const refundPayload = {
         total_amount: Number(original.total_amount) * -1,
         method: original.method,
+        payment_method: original.payment_method || original.method,
         status: 'refunded',
         items: original.items,
         customer_id: original.customer_id,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        total_price: Math.abs(Number(original.total_amount || original.total_price) * -1)
       };
 
-      console.log("💾 Creating refund record:", payload);
+      console.log("🟠 STEP 5: Creating refund record (negative amount)...");
+      console.log("🟠 STEP 5a: Refund payload:", JSON.stringify(refundPayload, null, 2));
 
-      const { data, error } = await supabaseAdmin.from('transactions').insert([payload]).select();
+      const { data, error } = await supabaseAdmin.from('transactions').insert([refundPayload]).select();
 
-      console.log("✅ Refund response - error:", error, "data:", data);
+      console.log("🟠 STEP 5b: INSERT response - error:", error ? error.message : "none");
+      console.log("🟠 STEP 5c: INSERT data:", data ? JSON.stringify(data, null, 2) : "null");
 
       if (error) {
-        console.error("❌ Supabase Refund Write Error:", error);
+        console.error("❌ STEP 5d: Supabase INSERT error:", error.message, error.details, error.hint);
         return res.status(500).json({ error: `Database error: ${error.message}` });
       }
 
-      console.log("✅ Sending success response");
-      return res.status(200).json({ success: true, data });
+      console.log("✅ STEP 6: Transaction marked as refunded successfully");
+      console.log("✅ STEP 6a: Original transaction ID:", transactionId);
+      console.log("✅ STEP 6b: Refund record created");
+
+      return res.status(200).json({ success: true, data, message: "Refund processed successfully" });
     } catch (err: any) {
-      console.error("❌ Error processing refund:", err);
+      console.error("❌ STEP 7: Caught exception:", err);
+      console.error("   - Message:", err.message);
+      console.error("   - Stack:", err.stack);
       return res.status(500).json({ error: `Server error: ${err.message}` });
     }
   });
 
   // Transaction Void POST
   app.post("/api/transactions/void", async (req, res) => {
-    console.log("🔵 VOID endpoint called with body:", req.body);
+    console.log("🔵 STEP 1: VOID endpoint called");
+    console.log("🔵 STEP 1a: Full request body:", JSON.stringify(req.body, null, 2));
 
     if (!supabaseAdmin) {
-      console.error("❌ Supabase not configured");
+      console.error("❌ STEP 1b: Supabase not configured");
       return res.status(500).json({ error: "Supabase not configured" });
     }
+    console.log("🔵 STEP 1c: Supabase admin client exists");
 
     const { transactionId } = req.body;
-    console.log("📝 Processing void for:", transactionId);
+    console.log("🔵 STEP 2: Extracted transactionId:", transactionId);
+
+    if (!transactionId) {
+      console.error("❌ STEP 2a: transactionId is missing or null");
+      return res.status(400).json({ error: "transactionId is required" });
+    }
+    console.log("🔵 STEP 2b: transactionId is valid:", typeof transactionId, "length:", transactionId.length);
 
     try {
-      // Delete the transaction (void it)
+      // Fetch transaction first to verify it exists
+      console.log("🔵 STEP 3: Fetching transaction to verify it exists...");
+      const { data: existingTx, error: fetchErr } = await supabaseAdmin
+        .from('transactions')
+        .select('id, status, created_at, total_amount, method')
+        .eq('id', transactionId)
+        .single();
+
+      console.log("🔵 STEP 3a: Fetch result - error:", fetchErr, "data:", existingTx);
+
+      if (fetchErr) {
+        console.error("❌ STEP 3b: Could not fetch transaction:", fetchErr.message, fetchErr.details, fetchErr.hint);
+        return res.status(404).json({ error: `Transaction not found: ${fetchErr.message}` });
+      }
+
+      if (!existingTx) {
+        console.error("❌ STEP 3c: Transaction not found in database");
+        return res.status(404).json({ error: "Transaction not found" });
+      }
+
+      console.log("🔵 STEP 3d: Transaction found - current status:", existingTx.status);
+
+      // Update transaction status to 'voided' (don't delete, preserve the record)
+      console.log("🔵 STEP 4: Starting UPDATE query...");
+      console.log("🔵 STEP 4a: Updating transaction", transactionId, "to status='voided'");
+
       const { data, error } = await supabaseAdmin
         .from('transactions')
-        .delete()
+        .update({ status: 'voided' })
         .eq('id', transactionId)
         .select();
 
-      console.log("✅ Void response - error:", error, "data:", data);
+      console.log("🔵 STEP 5: UPDATE response received");
+      console.log("🔵 STEP 5a: Error object:", error ? JSON.stringify(error, null, 2) : "null");
+      console.log("🔵 STEP 5b: Data object:", data ? JSON.stringify(data, null, 2) : "null");
+      console.log("🔵 STEP 5c: Number of rows affected:", data ? data.length : 0);
 
       if (error) {
-        console.error("❌ Supabase Void Error:", error);
+        console.error("❌ STEP 6: Supabase UPDATE error:");
+        console.error("   - Message:", error.message);
+        console.error("   - Details:", error.details);
+        console.error("   - Hint:", error.hint);
+        console.error("   - Code:", error.code);
         return res.status(500).json({ error: `Database error: ${error.message}` });
       }
 
-      console.log("✅ Sending success response");
+      if (!data || data.length === 0) {
+        console.warn("⚠️ STEP 6a: UPDATE succeeded but no rows returned");
+        console.warn("   This might indicate RLS policies or constraint issues");
+      } else {
+        console.log("🔵 STEP 6b: Verifying status update:");
+        console.log("   - BEFORE:", existingTx.status);
+        console.log("   - AFTER:", data[0].status);
+        console.log("   - Status changed?", existingTx.status !== data[0].status);
+      }
+
+      console.log("✅ STEP 7: Transaction marked as voided successfully");
+      console.log("✅ STEP 7a: Updated transaction ID:", transactionId);
+      console.log("✅ STEP 7b: Rows updated:", data ? data.length : 0);
+
       return res.status(200).json({ success: true, data, message: "Transaction voided successfully" });
     } catch (err: any) {
-      console.error("❌ Error voiding transaction:", err);
+      console.error("❌ STEP 8: Caught exception:", err);
+      console.error("   - Message:", err.message);
+      console.error("   - Stack:", err.stack);
       return res.status(500).json({ error: `Server error: ${err.message}` });
     }
   });
@@ -1208,18 +1325,202 @@ async function startServer() {
   // Customer GET
   app.get("/api/customers", async (req, res) => {
     if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
-    
+
     try {
       const { data, error } = await supabase.from('customers').select('*').order('last_name', { ascending: true });
-      
+
       if (error) {
         console.error("Supabase CRM Fetch Error:", error);
         return res.status(500).json({ error: error.message });
       }
-      
+
       return res.status(200).json({ success: true, data });
     } catch (err: any) {
       console.error("Error fetching customers:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // --- GIFT CARDS ---
+
+  // Gift Cards GET - List all gift cards
+  app.get("/api/gift-cards", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
+
+    try {
+      console.log('📥 GET /api/gift-cards');
+      const { data, error } = await supabase
+        .from('gift_cards')
+        .select('*, customers(first_name, last_name, email)')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ Gift cards fetch error:', error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      console.log('✅ Fetched', data?.length || 0, 'gift cards');
+      return res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error('❌ Error fetching gift cards:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Gift Cards POST - Issue a new gift card
+  app.post("/api/gift-cards", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
+
+    try {
+      const { initial_balance, customer_id, card_number: providedCardNumber } = req.body;
+
+      console.log('🎁 POST /api/gift-cards - Request body:', req.body);
+
+      if (!initial_balance || initial_balance <= 0) {
+        console.error('❌ Invalid amount:', initial_balance);
+        return res.status(400).json({ error: 'Invalid amount' });
+      }
+
+      // Generate card number if not provided
+      const card_number = providedCardNumber || crypto.randomBytes(8).toString('hex').toUpperCase().slice(0, 16);
+      console.log('🔢 Card number:', card_number, '(auto-generated:', !providedCardNumber, ')');
+
+      const insertPayload = {
+        card_number,
+        initial_balance: Number(initial_balance),
+        current_balance: Number(initial_balance),
+        customer_id: customer_id || null,
+        is_active: true,
+        created_at: new Date().toISOString(),
+      };
+
+      console.log('📦 Insert payload:', insertPayload);
+
+      const { data, error } = await supabase
+        .from('gift_cards')
+        .insert([insertPayload])
+        .select();
+
+      console.log('📊 Supabase insert result:', { data, error });
+
+      if (error) {
+        console.error('❌ Supabase error:', error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      if (!data || data.length === 0) {
+        console.error('❌ No data returned from insert');
+        return res.status(500).json({ error: 'Insert succeeded but no data returned' });
+      }
+
+      console.log('✅ Gift card created:', data[0]);
+      return res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error('❌ Exception in POST /api/gift-cards:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Gift Cards Lookup - GET /api/gift-cards/lookup
+  app.get("/api/gift-cards/lookup", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
+
+    const { card_number } = req.query;
+    if (!card_number) return res.status(400).json({ error: 'card_number is required' });
+
+    try {
+      console.log('🔍 Looking up card:', card_number);
+      const { data, error } = await supabase
+        .from('gift_cards')
+        .select('*')
+        .eq('card_number', card_number)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return res.status(404).json({ error: 'Gift card not found' });
+        }
+        throw error;
+      }
+
+      return res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error('❌ Error looking up gift card:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Gift Cards Redeem - POST /api/gift-cards/redeem
+  app.post("/api/gift-cards/redeem", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
+
+    const { card_number, amount } = req.body;
+    if (!card_number || !amount) return res.status(400).json({ error: 'card_number and amount are required' });
+
+    try {
+      console.log('💳 Redeeming card:', card_number, 'amount:', amount);
+
+      // Get current card
+      const { data: card, error: lookupError } = await supabase
+        .from('gift_cards')
+        .select('*')
+        .eq('card_number', card_number)
+        .single();
+
+      if (lookupError) throw lookupError;
+      if (!card) return res.status(404).json({ error: 'Gift card not found' });
+
+      const new_balance = card.current_balance - amount;
+      const is_active = new_balance > 0;
+
+      // Update balance
+      const { data: updated, error: updateError } = await supabase
+        .from('gift_cards')
+        .update({ current_balance: new_balance, is_active })
+        .eq('id', card.id)
+        .select();
+
+      if (updateError) throw updateError;
+
+      // Record transaction
+      const { error: txError } = await supabase
+        .from('gift_card_transactions')
+        .insert([{
+          gift_card_id: card.id,
+          amount: -amount,
+          transaction_type: 'redeem',
+          created_at: new Date().toISOString()
+        }]);
+
+      if (txError) console.error('⚠️ Transaction recording failed:', txError);
+
+      return res.status(200).json({ success: true, data: updated?.[0] });
+    } catch (err: any) {
+      console.error('❌ Error redeeming gift card:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Gift Cards History - GET /api/gift-cards/history
+  app.get("/api/gift-cards/history", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Supabase not configured" });
+
+    const { gift_card_id } = req.query;
+    if (!gift_card_id) return res.status(400).json({ error: 'gift_card_id is required' });
+
+    try {
+      console.log('📊 Getting history for card:', gift_card_id);
+      const { data, error } = await supabase
+        .from('gift_card_transactions')
+        .select('*')
+        .eq('gift_card_id', gift_card_id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error('❌ Error fetching history:', err);
       res.status(500).json({ error: err.message });
     }
   });

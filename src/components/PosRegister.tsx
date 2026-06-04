@@ -356,21 +356,29 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
     }));
 
     try {
+      const finalTotal = Number(grandTotal.toFixed(2));
+      const customerId = selectedCustomerId && selectedCustomerId.trim() !== '' ? selectedCustomerId.trim() : null;
+
+      console.log('💾 Saving transaction with customer_id:', customerId);
+
       const payload = {
-        total_amount: Number(grandTotal.toFixed(2)),
+        customer_id: customerId,
+        total_amount: finalTotal,
+        total_price: finalTotal,
         method,
+        payment_method: method,
+        status: 'completed',
         items: cartItemsPayload,
-        customer_id:
-          selectedCustomerId && selectedCustomerId.trim() !== ''
-            ? selectedCustomerId.trim()
-            : null,
         created_at: new Date().toISOString(),
         discount: discount ? { type: discount.type, value: discount.value } : null,
         discount_amount: discountAmount > 0 ? Number(discountAmount.toFixed(2)) : 0,
       };
 
+      console.log('📦 Transaction payload:', payload);
+
       // Save transaction via API (RLS blocks direct anon insert)
       const result = await apiPost('/api/transactions', payload);
+      console.log('✅ Transaction saved:', result?.data?.[0]?.id);
 
       // Deduct stock for each variant-tracked cart item
       for (const item of cart) {

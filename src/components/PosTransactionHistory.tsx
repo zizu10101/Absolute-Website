@@ -50,19 +50,44 @@ export const PosTransactionHistory: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchTransactions = useCallback(async () => {
+    console.log("📡 STEP A: fetchTransactions called");
     setIsLoading(true);
+    setErrorMsg(null);
     try {
+      console.log("📡 STEP B: Fetching from /api/transactions...");
       const res = await fetch('/api/transactions');
       const text = await res.text();
+
+      console.log("📡 STEP B1: Raw response text:", text.substring(0, 200));
+
       let result: any;
-      try { result = JSON.parse(text); } catch { throw new Error(`Server error: unexpected response`); }
-      if (!res.ok) throw new Error(result?.error || 'Failed to fetch');
-      setTransactions((result?.data || []).sort((a: any, b: any) =>
+      try { result = JSON.parse(text); } catch {
+        console.error("❌ Failed to parse JSON:", text);
+        throw new Error(`Server error: unexpected response`);
+      }
+
+      console.log("📡 STEP C: Response status:", res.status);
+      console.log("📡 STEP C1: Result object:", result);
+      console.log("📡 STEP D: Response data count:", result?.data ? result.data.length : 0);
+      console.log("📡 STEP D1: Response error field:", result?.error);
+
+      if (!res.ok) {
+        console.error("❌ Response not OK - error:", result?.error);
+        throw new Error(result?.error || `Failed to fetch (${res.status})`);
+      }
+
+      const sortedData = (result?.data || []).sort((a: any, b: any) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      ));
+      );
+
+      console.log("📡 STEP E: Sorted data count:", sortedData.length);
+      console.log("📡 STEP F: Transaction statuses:", sortedData.map((t: any) => ({ id: t.id.slice(0, 8), status: t.status })));
+
+      setTransactions(sortedData);
+      console.log("📡 STEP G: State updated with new transactions");
     } catch (e: any) {
-      console.error('Transaction fetch error:', e);
-      setErrorMsg('Failed to load transactions');
+      console.error('❌ Transaction fetch error:', e.message, e);
+      setErrorMsg(`Failed to load transactions: ${e.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -82,8 +107,9 @@ export const PosTransactionHistory: React.FC = () => {
   };
 
   const filtered = useMemo(() => {
+    console.log("🔍 FILTER: Starting filter with", transactions.length, "transactions, statusFilter:", statusFilter);
     const now = new Date();
-    return transactions.filter(tx => {
+    const result = transactions.filter(tx => {
       const d = new Date(tx.created_at);
 
       // Date filter
@@ -95,8 +121,11 @@ export const PosTransactionHistory: React.FC = () => {
       if (dateFilter === 'month' && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) return false;
       if (dateFilter === 'year' && d.getFullYear() !== now.getFullYear()) return false;
 
-      // Status filter
-      if (statusFilter !== 'all' && tx.status !== statusFilter) return false;
+      // Status filter - include all statuses including voided/refunded when 'all' is selected
+      if (statusFilter !== 'all') {
+        console.log("🔍 FILTER: Checking status for tx", tx.id.slice(0, 8), "- tx.status:", tx.status, "statusFilter:", statusFilter, "match?", tx.status === statusFilter);
+        if (tx.status !== statusFilter) return false;
+      }
 
       // Search
       if (searchQuery.trim()) {
@@ -108,6 +137,8 @@ export const PosTransactionHistory: React.FC = () => {
 
       return true;
     });
+    console.log("🔍 FILTER: Filtered result:", result.length, "transactions");
+    return result;
   }, [transactions, dateFilter, statusFilter, searchQuery, customerMap]);
 
   const isToday = (dateStr: string) =>
@@ -121,10 +152,24 @@ export const PosTransactionHistory: React.FC = () => {
   const handleVoid = async (tx: Transaction) => {
     if (!confirm('Void this transaction?')) return;
     try {
-      await apiPost('/api/transactions/void', { transactionId: tx.id });
+      console.log("🔵 CLIENT: handleVoid called for transaction ID:", tx.id);
+      console.log("🔵 CLIENT: Sending POST to /api/transactions/void with body:", { transactionId: tx.id });
+
+      const response = await apiPost('/api/transactions/void', { transactionId: tx.id });
+
+      console.log("✅ CLIENT: Void response received:", response);
       flash('Transaction voided');
-      fetchTransactions();
-    } catch (e: any) { flash(e.message, true); }
+
+      console.log("🔵 CLIENT: Waiting 300ms before refetching...");
+      await new Promise(r => setTimeout(r, 300));
+
+      console.log("🔵 CLIENT: Refetching transactions...");
+      await fetchTransactions();
+      console.log("✅ CLIENT: Transactions refetched and state updated");
+    } catch (e: any) {
+      console.error("❌ CLIENT: Void error:", e.message);
+      flash(e.message, true);
+    }
   };
 
   const handleRefund = async (tx: Transaction) => {

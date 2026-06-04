@@ -10,8 +10,9 @@ import Papa from 'papaparse';
 import { resizeImage } from '../lib/imageUtils';
 import { uploadImage, supabase } from '../supabase';
 import { RapidScanIntakeMatrix } from '../components/RapidScanIntakeMatrix';
+import { GiftCardsAdmin } from '../components/GiftCardsAdmin';
 
-type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'tools';
+type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'tools' | 'gift-cards';
 
 const CATEGORIES = [
   'Footwear',
@@ -2122,6 +2123,12 @@ function AdminPageInner() {
               className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'tools' ? 'bg-[#b90014] text-white shadow-md' : 'text-zinc-500 hover:text-[#b90014] hover:bg-red-50'}`}
             >
               <Zap size={16} /> Database Sync
+            </button>
+            <button
+              onClick={() => setActiveTab('gift-cards')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'gift-cards' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+            >
+              <CreditCard size={16} /> Gift Cards
             </button>
           </div>
         </div>
@@ -4714,6 +4721,17 @@ function AdminPageInner() {
                 </div>
               </motion.div>
             </div>
+          )}
+
+          {activeTab === 'gift-cards' && (
+            <motion.div
+              key="gift-cards"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <GiftCardsAdmin />
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

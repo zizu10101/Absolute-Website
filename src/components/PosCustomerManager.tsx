@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useCustomers, Customer } from '../context/CustomerContext';
+import { CustomerGiftCards } from './CustomerGiftCards';
 import {
   Search, User, ArrowLeft, Edit2, Save, X, Plus,
   ShoppingBag, DollarSign, Clock, CheckCircle2, AlertTriangle, Check,
@@ -98,14 +99,18 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
     } else flash('Failed to update customer', true);
   };
 
-  const totalSpent = useMemo(() =>
-    customerTxns.filter(t => t.status === 'completed').reduce((s, t) => s + Number(t.total_amount), 0),
-    [customerTxns]);
+  const totalSpent = useMemo(() => {
+    // Sum all non-voided transactions
+    return customerTxns
+      .filter(t => t.status !== 'voided') // Exclude voided transactions
+      .reduce((s, t) => s + Number(t.total_amount || 0), 0);
+  }, [customerTxns]);
 
   const lastVisit = useMemo(() => {
-    const completed = customerTxns.filter(t => t.status === 'completed');
-    if (!completed.length) return null;
-    return new Date(completed[0].created_at).toLocaleDateString();
+    if (!customerTxns.length) return null;
+    // Get the most recent transaction (already sorted by loadCustomerTransactions)
+    const mostRecent = customerTxns[0];
+    return new Date(mostRecent.created_at).toLocaleDateString();
   }, [customerTxns]);
 
   // ─── Views ────────────────────────────────────────────────────────────────
@@ -223,7 +228,7 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
           {/* Stats */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { icon: ShoppingBag, label: 'Purchases', value: customerTxns.filter(t => t.status === 'completed').length },
+              { icon: ShoppingBag, label: 'Purchases', value: customerTxns.filter(t => t.status !== 'voided').length },
               { icon: DollarSign, label: 'Total Spent', value: `$${totalSpent.toFixed(2)}` },
               { icon: Clock, label: 'Last Visit', value: lastVisit || '—' },
             ].map(({ icon: Icon, label, value }) => (
@@ -234,6 +239,9 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
               </div>
             ))}
           </div>
+
+          {/* Gift Cards */}
+          <CustomerGiftCards customerId={selected.id} />
 
           {/* Purchase history */}
           <div className="bg-white rounded-xl border border-zinc-100 p-5">

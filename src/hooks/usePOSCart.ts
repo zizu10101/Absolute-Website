@@ -16,6 +16,8 @@ export interface CartItem {
   stockQuantity?: number;
   barcode?: string;
   image?: string;
+  type?: string; // 'product' | 'gift_card'
+  taxable?: boolean; // if false, excluded from HST calculation
 }
 
 export interface Discount {
@@ -65,7 +67,7 @@ export function usePOSCart() {
           (product.id?.startsWith?.('var-') ? product.id.replace('var-', '') : undefined),
         name: product.name,
         price: activePrice,
-        originalPrice: product.price,
+        originalPrice: product.originalPrice || product.price,
         quantity: 1,
         category: product.category || '',
         discountPercent: 0,
@@ -76,6 +78,8 @@ export function usePOSCart() {
         stockQuantity: stockQty,
         barcode: product.barcode,
         image: product.image,
+        type: product.type, // Preserve type (e.g., 'gift_card')
+        taxable: product.taxable !== false, // Preserve taxable flag, default to true
       },
     ]);
     return null;
@@ -151,7 +155,35 @@ export function usePOSCart() {
   }, [subtotal, discount]);
 
   const subtotalAfterDiscount = subtotal - discountAmount;
-  const hst = isTaxExempt ? 0 : subtotalAfterDiscount * 0.13;
+
+  // Calculate taxable subtotal (exclude non-taxable items like gift cards)
+  const taxableSubtotal = useMemo(
+    () => {
+      const taxableItems = cart.filter(item => item.taxable !== false);
+      if (taxableItems.length < cart.length) {
+        console.log('🎁 Gift card(s) excluded from tax:', cart.filter(item => item.taxable === false).map(i => i.name));
+      }
+      return cart.reduce((sum, item) => {
+        const isTaxable = item.taxable !== false; // Default to taxable if not specified
+        if (!isTaxable) return sum; // Skip non-taxable items
+        const discountedPrice = item.price * (1 - (item.discountPercent || 0) / 100);
+        return sum + discountedPrice * item.quantity;
+      }, 0);
+    },
+    [cart]
+  );
+
+  // Only apply discount to taxable portion
+  const taxableDiscountAmount = useMemo(() => {
+    if (!discount || taxableSubtotal === 0) return 0;
+    if (discount.type === 'percentage') {
+      return taxableSubtotal * (discount.value / 100);
+    }
+    return Math.max(0, taxableSubtotal - discount.value);
+  }, [taxableSubtotal, discount]);
+
+  const taxableSubtotalAfterDiscount = taxableSubtotal - taxableDiscountAmount;
+  const hst = isTaxExempt ? 0 : taxableSubtotalAfterDiscount * 0.13;
   const grandTotal = subtotalAfterDiscount + hst;
 
   return {

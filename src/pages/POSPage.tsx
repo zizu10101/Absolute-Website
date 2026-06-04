@@ -10,6 +10,8 @@ import { PosTransactionHistory } from '../components/PosTransactionHistory';
 import { PosCustomerManager } from '../components/PosCustomerManager';
 import { POSPinEntry } from '../components/POSPinEntry';
 import { PosDiscountModal } from '../components/PosDiscountModal';
+import { GiftCardModal } from '../components/GiftCardModal';
+import { GiftCardRedeemModal } from '../components/GiftCardRedeemModal';
 import { usePOSCart, CartItem } from '../hooks/usePOSCart';
 import { useCustomers, Customer } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
@@ -40,6 +42,9 @@ export function POSPage() {
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showGiftCardModal, setShowGiftCardModal] = useState(false);
+  const [showGiftCardRedeemModal, setShowGiftCardRedeemModal] = useState(false);
+  const [giftCardRedeemedAmount, setGiftCardRedeemedAmount] = useState(0);
 
   // POS State
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
@@ -163,12 +168,12 @@ export function POSPage() {
     fetchAllProducts();
   }, []);
 
-  // Auto-focus barcode input
+  // Auto-focus barcode input (disabled when modals are open)
   useEffect(() => {
-    if (!showCheckout && !showDiscountModal && posTab === 'register') {
+    if (!showCheckout && !showDiscountModal && !showGiftCardModal && posTab === 'register') {
       barcodeInputRef.current?.focus();
     }
-  }, [showCheckout, showDiscountModal, posTab]);
+  }, [showCheckout, showDiscountModal, showGiftCardModal, posTab]);
 
   // Barcode scanning
   const handleBarcodeScan = async (rawBarcode: string) => {
@@ -246,7 +251,7 @@ export function POSPage() {
       setTimeout(() => setBarcodeError(null), 4000);
     } finally {
       setBarcodeInput('');
-      if (!showCheckout && !showDiscountModal && posTab === 'register') {
+      if (!showCheckout && !showDiscountModal && !showGiftCardModal && posTab === 'register') {
         setTimeout(() => barcodeInputRef.current?.focus(), 60);
       }
     }
@@ -272,29 +277,44 @@ export function POSPage() {
   // Void/Refund handler
   const handleVoidRefund = async (transactionId: string, action: 'void' | 'refund') => {
     const url = `/api/transactions/${action}`;
-    console.log(`🔴 handleVoidRefund called: transactionId=${transactionId}, action=${action}, url=${url}`);
+    console.log(`🔴 STEP 1: handleVoidRefund called`);
+    console.log(`🔴 STEP 1a: action=${action}, transactionId=${transactionId}, url=${url}`);
 
     try {
+      console.log(`🔴 STEP 2: Sending fetch request...`);
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactionId }),
       });
-      console.log(`📥 Response status: ${res.status}`);
-      const result = await res.json();
-      console.log(`📦 Response data:`, result);
-      if (!res.ok) throw new Error(result?.error || 'Failed to process request');
+      console.log(`🔴 STEP 3: Response received`);
+      console.log(`🔴 STEP 3a: Response status: ${res.status}, statusText: ${res.statusText}`);
 
+      const result = await res.json();
+      console.log(`🔴 STEP 4: Response JSON parsed`);
+      console.log(`🔴 STEP 4a: Response data:`, result);
+
+      if (!res.ok) {
+        console.error(`❌ STEP 4b: Response not ok - error: ${result?.error}`);
+        throw new Error(result?.error || 'Failed to process request');
+      }
+
+      console.log(`✅ STEP 5: Transaction ${action} successful`);
       alert(`Transaction ${action === 'void' ? 'voided' : 'refunded'} successfully`);
       setShowVoidRefundModal(false);
 
       // Refresh transactions
+      console.log(`🔴 STEP 6: Refreshing transaction list...`);
       const txRes = await fetch('/api/transactions?limit=20');
       const txResult = await txRes.json();
+      console.log(`🔴 STEP 6a: Transactions refreshed, count:`, txResult.data ? txResult.data.length : 0);
+
       if (txResult.data) {
         setRecentTransactions(txResult.data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+        console.log(`✅ STEP 7: Recent transactions state updated`);
       }
     } catch (e: any) {
+      console.error(`❌ STEP 8: Caught exception:`, e.message);
       alert(`Error: ${e.message}`);
     }
   };
@@ -374,6 +394,23 @@ export function POSPage() {
         customer: safeCustomers.find(c => c.id === selectedCustomerId),
         time: new Date().toLocaleString(),
       });
+
+      // If gift card was redeemed, update the transaction record with the gift card transaction ID
+      if (giftCardRedeemedAmount > 0) {
+        try {
+          await fetch('/api/gift-cards/redeem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              card_number: '', // Already processed
+              amount: 0,
+              transaction_id: result?.data?.[0]?.id,
+            }),
+          });
+        } catch (err) {
+          console.error('Error updating gift card transaction:', err);
+        }
+      }
     } catch (e: any) {
       console.error('Checkout error:', e);
       alert('Checkout failed: ' + e.message);
@@ -389,7 +426,33 @@ export function POSPage() {
     setCustomerSearchTerm('');
     setShowCheckout(false);
     setReceipt(null);
+    setGiftCardRedeemedAmount(0);
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
+  };
+
+  // Handle gift card issuance
+  const handleIssueGiftCard = (giftCard: any) => {
+    addItem(giftCard);
+    setShowGiftCardModal(false);
+  };
+
+  // Handle gift card redemption
+  const handleRedeemGiftCard = async (cardNumber: string, amount: number) => {
+    const res = await fetch('/api/gift-cards/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        card_number: cardNumber,
+        amount,
+        transaction_id: null, // Will be set after transaction is created
+      }),
+    });
+
+    const result = await res.json();
+    if (!res.ok) throw new Error(result?.error || 'Redemption failed');
+
+    setGiftCardRedeemedAmount(amount);
+    return result.data;
   };
 
   // Print thermal receipt
@@ -513,7 +576,7 @@ export function POSPage() {
             value={barcodeInput}
             onChange={e => setBarcodeInput(e.target.value)}
             onKeyDown={e => {
-              if (e.key === 'Enter' && !showCheckout && !showDiscountModal && posTab === 'register') {
+              if (e.key === 'Enter' && !showCheckout && !showDiscountModal && !showGiftCardModal && posTab === 'register') {
                 handleBarcodeScan(barcodeInput);
               }
             }}
@@ -694,11 +757,14 @@ export function POSPage() {
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <button onClick={() => setShowDiscountModal(true)} className="flex-1 px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
-                <Percent size={14} /> Discount
+            <div className="grid grid-cols-3 gap-2">
+              <button onClick={() => setShowGiftCardModal(true)} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
+                💳 GC
               </button>
-              <button onClick={() => { if (confirm('Clear all items?')) clearCart(); }} disabled={cart.length === 0} className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 rounded text-[10px] font-bold text-white">
+              <button onClick={() => setShowDiscountModal(true)} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
+                <Percent size={14} /> Disc
+              </button>
+              <button onClick={() => { if (confirm('Clear all items?')) clearCart(); }} disabled={cart.length === 0} className="px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 rounded text-[10px] font-bold text-white">
                 Clear
               </button>
             </div>
@@ -869,7 +935,7 @@ export function POSPage() {
                       <div className="flex justify-between font-bold text-sm border-t border-[#2d3547] pt-1"><span>Total Due</span><span>${grandTotal.toFixed(2)}</span></div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2 mb-3">
                       {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Store Credit'].map(method => (
                         <button
                           key={method}
@@ -881,6 +947,14 @@ export function POSPage() {
                         </button>
                       ))}
                     </div>
+
+                    <button
+                      onClick={() => setShowGiftCardRedeemModal(true)}
+                      disabled={isConfirming}
+                      className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
+                    >
+                      💳 Redeem Gift Card
+                    </button>
                   </div>
                 </>
               )}
@@ -891,6 +965,12 @@ export function POSPage() {
 
       {/* Discount Modal */}
       <PosDiscountModal isOpen={showDiscountModal} onClose={() => setShowDiscountModal(false)} onApply={applyDiscount} currentDiscount={discount} subtotal={subtotal} />
+
+      {/* Gift Card Modal */}
+      <GiftCardModal isOpen={showGiftCardModal} onClose={() => setShowGiftCardModal(false)} onIssue={handleIssueGiftCard} />
+
+      {/* Gift Card Redeem Modal */}
+      <GiftCardRedeemModal isOpen={showGiftCardRedeemModal} onClose={() => setShowGiftCardRedeemModal(false)} totalDue={grandTotal} onRedeem={handleRedeemGiftCard} />
 
       {/* Customer Modal */}
       <AnimatePresence>
