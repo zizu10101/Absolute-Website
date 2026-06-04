@@ -165,10 +165,10 @@ export function POSPage() {
 
   // Auto-focus barcode input
   useEffect(() => {
-    if (!showCheckout && !showCustomersPanel && !showDiscountModal) {
+    if (!showCheckout && !showDiscountModal && posTab === 'register') {
       barcodeInputRef.current?.focus();
     }
-  }, [showCheckout, showCustomersPanel, showDiscountModal]);
+  }, [showCheckout, showDiscountModal, posTab]);
 
   // Barcode scanning
   const handleBarcodeScan = async (rawBarcode: string) => {
@@ -246,7 +246,7 @@ export function POSPage() {
       setTimeout(() => setBarcodeError(null), 4000);
     } finally {
       setBarcodeInput('');
-      if (!showCheckout && !showCustomersPanel && !showDiscountModal) {
+      if (!showCheckout && !showDiscountModal && posTab === 'register') {
         setTimeout(() => barcodeInputRef.current?.focus(), 60);
       }
     }
@@ -513,7 +513,7 @@ export function POSPage() {
             value={barcodeInput}
             onChange={e => setBarcodeInput(e.target.value)}
             onKeyDown={e => {
-              if (e.key === 'Enter' && !showCheckout && !showCustomersPanel && !showDiscountModal) {
+              if (e.key === 'Enter' && !showCheckout && !showDiscountModal && posTab === 'register') {
                 handleBarcodeScan(barcodeInput);
               }
             }}
