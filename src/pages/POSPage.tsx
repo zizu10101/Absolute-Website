@@ -614,12 +614,21 @@ export function POSPage() {
           {/* Customer Tag */}
           {selectedCustomer && (
             <div className="px-4 py-3 border-b border-[#2d3547] bg-[#2d3547]">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-[#b90014] rounded-full"></div>
-                <div>
-                  <p className="text-sm font-semibold">{selectedCustomer.first_name} {selectedCustomer.last_name}</p>
-                  <p className="text-xs text-gray-400">Returning customer</p>
+              <div className="flex items-center gap-2 justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-[#b90014] rounded-full"></div>
+                  <div>
+                    <p className="text-sm font-semibold">{selectedCustomer.first_name} {selectedCustomer.last_name}</p>
+                    <p className="text-xs text-gray-400">Returning customer</p>
+                  </div>
                 </div>
+                <button
+                  onClick={() => setSelectedCustomerId('')}
+                  className="p-1 hover:bg-[#1a2236] rounded transition-colors text-gray-400 hover:text-red-400"
+                  title="Remove customer from transaction"
+                >
+                  <X size={16} />
+                </button>
               </div>
             </div>
           )}
