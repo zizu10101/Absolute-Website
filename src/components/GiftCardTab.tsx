@@ -399,7 +399,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
             className={`flex-1 px-4 py-3 text-xs font-black uppercase tracking-widest transition-colors border-b-2 ${
               activeTab === tab
                 ? 'border-[#b90014] text-[#b90014] bg-white'
-                : 'border-transparent text-zinc-500 hover:text-zinc-700'
+                : 'border-transparent text-zinc-900 hover:text-zinc-900'
             }`}
           >
             {tab === 'sell' ? '💳 Sell' : tab === 'redeem' ? '💰 Redeem' : '📊 History'}
@@ -420,7 +420,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
 
             {/* Amount Selection */}
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-2">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-900 mb-2">
                 Select Amount
               </label>
               <div className="grid grid-cols-4 gap-2">
@@ -434,7 +434,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                     className={`py-2 rounded-lg font-bold text-xs transition-colors ${
                       amount === preset && !customAmount
                         ? 'bg-[#b90014] text-white'
-                        : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                        : 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200'
                     }`}
                   >
                     ${preset}
@@ -445,7 +445,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
 
             {/* Custom Amount */}
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-2">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-900 mb-2">
                 Custom Amount
               </label>
               <div className="flex items-center gap-2">
@@ -460,14 +460,14 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                     setAmount(0);
                   }}
                   placeholder="0.00"
-                  className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-bold text-gray-900 placeholder-gray-400"
+                  className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-bold text-gray-900 placeholder-gray-600"
                 />
               </div>
             </div>
 
             {/* Customer Selection */}
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-2">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-900 mb-2">
                 Customer
               </label>
 
@@ -492,7 +492,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                     placeholder="Customer name *"
                     value={newCustomerName}
                     onChange={e => setNewCustomerName(e.target.value)}
-                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-bold text-gray-900 placeholder-gray-400"
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-bold text-gray-900 placeholder-gray-600"
                     autoFocus
                   />
                   <input
@@ -500,14 +500,14 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                     placeholder="Phone (optional)"
                     value={newCustomerPhone}
                     onChange={e => setNewCustomerPhone(e.target.value)}
-                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-bold text-gray-900 placeholder-gray-400"
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-bold text-gray-900 placeholder-gray-600"
                   />
                   <input
                     type="email"
                     placeholder="Email (optional)"
                     value={newCustomerEmail}
                     onChange={e => setNewCustomerEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-bold text-gray-900 placeholder-gray-400"
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-bold text-gray-900 placeholder-gray-600"
                   />
                   <div className="flex gap-2">
                     <button
@@ -517,7 +517,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                         setNewCustomerPhone('');
                         setNewCustomerEmail('');
                       }}
-                      className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-[10px] font-bold text-zinc-600 hover:bg-zinc-100"
+                      className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-[10px] font-bold text-zinc-900 hover:bg-zinc-100"
                     >
                       Cancel
                     </button>
@@ -540,19 +540,19 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                       onFocus={() => setIsDropdownOpen(true)}
                       onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
                       placeholder="Search customer by name..."
-                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-bold text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]"
+                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-bold text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#b90014]"
                     />
 
                     {isDropdownOpen && (
                       <ul className="absolute top-full left-0 right-0 bg-white border border-zinc-200 mt-1 rounded shadow-lg z-50 max-h-40 overflow-y-auto">
                         {isSearching && (
-                          <li className="p-3 text-xs text-zinc-500 text-center">
+                          <li className="p-3 text-xs text-zinc-900 text-center">
                             <div className="inline-block w-3 h-3 border-2 border-zinc-300 border-t-zinc-800 rounded-full animate-spin" />
                             Searching...
                           </li>
                         )}
                         {!isSearching && searchResults.length === 0 && searchTerm && (
-                          <li className="p-3 text-xs text-zinc-500">No customers found</li>
+                          <li className="p-3 text-xs text-zinc-900">No customers found</li>
                         )}
                         {!isSearching && searchResults.length > 0 && (
                           <>
@@ -567,7 +567,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                               >
                                 <p className="text-xs font-bold text-zinc-900">{customer.first_name} {customer.last_name}</p>
                                 {(customer.email || customer.phone) && (
-                                  <p className="text-[9px] text-zinc-500">
+                                  <p className="text-[9px] text-zinc-900">
                                     {customer.email} {customer.email && customer.phone ? '·' : ''} {customer.phone}
                                   </p>
                                 )}
@@ -586,14 +586,14 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                     + Create new customer instead
                   </button>
 
-                  <p className="text-[9px] text-zinc-400 italic">Customer field is optional</p>
+                  <p className="text-[9px] text-zinc-900 italic">Customer field is optional</p>
                 </div>
               )}
             </div>
 
             {/* Card Number */}
             <div>
-              <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-2 cursor-pointer">
+              <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-900 mb-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={autoGenerate}
@@ -612,7 +612,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                     value={cardNumber}
                     onChange={e => setCardNumber(e.target.value.toUpperCase().slice(0, 16))}
                     placeholder="16-digit card number..."
-                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-mono font-bold uppercase text-gray-900 placeholder-gray-400"
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-mono font-bold uppercase text-gray-900 placeholder-gray-600"
                     maxLength={16}
                   />
                 </div>
@@ -621,7 +621,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                 <button
                   onClick={handleGenerateCardNumber}
                   type="button"
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-zinc-200 rounded-lg text-[10px] font-bold uppercase text-zinc-700 hover:bg-zinc-50 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-zinc-200 rounded-lg text-[10px] font-bold uppercase text-zinc-900 hover:bg-zinc-50 transition-colors"
                 >
                   <RefreshCw size={12} /> Generate Preview
                 </button>
@@ -635,9 +635,9 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
 
             {/* Preview */}
             <div className="bg-zinc-50 p-3 rounded-lg space-y-1">
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Preview</p>
+              <p className="text-[10px] text-zinc-900 uppercase tracking-wide">Preview</p>
               <p className="text-sm font-bold text-zinc-900">Amount: ${finalSellAmount.toFixed(2)}</p>
-              <p className="text-xs text-zinc-600">
+              <p className="text-xs text-zinc-900">
                 Customer: {selectedCustomer ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : 'No customer linked'}
               </p>
             </div>
@@ -676,7 +676,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
               <>
                 {/* Card Number Input */}
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-2">
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-900 mb-2">
                     Gift Card Number
                   </label>
                   <div className="flex gap-2">
@@ -703,7 +703,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                 </div>
 
                 <div className="bg-zinc-50 p-3 rounded-lg">
-                  <p className="text-[10px] font-bold text-zinc-700">Cart Total: ${cartTotal.toFixed(2)}</p>
+                  <p className="text-[10px] font-bold text-zinc-900">Cart Total: ${cartTotal.toFixed(2)}</p>
                 </div>
               </>
             ) : (
@@ -711,26 +711,26 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                 {/* Card Details */}
                 <div className="bg-zinc-50 p-4 rounded-lg space-y-2">
                   <div>
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-bold">Card Number</p>
+                    <p className="text-[10px] text-zinc-900 uppercase tracking-wide font-bold">Card Number</p>
                     <p className="text-sm font-mono font-black text-zinc-900">{redeemCardData.card_number}</p>
                   </div>
                   {redeemCardData.customers && (
                     <div>
-                      <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-bold">Holder</p>
+                      <p className="text-[10px] text-zinc-900 uppercase tracking-wide font-bold">Holder</p>
                       <p className="text-xs font-bold text-zinc-900">
                         {redeemCardData.customers.first_name} {redeemCardData.customers.last_name}
                       </p>
                     </div>
                   )}
                   <div>
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-bold">Available Balance</p>
+                    <p className="text-[10px] text-zinc-900 uppercase tracking-wide font-bold">Available Balance</p>
                     <p className="text-sm font-black text-[#b90014]">${redeemCardData.current_balance.toFixed(2)}</p>
                   </div>
                 </div>
 
                 {/* Amount Selection */}
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-2">
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-900 mb-2">
                     Redemption Amount
                   </label>
                   <div className="flex items-center gap-2">
@@ -745,7 +745,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                       className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-bold"
                     />
                   </div>
-                  <p className="text-[10px] text-zinc-500 mt-1">
+                  <p className="text-[10px] text-zinc-900 mt-1">
                     {redeemAmount > redeemCardData.current_balance ? (
                       <span className="text-red-600">Exceeds card balance</span>
                     ) : redeemAmount < cartTotal ? (
@@ -765,7 +765,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                       setRedeemAmount(cartTotal);
                       setRedeemError(null);
                     }}
-                    className="flex-1 px-4 py-2 rounded-lg border border-zinc-200 bg-white text-zinc-600 text-xs font-bold uppercase hover:bg-zinc-50 transition-colors"
+                    className="flex-1 px-4 py-2 rounded-lg border border-zinc-200 bg-white text-zinc-900 text-xs font-bold uppercase hover:bg-zinc-50 transition-colors"
                   >
                     Clear
                   </button>
@@ -796,10 +796,10 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
             {/* Header & Filters */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-700">All Gift Cards</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-900">All Gift Cards</h3>
                 <button
                   onClick={fetchGiftCards}
-                  className="flex items-center gap-1 px-2 py-1 bg-zinc-100 hover:bg-zinc-200 rounded text-[10px] font-bold text-zinc-600 transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 bg-zinc-100 hover:bg-zinc-200 rounded text-[10px] font-bold text-zinc-900 transition-colors"
                 >
                   <RefreshCw size={12} />
                 </button>
@@ -807,7 +807,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
 
               {/* Search */}
               <div className="relative">
-                <Search size={14} className="absolute left-3 top-2.5 text-zinc-400" />
+                <Search size={14} className="absolute left-3 top-2.5 text-zinc-900" />
                 <input
                   type="text"
                   placeholder="Search by card or customer..."
@@ -826,7 +826,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                     className={`flex-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-colors ${
                       statusFilter === status
                         ? 'bg-zinc-900 text-white'
-                        : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                        : 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200'
                     }`}
                   >
                     {status === 'all' ? 'All' : status === 'active' ? 'Active' : 'Depleted'}
@@ -843,7 +843,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
             ) : filteredCards.length === 0 ? (
               <div className="bg-white rounded-lg border border-zinc-200 p-8 text-center">
                 <AlertCircle size={32} className="text-zinc-300 mx-auto mb-3" />
-                <p className="text-sm text-zinc-500 font-bold">No gift cards found</p>
+                <p className="text-sm text-zinc-900 font-bold">No gift cards found</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -870,26 +870,26 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                           </span>
                         </div>
                         {gc.customers && (
-                          <p className="text-[10px] text-zinc-600 font-bold">
+                          <p className="text-[10px] text-zinc-900 font-bold">
                             {gc.customers.first_name} {gc.customers.last_name}
                           </p>
                         )}
-                        <p className="text-[10px] text-zinc-400">
+                        <p className="text-[10px] text-zinc-900">
                           {new Date(gc.created_at).toLocaleDateString()}
                         </p>
                       </div>
 
                       <div className="text-right shrink-0 mr-1">
                         <p className="text-xs font-black text-zinc-900">${gc.current_balance.toFixed(2)}</p>
-                        <p className="text-[10px] text-zinc-500">
+                        <p className="text-[10px] text-zinc-900">
                           of ${gc.initial_balance.toFixed(2)}
                         </p>
                       </div>
 
                       {expandedCardId === gc.id ? (
-                        <ChevronUp size={14} className="text-zinc-400" />
+                        <ChevronUp size={14} className="text-zinc-900" />
                       ) : (
-                        <ChevronDown size={14} className="text-zinc-400" />
+                        <ChevronDown size={14} className="text-zinc-900" />
                       )}
                     </button>
 
@@ -898,16 +898,16 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                       <div className="border-t border-zinc-200 bg-zinc-50 p-3 space-y-3">
                         {/* Transaction History */}
                         <div>
-                          <p className="text-[10px] font-bold uppercase text-zinc-600 mb-2">Transaction History</p>
+                          <p className="text-[10px] font-bold uppercase text-zinc-900 mb-2">Transaction History</p>
                           {!gc.gift_card_transactions || gc.gift_card_transactions.length === 0 ? (
-                            <p className="text-[10px] text-zinc-500 text-center py-2">No transactions yet</p>
+                            <p className="text-[10px] text-zinc-900 text-center py-2">No transactions yet</p>
                           ) : (
                             <div className="space-y-1 max-h-40 overflow-y-auto">
                               {gc.gift_card_transactions.map(tx => (
                                 <div key={tx.id} className="flex justify-between items-center p-2 bg-white rounded border border-zinc-200 text-[9px]">
                                   <div>
                                     <p className="font-bold text-zinc-900 uppercase">{tx.transaction_type}</p>
-                                    <p className="text-zinc-500">{new Date(tx.created_at).toLocaleString()}</p>
+                                    <p className="text-zinc-900">{new Date(tx.created_at).toLocaleString()}</p>
                                   </div>
                                   <p className={`font-black ${tx.amount > 0 ? 'text-emerald-600' : 'text-zinc-900'}`}>
                                     {tx.amount > 0 ? '+' : ''}${Math.abs(tx.amount).toFixed(2)}
@@ -939,15 +939,15 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
               <div className="bg-white rounded-lg border border-zinc-200 p-4">
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div>
-                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Total Cards</p>
+                    <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-widest mb-1">Total Cards</p>
                     <p className="text-xl font-black text-zinc-900">{totalCards}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Issued</p>
+                    <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-widest mb-1">Issued</p>
                     <p className="text-xl font-black text-zinc-900">${totalIssued.toFixed(0)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Remaining</p>
+                    <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-widest mb-1">Remaining</p>
                     <p className="text-xl font-black text-[#b90014]">${totalRemaining.toFixed(0)}</p>
                   </div>
                 </div>
@@ -990,11 +990,11 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                 {/* Card Details */}
                 <div className="bg-zinc-50 p-4 rounded-lg space-y-2">
                   <div>
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-bold">Card Number</p>
+                    <p className="text-[10px] text-zinc-900 uppercase tracking-wide font-bold">Card Number</p>
                     <p className="text-sm font-mono font-black text-zinc-900">{selectedCardForRedeem.card_number}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-bold">Available Balance</p>
+                    <p className="text-[10px] text-zinc-900 uppercase tracking-wide font-bold">Available Balance</p>
                     <p className="text-sm font-black text-[#b90014]">${selectedCardForRedeem.current_balance.toFixed(2)}</p>
                   </div>
                 </div>
@@ -1007,7 +1007,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
 
                 {/* Amount Selection */}
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-2">
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-900 mb-2">
                     Redemption Amount
                   </label>
                   <div className="flex items-center gap-2">
@@ -1028,7 +1028,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                 <div className="flex gap-2">
                   <button
                     onClick={() => setShowRedeemModal(false)}
-                    className="flex-1 px-4 py-2 rounded-lg border border-zinc-200 bg-white text-zinc-600 text-xs font-bold uppercase hover:bg-zinc-50 transition-colors"
+                    className="flex-1 px-4 py-2 rounded-lg border border-zinc-200 bg-white text-zinc-900 text-xs font-bold uppercase hover:bg-zinc-50 transition-colors"
                   >
                     Cancel
                   </button>
