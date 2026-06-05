@@ -31,6 +31,8 @@ interface Receipt {
   isTaxExempt: boolean;
   customer?: any;
   time: string;
+  tenderedAmount?: number;
+  changeGiven?: number;
 }
 
 export function POSPage() {
@@ -76,6 +78,11 @@ export function POSPage() {
   // Checkout
   const [isConfirming, setIsConfirming] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+
+  // Cash Calculator
+  const [showCashCalculator, setShowCashCalculator] = useState(false);
+  const [cashTendered, setCashTendered] = useState<number | ''>('');
+  const [pendingPaymentMethod, setPendingPaymentMethod] = useState<string | null>(null);
 
   // Void/Refund
   const [showVoidRefundModal, setShowVoidRefundModal] = useState(false);
@@ -338,6 +345,19 @@ export function POSPage() {
 
   // Checkout handler
   const handleConfirmSale = async (method: string) => {
+    // For cash, show calculator instead of confirming immediately
+    if (method === 'Cash') {
+      setShowCashCalculator(true);
+      setPendingPaymentMethod(method);
+      setCashTendered('');
+      return;
+    }
+
+    // Non-cash methods proceed directly to payment
+    await processPayment(method);
+  };
+
+  const processPayment = async (method: string, tenderedAmount?: number) => {
     setIsConfirming(true);
     const cartItemsPayload = cart.map(item => ({
       ...item,
@@ -346,13 +366,19 @@ export function POSPage() {
     }));
 
     try {
-      const payload = {
+      const payload: any = {
         total_amount: Number(grandTotal.toFixed(2)),
         method,
         items: cartItemsPayload,
         customer_id: selectedCustomerId?.trim() || null,
         created_at: new Date().toISOString(),
       };
+
+      // Add cash-specific fields
+      if (method === 'Cash' && tenderedAmount !== undefined) {
+        payload.tendered_amount = Number(tenderedAmount.toFixed(2));
+        payload.change_given = Number((tenderedAmount - grandTotal).toFixed(2));
+      }
 
       const res = await fetch('/api/transactions', {
         method: 'POST',
@@ -393,7 +419,14 @@ export function POSPage() {
         isTaxExempt,
         customer: safeCustomers.find(c => c.id === selectedCustomerId),
         time: new Date().toLocaleString(),
+        tenderedAmount,
+        changeGiven: tenderedAmount !== undefined ? tenderedAmount - grandTotal : undefined,
       });
+
+      // Close cash calculator if it was open
+      setShowCashCalculator(false);
+      setCashTendered('');
+      setPendingPaymentMethod(null);
 
       // If gift card was redeemed, update the transaction record with the gift card transaction ID
       if (giftCardRedeemedAmount > 0) {
@@ -892,6 +925,12 @@ export function POSPage() {
                       <div className="flex justify-between text-sm font-black text-black pt-1 border-t border-zinc-300">
                         <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
                       </div>
+                      {receipt.method === 'Cash' && receipt.tenderedAmount !== undefined && (
+                        <>
+                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300"><span>Cash Received</span><span>${receipt.tenderedAmount.toFixed(2)}</span></div>
+                          <div className="flex justify-between text-emerald-600 font-black pt-1"><span>Change Due</span><span>${receipt.changeGiven?.toFixed(2)}</span></div>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -956,6 +995,99 @@ export function POSPage() {
                       💳 Redeem Gift Card
                     </button>
                   </div>
+
+                  {/* Cash Calculator Modal */}
+                  <AnimatePresence>
+                    {showCashCalculator && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 rounded-lg">
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a2236] p-6 rounded-lg shadow-2xl w-full max-w-sm space-y-4 border border-[#2d3547]">
+                          <div className="text-center">
+                            <h2 className="text-sm font-black uppercase text-white mb-2">Cash Payment</h2>
+                            <p className="text-xs text-gray-300">Total Due: <span className="text-[#b90014] text-base">${grandTotal.toFixed(2)}</span></p>
+                          </div>
+
+                          {/* Amount Tendered Input */}
+                          <div className="space-y-2">
+                            <label className="block text-[9px] font-bold text-gray-400 uppercase">Amount Tendered</label>
+                            <input
+                              type="number"
+                              value={cashTendered}
+                              onChange={e => setCashTendered(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                              placeholder="0.00"
+                              className="w-full p-3 text-2xl font-black text-center bg-[#0f1117] border-2 border-[#2d3547] rounded text-white focus:ring-2 focus:ring-[#b90014] focus:border-transparent outline-none"
+                              autoFocus
+                            />
+                          </div>
+
+                          {/* Preset Buttons */}
+                          <div className="space-y-2">
+                            <p className="text-[8px] font-bold text-gray-500 uppercase">Quick Select</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {[
+                                { label: 'Exact', amount: grandTotal },
+                                { label: '+$5', amount: Math.ceil(grandTotal / 5) * 5 },
+                                { label: '+$10', amount: Math.ceil(grandTotal / 10) * 10 },
+                                { label: '+$20', amount: Math.ceil(grandTotal / 20) * 20 },
+                                { label: '+$50', amount: Math.ceil(grandTotal / 50) * 50 },
+                                { label: '+$100', amount: Math.ceil(grandTotal / 100) * 100 },
+                              ].map(btn => (
+                                <button
+                                  key={btn.label}
+                                  onClick={() => setCashTendered(btn.amount)}
+                                  className="p-2 bg-[#2d3547] hover:bg-[#3d4557] rounded text-xs font-bold uppercase text-white transition-colors"
+                                >
+                                  {btn.label}
+                                  {btn.label !== 'Exact' && <div className="text-[8px] text-gray-400">${btn.amount.toFixed(2)}</div>}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Change Due / Amount Short Display */}
+                          {cashTendered !== '' && (
+                            <div className="p-3 rounded text-center bg-[#0f1117] border-2 border-[#2d3547]">
+                              {cashTendered >= grandTotal ? (
+                                <div>
+                                  <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Change Due</p>
+                                  <p className="text-2xl font-black text-emerald-500">${(cashTendered - grandTotal).toFixed(2)}</p>
+                                </div>
+                              ) : (
+                                <div>
+                                  <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Amount Short</p>
+                                  <p className="text-2xl font-black text-red-500">${(grandTotal - cashTendered).toFixed(2)}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Action Buttons */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setShowCashCalculator(false);
+                                setCashTendered('');
+                                setPendingPaymentMethod(null);
+                              }}
+                              className="flex-1 p-2 bg-[#2d3547] hover:bg-[#3d4557] rounded text-xs font-bold uppercase text-white transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              disabled={cashTendered === '' || (typeof cashTendered === 'number' && cashTendered < grandTotal) || isConfirming}
+                              onClick={() => {
+                                if (typeof cashTendered === 'number' && pendingPaymentMethod) {
+                                  processPayment(pendingPaymentMethod, cashTendered);
+                                }
+                              }}
+                              className="flex-1 p-2 bg-[#b90014] hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-xs font-bold uppercase text-white transition-colors"
+                            >
+                              {isConfirming ? 'Processing...' : 'Complete Sale'}
+                            </button>
+                          </div>
+                        </motion.div>
+                      </div>
+                    )}
+                  </AnimatePresence>
                 </>
               )}
             </motion.div>
@@ -1017,7 +1149,7 @@ export function POSPage() {
                   {recentTransactions.slice(0, 10).map((tx) => (
                     <div key={tx.id} className="bg-[#0f1117] border border-[#2d3547] p-3 rounded flex items-center justify-between">
                       <div className="flex-1">
-                        <p className="text-xs font-bold text-white">{tx.method} · ${Number(tx.total_amount).toFixed(2)}</p>
+                        <p className="text-xs font-bold text-white">{tx.method} · ${Number(tx.total_amount).toFixed(2)} <span className="text-[10px] text-gray-400">({tx.status || 'completed'})</span></p>
                         <p className="text-[10px] text-gray-400">{new Date(tx.created_at).toLocaleString()}</p>
                         {tx.customer_id && (
                           <p className="text-[10px] text-gray-400">
@@ -1028,13 +1160,17 @@ export function POSPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => { handleVoidRefund(tx.id, 'void'); }}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase"
+                          disabled={tx.status === 'voided' || tx.status === 'refunded'}
+                          className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold uppercase"
+                          title={tx.status === 'voided' ? 'Already voided' : tx.status === 'refunded' ? 'Already refunded' : 'Void this transaction'}
                         >
                           Void
                         </button>
                         <button
                           onClick={() => { handleVoidRefund(tx.id, 'refund'); }}
-                          className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-[10px] font-bold uppercase"
+                          disabled={tx.status === 'refunded'}
+                          className="px-3 py-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold uppercase"
+                          title={tx.status === 'refunded' ? 'Already refunded' : 'Refund this transaction'}
                         >
                           Refund
                         </button>

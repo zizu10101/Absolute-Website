@@ -357,15 +357,20 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
 
   // ── Checkout ─────────────────────────────────────────────────────────────
   const handleConfirmSale = async (method: string) => {
+    console.log('💳 handleConfirmSale called with method:', method);
+
     // For cash, show calculator instead of confirming immediately
     if (method === 'Cash') {
+      console.log('💰 CASH detected - setting showCashCalculator to true');
       setShowCashCalculator(true);
       setPendingPaymentMethod(method);
       setCashTendered('');
+      console.log('💰 State updated, modal should appear');
       return;
     }
 
     // Non-cash payment methods proceed directly
+    console.log('💳 Non-cash method, processing payment:', method);
     await processPayment(method);
   };
 
@@ -921,16 +926,22 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 pt-1">
-                      {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Store Credit', 'Gift Card'].map(method => (
+                      {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Store Credit', 'Gift Card'].map(method => {
+                        console.log('Rendering payment button:', method);
+                        return (
                         <button
                           key={method}
                           disabled={isConfirming}
-                          onClick={() => handleConfirmSale(method)}
+                          onClick={() => {
+                            console.log('🔘 Button clicked! Method:', method);
+                            handleConfirmSale(method);
+                          }}
                           className="bg-white border border-zinc-200 hover:bg-zinc-100 active:scale-[0.99] text-zinc-900 p-2 rounded font-black uppercase text-[9px] flex justify-center items-center gap-1 shadow-sm transition-all disabled:opacity-50"
                         >
                           {isConfirming ? <div className="w-3 h-3 border-2 border-zinc-400 border-t-zinc-900 rounded-full animate-spin" /> : method}
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </>
@@ -938,7 +949,9 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
 
               {/* ── Cash Calculator Modal (INSIDE checkout) ── */}
               <AnimatePresence>
-                {showCashCalculator && (
+                {showCashCalculator && (() => {
+                  console.log('🎨 Rendering cash calculator modal');
+                  return (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-6 rounded-lg">
                     <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm space-y-6">
                       <div className="text-center">
@@ -1026,7 +1039,8 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                       </div>
                     </motion.div>
                   </div>
-                )}
+                  );
+                })()}
               </AnimatePresence>
             </motion.div>
           </div>

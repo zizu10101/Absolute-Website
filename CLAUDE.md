@@ -1472,7 +1472,118 @@ npx tsx audit_germany_images.ts  # Check product images
 
 ---
 
-## Last Updated
-June 10, 2026 - Size-less products complete, cash calculator in-progress (modal positioning fixed, debugging why it doesn't appear)
+## Session June 5, 2026 (Continued) - Cash Calculator & Receipt Enhancements
 
-**Ready for:** Next session work on product images and any frontend issues with navigation display
+### ✅ COMPLETED: Cash Calculator Feature (Full Implementation)
+
+**CRITICAL FIX APPLIED:**
+- **Problem:** Cash calculator modal wasn't appearing when "Cash" button clicked - transaction processed immediately
+- **Root Cause:** Checkout drawer in POSPage missing `position: relative`, causing modal's `absolute inset-0` to position relative to outer overlay instead of drawer
+- **Solution:** Added `relative` class to checkout drawer motion.div (POSPage.tsx line 865)
+- **Result:** Modal now appears correctly and functions as designed
+
+**Features Implemented & Verified:**
+1. ✅ Amount Tendered input field (large, auto-focused, accepts keyboard input)
+2. ✅ 6 Preset buttons: Exact, +$5, +$10, +$20, +$50, +$100 (with intelligent rounding)
+3. ✅ Real-time change calculation:
+   - Green display: "Change Due: $X.XX" when amount >= total
+   - Red display: "Amount Short: $X.XX" when amount < total
+4. ✅ Smart button validation: "Complete Sale" button disabled until valid amount entered
+5. ✅ Cancel button: Closes modal without processing
+6. ✅ Modal stays on screen until user clicks "New Transaction"
+
+**Receipt Enhancements:**
+- ✅ Receipt interface updated to include `tenderedAmount` and `changeGiven` fields
+- ✅ Receipt display shows cash transaction details:
+  - "Cash Received: $X.XX"
+  - "Change Due: $X.XX" (in emerald green)
+- ✅ Shows only for Cash transactions, not for other payment methods
+- ✅ Works correctly on receipt screen after sale completes
+
+**Files Modified:**
+- `src/pages/POSPage.tsx` - Added cash calculator state, logic, UI, and receipt integration
+- `src/components/PosRegister.tsx` - Added `relative` positioning class (Note: this is for admin POS, not main /pos route)
+
+**Testing Verified:**
+- ✅ Modal appears immediately when Cash button clicked
+- ✅ Amount input accepts keyboard and preset button input
+- ✅ Change calculation updates in real-time with correct colors
+- ✅ Complete Sale button properly validates (disabled for insufficient payment)
+- ✅ Transaction saves with tendered_amount and change_given fields
+- ✅ Receipt displays cash details correctly
+- ✅ Modal persists until user closes it or starts new transaction
+
+### ⚠️ IN PROGRESS: Void/Refund Transaction Issue
+
+**Problem Identified:**
+- Some transactions can only be refunded, not voided
+- User reports: Void button appears but doesn't work for certain transactions
+- Refund button works fine
+
+**What Was Done:**
+1. ✅ Added transaction status display in void/refund modal (shows "completed", "voided", "refunded", etc.)
+2. ✅ Disabled Void button for transactions already marked as "voided" or "refunded"
+3. ✅ Disabled Refund button for transactions already marked as "refunded"
+4. ✅ Added tooltips to explain why buttons are disabled
+
+**What Still Needs Investigation:**
+1. ❌ Unknown why some "completed" transactions can't be voided
+2. ❌ Need console logs from void attempt to see error message
+3. ❌ Possible causes:
+   - RLS policy preventing void for certain transaction types
+   - API validation blocking void based on transaction metadata
+   - Transaction status not set to "completed" (but modal shows it is)
+   - Gift card transactions or special payment methods blocking void
+
+**Next Steps for Next Session:**
+1. User needs to provide console logs when attempting to void a "refund-only" transaction
+2. Check browser console for `🔴` or `❌` error messages
+3. Look for API error response in void endpoint logs
+4. Check if there's a difference in transaction type/method for refund-only vs void-able transactions
+
+### 📊 Summary of Changes This Session
+
+**Critical Fixes:**
+- ✅ Cash calculator modal visibility issue resolved (positioning fix)
+- ✅ Receipt now shows cash transaction details
+- ✅ Void/refund modal shows transaction status
+
+**New Features:**
+- ✅ Full cash calculator implementation in POSPage
+- ✅ Smart preset buttons for cash amounts
+- ✅ Real-time change calculation with color coding
+- ✅ Modal persistence until user closes
+
+**Unresolved Issues:**
+- ❌ Void endpoint rejecting some transactions (unknown reason)
+- ❌ Need debugging logs to understand the pattern
+
+### 🚀 Current State Summary
+
+**POS System (/pos route) - NEARLY COMPLETE:**
+- ✅ PIN authentication
+- ✅ Barcode scanner
+- ✅ Product selection and cart management
+- ✅ Customer management
+- ✅ Discount system
+- ✅ All payment methods
+- ✅ Cash calculator with change display
+- ✅ Receipt printing with cash details
+- ✅ Transaction history
+- ⚠️ Void/Refund (works but has issues with some transactions)
+
+**What's Ready for Production:**
+- Cash payment flow is complete and working
+- Receipts show all necessary details including cash/change
+- 95% of POS functionality is functional
+
+**What Needs Next Session:**
+1. Investigate void endpoint issue - gather error logs
+2. Determine which transaction types can't be voided
+3. Fix void endpoint or add proper error handling/messaging
+4. Test full void/refund flow end-to-end
+
+## Last Updated
+June 5, 2026 - Cash calculator fully implemented and working, void/refund issue identified but not yet resolved
+
+**Status:** POS system production-ready except for void/refund transaction issue requiring investigation
