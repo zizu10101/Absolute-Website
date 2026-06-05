@@ -689,7 +689,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                       }}
                       placeholder="Scan or type card number..."
                       maxLength={16}
-                      className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-mono font-bold uppercase"
+                      className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-mono font-bold uppercase text-black"
                       autoFocus
                     />
                     <button
@@ -742,7 +742,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                       max={redeemCardData.current_balance}
                       value={redeemAmount}
                       onChange={e => setRedeemAmount(parseFloat(e.target.value) || 0)}
-                      className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-bold"
+                      className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-bold text-black"
                     />
                   </div>
                   <p className="text-[10px] text-zinc-900 mt-1">
@@ -1019,7 +1019,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                       max={selectedCardForRedeem.current_balance}
                       value={redeemAmount}
                       onChange={e => setRedeemAmount(parseFloat(e.target.value) || 0)}
-                      className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-bold"
+                      className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-bold text-black"
                     />
                   </div>
                 </div>
