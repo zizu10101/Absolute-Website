@@ -10,6 +10,201 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
+## Session June 11, 2026 - Gift Card Tab Redesign & Transaction Safety Fixes
+
+### ✅ COMPLETED: Dedicated Gift Card Tab with 3 Sub-Tabs
+
+Replaced separate GiftCardModal and GiftCardRedeemModal with a comprehensive unified GiftCardTab component integrated into the POS bottom navigation.
+
+**New Component: `GiftCardTab.tsx` (1,000+ lines)**
+Unified interface with three integrated sub-tabs:
+
+#### TAB 1: 💳 SELL GIFT CARD
+- **Amount Selection**: Preset buttons ($25, $50, $100, $150) + custom amount input
+- **Customer Management**:
+  - Real-time customer search with 300ms debounce
+  - Inline customer creation (name, phone, email)
+  - Optional customer linking
+- **Card Generation**:
+  - Auto-generate 16-digit card numbers (default)
+  - Manual card number entry option
+  - Preview before issuing
+- **Issue Button**: Adds non-taxable gift card item to cart
+- **Features**: Full validation, error messages, loading states
+
+#### TAB 2: 💰 REDEEM GIFT CARD
+- **Card Lookup**: Scan or type card number (Enter key support)
+- **Display**: Card holder, current balance, issue date
+- **Amount Input**: Default min(cart_total, card_balance), allow partial redemption
+- **Real-Time Feedback**:
+  - ✅ Green: "Full payment from gift card"
+  - ⚠️ Amber: "Partial redemption: $X still due"
+  - ❌ Red: "Exceeds card balance"
+- **Apply to Cart**: Disabled if no items in cart
+- **Error Handling**: Not found, inactive, zero balance
+
+#### TAB 3: 📊 GC HISTORY
+- **Searchable Table**: Card number, customer, status, balance
+- **Status Badges**: Active (green), Depleted (gray), Inactive (red)
+- **Expandable Rows**: Transaction history per card (type, date, amount)
+- **Filters**: All / Active / Depleted
+- **Per-Card Actions**: "Redeem This Card" button (for active cards with balance)
+- **Redeem Modal**: Opens with card pre-selected, shows balance, amount input
+- **Summary Section**: Total cards, issued amount, remaining balance
+- **Refresh**: Updates data with loading spinner
+
+**POS Integration:**
+- ✅ Bottom tab bar now has "💳 Gift Cards" button (4th tab)
+- ✅ GC button in register tab switches to GC tab
+- ✅ "Redeem Gift Card" button in checkout opens GC Redeem tab
+- ✅ All three modals (sell, redeem, history redeem) removed
+- ✅ All gift card UI consolidated into single component
+
+**Files Created:**
+- `src/components/GiftCardTab.tsx` (1,000+ lines)
+
+**Files Modified:**
+- `src/pages/POSPage.tsx` (integrated GiftCardTab, removed modals)
+
+---
+
+### ✅ COMPLETED: Gift Card Transaction Safety Fix
+
+**CRITICAL FIX**: Gift cards are now only redeemed when a transaction is actually confirmed, not when 'Apply to Cart' is clicked.
+
+**Problem (Before Fix):**
+- Gift card balance was deducted immediately when "Apply to Cart" clicked
+- If user cancelled checkout, balance was already gone
+- Allowed gift cards to be depleted without a purchase
+
+**Solution:**
+- Changed `handleRedeemGiftCard` to just store selection in state (no API call)
+- Added `selectedGiftCard` state: `{ cardNumber, amount }`
+- Gift card displayed in checkout modal with "Clear" button
+- Shows remaining due if gift card doesn't cover full amount
+- **Only calls `/api/gift-cards/redeem` AFTER transaction successfully saved**
+- Transaction ID included in redemption for proper tracking
+
+**Changes:**
+1. Replaced `giftCardRedeemedAmount` with `selectedGiftCard` state
+2. Gift card selection stored but NOT redeemed in GC tab
+3. Gift card payment shown in checkout modal (maskable card number)
+4. After transaction saved, gift card is redeemed with transaction ID
+5. Receipt shows gift card payment with transaction reference
+6. Clear selectedGiftCard on new transaction
+
+**Testing Verified:**
+- ✅ Gift card selection stored without immediate deduction
+- ✅ Can clear selection before checkout
+- ✅ Receipt shows gift card amount applied
+- ✅ Transaction created first, then gift card redeemed (proper order)
+- ✅ Console logs confirm: selection → transaction save → redemption
+
+---
+
+### ✅ COMPLETED: Gift Card Amount Deduction from Transaction Total
+
+**Problem**: Transaction total_amount wasn't being reduced by gift card amount. If customer used $50 GC on $100 purchase, transaction showed $100.
+
+**Solution**: Calculate actual charge after gift card applied
+```typescript
+const amountAfterGiftCard = selectedGiftCard
+  ? Math.max(0, grandTotal - selectedGiftCard.amount)
+  : grandTotal;
+```
+
+**Changes:**
+1. Save `amountAfterGiftCard` as transaction `total_amount`
+2. Update cash change calculation to use reduced amount
+3. Receipt shows final amount due (after GC deduction)
+4. Gift card displayed separately on receipt for reference
+
+**Example:**
+- Cart total: $100
+- Gift card: $50
+- Transaction saved: total_amount = $50
+- Customer pays: $50 (remaining balance)
+
+---
+
+### ✅ COMPLETED: Text Color Updates for Readability
+
+**Problem**: GC tabs had mixed text colors (gray, white on light backgrounds) causing visibility issues.
+
+**Solution**: Changed all text to black for consistency and readability.
+
+**Changes:**
+1. All labels: `text-zinc-500/600/700/400` → `text-zinc-900` (black)
+2. Input fields: Added explicit `text-black` color
+3. Placeholders: `placeholder-gray-400` → `placeholder-gray-600` (darker gray)
+4. Buttons: White text on colored backgrounds unchanged (correct)
+5. Tab headers: Inactive tabs now `text-zinc-900` (black)
+
+**Fixed Fields:**
+- Card number input (Redeem tab)
+- Redemption amount inputs (Redeem tab & modal)
+- All labels and text throughout component
+
+---
+
+### 📋 Commits This Session
+
+1. **`0768df6`** - fix: make void button available for all transactions in history tab
+2. **`cb19c1d`** - feat: redesign gift card feature with dedicated GC tab (sell, redeem, history)
+3. **`682fe56`** - docs: add comprehensive gift card tab implementation guide
+4. **`9fab476`** - fix: gift card redemption only on transaction completion
+5. **`5332e03`** - fix: subtract gift card amount from transaction total
+6. **`db04d4c`** - style: change GC tab text colors to black
+7. **`7af61ef`** - fix: add black text color to redeem tab input fields
+
+---
+
+### 🎯 What's Working
+
+**Gift Card Tab:**
+- ✅ Sell gift cards with customer management
+- ✅ Redeem gift cards with balance lookup
+- ✅ View all gift cards with history
+- ✅ Per-card transaction history
+- ✅ Search and filter functionality
+- ✅ Proper validation and error handling
+
+**Transaction Processing:**
+- ✅ Gift cards only redeemed after transaction confirmed
+- ✅ Transaction total reduced by gift card amount
+- ✅ Cash change calculated correctly with gift cards
+- ✅ Receipt shows gift card payment details
+- ✅ Proper transaction ID linking
+
+**POS Integration:**
+- ✅ GC tab in bottom navigation
+- ✅ Gift card issued items appear in cart
+- ✅ Gift card payment shown in checkout
+- ✅ All text visible and readable (black)
+
+---
+
+### ⚠️ Known Issues / TODO
+
+1. **Void Button Consistency** ✅ FIXED
+   - Previously: Could only void today's transactions
+   - Fixed: Now void available for any completed transaction
+   - All transactions show in both void/refund modal and history tab
+
+2. **Gift Card Only on Complete Transaction** ✅ FIXED
+   - Previously: GC depleted even if checkout cancelled
+   - Fixed: Only redeemed after transaction confirmed
+
+3. **Transaction Total Calculation** ✅ FIXED
+   - Previously: GC not subtracted from total_amount
+   - Fixed: Saves reduced amount to database
+
+4. **Text Visibility** ✅ FIXED
+   - Previously: Some text white/invisible
+   - Fixed: All text black and readable
+
+---
+
 ## Session June 10, 2026 - Size-Less Products & Cash Change Calculator
 
 ### ✅ COMPLETED: Size-Less Products Feature
