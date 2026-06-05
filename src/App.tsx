@@ -11,6 +11,7 @@ import { ScrollToTop } from './components/ScrollToTop';
 import { HomePage } from './pages/HomePage';
 import { AdminLogin } from './pages/AdminLogin';
 import { POSPage } from './pages/POSPage';
+import { ReportsPageFull } from './pages/ReportsPageFull';
 import { ProductProvider, useProducts } from './context/ProductContext';
 import { CustomerProvider } from './context/CustomerContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
@@ -122,6 +123,7 @@ function AppRoutes() {
         </Route>
         <Route path="/admin" element={<AdminLogin />} />
         <Route path="/pos" element={<POSPage />} />
+        <Route path="/reports" element={<ReportsPageFull />} />
       </Routes>
     </>
   );

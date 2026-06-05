@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Moon, Sun, LogOut, Search, Users, Percent, FileText, Trash2,
   Barcode as BarcodeIcon, DollarSign, Home, AlertCircle, X, Check,
-  Receipt, RotateCcw, RefreshCw, Plus, Printer, ScanLine, CheckCircle2
+  Receipt, RotateCcw, RefreshCw, Plus, Printer, ScanLine, CheckCircle2, BarChart3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Barcode from 'react-barcode';
@@ -594,6 +594,13 @@ export function POSPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.open('/reports', '_blank')}
+            className="p-1.5 hover:bg-[#2d3547] rounded transition-colors text-amber-400 hover:text-amber-300"
+            title="Open Reports (new tab)"
+          >
+            <BarChart3 size={16} />
+          </button>
           <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 hover:bg-[#2d3547] rounded transition-colors">
             {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
           </button>
