@@ -304,8 +304,8 @@ export const PosTransactionHistory: React.FC = () => {
         ) : filtered.map(tx => {
           const expanded = expandedId === tx.id;
           const customerName = getCustomerName(tx);
-          const canVoid = tx.status === 'completed' && isToday(tx.created_at);
-          const canRefund = tx.status === 'completed' && !isToday(tx.created_at);
+          const canVoid = tx.status === 'completed';
+          const canRefund = tx.status === 'completed';
 
           return (
             <div key={tx.id} className={`bg-white rounded-xl border transition-all ${expanded ? 'border-zinc-300 shadow-md' : 'border-zinc-100 hover:border-zinc-200'}`}>
