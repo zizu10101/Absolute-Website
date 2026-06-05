@@ -10,8 +10,7 @@ import { PosTransactionHistory } from '../components/PosTransactionHistory';
 import { PosCustomerManager } from '../components/PosCustomerManager';
 import { POSPinEntry } from '../components/POSPinEntry';
 import { PosDiscountModal } from '../components/PosDiscountModal';
-import { GiftCardModal } from '../components/GiftCardModal';
-import { GiftCardRedeemModal } from '../components/GiftCardRedeemModal';
+import { GiftCardTab } from '../components/GiftCardTab';
 import { usePOSCart, CartItem } from '../hooks/usePOSCart';
 import { useCustomers, Customer } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
@@ -40,12 +39,10 @@ export function POSPage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   // Panels
-  const [posTab, setPosTab] = useState<'register' | 'history' | 'customers'>('register');
+  const [posTab, setPosTab] = useState<'register' | 'history' | 'customers' | 'gc'>('register');
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
-  const [showGiftCardModal, setShowGiftCardModal] = useState(false);
-  const [showGiftCardRedeemModal, setShowGiftCardRedeemModal] = useState(false);
   const [giftCardRedeemedAmount, setGiftCardRedeemedAmount] = useState(0);
 
   // POS State
@@ -177,10 +174,10 @@ export function POSPage() {
 
   // Auto-focus barcode input (disabled when modals are open)
   useEffect(() => {
-    if (!showCheckout && !showDiscountModal && !showGiftCardModal && posTab === 'register') {
+    if (!showCheckout && !showDiscountModal && posTab === 'register') {
       barcodeInputRef.current?.focus();
     }
-  }, [showCheckout, showDiscountModal, showGiftCardModal, posTab]);
+  }, [showCheckout, showDiscountModal, posTab]);
 
   // Barcode scanning
   const handleBarcodeScan = async (rawBarcode: string) => {
@@ -258,7 +255,7 @@ export function POSPage() {
       setTimeout(() => setBarcodeError(null), 4000);
     } finally {
       setBarcodeInput('');
-      if (!showCheckout && !showDiscountModal && !showGiftCardModal && posTab === 'register') {
+      if (!showCheckout && !showDiscountModal && posTab === 'register') {
         setTimeout(() => barcodeInputRef.current?.focus(), 60);
       }
     }
@@ -466,7 +463,6 @@ export function POSPage() {
   // Handle gift card issuance
   const handleIssueGiftCard = (giftCard: any) => {
     addItem(giftCard);
-    setShowGiftCardModal(false);
   };
 
   // Handle gift card redemption
@@ -609,7 +605,7 @@ export function POSPage() {
             value={barcodeInput}
             onChange={e => setBarcodeInput(e.target.value)}
             onKeyDown={e => {
-              if (e.key === 'Enter' && !showCheckout && !showDiscountModal && !showGiftCardModal && posTab === 'register') {
+              if (e.key === 'Enter' && !showCheckout && !showDiscountModal && posTab === 'register') {
                 handleBarcodeScan(barcodeInput);
               }
             }}
@@ -791,7 +787,7 @@ export function POSPage() {
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              <button onClick={() => setShowGiftCardModal(true)} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
+              <button onClick={() => setPosTab('gc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
                 💳 GC
               </button>
               <button onClick={() => setShowDiscountModal(true)} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
@@ -853,6 +849,20 @@ export function POSPage() {
           </div>
           <div className="flex-1 overflow-hidden">
             <PosCustomerManager onSelectCustomer={handleSelectCustomer} />
+          </div>
+        </div>
+      )}
+
+      {/* Gift Card Tab Content */}
+      {posTab === 'gc' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-hidden">
+            <GiftCardTab
+              onIssueGiftCard={handleIssueGiftCard}
+              onRedeemGiftCard={handleRedeemGiftCard}
+              cartTotal={grandTotal}
+              cartHasItems={cart.length > 0}
+            />
           </div>
         </div>
       )}
@@ -988,7 +998,10 @@ export function POSPage() {
                     </div>
 
                     <button
-                      onClick={() => setShowGiftCardRedeemModal(true)}
+                      onClick={() => {
+                        setShowCheckout(false);
+                        setPosTab('gc');
+                      }}
                       disabled={isConfirming}
                       className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
                     >
@@ -1097,12 +1110,6 @@ export function POSPage() {
 
       {/* Discount Modal */}
       <PosDiscountModal isOpen={showDiscountModal} onClose={() => setShowDiscountModal(false)} onApply={applyDiscount} currentDiscount={discount} subtotal={subtotal} />
-
-      {/* Gift Card Modal */}
-      <GiftCardModal isOpen={showGiftCardModal} onClose={() => setShowGiftCardModal(false)} onIssue={handleIssueGiftCard} />
-
-      {/* Gift Card Redeem Modal */}
-      <GiftCardRedeemModal isOpen={showGiftCardRedeemModal} onClose={() => setShowGiftCardRedeemModal(false)} totalDue={grandTotal} onRedeem={handleRedeemGiftCard} />
 
       {/* Customer Modal */}
       <AnimatePresence>
@@ -1221,6 +1228,16 @@ export function POSPage() {
           }`}
         >
           Customers
+        </button>
+        <button
+          onClick={() => setPosTab('gc')}
+          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
+            posTab === 'gc'
+              ? 'bg-[#b90014] text-white'
+              : 'bg-[#2d3547] text-gray-400 hover:text-white'
+          }`}
+        >
+          💳 Gift Cards
         </button>
       </div>
     </div>
