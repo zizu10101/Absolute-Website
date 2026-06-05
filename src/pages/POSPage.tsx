@@ -367,18 +367,23 @@ export function POSPage() {
     }));
 
     try {
+      // Calculate actual amount to charge after gift card is applied
+      const amountAfterGiftCard = selectedGiftCard
+        ? Math.max(0, grandTotal - selectedGiftCard.amount)
+        : grandTotal;
+
       const payload: any = {
-        total_amount: Number(grandTotal.toFixed(2)),
+        total_amount: Number(amountAfterGiftCard.toFixed(2)),
         method,
         items: cartItemsPayload,
         customer_id: selectedCustomerId?.trim() || null,
         created_at: new Date().toISOString(),
       };
 
-      // Add cash-specific fields
+      // Add cash-specific fields (use amount after gift card)
       if (method === 'Cash' && tenderedAmount !== undefined) {
         payload.tendered_amount = Number(tenderedAmount.toFixed(2));
-        payload.change_given = Number((tenderedAmount - grandTotal).toFixed(2));
+        payload.change_given = Number((tenderedAmount - amountAfterGiftCard).toFixed(2));
       }
 
       const res = await fetch('/api/transactions', {
@@ -416,12 +421,12 @@ export function POSPage() {
         items: [...cart],
         subtotal,
         hst,
-        total: grandTotal,
+        total: amountAfterGiftCard,
         isTaxExempt,
         customer: safeCustomers.find(c => c.id === selectedCustomerId),
         time: new Date().toLocaleString(),
         tenderedAmount,
-        changeGiven: tenderedAmount !== undefined ? tenderedAmount - grandTotal : undefined,
+        changeGiven: tenderedAmount !== undefined ? tenderedAmount - amountAfterGiftCard : undefined,
         giftCardAmount: selectedGiftCard?.amount,
         giftCardNumber: selectedGiftCard?.cardNumber,
       });
