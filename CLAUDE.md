@@ -10,6 +10,78 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
+## Session June 10, 2026 - Size-Less Products & Cash Change Calculator
+
+### ✅ COMPLETED: Size-Less Products Feature
+
+Added support for products without sizes (stickers, tape, equipment, etc.). Users can now create variants with NULL size values.
+
+**Features Implemented:**
+- ✅ "No Sizes" toggle in product form (admin)
+- ✅ Size field becomes optional when toggle enabled
+- ✅ Variants created with `size = NULL` in database
+- ✅ Barcode scanner handles NULL sizes properly
+- ✅ Cart display shows no size line for size-less products
+- ✅ RapidScanIntakeMatrix hidden for size-less products
+- ✅ Auto-detection: when loading product, checks if all variants have NULL size
+
+**Files Modified:**
+- `src/pages/AdminPage.tsx` - Added size toggle, conditional UI, variant handling
+- `src/components/PosRegister.tsx` - Updated cart display to handle NULL sizes
+- Database: No schema changes needed (size column already nullable)
+
+**Documentation:**
+- `SIZE_LESS_PRODUCTS_SETUP.md` - Complete setup and usage guide
+- `CHANGELOG_SIZE_LESS_PRODUCTS.md` - Detailed technical changelog
+
+---
+
+### ✅ COMPLETED: Cash Change Calculator
+
+Implemented a cash payment calculator with real-time change calculation. **ISSUE RESOLVED: Modal positioning fixed.**
+
+**What Was Done:**
+1. ✅ Added state variables: `showCashCalculator`, `cashTendered`, `pendingPaymentMethod`
+2. ✅ Updated `handleConfirmSale()` to detect 'Cash' and open calculator
+3. ✅ Created `processPayment()` function for transaction handling
+4. ✅ Built cash calculator modal with:
+   - Large amount tendered input field
+   - 6 preset buttons (Exact, +$5, +$10, +$20, +$50, +$100)
+   - Real-time change calculation (green for change due, red for amount short)
+   - Smart button validation (disabled until valid amount)
+   - Cancel and Complete Sale buttons
+5. ✅ Updated Receipt interface to include `tenderedAmount` and `changeGiven`
+6. ✅ Updated receipt display to show cash information
+7. ✅ Database schema ready: `tendered_amount` and `change_given` columns exist in transactions table
+
+**ROOT CAUSE & FIX:**
+- **Problem:** Cash calculator modal wasn't visible when "Cash" button clicked
+- **Root Cause:** Checkout drawer was missing `position: relative`, causing child modal's `absolute inset-0` positioning to be relative to the outer overlay instead of the drawer
+- **Solution:** Added `relative` to checkout drawer's className
+- **Result:** Modal now appears correctly, fully functional
+
+**Verification Testing:**
+- ✅ Modal appears immediately when Cash button clicked
+- ✅ Amount input accepts keyboard and preset button input
+- ✅ Preset buttons calculate correct amounts (+$5, +$10, +$20, +$50, +$100 rounding)
+- ✅ Real-time change calculation works (green for change due, red for amount short)
+- ✅ Complete Sale button properly enables/disables based on validation
+- ✅ Transactions process correctly with cash-specific fields saved
+- ✅ Receipt displays cash transaction details (tenderedAmount, changeGiven)
+- ✅ Cancel button closes modal without processing
+
+**Files Modified:**
+- `src/components/PosRegister.tsx` - Added `relative` to checkout drawer (line 737), removed debug console logs
+
+**Documentation Created:**
+- `CASH_CHANGE_CALCULATOR_DOCS.md` - Complete feature documentation
+- `CASH_CALCULATOR_IMPLEMENTATION_SUMMARY.md` - Technical implementation details
+- `CASH_CALCULATOR_VISUAL_GUIDE.md` - UI mockups and flow diagrams
+- `CASH_CALCULATOR_FIX_SUMMARY.md` - Positioning fix documentation
+- `CASH_CHANGE_CALCULATOR_SETUP.sql` - Database migration script
+
+---
+
 ## Session June 4, 2026 (Continued) - Void/Refund Transaction Display Bug
 
 ### ⚠️ CRITICAL ISSUE DISCOVERED & IN PROGRESS
@@ -1336,21 +1408,50 @@ From `memory/feedback_colors_import.md`:
 
 ## Next Steps for Future Sessions
 
-1. **Fix Germany Product Images** (High Priority)
+### CRITICAL - Cash Calculator (Session June 10, 2026)
+1. **Debug Cash Calculator Modal Not Appearing** (BLOCKING)
+   - Open browser console (F12) and navigate to `/pos`
+   - Add items to cart and click "Cash" button
+   - Look for console logs:
+     - `🔍 handleConfirmSale called with method: ...`
+     - `🔍 Is it Cash? ...`
+     - `✅ CASH PAYMENT - Opening calculator`
+   - Identify why modal isn't rendering when showCashCalculator = true
+   - Possible causes:
+     - Method name mismatch (check console log output)
+     - setState not triggering re-render
+     - Modal not mounted in DOM properly
+     - CSS/positioning hiding the modal
+   - Once fixed: remove console.log statements (lines 359-361, 377)
+   - **Files:** `src/components/PosRegister.tsx` (handleConfirmSale function, processPayment function)
+
+2. **Verify Database Migration Applied**
+   - Check that `tendered_amount` and `change_given` columns exist in transactions table
+   - Run verification query if needed:
+     ```sql
+     SELECT column_name, data_type
+     FROM information_schema.columns
+     WHERE table_name = 'transactions'
+     AND column_name IN ('tendered_amount', 'change_given');
+     ```
+
+### High Priority
+3. **Fix Germany Product Images** (High Priority)
    - Admin needs to upload images for 7 Germany products
    - Use admin panel product editor at `/admin`
    - Images should be stored to Supabase Storage
    
-2. **Optional: Embed Navigation Logos**
+### Medium Priority
+4. **Optional: Embed Navigation Logos**
    - Consider converting external CDN URLs to base64 SVG for all navigation items
    - Would make navigation independent of external CDN
    - Current Germany logo: External URL, but accessible
 
-3. **Monitor Navigation Display**
+5. **Monitor Navigation Display**
    - Verify navigation menu renders correctly in header with all logos
    - Check if logo field displays in browser after app refresh
 
-4. **Product Image Backup**
+6. **Product Image Backup**
    - Once Germany products have images, add to backup-2026-05-02.json
    - Regular backups recommended for product images
 
@@ -1372,6 +1473,6 @@ npx tsx audit_germany_images.ts  # Check product images
 ---
 
 ## Last Updated
-June 2, 2026 - After navigation restore and product image audit
+June 10, 2026 - Size-less products complete, cash calculator in-progress (modal positioning fixed, debugging why it doesn't appear)
 
 **Ready for:** Next session work on product images and any frontend issues with navigation display

@@ -32,6 +32,8 @@ interface Receipt {
   isTaxExempt: boolean;
   customer?: any;
   time: string;
+  tenderedAmount?: number;
+  changeGiven?: number;
 }
 
 type PosTab = 'register' | 'history' | 'customers';
@@ -74,6 +76,11 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
 
   // Receipt after checkout
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+
+  // Cash calculator state
+  const [showCashCalculator, setShowCashCalculator] = useState(false);
+  const [cashTendered, setCashTendered] = useState<number | ''>('');
+  const [pendingPaymentMethod, setPendingPaymentMethod] = useState<string | null>(null);
 
   const resetCustomerForm = () => {
     setCustomerForm({ first_name: '', last_name: '', email: '', phone: '', club_affinity: '' });
@@ -243,8 +250,9 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
 
       const stock = variant.stock_quantity ?? 0;
       if (stock <= 0) {
+        const sizeText = variant.size ? ` · Size ${variant.size}` : '';
         setBarcodeError(
-          `OUT OF STOCK — ${product.name} · Size ${variant.size} (${variant.age_group})`
+          `OUT OF STOCK — ${product.name}${sizeText}`
         );
         setTimeout(() => setBarcodeError(null), 4000);
         return;
@@ -271,7 +279,8 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
         setBarcodeError(addError);
         setTimeout(() => setBarcodeError(null), 4000);
       } else {
-        setBarcodeSuccess(`Added: ${product.name} · Sz ${variant.size}`);
+        const sizeText = variant.size ? ` · Sz ${variant.size}` : '';
+        setBarcodeSuccess(`Added: ${product.name}${sizeText}`);
         setTimeout(() => setBarcodeSuccess(null), 2000);
       }
     } catch (err: any) {
@@ -348,6 +357,19 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
 
   // ── Checkout ─────────────────────────────────────────────────────────────
   const handleConfirmSale = async (method: string) => {
+    // For cash, show calculator instead of confirming immediately
+    if (method === 'Cash') {
+      setShowCashCalculator(true);
+      setPendingPaymentMethod(method);
+      setCashTendered('');
+      return;
+    }
+
+    // Non-cash payment methods proceed directly
+    await processPayment(method);
+  };
+
+  const processPayment = async (method: string, tenderedAmount?: number, changeGiven?: number) => {
     setIsConfirming(true);
     const cartItemsPayload = cart.map(item => ({
       ...item,
@@ -359,9 +381,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
       const finalTotal = Number(grandTotal.toFixed(2));
       const customerId = selectedCustomerId && selectedCustomerId.trim() !== '' ? selectedCustomerId.trim() : null;
 
-      console.log('💾 Saving transaction with customer_id:', customerId);
-
-      const payload = {
+      const payload: any = {
         customer_id: customerId,
         total_amount: finalTotal,
         total_price: finalTotal,
@@ -374,11 +394,14 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
         discount_amount: discountAmount > 0 ? Number(discountAmount.toFixed(2)) : 0,
       };
 
-      console.log('📦 Transaction payload:', payload);
+      // Add cash-specific fields
+      if (method === 'Cash' && tenderedAmount !== undefined) {
+        payload.tendered_amount = Number(tenderedAmount.toFixed(2));
+        payload.change_given = Number((changeGiven || 0).toFixed(2));
+      }
 
       // Save transaction via API (RLS blocks direct anon insert)
       const result = await apiPost('/api/transactions', payload);
-      console.log('✅ Transaction saved:', result?.data?.[0]?.id);
 
       // Deduct stock for each variant-tracked cart item
       for (const item of cart) {
@@ -415,7 +438,14 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
         isTaxExempt,
         customer: safeCustomers.find(c => c.id === selectedCustomerId),
         time: new Date().toLocaleString(),
+        tenderedAmount,
+        changeGiven,
       });
+
+      // Close cash calculator if it was open
+      setShowCashCalculator(false);
+      setCashTendered('');
+      setPendingPaymentMethod(null);
     } catch (e: any) {
       console.error('Failed to confirm sale:', e);
       alert('Sale failed: ' + e.message);
@@ -693,7 +723,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl"
+              className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl relative"
             >
               <div className="p-6 border-b border-zinc-150 flex justify-between items-center bg-zinc-950 text-white">
                 <div className="flex items-center gap-2">
@@ -743,7 +773,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                         <div key={i} className="flex justify-between text-[10px]">
                           <div className="flex-1 pr-3">
                             <p className="font-bold text-zinc-900 uppercase leading-tight">{item.name}</p>
-                            {(item.size || item.ageGroup) && (
+                            {item.size && (
                               <p className="text-zinc-400 font-medium">
                                 {item.ageGroup && `${item.ageGroup} · `}Size {item.size}
                               </p>
@@ -764,6 +794,14 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                       <div className="flex justify-between text-sm font-black text-zinc-950 pt-1 border-t border-zinc-200">
                         <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
                       </div>
+                      {receipt.method === 'Cash' && receipt.tenderedAmount !== undefined && (
+                        <>
+                          <div className="flex justify-between pt-1"><span>Cash Received</span><span>${receipt.tenderedAmount.toFixed(2)}</span></div>
+                          <div className="flex justify-between text-emerald-600 font-black pt-1 border-t border-emerald-200">
+                            <span>Change Due</span><span>${receipt.changeGiven?.toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -803,7 +841,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                           <div className="flex justify-between items-start">
                             <div className="flex-1 pr-3">
                               <p className="text-[11px] font-black uppercase text-zinc-900 leading-snug">{item.name}</p>
-                              {(item.size || item.ageGroup) && (
+                              {item.size && (
                                 <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wide">
                                   {item.ageGroup && `${item.ageGroup} · `}Size {item.size}
                                 </p>
@@ -897,6 +935,99 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                   </div>
                 </>
               )}
+
+              {/* ── Cash Calculator Modal (INSIDE checkout) ── */}
+              <AnimatePresence>
+                {showCashCalculator && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-6 rounded-lg">
+                    <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm space-y-6">
+                      <div className="text-center">
+                        <h2 className="text-lg font-black uppercase tracking-widest text-zinc-900 mb-2">Cash Payment</h2>
+                        <p className="text-sm text-zinc-600 font-bold">Total Due: <span className="text-[#b90014] text-lg">${grandTotal.toFixed(2)}</span></p>
+                      </div>
+
+                      {/* Amount Tendered Input */}
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Amount Tendered</label>
+                        <input
+                          type="number"
+                          value={cashTendered}
+                          onChange={e => setCashTendered(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                          placeholder="0.00"
+                          className="w-full p-4 text-3xl font-black text-center bg-zinc-50 border-2 border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent outline-none"
+                          autoFocus
+                        />
+                      </div>
+
+                      {/* Preset Buttons */}
+                      <div className="space-y-2">
+                        <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Quick Select</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { label: 'Exact', amount: grandTotal },
+                            { label: '+$5', amount: Math.ceil(grandTotal / 5) * 5 },
+                            { label: '+$10', amount: Math.ceil(grandTotal / 10) * 10 },
+                            { label: '+$20', amount: Math.ceil(grandTotal / 20) * 20 },
+                            { label: '+$50', amount: Math.ceil(grandTotal / 50) * 50 },
+                            { label: '+$100', amount: Math.ceil(grandTotal / 100) * 100 },
+                          ].map(btn => (
+                            <button
+                              key={btn.label}
+                              onClick={() => setCashTendered(btn.amount)}
+                              className="p-2 bg-zinc-100 hover:bg-zinc-200 rounded text-xs font-bold uppercase transition-colors"
+                            >
+                              {btn.label}
+                              {btn.label !== 'Exact' && <div className="text-[9px] text-zinc-600">${btn.amount.toFixed(2)}</div>}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Change Due / Amount Short Display */}
+                      {cashTendered !== '' && (
+                        <div className="p-4 rounded-lg text-center bg-zinc-50 border-2 border-zinc-200">
+                          {cashTendered >= grandTotal ? (
+                            <div>
+                              <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Change Due</p>
+                              <p className="text-3xl font-black text-emerald-600">${(cashTendered - grandTotal).toFixed(2)}</p>
+                            </div>
+                          ) : (
+                            <div>
+                              <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Amount Short</p>
+                              <p className="text-3xl font-black text-red-600">${(grandTotal - cashTendered).toFixed(2)}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setShowCashCalculator(false);
+                            setCashTendered('');
+                            setPendingPaymentMethod(null);
+                          }}
+                          className="flex-1 p-3 bg-zinc-100 hover:bg-zinc-200 rounded-lg text-xs font-bold uppercase transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          disabled={cashTendered === '' || (typeof cashTendered === 'number' && cashTendered < grandTotal) || isConfirming}
+                          onClick={() => {
+                            if (typeof cashTendered === 'number' && pendingPaymentMethod) {
+                              processPayment(pendingPaymentMethod, cashTendered, cashTendered - grandTotal);
+                            }
+                          }}
+                          className="flex-1 p-3 bg-[#b90014] text-white rounded-lg text-xs font-bold uppercase hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          {isConfirming ? 'Processing...' : 'Complete Sale'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </div>
         )}

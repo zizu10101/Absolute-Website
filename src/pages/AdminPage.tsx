@@ -380,6 +380,7 @@ function AdminPageInner() {
   const [newVariantSize, setNewVariantSize] = useState<string>('');
   const [newVariantBarcode, setNewVariantBarcode] = useState<string>('');
   const [newVariantQuantity, setNewVariantQuantity] = useState<number>(30);
+  const [editingProductHasNoSizes, setEditingProductHasNoSizes] = useState<boolean>(false);
 
   // --- States for newly created product pending size variants ---
   const [createdProductVariants, setCreatedProductVariants] = useState<any[]>([]);
@@ -387,6 +388,7 @@ function AdminPageInner() {
   const [newProductVariantSize, setNewProductVariantSize] = useState<string>('');
   const [newProductVariantBarcode, setNewProductVariantBarcode] = useState<string>('');
   const [newProductVariantQuantity, setNewProductVariantQuantity] = useState<number>(30);
+  const [newProductHasNoSizes, setNewProductHasNoSizes] = useState<boolean>(false);
 
   const getTempBarcode = (name: string, ageGroup: string, sizeName: string) => {
     const cleanName = (name || 'PROD').slice(0, 5).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
@@ -397,12 +399,13 @@ function AdminPageInner() {
   };
 
   const handleAddCreatedProductVariant = () => {
-    if (!newProductVariantSize.trim()) {
-      alert("Please specify a sizing label (e.g. Medium, Size 5).");
+    if (!newProductHasNoSizes && !newProductVariantSize.trim()) {
+      alert("Please specify a sizing label (e.g. Medium, Size 5) or check 'No Sizes'.");
       return;
     }
-    const barcode = newProductVariantBarcode.trim() || getTempBarcode(newProduct.name, newProductVariantAgeGroup, newProductVariantSize);
-    
+    const sizeLabel = newProductHasNoSizes ? 'One Size' : newProductVariantSize;
+    const barcode = newProductVariantBarcode.trim() || getTempBarcode(newProduct.name, newProductVariantAgeGroup, sizeLabel);
+
     if (createdProductVariants.some(v => v.barcode === barcode.toUpperCase())) {
       alert("This barcode is already assigned to another variant in this list.");
       return;
@@ -411,7 +414,7 @@ function AdminPageInner() {
     const payload = {
       id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       age_group: newProductVariantAgeGroup,
-      size: newProductVariantSize,
+      size: newProductHasNoSizes ? null : newProductVariantSize,
       barcode: barcode.toUpperCase(),
       stock_quantity: newProductVariantQuantity
     };
@@ -429,18 +432,21 @@ function AdminPageInner() {
     let active = true;
     if (editingProduct && editingProduct.id) {
       setVariantsLoading(true);
+      setEditingProductHasNoSizes(false);
       (async () => {
         try {
           const { data, error } = await supabase
             .from('product_variants')
             .select('*')
             .eq('product_id', editingProduct.id)
-            .order('age_group')
-            .order('size');
-            
+            .order('age_group');
+
           if (active) {
             if (!error && data) {
               setEditingProductVariants(data);
+              // Auto-detect if product has no sizes
+              const hasOnlyNullSizes = data.length > 0 && data.every(v => v.size === null);
+              setEditingProductHasNoSizes(hasOnlyNullSizes);
             } else {
               console.error("Error loading variants:", error);
               setEditingProductVariants([]);
@@ -455,18 +461,20 @@ function AdminPageInner() {
       })();
     } else {
       setEditingProductVariants([]);
+      setEditingProductHasNoSizes(false);
     }
     return () => { active = false; };
   }, [editingProduct?.id]);
 
   const handleAddVariant = async () => {
     if (!editingProduct?.id) return;
-    if (!newVariantSize.trim()) {
-      alert("Please enter a size.");
+    if (!editingProductHasNoSizes && !newVariantSize.trim()) {
+      alert("Please enter a size or check 'No Sizes'.");
       return;
     }
-    const barcodeValue = newVariantBarcode.trim() || 
-      `${editingProduct.id.slice(0,8)}-${newVariantAgeGroup.slice(0,1)}-${newVariantSize.replace('.','_')}-${Date.now()}`.toUpperCase();
+    const sizeLabel = editingProductHasNoSizes ? 'One Size' : newVariantSize;
+    const barcodeValue = newVariantBarcode.trim() ||
+      `${editingProduct.id.slice(0,8)}-${newVariantAgeGroup.slice(0,1)}-${sizeLabel.replace('.','_')}-${Date.now()}`.toUpperCase();
     try {
       // Check if barcode already exists for a DIFFERENT product
       const { data: existing } = await supabase
@@ -485,7 +493,7 @@ function AdminPageInner() {
         .upsert([{
           product_id: editingProduct.id,
           age_group: newVariantAgeGroup,
-          size: newVariantSize.trim(),
+          size: editingProductHasNoSizes ? null : newVariantSize.trim(),
           barcode: barcodeValue,
           stock_quantity: newVariantQuantity
         }], { onConflict: 'barcode' });
@@ -494,7 +502,7 @@ function AdminPageInner() {
         .from('product_variants')
         .select('*')
         .eq('product_id', editingProduct.id)
-        .order('size');
+        .order('age_group');
       setEditingProductVariants(fresh || []);
       setNewVariantSize('');
       setNewVariantBarcode('');
@@ -3547,24 +3555,84 @@ function AdminPageInner() {
 
                     {/* PRODUCT SIZING & AGE GROUP VARIANT ENGINE FOR NEW PRODUCT (RAPID INTENSIVE) */}
                     <div className="mt-8 border-t border-zinc-200 pt-8" id="product-variants-creation-section">
-                      <RapidScanIntakeMatrix
-                        productName={newProduct.name || 'New Product'}
-                        category={newProduct.category}
-                        existingVariants={createdProductVariants}
-                        onRegisterVariant={async (ageGroup, size, barcode, quantity) => {
-                          const payload = {
-                            id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                            age_group: ageGroup,
-                            size: size,
-                            barcode: barcode,
-                            stock_quantity: quantity
-                          };
-                          setCreatedProductVariants(prev => [...prev, payload]);
-                        }}
-                        onSuccessFinished={() => {
-                          console.log("Local variants registered in matrix!");
-                        }}
-                      />
+                      {/* No Sizes Toggle & Simple Variant Form */}
+                      <div className="mb-6 p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-black uppercase tracking-widest text-zinc-700">Add Size Variants</h4>
+                          <label className="flex items-center gap-2 text-xs font-bold text-zinc-600">
+                            <input
+                              type="checkbox"
+                              checked={newProductHasNoSizes}
+                              onChange={e => setNewProductHasNoSizes(e.target.checked)}
+                              className="w-4 h-4 accent-[#b90014] cursor-pointer rounded"
+                            />
+                            <span>This product has no sizes (one size only)</span>
+                          </label>
+                        </div>
+                        {newProductHasNoSizes && (
+                          <div className={`grid gap-3 grid-cols-1`}>
+                            <div>
+                              <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Age Group</label>
+                              <select
+                                value={newProductVariantAgeGroup}
+                                onChange={e => setNewProductVariantAgeGroup(e.target.value as any)}
+                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-[#b90014]"
+                              >
+                                <option value="Adult">Adult</option>
+                                <option value="Youth">Youth</option>
+                                <option value="Toddler">Toddler</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Barcode</label>
+                              <input
+                                type="text"
+                                value={newProductVariantBarcode}
+                                onChange={e => setNewProductVariantBarcode(e.target.value)}
+                                placeholder="Unique barcode"
+                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Stock Qty</label>
+                              <input
+                                type="number"
+                                value={newProductVariantQuantity}
+                                onChange={e => setNewProductVariantQuantity(parseInt(e.target.value) || 0)}
+                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleAddCreatedProductVariant}
+                              className="w-full py-2.5 bg-zinc-900 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-[#b90014] transition-all"
+                            >
+                              + Add Variant
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {!newProductHasNoSizes && (
+                        <RapidScanIntakeMatrix
+                          productName={newProduct.name || 'New Product'}
+                          category={newProduct.category}
+                          existingVariants={createdProductVariants}
+                          onRegisterVariant={async (ageGroup, size, barcode, quantity) => {
+                            const payload = {
+                              id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                              age_group: ageGroup,
+                              size: size,
+                              barcode: barcode,
+                              stock_quantity: quantity
+                            };
+                            setCreatedProductVariants(prev => [...prev, payload]);
+                          }}
+                          onSuccessFinished={() => {
+                            console.log("Local variants registered in matrix!");
+                          }}
+                        />
+                      )}
 
                       {/* Created Variants list preview */}
                       <div className="mt-5 mb-8">
@@ -3592,7 +3660,7 @@ function AdminPageInner() {
                                 {createdProductVariants.map((v) => (
                                   <tr key={v.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
                                     <td className="p-3 font-bold uppercase text-zinc-900">{v.age_group}</td>
-                                    <td className="p-3 font-mono font-bold text-zinc-700 bg-zinc-50">{v.size}</td>
+                                    <td className="p-3 font-mono font-bold text-zinc-700 bg-zinc-50">{v.size === null ? '(no size)' : v.size}</td>
                                     <td className="p-3 font-mono font-bold text-[#b90014]">{v.barcode}</td>
                                     <td className="p-3 font-semibold text-zinc-650">{v.stock_quantity} units</td>
                                     <td className="p-3 text-right">
@@ -4507,8 +4575,19 @@ function AdminPageInner() {
                   <div className="mt-8 border-t border-zinc-200 pt-8" id="product-variants-section">
                     {/* Simple Quick-Add Variant Form */}
                     <div className="mb-6 p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-3">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-zinc-700">Quick Add Size Variant</h4>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-zinc-700">Quick Add Size Variant</h4>
+                        <label className="flex items-center gap-2 text-xs font-bold text-zinc-600">
+                          <input
+                            type="checkbox"
+                            checked={editingProductHasNoSizes}
+                            onChange={e => setEditingProductHasNoSizes(e.target.checked)}
+                            className="w-4 h-4 accent-[#b90014] cursor-pointer rounded"
+                          />
+                          <span>This product has no sizes (one size only)</span>
+                        </label>
+                      </div>
+                      <div className={`grid gap-3 ${editingProductHasNoSizes ? 'grid-cols-1' : 'grid-cols-2'}`}>
                         <div>
                           <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Age Group</label>
                           <select
@@ -4521,16 +4600,18 @@ function AdminPageInner() {
                             <option value="Toddler">Toddler</option>
                           </select>
                         </div>
-                        <div>
-                          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Size</label>
-                          <input
-                            type="text"
-                            value={newVariantSize}
-                            onChange={e => setNewVariantSize(e.target.value)}
-                            placeholder="e.g. 9, XL, 4Y"
-                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
-                          />
-                        </div>
+                        {!editingProductHasNoSizes && (
+                          <div>
+                            <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Size</label>
+                            <input
+                              type="text"
+                              value={newVariantSize}
+                              onChange={e => setNewVariantSize(e.target.value)}
+                              placeholder="e.g. 9, XL, 4Y"
+                              className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                            />
+                          </div>
+                        )}
                         <div>
                           <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Barcode</label>
                           <input
@@ -4559,7 +4640,7 @@ function AdminPageInner() {
                         + Add Variant to Database
                       </button>
                     </div>
-                    {editingProduct && (
+                    {editingProduct && !editingProductHasNoSizes && (
                       <RapidScanIntakeMatrix
                         productId={editingProduct.id}
                         productName={editingProduct.name}
@@ -4575,7 +4656,7 @@ function AdminPageInner() {
                               barcode: barcode.toUpperCase(),
                               stock_quantity: quantity
                             }], { onConflict: 'barcode' });
-                          
+
                           if (error) throw new Error(error.message);
                         }}
                         onSuccessFinished={async () => {
@@ -4585,8 +4666,7 @@ function AdminPageInner() {
                               .from('product_variants')
                               .select('*')
                               .eq('product_id', editingProduct.id)
-                              .order('age_group')
-                              .order('size');
+                              .order('age_group');
                             setEditingProductVariants(data || []);
                             setVariantsLoading(false);
                           }
@@ -4622,7 +4702,7 @@ function AdminPageInner() {
                               {editingProductVariants.map((v) => (
                                 <tr key={v.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
                                   <td className="p-3 font-bold uppercase text-zinc-900">{v.age_group}</td>
-                                  <td className="p-3 font-mono font-bold text-zinc-700 bg-zinc-50">{v.size}</td>
+                                  <td className="p-3 font-mono font-bold text-zinc-700 bg-zinc-50">{v.size === null ? '(no size)' : v.size}</td>
                                   <td className="p-3 font-mono font-bold text-[#b90014]">{v.barcode}</td>
                                   <td className="p-3">
                                     <div className="flex items-center gap-2">
