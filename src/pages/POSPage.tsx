@@ -32,6 +32,8 @@ interface Receipt {
   time: string;
   tenderedAmount?: number;
   changeGiven?: number;
+  giftCardAmount?: number;
+  giftCardNumber?: string;
 }
 
 export function POSPage() {
@@ -43,7 +45,9 @@ export function POSPage() {
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
-  const [giftCardRedeemedAmount, setGiftCardRedeemedAmount] = useState(0);
+
+  // Gift card payment tracking
+  const [selectedGiftCard, setSelectedGiftCard] = useState<{ cardNumber: string; amount: number } | null>(null);
 
   // POS State
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
@@ -418,6 +422,8 @@ export function POSPage() {
         time: new Date().toLocaleString(),
         tenderedAmount,
         changeGiven: tenderedAmount !== undefined ? tenderedAmount - grandTotal : undefined,
+        giftCardAmount: selectedGiftCard?.amount,
+        giftCardNumber: selectedGiftCard?.cardNumber,
       });
 
       // Close cash calculator if it was open
@@ -425,20 +431,35 @@ export function POSPage() {
       setCashTendered('');
       setPendingPaymentMethod(null);
 
-      // If gift card was redeemed, update the transaction record with the gift card transaction ID
-      if (giftCardRedeemedAmount > 0) {
+      // Process gift card redemption AFTER transaction is confirmed
+      if (selectedGiftCard) {
         try {
-          await fetch('/api/gift-cards/redeem', {
+          console.log('🎁 Processing gift card redemption after transaction:', {
+            cardNumber: selectedGiftCard.cardNumber,
+            amount: selectedGiftCard.amount,
+            transactionId: result?.data?.[0]?.id,
+          });
+
+          const redeemRes = await fetch('/api/gift-cards/redeem', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              card_number: '', // Already processed
-              amount: 0,
+              card_number: selectedGiftCard.cardNumber,
+              amount: selectedGiftCard.amount,
               transaction_id: result?.data?.[0]?.id,
             }),
           });
+
+          const redeemResult = await redeemRes.json();
+          if (!redeemRes.ok) {
+            console.error('⚠️ Gift card redemption warning:', redeemResult?.error);
+            // Don't fail the transaction if gift card redemption fails
+          } else {
+            console.log('✅ Gift card successfully redeemed');
+          }
         } catch (err) {
-          console.error('Error updating gift card transaction:', err);
+          console.error('❌ Error processing gift card redemption:', err);
+          // Don't fail the transaction if gift card redemption fails
         }
       }
     } catch (e: any) {
@@ -456,7 +477,7 @@ export function POSPage() {
     setCustomerSearchTerm('');
     setShowCheckout(false);
     setReceipt(null);
-    setGiftCardRedeemedAmount(0);
+    setSelectedGiftCard(null);
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
@@ -465,23 +486,12 @@ export function POSPage() {
     addItem(giftCard);
   };
 
-  // Handle gift card redemption
+  // Handle gift card redemption (store selection, don't process yet)
   const handleRedeemGiftCard = async (cardNumber: string, amount: number) => {
-    const res = await fetch('/api/gift-cards/redeem', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        card_number: cardNumber,
-        amount,
-        transaction_id: null, // Will be set after transaction is created
-      }),
-    });
-
-    const result = await res.json();
-    if (!res.ok) throw new Error(result?.error || 'Redemption failed');
-
-    setGiftCardRedeemedAmount(amount);
-    return result.data;
+    // Just store the gift card info, don't call API yet
+    // The actual redemption happens after transaction is confirmed
+    setSelectedGiftCard({ cardNumber, amount });
+    console.log('✅ Gift card selected for payment:', { cardNumber, amount });
   };
 
   // Print thermal receipt
@@ -935,6 +945,9 @@ export function POSPage() {
                       <div className="flex justify-between text-sm font-black text-black pt-1 border-t border-zinc-300">
                         <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
                       </div>
+                      {receipt.giftCardAmount && receipt.giftCardAmount > 0 && (
+                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span>💳 Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
+                      )}
                       {receipt.method === 'Cash' && receipt.tenderedAmount !== undefined && (
                         <>
                           <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300"><span>Cash Received</span><span>${receipt.tenderedAmount.toFixed(2)}</span></div>
@@ -983,6 +996,27 @@ export function POSPage() {
                       <div className="flex justify-between"><span>HST</span><span>${hst.toFixed(2)}</span></div>
                       <div className="flex justify-between font-bold text-sm border-t border-[#2d3547] pt-1"><span>Total Due</span><span>${grandTotal.toFixed(2)}</span></div>
                     </div>
+
+                    {selectedGiftCard && (
+                      <div className="bg-[#2d3547] p-3 rounded-lg border border-amber-500/30 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-amber-400 uppercase">💳 Gift Card Payment</span>
+                          <button
+                            onClick={() => setSelectedGiftCard(null)}
+                            className="text-amber-400 hover:text-amber-300 text-[11px] font-bold uppercase"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-gray-300">Card: {selectedGiftCard.cardNumber.slice(-4).padStart(selectedGiftCard.cardNumber.length, '*')}</span>
+                          <span className="text-amber-400 font-bold">${selectedGiftCard.amount.toFixed(2)}</span>
+                        </div>
+                        {selectedGiftCard.amount < grandTotal && (
+                          <p className="text-[9px] text-amber-300">Remaining due: ${(grandTotal - selectedGiftCard.amount).toFixed(2)}</p>
+                        )}
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-2 mb-3">
                       {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Store Credit'].map(method => (
