@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from 'react';
+import { supabase } from '../supabase';
 import { useCustomers, Customer } from '../context/CustomerContext';
 import { CustomerGiftCards } from './CustomerGiftCards';
 import { StoreCreditsSection } from './StoreCreditsSection';
+import { ReturnsModal } from './ReturnsModal';
 import {
   Search, User, ArrowLeft, Edit2, Save, X, Plus,
   ShoppingBag, DollarSign, Clock, CheckCircle2, AlertTriangle, Check,
+  Undo2, ChevronDown, ChevronUp,
 } from 'lucide-react';
 
 type View = 'list' | 'profile' | 'create' | 'edit';
@@ -26,6 +29,10 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [customerTxns, setCustomerTxns] = useState<any[]>([]);
   const [txLoading, setTxLoading] = useState(false);
+  const [showReturnsModal, setShowReturnsModal] = useState(false);
+  const [returnsTransactionId, setReturnsTransactionId] = useState<string | null>(null);
+  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
+  const [returnRecords, setReturnRecords] = useState<Record<string, any>>({});
 
   const flash = (msg: string, isError = false) => {
     if (isError) { setErrorMsg(msg); setTimeout(() => setErrorMsg(null), 4000); }
@@ -53,10 +60,44 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
         .filter((t: any) => t.customer_id === customerId)
         .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setCustomerTxns(filtered);
+
+      // Load return records for each transaction
+      const returns: Record<string, any> = {};
+      for (const tx of filtered) {
+        try {
+          const { data: returnData } = await supabase
+            .from('returns')
+            .select('*')
+            .eq('transaction_id', tx.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (returnData) {
+            returns[tx.id] = returnData;
+          }
+        } catch {
+          // No return for this transaction
+        }
+      }
+      setReturnRecords(returns);
     } catch {
       setCustomerTxns([]);
     } finally {
       setTxLoading(false);
+    }
+  };
+
+  const openReturnsModal = (txId: string) => {
+    setReturnsTransactionId(txId);
+    setShowReturnsModal(true);
+  };
+
+  const handleReturnsComplete = () => {
+    setShowReturnsModal(false);
+    // Reload customer data to refresh transactions
+    if (selected) {
+      loadCustomerTransactions(selected.id);
     }
   };
 
@@ -261,29 +302,83 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
               <p className="text-[11px] text-zinc-400 text-center py-6">No transactions yet</p>
             ) : (
               <div className="space-y-2">
-                {customerTxns.map(tx => (
-                  <div key={tx.id} className="flex justify-between items-start py-2 border-b border-zinc-50 last:border-0">
-                    <div>
-                      <p className="text-[11px] font-bold text-zinc-900">{new Date(tx.created_at).toLocaleDateString()}</p>
-                      <p className="text-[9px] text-zinc-400 font-mono">{tx.id.slice(0, 8).toUpperCase()} · {tx.method}</p>
-                      <p className="text-[9px] text-zinc-400">{(tx.items || []).length} item(s)</p>
+                {customerTxns.map(tx => {
+                  const isExpanded = expandedTxId === tx.id;
+                  const hasReturn = returnRecords[tx.id];
+                  const statusBg =
+                    tx.status === 'voided' ? 'bg-red-100 text-red-600' :
+                    tx.status === 'refunded' ? 'bg-amber-100 text-amber-600' :
+                    tx.status === 'returned' ? 'bg-blue-100 text-blue-600' :
+                    tx.status === 'partial_return' ? 'bg-purple-100 text-purple-600' :
+                    'bg-emerald-100 text-emerald-600';
+
+                  return (
+                    <div key={tx.id} className="border border-zinc-100 rounded-lg">
+                      <div className="flex justify-between items-start py-3 px-3 cursor-pointer hover:bg-zinc-50 transition" onClick={() => setExpandedTxId(isExpanded ? null : tx.id)}>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-[11px] font-bold text-zinc-900">{new Date(tx.created_at).toLocaleDateString()}</p>
+                            {isExpanded && <ChevronUp size={14} className="text-zinc-400" />}
+                            {!isExpanded && <ChevronDown size={14} className="text-zinc-400" />}
+                          </div>
+                          <p className="text-[9px] text-zinc-400 font-mono">{tx.id.slice(0, 8).toUpperCase()} · {tx.method}</p>
+                          <p className="text-[9px] text-zinc-400">{(tx.items || []).length} item(s)</p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-xs font-black ${tx.total_amount < 0 ? 'text-red-600' : 'text-zinc-900'}`}>
+                            ${Number(tx.total_amount).toFixed(2)}
+                          </p>
+                          <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${statusBg}`}>
+                            {tx.status === 'returned' ? 'RETURNED' :
+                             tx.status === 'partial_return' ? 'PARTIAL RETURN' :
+                             tx.status || 'COMPLETED'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Expanded details */}
+                      {isExpanded && (
+                        <div className="border-t border-zinc-100 px-3 py-3 bg-zinc-50 space-y-3">
+                          {/* Return summary if exists */}
+                          {hasReturn && (
+                            <div className="p-3 bg-blue-50 rounded border border-blue-100 text-[9px]">
+                              <p className="font-bold text-blue-900 mb-1">Return Details</p>
+                              <p className="text-blue-700">Refund Method: {hasReturn.refund_method === 'store-credit' ? 'Store Credit' : 'Original Payment'}</p>
+                              <p className="text-blue-700">Amount: ${Number(hasReturn.refund_amount).toFixed(2)}</p>
+                              <p className="text-blue-700">Date: {new Date(hasReturn.created_at).toLocaleDateString()}</p>
+                              <p className="text-blue-700">Items: {(hasReturn.items || []).length} returned</p>
+                            </div>
+                          )}
+
+                          {/* Action buttons */}
+                          {tx.status === 'completed' && !hasReturn && (
+                            <button
+                              onClick={() => openReturnsModal(tx.id)}
+                              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-black uppercase transition"
+                            >
+                              <Undo2 size={12} /> Process Return
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className="text-right">
-                      <p className={`text-xs font-black ${tx.total_amount < 0 ? 'text-red-600' : 'text-zinc-900'}`}>
-                        ${Number(tx.total_amount).toFixed(2)}
-                      </p>
-                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
-                        tx.status === 'voided' ? 'bg-red-100 text-red-600' :
-                        tx.status === 'refunded' ? 'bg-amber-100 text-amber-600' :
-                        'bg-emerald-100 text-emerald-600'
-                      }`}>{tx.status || 'completed'}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
+
+        {/* Returns Modal */}
+        {selected && (
+          <ReturnsModal
+            isOpen={showReturnsModal}
+            onClose={() => setShowReturnsModal(false)}
+            prefilledTransactionId={returnsTransactionId || undefined}
+            prefilledCustomerId={selected.id}
+            onComplete={handleReturnsComplete}
+          />
+        )}
       </div>
     );
   }

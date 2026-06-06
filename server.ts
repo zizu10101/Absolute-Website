@@ -1525,6 +1525,127 @@ async function startServer() {
     }
   });
 
+  // --- RETURNS ---
+
+  app.post("/api/returns", async (req, res) => {
+    const admin = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { transactionId, returnItems, refundAmount, storeCreditAmount, originalPaymentMethod, customerId } = req.body;
+
+    if (!transactionId || !Array.isArray(returnItems)) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+      console.log("🔄 Processing return:", { transactionId, refundAmount, storeCreditAmount });
+
+      // 1. Create return record
+      const { data: returnRecord, error: returnError } = await admin
+        .from("returns")
+        .insert({
+          transaction_id: transactionId,
+          refund_amount: refundAmount,
+          store_credit_amount: storeCreditAmount,
+          items: returnItems,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (returnError) throw returnError;
+      console.log("✅ Return record created:", returnRecord.id);
+
+      // 2. Restore inventory
+      const { data: originalTx } = await admin
+        .from("transactions")
+        .select("items")
+        .eq("id", transactionId)
+        .single();
+
+      if (originalTx?.items) {
+        for (const returnItem of returnItems) {
+          const origItem = originalTx.items.find((i: any) => i.name === returnItem.name);
+          if (origItem?.variantId) {
+            const { data: variant } = await admin
+              .from("product_variants")
+              .select("stock_quantity")
+              .eq("id", origItem.variantId)
+              .single();
+
+            if (variant) {
+              const newQty = (variant.stock_quantity || 0) + returnItem.quantity;
+              await admin
+                .from("product_variants")
+                .update({ stock_quantity: newQty })
+                .eq("id", origItem.variantId);
+
+              console.log(`✅ Restored ${returnItem.quantity} units of ${returnItem.name}`);
+            }
+          }
+        }
+      }
+
+      // 3. Issue store credit if needed
+      if (storeCreditAmount > 0 && customerId) {
+        const { data: scRecord } = await admin
+          .from("store_credits")
+          .insert({
+            customer_id: customerId,
+            amount: storeCreditAmount,
+            remaining_balance: storeCreditAmount,
+            reason: "Return",
+            is_active: true,
+            created_at: new Date().toISOString(),
+            reference_transaction_id: transactionId,
+          })
+          .select()
+          .single();
+
+        if (scRecord) {
+          await admin.from("store_credit_transactions").insert({
+            store_credit_id: scRecord.id,
+            type: "issued",
+            amount: storeCreditAmount,
+            created_at: new Date().toISOString(),
+            reference_transaction_id: transactionId,
+          });
+
+          console.log(`✅ Store credit issued: $${storeCreditAmount}`);
+        }
+      }
+
+      // 4. Create refund record for audit trail
+      if (refundAmount > 0) {
+        await admin.from("transactions").insert({
+          type: "refund",
+          original_transaction_id: transactionId,
+          method: originalPaymentMethod,
+          total_amount: refundAmount,
+          customer_id: customerId,
+          items: returnItems,
+          created_at: new Date().toISOString(),
+          status: "completed",
+        });
+
+        console.log(`✅ Refund record created: $${refundAmount} to ${originalPaymentMethod}`);
+      }
+
+      return res.status(200).json({
+        success: true,
+        returnId: returnRecord.id,
+        refundAmount,
+        storeCreditAmount,
+        message: `Return processed. Refund: $${refundAmount.toFixed(2)}, Store Credit: $${storeCreditAmount.toFixed(2)}`,
+      });
+    } catch (err: any) {
+      console.error("❌ Return processing error:", err);
+      return res.status(500).json({ error: err.message || "Failed to process return" });
+    }
+  });
+
   // --- VITE & STATIC ---
 
   if (!isProduction) {

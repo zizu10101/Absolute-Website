@@ -424,6 +424,10 @@ export function POSPage() {
         items: cartItemsPayload,
         customer_id: selectedCustomerId?.trim() || null,
         created_at: new Date().toISOString(),
+        subtotal: Number(subtotal.toFixed(2)),
+        hst: Number(hst.toFixed(2)),
+        isTaxExempt,
+        discount,
       };
 
       // Add cash-specific fields (use amount after gift card and store credit)
@@ -1471,6 +1475,16 @@ export function POSPage() {
           }`}
         >
           💳 Gift Cards
+        </button>
+        <button
+          onClick={() => setPosTab('sc')}
+          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
+            posTab === 'sc'
+              ? 'bg-[#b90014] text-white'
+              : 'bg-[#2d3547] text-gray-400 hover:text-white'
+          }`}
+        >
+          🎟 Store Credit
         </button>
       </div>
     </div>

@@ -108,6 +108,14 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     .transaction-info div {
       margin: 2px 0;
     }
+    .barcode-container {
+      text-align: center;
+      margin: 6px 0;
+    }
+    .barcode-container svg {
+      max-width: 100%;
+      height: auto;
+    }
     .items-section {
       margin: 6px 0;
     }
@@ -169,6 +177,13 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
 
     <div class="divider"></div>
 
+    <!-- Barcode -->
+    <div class="barcode-container">
+      <svg id="barcode"></svg>
+    </div>
+
+    <div class="divider"></div>
+
     <!-- Transaction Details -->
     <div class="transaction-info">
       <div><strong>ID:</strong> ${data.transactionId.slice(0, 8).toUpperCase()}</div>
@@ -213,8 +228,23 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <script>
     window.addEventListener('load', () => {
+      try {
+        // Generate barcode
+        if (typeof JsBarcode !== 'undefined') {
+          JsBarcode("#barcode", "${data.transactionId}", {
+            format: "CODE128",
+            width: 1.5,
+            height: 40,
+            displayValue: false,
+            margin: 0
+          });
+        }
+      } catch (e) {
+        console.error('Barcode generation failed:', e);
+      }
       setTimeout(() => window.print(), 100);
     });
   </script>
