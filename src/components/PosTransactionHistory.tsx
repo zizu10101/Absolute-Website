@@ -3,13 +3,14 @@ import Barcode from 'react-barcode';
 import { useCustomers } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
 import { generateThermalReceiptHTML } from '../utils/thermalReceipt';
+import { ReturnsModal } from './ReturnsModal';
 import {
   Search, ChevronDown, ChevronUp, Printer,
-  RotateCcw, CheckCircle2, XCircle, AlertTriangle, RefreshCw,
+  RotateCcw, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Undo2,
 } from 'lucide-react';
 
 type DateFilter = 'today' | 'week' | 'month' | 'year' | 'all';
-type StatusFilter = 'all' | 'completed' | 'voided' | 'refunded';
+type StatusFilter = 'all' | 'completed' | 'voided' | 'refunded' | 'returned' | 'partial_return';
 
 interface Transaction {
   id: string;
@@ -43,6 +44,8 @@ export const PosTransactionHistory: React.FC = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showReturnsModal, setShowReturnsModal] = useState(false);
+  const [returnsTransactionId, setReturnsTransactionId] = useState<string | null>(null);
 
   // Filters
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
@@ -181,6 +184,16 @@ export const PosTransactionHistory: React.FC = () => {
     } catch (e: any) { flash(e.message, true); }
   };
 
+  const openReturnsModal = (txId: string) => {
+    setReturnsTransactionId(txId);
+    setShowReturnsModal(true);
+  };
+
+  const handleReturnsComplete = () => {
+    setShowReturnsModal(false);
+    fetchTransactions();
+  };
+
   const handlePrint = (tx: Transaction) => {
     const customerName = getCustomerName(tx);
 
@@ -219,6 +232,8 @@ export const PosTransactionHistory: React.FC = () => {
       completed: 'bg-emerald-100 text-emerald-700',
       voided: 'bg-red-100 text-red-700',
       refunded: 'bg-amber-100 text-amber-700',
+      returned: 'bg-blue-100 text-blue-700',
+      partial_return: 'bg-purple-100 text-purple-700',
     };
     return `inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${map[status] || 'bg-zinc-100 text-zinc-600'}`;
   };
@@ -269,10 +284,10 @@ export const PosTransactionHistory: React.FC = () => {
 
           {/* Status */}
           <div className="flex gap-1">
-            {(['all','completed','voided','refunded'] as StatusFilter[]).map(s => (
+            {(['all','completed','voided','refunded','returned','partial_return'] as StatusFilter[]).map(s => (
               <button key={s} onClick={() => setStatusFilter(s)}
                 className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wide transition-colors ${statusFilter === s ? 'bg-zinc-950 text-white' : 'bg-white border border-zinc-200 text-zinc-600 hover:border-zinc-400'}`}>
-                {s}
+                {s === 'partial_return' ? 'Partial' : s}
               </button>
             ))}
           </div>
@@ -306,6 +321,7 @@ export const PosTransactionHistory: React.FC = () => {
           const customerName = getCustomerName(tx);
           const canVoid = tx.status === 'completed';
           const canRefund = tx.status === 'completed';
+          const canReturn = tx.status === 'completed';
 
           return (
             <div key={tx.id} className={`bg-white rounded-xl border transition-all ${expanded ? 'border-zinc-300 shadow-md' : 'border-zinc-100 hover:border-zinc-200'}`}>
@@ -385,11 +401,25 @@ export const PosTransactionHistory: React.FC = () => {
                         <RotateCcw size={12} /> Refund
                       </button>
                     )}
+                    {canReturn && (
+                      <button
+                        onClick={() => openReturnsModal(tx.id)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-[10px] font-black uppercase tracking-wide hover:bg-blue-700 transition-colors"
+                      >
+                        <Undo2 size={12} /> Return
+                      </button>
+                    )}
                     {tx.status === 'voided' && (
                       <span className="text-[10px] text-red-500 font-bold self-center">Voided — no further action</span>
                     )}
                     {tx.status === 'refunded' && (
                       <span className="text-[10px] text-amber-600 font-bold self-center">Already refunded</span>
+                    )}
+                    {tx.status === 'returned' && (
+                      <span className="text-[10px] text-blue-600 font-bold self-center">Fully returned</span>
+                    )}
+                    {tx.status === 'partial_return' && (
+                      <span className="text-[10px] text-purple-600 font-bold self-center">Partially returned</span>
                     )}
                   </div>
                 </div>
@@ -398,6 +428,17 @@ export const PosTransactionHistory: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Returns Modal */}
+      {returnsTransactionId && (
+        <ReturnsModal
+          isOpen={showReturnsModal}
+          onClose={() => setShowReturnsModal(false)}
+          prefilledTransactionId={returnsTransactionId}
+          prefilledCustomerId={transactions.find(t => t.id === returnsTransactionId)?.customer_id || undefined}
+          onComplete={handleReturnsComplete}
+        />
+      )}
     </div>
   );
 };
