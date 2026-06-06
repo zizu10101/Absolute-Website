@@ -252,24 +252,57 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       console.log(`ProductContext: Fetching directly from database for category=${category}, submenu=${submenu}`);
-      let query = supabase.from('products').select('*');
-      if (category && category.toLowerCase() !== 'all') {
-        query = query.ilike('category', category);
-      }
-      if (submenu) {
-        query = query.or(`submenu.ilike.${submenu.toLowerCase()},submenus.cs.{${submenu.toLowerCase()}}`);
-      }
-      const { data, error } = await query.order('name');
-      
+
+      // Normalize the same way ProductGridPage does
+      const normalize = (s: string) => s.trim().toLowerCase().replace(/-/g, ' ');
+      const normalizedCategory = category ? normalize(category) : null;
+      const normalizedSubmenu = submenu ? normalize(submenu) : null;
+
+      // Fetch ALL products without filters, then filter client-side with proper normalization
+      const { data, error } = await supabase.from('products').select('*').order('name');
+
       if (error) throw error;
-      
+
       if (data) {
-        const freshMapped = data.map(mapProductFromDb);
+        console.log(`🔍 ProductContext: Fetched ${data.length} total products from Supabase`);
+        let filtered = data;
+
+        // Apply category filter client-side with proper normalization
+        if (normalizedCategory && normalizedCategory !== 'all') {
+          const beforeCategory = filtered.length;
+          filtered = filtered.filter(p => {
+            const productCat = (p.category || '').trim().toLowerCase().replace(/-/g, ' ');
+            const matches = productCat === normalizedCategory;
+            if (matches) console.log(`  ✅ Product "${p.name}" matches category "${normalizedCategory}"`);
+            return matches;
+          });
+          console.log(`📁 ProductContext: Filtered by category="${category}" (normalized: "${normalizedCategory}"), ${beforeCategory} → ${filtered.length} products`);
+        }
+
+        // Apply submenu filter client-side with proper normalization
+        if (normalizedSubmenu) {
+          const beforeSubmenu = filtered.length;
+          filtered = filtered.filter(p => {
+            const productSubmenu = p.submenu ? normalize(p.submenu) : null;
+            const hasLegacyMatch = productSubmenu === normalizedSubmenu;
+            const hasArrayMatch = Array.isArray(p.submenus) && p.submenus.some(s => normalize(s) === normalizedSubmenu);
+            const matches = hasLegacyMatch || hasArrayMatch;
+            if (matches) console.log(`  ✅ Product "${p.name}" matches submenu "${normalizedSubmenu}" (submenu: "${p.submenu}", submenus: ${JSON.stringify(p.submenus)})`);
+            return matches;
+          });
+          console.log(`🏷️ ProductContext: Filtered by submenu="${submenu}" (normalized: "${normalizedSubmenu}"), ${beforeSubmenu} → ${filtered.length} products`);
+        }
+
+        console.log(`✨ ProductContext: Final result: ${filtered.length} products to display`);
+
+        const freshMapped = filtered.map(mapProductFromDb);
         setProducts(prev => {
           const productMap = new Map(prev.map(p => [p.id, p]));
           freshMapped.forEach(p => productMap.set(p.id, p));
           return Array.from(productMap.values());
         });
+      } else {
+        console.log(`⚠️ ProductContext: No data returned from Supabase!`);
       }
     } catch (e) {
       console.warn('Direct Supabase fetch failed, trying API route as fallback:', e);
@@ -278,17 +311,17 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         if (category && category.toLowerCase() !== 'all') params.append('category', category);
         if (submenu) params.append('submenu', submenu);
         params.append('fields', LIST_FIELDS);
-        
+
         const response = await fetch(`/api/products?${params.toString()}`);
-        
+
         const contentType = response.headers.get('content-type');
         if (!response.ok || (contentType && contentType.includes('text/html'))) {
           throw new Error('API unavailable');
         }
-        
+
         const result = await response.json();
         const allFetched = result.data || [];
-        
+
         mergeProducts(allFetched);
       } catch (fallbackErr) {
         console.error('API categorized lookup also failed:', fallbackErr);
