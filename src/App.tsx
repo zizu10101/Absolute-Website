@@ -22,6 +22,7 @@ import { CustomizationPage } from './pages/CustomizationPage';
 import { CustomLabPage } from './pages/CustomLabPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ContactUsPage } from './pages/ContactUsPage';
+import { useSEO } from './hooks/useSEO';
 
 function LoadingScreen() {
   return (
@@ -66,7 +67,8 @@ function AppContent() {
 }
 
 function AppRoutes() {
-  const { navigationMenus } = useSettings();
+  const { navigationMenus, seoSettings } = useSettings();
+  useSEO(seoSettings);
 
   return (
     <>
