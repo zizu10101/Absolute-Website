@@ -11,6 +11,7 @@ import { PosCustomerManager } from '../components/PosCustomerManager';
 import { POSPinEntry } from '../components/POSPinEntry';
 import { PosDiscountModal } from '../components/PosDiscountModal';
 import { GiftCardTab } from '../components/GiftCardTab';
+import { StoreCreditsTab } from '../components/StoreCreditsTab';
 import { usePOSCart, CartItem } from '../hooks/usePOSCart';
 import { useCustomers, Customer } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
@@ -41,7 +42,7 @@ export function POSPage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   // Panels
-  const [posTab, setPosTab] = useState<'register' | 'history' | 'customers' | 'gc'>('register');
+  const [posTab, setPosTab] = useState<'register' | 'history' | 'customers' | 'gc' | 'sc'>('register');
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -808,9 +809,12 @@ export function POSPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               <button onClick={() => setPosTab('gc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
                 💳 GC
+              </button>
+              <button onClick={() => setPosTab('sc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
+                🎟 SC
               </button>
               <button onClick={() => setShowDiscountModal(true)} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
                 <Percent size={14} /> Disc
@@ -885,6 +889,15 @@ export function POSPage() {
               cartTotal={grandTotal}
               cartHasItems={cart.length > 0}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Store Credits Tab Content */}
+      {posTab === 'sc' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-auto p-4">
+            <StoreCreditsTab />
           </div>
         </div>
       )}
