@@ -273,8 +273,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
             remaining_balance: amounts.total,
             reason: 'Product Return',
             is_active: true,
-            transaction_id: transaction.id,
-            created_at: new Date().toISOString(),
           })
           .select()
           .single();
@@ -282,10 +280,8 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         if (scRecord) {
           await supabase.from('store_credit_transactions').insert({
             store_credit_id: scRecord.id,
-            transaction_id: transaction.id,
             amount: amounts.total,
             transaction_type: 'issued',
-            created_at: new Date().toISOString(),
           });
         }
 
