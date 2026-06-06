@@ -205,6 +205,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     setError(null);
 
     try {
+      console.log('🔄 [Returns] Starting return processing...');
       const selectedItems = getSelectedItems();
       if (selectedItems.length === 0) {
         setError('No items selected for return');
@@ -212,15 +213,19 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         return;
       }
 
+      console.log('✅ [Returns] Selected items:', selectedItems);
       const amounts = calculateReturnAmount();
+      console.log('✅ [Returns] Calculated amounts:', amounts);
 
       // Determine if full or partial return
       const totalOriginalQty = returnItems.reduce((sum, item) => sum + item.originalQuantity, 0);
       const totalReturnedQty = selectedItems.reduce((sum, item) => sum + item.returnQuantity, 0);
       const isFullReturn = totalReturnedQty === totalOriginalQty;
       const newTransactionStatus = isFullReturn ? 'returned' : 'partial_return';
+      console.log('✅ [Returns] Status will be:', newTransactionStatus);
 
       // 1. Create return record
+      console.log('🔄 [Returns] Creating return record...');
       const { data: returnRecord, error: returnError } = await supabase
         .from('returns')
         .insert({
@@ -235,15 +240,23 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         .select()
         .single();
 
-      if (returnError) throw returnError;
+      if (returnError) {
+        console.error('❌ [Returns] Error creating return record:', returnError);
+        throw returnError;
+      }
+      console.log('✅ [Returns] Return record created:', returnRecord.id);
 
       // Update transaction status
-      await supabase
+      console.log('🔄 [Returns] Updating transaction status...');
+      const { error: statusError } = await supabase
         .from('transactions')
         .update({ status: newTransactionStatus })
         .eq('id', transaction.id);
+      if (statusError) console.error('⚠️ [Returns] Error updating status:', statusError);
+      else console.log('✅ [Returns] Transaction status updated');
 
       // 2. Restore inventory
+      console.log('🔄 [Returns] Restoring inventory...');
       for (const item of selectedItems) {
         if (item.variantId) {
           const { data: variant } = await supabase
@@ -258,14 +271,17 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
               .from('product_variants')
               .update({ stock_quantity: newQty })
               .eq('id', item.variantId);
+            console.log(`✅ [Returns] Restored ${item.returnQuantity} units of ${item.name}`);
           }
         }
       }
 
       // 3. Process refund based on method
+      console.log('🔄 [Returns] Processing refund method:', refundMethod);
       if (refundMethod === 'store-credit') {
         // Issue store credit
-        const { data: scRecord } = await supabase
+        console.log('🔄 [Returns] Creating store credit for customer:', transaction.customer_id);
+        const { data: scRecord, error: scError } = await supabase
           .from('store_credits')
           .insert({
             customer_id: transaction.customer_id,
@@ -277,12 +293,21 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           .select()
           .single();
 
+        if (scError) {
+          console.error('❌ [Returns] Error creating store credit:', scError);
+          throw scError;
+        }
+        console.log('✅ [Returns] Store credit created:', scRecord.id);
+
         if (scRecord) {
-          await supabase.from('store_credit_transactions').insert({
+          console.log('🔄 [Returns] Creating store credit transaction...');
+          const { error: txError } = await supabase.from('store_credit_transactions').insert({
             store_credit_id: scRecord.id,
             amount: amounts.total,
             transaction_type: 'issued',
           });
+          if (txError) console.error('⚠️ [Returns] Error creating SC transaction:', txError);
+          else console.log('✅ [Returns] Store credit transaction recorded');
         }
 
         setCompletionData({
@@ -348,8 +373,10 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         if (onComplete) onComplete();
       }, 1500);
     } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : JSON.stringify(err);
+      console.error('❌ [Returns] ERROR:', errorMsg);
+      console.error('❌ [Returns] Full error object:', err);
       setError(err instanceof Error ? err.message : 'Error processing return');
-      console.error(err);
     } finally {
       setProcessing(false);
     }
