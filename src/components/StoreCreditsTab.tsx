@@ -65,6 +65,9 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
   useEffect(() => {
     if (activeTab === 'history') {
       fetchStoreCredits();
+      // Auto-refresh every 3 seconds when history tab is active
+      const interval = setInterval(fetchStoreCredits, 3000);
+      return () => clearInterval(interval);
     }
   }, [activeTab]);
 
