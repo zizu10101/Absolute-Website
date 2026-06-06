@@ -389,7 +389,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       submenus: productData.submenus?.map(s => normalizeString(s))
     };
 
-    // Serialize is_online to submenus properly and strip it out for table schema safety
     const payload = mapProductToDb(normalizedData);
 
     try {
@@ -408,35 +407,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       await fetchAdminProducts();
       return mapped;
     } catch (e: any) {
-      console.warn('API add product failed:', e);
-      if (e.message?.includes('RLS') || e.message?.includes('row-level security')) {
-        throw e;
-      }
-      try {
-        console.log('Trying direct Supabase fallback...');
-        const allowedColumns = [
-          'name', 'price', 'category', 'submenu', 'submenus', 'image', 'images', 
-          'description', 'isNewArrival', 'isOnSale', 'isFeatured', 'salePrice', 'colors', 'is_online', 'show_sizes', 'release_date'
-        ];
-        const cleanPayload: any = {};
-        for (const col of allowedColumns) {
-          if (payload[col] !== undefined) {
-            cleanPayload[col] = payload[col];
-          }
-        }
-        const { data, error } = await supabase.from('products').insert([cleanPayload]).select();
-        if (error) throw error;
-        const insertedProduct = data && data.length > 0 ? data[0] : null;
-        if (insertedProduct) {
-          const mapped = mapProductFromDb(insertedProduct as Product);
-          setProducts(prev => [...prev, mapped]);
-          await fetchAdminProducts();
-          return mapped;
-        }
-      } catch (supErr: any) {
-        console.error('Direct Supabase add product also failed:', supErr);
-        throw supErr;
-      }
+      console.error('Add product failed:', e);
+      throw e;
     }
   };
 
@@ -445,58 +417,46 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProduct = async (product: Product) => {
+    const { id, ...rest } = product as any;
+
+    const payload: any = {
+      name: rest.name,
+      price: rest.price,
+      category: rest.category,
+      submenu: rest.submenu,
+      submenus: rest.submenus,
+      image: rest.image,
+      images: rest.images,
+      description: rest.description,
+      isNewArrival: rest.isNewArrival,
+      isOnSale: rest.isOnSale,
+      isFeatured: rest.isFeatured,
+      salePrice: rest.salePrice,
+      colors: rest.colors,
+      show_sizes: rest.showSizes,
+      is_online: rest.is_online,
+      release_date: rest.release_date || null
+    };
+
+    Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+
     try {
-      if (supabase) {
-        const { id, ...rest } = product as any;
-        
-        const payload: any = {
-          name: rest.name,
-          price: rest.price,
-          category: rest.category,
-          submenu: rest.submenu,
-          submenus: rest.submenus,
-          image: rest.image,
-          images: rest.images,
-          description: rest.description,
-          isNewArrival: rest.isNewArrival,
-          isOnSale: rest.isOnSale,
-          isFeatured: rest.isFeatured,
-          salePrice: rest.salePrice,
-          colors: rest.colors,
-          show_sizes: rest.showSizes,
-          is_online: rest.is_online,
-          release_date: rest.release_date || null
-        };
-
-        // Remove undefined values
-        Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
-
-        const { error } = await supabase
-          .from('products')
-          .update(payload)
-          .eq('id', id);
-
-        if (error) throw error;
-
-        // Force fresh fetch from Supabase to get the actual saved data
-        const { data: fresh, error: fetchErr } = await supabase
-          .from('products')
-          .select('*')
-          .eq('id', id)
-          .single();
-
-        if (!fetchErr && fresh) {
-          const mapped = mapProductFromDb(fresh);
-          setProducts(prev => prev.map(p => p.id === id ? mapped : p));
-        } else {
-          setProducts(prev => prev.map(p => p.id === id ? { ...p, ...product } : p));
-        }
-
-        clearProductCache();
-        return product;
+      const response = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const errPayload = await response.json().catch(() => ({}));
+        throw new Error(errPayload.message || errPayload.error || `API failed: ${response.status}`);
       }
+      const updatedProduct = await response.json();
+      const mapped = mapProductFromDb(updatedProduct);
+      setProducts(prev => prev.map(p => p.id === id ? mapped : p));
+      clearProductCache();
+      return mapped;
     } catch (err: any) {
-      console.error('Direct Supabase update failed:', err);
+      console.error('Update product failed:', err);
       throw err;
     }
   };
@@ -514,21 +474,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
       console.log(`Product ${id} deleted successfully via API`);
     } catch (e: any) {
-      console.warn('API delete product failed:', e);
-      if (e.message?.includes('RLS') || e.message?.includes('row-level security')) {
-        // Restore product list if we can't delete due to permissions
-        await fetchAdminProducts();
-        throw e;
-      }
-      try {
-        console.log('Trying direct Supabase fallback...');
-        const { error } = await supabase.from('products').delete().eq('id', id);
-        if (error) throw error;
-      } catch (supErr: any) {
-        console.error('Direct Supabase delete product also failed:', supErr);
-        await fetchAdminProducts();
-        throw supErr;
-      }
+      console.error('Delete product failed:', e);
+      // Restore product list on failure
+      await fetchAdminProducts();
+      throw e;
     }
   };
 
