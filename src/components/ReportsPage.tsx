@@ -11,8 +11,9 @@ import { ProductReport } from './reports/ProductReport';
 import { GiftCardReport } from './reports/GiftCardReport';
 import { CustomerReport } from './reports/CustomerReport';
 import { VoidRefundReport } from './reports/VoidRefundReport';
+import { StoreCreditReport } from './reports/StoreCreditReport';
 
-type ReportTab = 'eod' | 'sales' | 'product' | 'gift-card' | 'customer' | 'void-refund';
+type ReportTab = 'eod' | 'sales' | 'product' | 'gift-card' | 'customer' | 'void-refund' | 'store-credit';
 
 export const ReportsPage: React.FC = () => {
   const { logo } = useSettings();
@@ -24,6 +25,7 @@ export const ReportsPage: React.FC = () => {
     { id: 'sales', label: 'Sales Report', icon: TrendingUp },
     { id: 'product', label: 'Products', icon: Package },
     { id: 'gift-card', label: 'Gift Cards', icon: Gift },
+    { id: 'store-credit', label: 'Store Credit', icon: DollarSign },
     { id: 'void-refund', label: 'Voids/Refunds', icon: RotateCcw },
     { id: 'customer', label: 'Customers', icon: Users },
   ] as const;
@@ -68,6 +70,7 @@ export const ReportsPage: React.FC = () => {
         {activeTab === 'sales' && <SalesReport logo={logo} />}
         {activeTab === 'product' && <ProductReport logo={logo} />}
         {activeTab === 'gift-card' && <GiftCardReport logo={logo} />}
+        {activeTab === 'store-credit' && <StoreCreditReport />}
         {activeTab === 'void-refund' && <VoidRefundReport logo={logo} />}
         {activeTab === 'customer' && <CustomerReport logo={logo} />}
       </div>

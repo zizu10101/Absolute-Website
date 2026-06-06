@@ -35,6 +35,8 @@ interface Receipt {
   changeGiven?: number;
   giftCardAmount?: number;
   giftCardNumber?: string;
+  storeCreditAmount?: number;
+  storeCreditId?: string;
 }
 
 export function POSPage() {
@@ -49,6 +51,12 @@ export function POSPage() {
 
   // Gift card payment tracking
   const [selectedGiftCard, setSelectedGiftCard] = useState<{ cardNumber: string; amount: number } | null>(null);
+
+  // Store credit payment tracking
+  const [selectedStoreCredit, setSelectedStoreCredit] = useState<{ id: string; amount: number; balance: number } | null>(null);
+  const [availableStoreCredits, setAvailableStoreCredits] = useState<any[]>([]);
+  const [showStoreCreditModal, setShowStoreCreditModal] = useState(false);
+  const [storeCreditError, setStoreCreditError] = useState<string | null>(null);
 
   // POS State
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
@@ -355,6 +363,38 @@ export function POSPage() {
       return;
     }
 
+    // For Store Credit, fetch available credits and show selection modal
+    if (method === 'Store Credit') {
+      if (!selectedCustomerId) {
+        alert('Please select a customer first');
+        return;
+      }
+
+      try {
+        const { data: credits, error } = await supabase
+          .from('store_credits')
+          .select('*')
+          .eq('customer_id', selectedCustomerId)
+          .eq('is_active', true)
+          .gt('remaining_balance', 0)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!credits || credits.length === 0) {
+          alert('No store credits available for this customer');
+          return;
+        }
+
+        setAvailableStoreCredits(credits);
+        setShowStoreCreditModal(true);
+        return;
+      } catch (err: any) {
+        alert('Error fetching store credits: ' + err.message);
+        return;
+      }
+    }
+
     // Non-cash methods proceed directly to payment
     await processPayment(method);
   };
@@ -368,23 +408,27 @@ export function POSPage() {
     }));
 
     try {
-      // Calculate actual amount to charge after gift card is applied
-      const amountAfterGiftCard = selectedGiftCard
+      // Calculate actual amount to charge after gift card and store credit are applied
+      let amountAfterGiftCard = selectedGiftCard
         ? Math.max(0, grandTotal - selectedGiftCard.amount)
         : grandTotal;
 
+      let amountAfterStoreCredit = selectedStoreCredit
+        ? Math.max(0, amountAfterGiftCard - selectedStoreCredit.amount)
+        : amountAfterGiftCard;
+
       const payload: any = {
-        total_amount: Number(amountAfterGiftCard.toFixed(2)),
+        total_amount: Number(amountAfterStoreCredit.toFixed(2)),
         method,
         items: cartItemsPayload,
         customer_id: selectedCustomerId?.trim() || null,
         created_at: new Date().toISOString(),
       };
 
-      // Add cash-specific fields (use amount after gift card)
+      // Add cash-specific fields (use amount after gift card and store credit)
       if (method === 'Cash' && tenderedAmount !== undefined) {
         payload.tendered_amount = Number(tenderedAmount.toFixed(2));
-        payload.change_given = Number((tenderedAmount - amountAfterGiftCard).toFixed(2));
+        payload.change_given = Number((tenderedAmount - amountAfterStoreCredit).toFixed(2));
       }
 
       const res = await fetch('/api/transactions', {
@@ -422,14 +466,16 @@ export function POSPage() {
         items: [...cart],
         subtotal,
         hst,
-        total: amountAfterGiftCard,
+        total: amountAfterStoreCredit,
         isTaxExempt,
         customer: safeCustomers.find(c => c.id === selectedCustomerId),
         time: new Date().toLocaleString(),
         tenderedAmount,
-        changeGiven: tenderedAmount !== undefined ? tenderedAmount - amountAfterGiftCard : undefined,
+        changeGiven: tenderedAmount !== undefined ? tenderedAmount - amountAfterStoreCredit : undefined,
         giftCardAmount: selectedGiftCard?.amount,
         giftCardNumber: selectedGiftCard?.cardNumber,
+        storeCreditAmount: selectedStoreCredit?.amount,
+        storeCreditId: selectedStoreCredit?.id,
       });
 
       // Close cash calculator if it was open
@@ -468,6 +514,49 @@ export function POSPage() {
           // Don't fail the transaction if gift card redemption fails
         }
       }
+
+      // Process store credit redemption AFTER transaction is confirmed
+      if (selectedStoreCredit && method === 'Store Credit') {
+        try {
+          console.log('🎟 Processing store credit redemption after transaction:', {
+            creditId: selectedStoreCredit.id,
+            amount: selectedStoreCredit.amount,
+            transactionId: result?.data?.[0]?.id,
+          });
+
+          const newBalance = Math.max(0, selectedStoreCredit.balance - selectedStoreCredit.amount);
+
+          // Update store credit balance
+          const { error: updateError } = await supabase
+            .from('store_credits')
+            .update({
+              remaining_balance: newBalance,
+              is_active: newBalance > 0,
+            })
+            .eq('id', selectedStoreCredit.id);
+
+          if (updateError) throw updateError;
+
+          // Insert transaction record
+          const { error: txError } = await supabase
+            .from('store_credit_transactions')
+            .insert([
+              {
+                store_credit_id: selectedStoreCredit.id,
+                transaction_id: result?.data?.[0]?.id,
+                amount: -selectedStoreCredit.amount,
+                transaction_type: 'redeemed',
+              },
+            ]);
+
+          if (txError) throw txError;
+
+          console.log('✅ Store credit successfully redeemed');
+        } catch (err: any) {
+          console.error('⚠️ Store credit redemption warning:', err);
+          // Don't fail the transaction if store credit redemption fails
+        }
+      }
     } catch (e: any) {
       console.error('Checkout error:', e);
       alert('Checkout failed: ' + e.message);
@@ -484,6 +573,8 @@ export function POSPage() {
     setShowCheckout(false);
     setReceipt(null);
     setSelectedGiftCard(null);
+    setSelectedStoreCredit(null);
+    setShowStoreCreditModal(false);
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
@@ -973,6 +1064,9 @@ export function POSPage() {
                       {receipt.giftCardAmount && receipt.giftCardAmount > 0 && (
                         <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span>💳 Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
                       )}
+                      {receipt.storeCreditAmount && receipt.storeCreditAmount > 0 && (
+                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>🎟 Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
+                      )}
                       {receipt.method === 'Cash' && receipt.tenderedAmount !== undefined && (
                         <>
                           <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300"><span>Cash Received</span><span>${receipt.tenderedAmount.toFixed(2)}</span></div>
@@ -1066,6 +1160,17 @@ export function POSPage() {
                     >
                       💳 Redeem Gift Card
                     </button>
+
+                    <button
+                      onClick={() => {
+                        setShowCheckout(false);
+                        setPosTab('sc');
+                      }}
+                      disabled={isConfirming}
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
+                    >
+                      🎟 Redeem Store Credit
+                    </button>
                   </div>
 
                   {/* Cash Calculator Modal */}
@@ -1154,6 +1259,66 @@ export function POSPage() {
                               className="flex-1 p-2 bg-[#b90014] hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-xs font-bold uppercase text-white transition-colors"
                             >
                               {isConfirming ? 'Processing...' : 'Complete Sale'}
+                            </button>
+                          </div>
+                        </motion.div>
+                      </div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Store Credit Selection Modal */}
+                  <AnimatePresence>
+                    {showStoreCreditModal && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 rounded-lg">
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a2236] p-6 rounded-lg shadow-2xl w-full max-w-sm space-y-4 border border-[#2d3547]">
+                          <div className="text-center">
+                            <h2 className="text-sm font-black uppercase text-white mb-2">Select Store Credit</h2>
+                            <p className="text-xs text-gray-300">Total Due: <span className="text-[#b90014] text-base">${grandTotal.toFixed(2)}</span></p>
+                          </div>
+
+                          {storeCreditError && (
+                            <div className="p-3 bg-red-900/20 border border-red-600 rounded text-red-400 text-[10px] font-bold">
+                              {storeCreditError}
+                            </div>
+                          )}
+
+                          {/* Available Credits List */}
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {availableStoreCredits.map((credit) => (
+                              <button
+                                key={credit.id}
+                                onClick={() => {
+                                  const amount = Math.min(credit.remaining_balance, grandTotal);
+                                  setSelectedStoreCredit({ id: credit.id, amount, balance: credit.remaining_balance });
+                                  setShowStoreCreditModal(false);
+                                  processPayment('Store Credit');
+                                }}
+                                className="w-full p-3 bg-[#2d3547] hover:bg-[#3d4557] rounded text-left border border-[#3d4557] transition-colors"
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="text-white font-bold text-sm">Credit #{credit.id.slice(0, 8)}</p>
+                                    <p className="text-gray-400 text-xs">{credit.reason}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-white font-bold">${credit.remaining_balance.toFixed(2)}</p>
+                                    <p className="text-gray-400 text-xs">Available</p>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setShowStoreCreditModal(false);
+                                setSelectedStoreCredit(null);
+                              }}
+                              className="flex-1 p-2 bg-[#2d3547] hover:bg-[#3d4557] rounded text-xs font-bold uppercase text-white transition-colors"
+                            >
+                              Cancel
                             </button>
                           </div>
                         </motion.div>
