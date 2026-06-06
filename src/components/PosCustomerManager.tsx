@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useCustomers, Customer } from '../context/CustomerContext';
 import { CustomerGiftCards } from './CustomerGiftCards';
+import { StoreCreditsSection } from './StoreCreditsSection';
 import {
   Search, User, ArrowLeft, Edit2, Save, X, Plus,
   ShoppingBag, DollarSign, Clock, CheckCircle2, AlertTriangle, Check,
@@ -242,6 +243,12 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
 
           {/* Gift Cards */}
           <CustomerGiftCards customerId={selected.id} />
+
+          {/* Store Credits */}
+          <div className="bg-white rounded-xl border border-zinc-100 p-5">
+            <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest mb-3">Store Credits</p>
+            <StoreCreditsSection customerId={selected.id} />
+          </div>
 
           {/* Purchase history */}
           <div className="bg-white rounded-xl border border-zinc-100 p-5">
