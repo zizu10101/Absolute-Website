@@ -13,7 +13,7 @@ import { RapidScanIntakeMatrix } from '../components/RapidScanIntakeMatrix';
 import { GiftCardsAdmin } from '../components/GiftCardsAdmin';
 import { ReportsPage } from '../components/ReportsPage';
 
-type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'tools' | 'gift-cards' | 'reports';
+type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports';
 
 const CATEGORIES = [
   'Footwear',
@@ -2056,20 +2056,6 @@ function AdminPageInner() {
                 </div>
               </div>
               <div className="flex items-center gap-4 mt-4">
-                <button 
-                  onClick={() => syncFromLocal()}
-                  disabled={isRestoringLocal}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#b90014] text-white rounded-lg border border-[#b90014] hover:bg-zinc-900 transition-all text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-red-900/20"
-                >
-                  {isRestoringLocal ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Zap size={14} />} 
-                  {isRestoringLocal ? 'Migrating...' : 'Migrate Real Supabase Data'}
-                </button>
-                <button 
-                  onClick={() => handleReset()}
-                  className="flex items-center gap-2 px-4 py-2 bg-zinc-100 text-zinc-600 rounded-lg border border-zinc-200 hover:bg-zinc-200 transition-all text-[10px] font-bold uppercase tracking-widest"
-                >
-                  <Package size={14} /> Restore All Local JSON Data
-                </button>
                 <button
                   onClick={async () => {
                     if (window.confirm('Reset all settings (slider, logos, menus) to defaults?')) {
@@ -2090,60 +2076,54 @@ function AdminPageInner() {
             </div>
           </div>
           
-          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-zinc-200">
-            <button 
+          <div className="flex flex-wrap gap-1 bg-white p-1 rounded-xl shadow-sm border border-zinc-200">
+            <button
               onClick={() => setActiveTab('slider')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'slider' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'slider' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
             >
-              <ImageIcon size={16} /> Slider
-            </button>
-            <button 
-              onClick={() => setActiveTab('home-layout')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'home-layout' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
-            >
-              <LayoutDashboard size={16} /> Home Layout
-            </button>
-            <button 
-              onClick={() => setActiveTab('navigation')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'navigation' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
-            >
-              <Menu size={16} /> Navigation
-            </button>
-            <button 
-              onClick={() => setActiveTab('footer')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'footer' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
-            >
-              <FileText size={16} /> Footer
-            </button>
-            <button 
-              onClick={() => setActiveTab('products')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'products' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
-            >
-              <Package size={16} /> Products
-            </button>
-            <button 
-              onClick={() => setActiveTab('seo')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'seo' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
-            >
-              <Globe size={16} /> SEO
+              <ImageIcon size={14} /> Slider
             </button>
             <button
-              onClick={() => setActiveTab('tools')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'tools' ? 'bg-[#b90014] text-white shadow-md' : 'text-zinc-500 hover:text-[#b90014] hover:bg-red-50'}`}
+              onClick={() => setActiveTab('home-layout')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'home-layout' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
             >
-              <Zap size={16} /> Database Sync
+              <LayoutDashboard size={14} /> Home Layout
+            </button>
+            <button
+              onClick={() => setActiveTab('navigation')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'navigation' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+            >
+              <Menu size={14} /> Navigation
+            </button>
+            <button
+              onClick={() => setActiveTab('footer')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'footer' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+            >
+              <FileText size={14} /> Footer
+            </button>
+            <button
+              onClick={() => setActiveTab('products')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'products' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+            >
+              <Package size={14} /> Products
+            </button>
+            <button
+              onClick={() => setActiveTab('seo')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'seo' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+            >
+              <Globe size={14} /> SEO
             </button>
             <button
               onClick={() => setActiveTab('gift-cards')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'gift-cards' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'gift-cards' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
             >
-              <CreditCard size={16} /> Gift Cards
+              <CreditCard size={14} /> Gift Cards
             </button>
             <button
               onClick={() => setActiveTab('reports')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all ${activeTab === 'reports' ? 'bg-[#b90014] text-white shadow-md' : 'text-zinc-500 hover:text-[#b90014] hover:bg-red-50'}`}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'reports' ? 'bg-[#b90014] text-white shadow-md' : 'text-zinc-500 hover:text-[#b90014] hover:bg-red-50'}`}
             >
-              <BarChart3 size={16} /> Reports
+              <BarChart3 size={14} /> Reports
             </button>
           </div>
         </div>
@@ -2910,226 +2890,6 @@ function AdminPageInner() {
                           className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all"
                         />
                       </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'tools' && (
-            <motion.div 
-              key="tools"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-8"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Migration Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden flex flex-col">
-                  <div className="p-8 border-b border-zinc-100 bg-[#b90014]/5">
-                    <div className="w-12 h-12 bg-[#b90014] rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg shadow-red-900/20">
-                      <Zap size={24} />
-                    </div>
-                    <h2 className="text-2xl font-black uppercase tracking-tight text-zinc-900 italic">Data <span className="text-[#b90014]">Migration</span></h2>
-                    <p className="text-sm text-zinc-500 mt-2">Move your existing data from local files or Firebase to your new Supabase database.</p>
-                  </div>
-                  <div className="p-8 flex-1 space-y-6">
-                    <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100 flex gap-4">
-                      <div className="p-2 bg-white rounded-lg shadow-sm h-fit">
-                        {dbMode === 'supabase' ? (
-                          <AlertTriangle size={20} className="text-[#b90014]" />
-                        ) : (
-                          <AlertCircle size={20} className="text-amber-500" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-zinc-900 uppercase tracking-widest leading-relaxed">
-                          Database Status: <span className={dbMode === 'supabase' ? 'text-green-600' : 'text-amber-600'}>{dbMode.toUpperCase()}</span>
-                        </p>
-                        <p className="text-[11px] text-zinc-500 mt-1 leading-relaxed">
-                          {dbMode === 'fallback' 
-                            ? "Server is currently using local backup files because Supabase is not configured or reachable. Run migration to sync to Supabase."
-                            : "Server is connected to Supabase. You can sync or re-migrate your local data at any time."
-                          }
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col gap-3">
-                      <div className="p-4 bg-red-50 border border-red-100 rounded-xl mb-2">
-                        <p className="text-[10px] font-black uppercase text-[#b90014] mb-2 text-center flex items-center justify-center gap-2">
-                          <Check size={12} /> Supabase Schema Tip
-                        </p>
-                        <p className="text-[9px] text-red-900 leading-relaxed text-center">
-                          If you get errors about "column already exists", it means your table structure is already correct! 
-                          <strong> Do not try to add the column again</strong>. Just hit the "Sync" button below to upload your data.
-                        </p>
-                      </div>
-
-                      <button 
-                        onClick={() => syncFromLocal(false)}
-                        disabled={isRestoringLocal}
-                        className="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-[#b90014] transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-zinc-900/10 disabled:opacity-50 flex items-center justify-center gap-3"
-                      >
-                        {isRestoringLocal ? (
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <Zap size={16} />
-                        )}
-                        {isRestoringLocal ? 'Migrating Data...' : 'Sync Local Data (Incremental)'}
-                      </button>
-
-                      <button 
-                        onClick={() => syncFromLocal(true)}
-                        disabled={isRestoringLocal}
-                        className="w-full py-3 border-2 border-zinc-900 text-zinc-900 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-zinc-900 hover:text-white transition-all disabled:opacity-50 flex items-center justify-center gap-3"
-                      >
-                        <Trash2 size={14} />
-                        Clear & Full Re-Migration
-                      </button>
-                    </div>
-                    
-                    {localRestoreStatus === 'success' && (
-                      <p className="text-[10px] text-green-600 font-bold uppercase tracking-widest text-center animate-bounce">
-                        Migration Successful! Database is now synced.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Backup Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden flex flex-col">
-                  <div className="p-8 border-b border-zinc-100 bg-zinc-50">
-                    <div className="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg shadow-zinc-900/10">
-                      <Download size={24} />
-                    </div>
-                    <h2 className="text-2xl font-black uppercase tracking-tight text-zinc-900 italic">Backups <span className="text-zinc-400">& Recovery</span></h2>
-                    <p className="text-sm text-zinc-500 mt-2">Download a full snapshot of your database or restore from a previously saved file.</p>
-                  </div>
-                  <div className="p-8 flex-1 space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <button
-                        onClick={() => pullFromCloud()}
-                        disabled={isPullingCloud}
-                        className="p-4 rounded-xl border border-zinc-200 hover:border-[#b90014] hover:bg-zinc-50 transition-all text-left flex items-center gap-4 disabled:opacity-50"
-                      >
-                        <div className="w-10 h-10 bg-zinc-900 rounded-lg flex items-center justify-center text-white shrink-0 shadow-lg shadow-zinc-900/10">
-                          {isPullingCloud ? (
-                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          ) : (
-                            <CloudDownload size={20} />
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase text-zinc-900 tracking-widest">Pull from Cloud</p>
-                          <p className="text-[9px] text-zinc-500 mt-0.5 leading-relaxed">Update local backups from Supabase</p>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={async () => {
-                          const response = await fetch('/api/admin/local-backup');
-                          const data = await response.json();
-                          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `backup-${new Date().toISOString().split('T')[0]}.json`;
-                          a.click();
-                        }}
-                        className="flex flex-col items-center gap-3 p-6 rounded-2xl border border-zinc-200 hover:border-zinc-400 hover:bg-zinc-50 transition-all text-center group"
-                      >
-                        <div className="p-3 bg-zinc-100 rounded-xl text-zinc-600 group-hover:bg-zinc-900 group-hover:text-white transition-all">
-                          <Download size={20} />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest">Download Snapshot</span>
-                      </button>
-
-                      <label className="flex flex-col items-center gap-3 p-6 rounded-2xl border border-zinc-200 hover:border-zinc-400 hover:bg-zinc-50 transition-all text-center group cursor-pointer">
-                        <div className={`p-3 rounded-xl transition-all ${
-                          isRestoringLocal ? 'bg-zinc-900 text-white' : 
-                          localRestoreStatus === 'success' ? 'bg-green-600 text-white' :
-                          localRestoreStatus === 'error' ? 'bg-red-600 text-white' :
-                          'bg-zinc-100 text-zinc-600 group-hover:bg-[#b90014] group-hover:text-white'
-                        }`}>
-                          {isRestoringLocal ? (
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          ) : (
-                            <Upload size={20} />
-                          )}
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest">Restore Snapshot</span>
-                        <input type="file" className="hidden" accept=".json" disabled={isRestoringLocal} onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          
-                          if (!window.confirm('Are you sure you want to restore this snapshot? This will overwrite existing data in Supabase.')) {
-                            e.target.value = '';
-                            return;
-                          }
-
-                          setIsRestoringLocal(true);
-                          setLocalRestoreStatus('idle');
-
-                          const reader = new FileReader();
-                          reader.onload = async (event) => {
-                            try {
-                              const data = JSON.parse(event.target?.result as string);
-                              
-                              if (containsBase64(data)) {
-                                if (!window.confirm('This backup contains base64 images which may cause "Payload Too Large" errors on Vercel. Would you like to try anyway?')) {
-                                  setIsRestoringLocal(false);
-                                  return;
-                                }
-                              }
-
-                              const response = await fetch('/api/admin/sync-local', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(data)
-                              });
-
-                              if (!response.ok) {
-                                const errData = await response.json();
-                                throw new Error(errData.error || 'Failed to restore backup');
-                              }
-
-                              const result = await response.json();
-                              setLocalRestoreStatus('success');
-                              alert('Backup restored successfully: ' + result.message);
-                              window.location.reload();
-                            } catch (error: any) {
-                              console.error('Restore failed:', error);
-                              setLocalRestoreStatus('error');
-                              alert('Restore failed: ' + (error.message || 'Unknown error'));
-                            } finally {
-                              setIsRestoringLocal(false);
-                            }
-                          };
-                          reader.onerror = () => {
-                            setIsRestoringLocal(false);
-                            setLocalRestoreStatus('error');
-                            alert('Failed to read file');
-                          };
-                          reader.readAsText(file);
-                        }} />
-                      </label>
-                    </div>
-
-                    <div className="p-4 bg-zinc-100 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">Local Cache Sync</span>
-                      </div>
-                      <button 
-                        onClick={() => syncToLocal()}
-                        disabled={isSyncingLocal}
-                        className="text-[9px] font-black uppercase tracking-widest text-[#b90014] hover:underline flex items-center gap-1 disabled:opacity-50"
-                      >
-                        {isSyncingLocal ? 'Syncing...' : 'Force Sync Now'}
-                      </button>
                     </div>
                   </div>
                 </div>
