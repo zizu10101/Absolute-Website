@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Moon, Sun, LogOut, Search, Users, Percent, FileText, Trash2,
   Barcode as BarcodeIcon, DollarSign, Home, AlertCircle, X, Check,
-  Receipt, RotateCcw, RefreshCw, Plus, Printer, ScanLine, CheckCircle2, BarChart3
+  Receipt, RotateCcw, RefreshCw, Plus, Printer, ScanLine, CheckCircle2, BarChart3, Undo2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Barcode from 'react-barcode';
@@ -12,6 +12,7 @@ import { POSPinEntry } from '../components/POSPinEntry';
 import { PosDiscountModal } from '../components/PosDiscountModal';
 import { GiftCardTab } from '../components/GiftCardTab';
 import { StoreCreditsTab } from '../components/StoreCreditsTab';
+import { ReturnsModal } from '../components/ReturnsModal';
 import { usePOSCart, CartItem } from '../hooks/usePOSCart';
 import { useCustomers, Customer } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
@@ -44,7 +45,7 @@ export function POSPage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   // Panels
-  const [posTab, setPosTab] = useState<'register' | 'history' | 'customers' | 'gc' | 'sc'>('register');
+  const [posTab, setPosTab] = useState<'register' | 'history' | 'customers' | 'gc' | 'sc' | 'returns'>('register');
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -98,6 +99,13 @@ export function POSPage() {
   const [showVoidRefundModal, setShowVoidRefundModal] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [selectedTransactionForVoid, setSelectedTransactionForVoid] = useState<any | null>(null);
+
+  // Returns
+  const [showReturnsModal, setShowReturnsModal] = useState(false);
+  const [returnsInvoiceInput, setReturnsInvoiceInput] = useState('');
+  const [returnsFoundTransaction, setReturnsFoundTransaction] = useState<any | null>(null);
+  const [returnsLookupError, setReturnsLookupError] = useState<string | null>(null);
+  const returnsInvoiceInputRef = useRef<HTMLInputElement>(null);
 
   // Hooks
   const {
@@ -335,6 +343,40 @@ export function POSPage() {
       console.error(`❌ STEP 8: Caught exception:`, e.message);
       alert(`Error: ${e.message}`);
     }
+  };
+
+  const handleReturnsInvoiceLookup = async (invoiceId: string) => {
+    if (!invoiceId.trim()) {
+      setReturnsLookupError('Please enter invoice number or scan barcode');
+      return;
+    }
+
+    try {
+      setReturnsLookupError(null);
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*, customers(first_name, last_name, email, phone)')
+        .or(`id.eq.${invoiceId.trim()},id.ilike.%${invoiceId.trim()}%`)
+        .eq('status', 'completed')
+        .single();
+
+      if (error || !data) {
+        setReturnsLookupError('Invoice not found or already voided');
+        return;
+      }
+
+      setReturnsFoundTransaction(data);
+      setShowReturnsModal(true);
+    } catch (err) {
+      setReturnsLookupError('Error looking up invoice');
+      console.error(err);
+    }
+  };
+
+  const handleReturnsComplete = () => {
+    setShowReturnsModal(false);
+    setReturnsFoundTransaction(null);
+    setReturnsInvoiceInput('');
   };
 
   // Filter products
@@ -933,9 +975,12 @@ export function POSPage() {
               Checkout ({totalCartItems})
             </button>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button onClick={() => setShowVoidRefundModal(true)} className="py-2 bg-[#b90014] hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase">
                 Void/Refund
+              </button>
+              <button onClick={() => setPosTab('returns')} className="py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold uppercase flex items-center justify-center gap-1">
+                <Undo2 size={12} /> Return
               </button>
               <button onClick={() => setPosTab('history')} className="py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
                 History
@@ -959,6 +1004,69 @@ export function POSPage() {
           </div>
           <div className="flex-1 overflow-hidden">
             <PosTransactionHistory />
+          </div>
+        </div>
+      )}
+
+      {/* Returns Tab Content */}
+      {posTab === 'returns' && (
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#0f1117]">
+          <div className="p-4 border-b border-[#2d3547] bg-[#0f1117]">
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <Undo2 size={16} /> Process Return
+            </h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-gray-300">
+                Enter Invoice Number or Scan Barcode
+              </label>
+              <div className="flex gap-2">
+                <input
+                  ref={returnsInvoiceInputRef}
+                  type="text"
+                  placeholder="Invoice # or barcode..."
+                  value={returnsInvoiceInput}
+                  onChange={(e) => setReturnsInvoiceInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleReturnsInvoiceLookup(returnsInvoiceInput);
+                    }
+                  }}
+                  className="flex-1 px-4 py-3 bg-[#1a2236] border border-[#2d3547] rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  onClick={() => handleReturnsInvoiceLookup(returnsInvoiceInput)}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded transition-colors"
+                >
+                  Search
+                </button>
+              </div>
+
+              {returnsLookupError && (
+                <div className="p-3 bg-red-900/20 border border-red-500 rounded text-red-400 text-sm">
+                  {returnsLookupError}
+                </div>
+              )}
+
+              {returnsFoundTransaction && !showReturnsModal && (
+                <div className="p-4 bg-green-900/20 border border-green-500 rounded space-y-2">
+                  <p className="text-green-400 font-bold">✓ Invoice Found</p>
+                  <p className="text-gray-300 text-sm">
+                    Invoice: {returnsFoundTransaction.id.slice(0, 8).toUpperCase()}
+                  </p>
+                  <p className="text-gray-300 text-sm">
+                    Amount: ${Number(returnsFoundTransaction.total_amount).toFixed(2)}
+                  </p>
+                  <button
+                    onClick={() => setShowReturnsModal(true)}
+                    className="w-full mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded transition-colors"
+                  >
+                    Continue to Return
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1433,6 +1541,17 @@ export function POSPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Returns Modal */}
+      {returnsFoundTransaction && (
+        <ReturnsModal
+          isOpen={showReturnsModal}
+          onClose={handleReturnsComplete}
+          prefilledTransactionId={returnsFoundTransaction.id}
+          prefilledCustomerId={returnsFoundTransaction.customer_id || undefined}
+          onComplete={handleReturnsComplete}
+        />
+      )}
 
       {/* Bottom Tab Bar */}
       <div className="bg-[#1a2236] border-t border-[#2d3547] h-12 px-6 flex items-center justify-start gap-2">

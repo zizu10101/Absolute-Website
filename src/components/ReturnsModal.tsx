@@ -518,52 +518,70 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
                 {/* Items Checklist */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-gray-900">Items Purchased</h3>
+                  <h3 className="font-semibold text-black">Items Purchased</h3>
                   {returnItems.map((item) => {
                     const itemTax = (item.pricePerUnit * item.returnQuantity * 0.13);
                     const itemTotal = (item.pricePerUnit * item.returnQuantity) + itemTax;
+                    const hasMultiple = item.originalQuantity > 1;
 
                     return (
-                      <div key={item.id} className="p-4 border border-gray-200 rounded-lg">
+                      <div key={item.id} className={`p-4 border rounded-lg ${item.returnQuantity > 0 ? 'border-blue-300 bg-blue-50' : 'border-gray-200'}`}>
                         <div className="flex items-start gap-4">
                           <div className="flex-1">
-                            <p className="font-semibold text-gray-900">{item.name}</p>
-                            {item.size && <p className="text-sm text-gray-600">Size: {item.size}</p>}
-                            <div className="mt-2 text-sm text-gray-600">
+                            <p className="font-semibold text-black">{item.name}</p>
+                            {item.size && <p className="text-sm text-black">Size: {item.size}</p>}
+                            <div className="mt-2 text-sm text-black">
                               <p>Price per unit: ${item.pricePerUnit.toFixed(2)}</p>
                               <p>Tax per unit: ${(item.pricePerUnit * 0.13).toFixed(2)}</p>
+                              <p className="mt-1 font-semibold">Qty purchased: {item.originalQuantity}</p>
                             </div>
                           </div>
 
                           <div className="text-right">
-                            <p className="text-sm text-gray-600 mb-2">Return Qty</p>
-                            <div className="flex items-center gap-2 mb-2">
-                              <button
-                                onClick={() => updateReturnQuantity(item.id, item.returnQuantity - 1)}
-                                className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition"
-                              >
-                                −
-                              </button>
-                              <input
-                                type="number"
-                                min="0"
-                                max={item.originalQuantity}
-                                value={item.returnQuantity}
-                                onChange={(e) => updateReturnQuantity(item.id, parseInt(e.target.value) || 0)}
-                                className="w-12 text-center border border-gray-300 rounded py-1"
-                              />
-                              <button
-                                onClick={() => updateReturnQuantity(item.id, item.returnQuantity + 1)}
-                                className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition"
-                              >
-                                +
-                              </button>
-                            </div>
-                            <p className="text-xs text-gray-600">of {item.originalQuantity}</p>
+                            {hasMultiple ? (
+                              <>
+                                <p className="text-sm text-black font-semibold mb-2">Return Qty</p>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <button
+                                    onClick={() => updateReturnQuantity(item.id, item.returnQuantity - 1)}
+                                    className="px-2 py-1 bg-gray-300 text-black rounded hover:bg-gray-400 transition font-bold"
+                                  >
+                                    −
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={item.originalQuantity}
+                                    value={item.returnQuantity}
+                                    onChange={(e) => updateReturnQuantity(item.id, parseInt(e.target.value) || 0)}
+                                    className="w-12 text-center text-black border-2 border-gray-400 rounded py-1 font-bold"
+                                  />
+                                  <button
+                                    onClick={() => updateReturnQuantity(item.id, item.returnQuantity + 1)}
+                                    className="px-2 py-1 bg-gray-300 text-black rounded hover:bg-gray-400 transition font-bold"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                                <p className="text-xs text-black font-semibold">of {item.originalQuantity}</p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-sm text-black font-semibold mb-3">Return this item?</p>
+                                <button
+                                  onClick={() => updateReturnQuantity(item.id, item.returnQuantity === 1 ? 0 : 1)}
+                                  className={`px-4 py-2 rounded font-bold text-white transition ${
+                                    item.returnQuantity === 1 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 hover:bg-gray-500'
+                                  }`}
+                                >
+                                  {item.returnQuantity === 1 ? '✓ Selected' : 'Select'}
+                                </button>
+                              </>
+                            )}
                             {item.returnQuantity > 0 && (
-                              <div className="mt-3 pt-3 border-t border-gray-200 text-right">
-                                <p className="text-xs text-gray-600">Return amount</p>
-                                <p className="font-bold text-gray-900">${itemTotal.toFixed(2)}</p>
+                              <div className="mt-3 pt-3 border-t border-gray-300 text-right">
+                                <p className="text-xs text-black font-semibold">Return amount</p>
+                                <p className="font-bold text-black text-lg">${itemTotal.toFixed(2)}</p>
                               </div>
                             )}
                           </div>
