@@ -1646,6 +1646,63 @@ async function startServer() {
     }
   });
 
+  // Create store credit (for returns processing)
+  app.post("/api/store-credits", async (req, res) => {
+    const admin = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { customerId, amount, reason } = req.body;
+
+    if (!customerId || !amount || !reason) {
+      return res.status(400).json({ error: "Missing customerId, amount, or reason" });
+    }
+
+    try {
+      console.log(`🔄 Creating store credit: $${amount} for customer ${customerId.slice(0, 8)}`);
+
+      const { data: scRecord, error: scError } = await admin
+        .from("store_credits")
+        .insert({
+          customer_id: customerId,
+          amount: amount,
+          remaining_balance: amount,
+          reason: reason,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (scError) {
+        console.error("❌ Error creating store credit:", scError);
+        throw scError;
+      }
+
+      console.log(`✅ Store credit created: ${scRecord.id}`);
+
+      // Create store credit transaction record
+      const { error: txError } = await admin.from("store_credit_transactions").insert({
+        store_credit_id: scRecord.id,
+        amount: amount,
+        transaction_type: "issued",
+      });
+
+      if (txError) {
+        console.error("⚠️ Error creating SC transaction:", txError);
+      }
+
+      return res.status(200).json({
+        success: true,
+        creditId: scRecord.id,
+        amount: amount,
+      });
+    } catch (err: any) {
+      console.error("❌ Store credit creation error:", err);
+      return res.status(500).json({ error: err.message || "Failed to create store credit" });
+    }
+  });
+
   // --- VITE & STATIC ---
 
   if (!isProduction) {

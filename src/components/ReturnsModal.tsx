@@ -279,42 +279,31 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       // 3. Process refund based on method
       console.log('🔄 [Returns] Processing refund method:', refundMethod);
       if (refundMethod === 'store-credit') {
-        // Issue store credit
+        // Issue store credit via API
         console.log('🔄 [Returns] Creating store credit for customer:', transaction.customer_id);
-        const { data: scRecord, error: scError } = await supabase
-          .from('store_credits')
-          .insert({
-            customer_id: transaction.customer_id,
+        const scResponse = await fetch('/api/store-credits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId: transaction.customer_id,
             amount: amounts.total,
-            remaining_balance: amounts.total,
             reason: 'Product Return',
-            is_active: true,
-          })
-          .select()
-          .single();
+          }),
+        });
 
-        if (scError) {
-          console.error('❌ [Returns] Error creating store credit:', scError);
-          throw scError;
+        const scData = await scResponse.json();
+        if (!scResponse.ok) {
+          console.error('❌ [Returns] Error creating store credit:', scData);
+          throw new Error(scData.error || 'Failed to create store credit');
         }
-        console.log('✅ [Returns] Store credit created:', scRecord.id);
 
-        if (scRecord) {
-          console.log('🔄 [Returns] Creating store credit transaction...');
-          const { error: txError } = await supabase.from('store_credit_transactions').insert({
-            store_credit_id: scRecord.id,
-            amount: amounts.total,
-            transaction_type: 'issued',
-          });
-          if (txError) console.error('⚠️ [Returns] Error creating SC transaction:', txError);
-          else console.log('✅ [Returns] Store credit transaction recorded');
-        }
+        console.log('✅ [Returns] Store credit created:', scData.creditId);
 
         setCompletionData({
           type: 'store-credit',
           returnId: returnRecord.id,
           amount: amounts.total,
-          creditId: scRecord?.id,
+          creditId: scData.creditId,
         });
       } else {
         // Refund to original payment method
