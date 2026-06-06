@@ -291,10 +291,10 @@ export function POSPage() {
     return true;
   };
 
-  // Void/Refund handler
-  const handleVoidRefund = async (transactionId: string, action: 'void' | 'refund') => {
+  // Void/Refund/Return handler
+  const handleVoidRefundReturn = async (transactionId: string, action: 'void' | 'refund' | 'return') => {
     const url = `/api/transactions/${action}`;
-    console.log(`🔴 STEP 1: handleVoidRefund called`);
+    console.log(`🔴 STEP 1: handleVoidRefundReturn called`);
     console.log(`🔴 STEP 1a: action=${action}, transactionId=${transactionId}, url=${url}`);
 
     try {
@@ -317,7 +317,8 @@ export function POSPage() {
       }
 
       console.log(`✅ STEP 5: Transaction ${action} successful`);
-      alert(`Transaction ${action === 'void' ? 'voided' : 'refunded'} successfully`);
+      const actionText = action === 'void' ? 'voided' : action === 'refund' ? 'refunded' : 'returned';
+      alert(`Transaction ${actionText} successfully`);
       setShowVoidRefundModal(false);
 
       // Refresh transactions
@@ -1369,12 +1370,12 @@ export function POSPage() {
           <div className="fixed inset-0 bg-black/50 z-60 flex items-center justify-center p-6">
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#1a2236] p-6 rounded-lg w-full max-w-2xl space-y-4 border border-[#2d3547] max-h-96 overflow-y-auto">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-white uppercase">Void or Refund Transaction</h2>
+                <h2 className="text-sm font-bold text-white uppercase">Void, Refund, or Return Transaction</h2>
                 <button onClick={() => setShowVoidRefundModal(false)} className="text-gray-400 hover:text-white"><X size={18} /></button>
               </div>
 
               {recentTransactions.length === 0 ? (
-                <p className="text-gray-400 text-sm">No recent transactions to void/refund</p>
+                <p className="text-gray-400 text-sm">No recent transactions to void/refund/return</p>
               ) : (
                 <div className="space-y-2">
                   {recentTransactions.slice(0, 10).map((tx) => (
@@ -1390,20 +1391,28 @@ export function POSPage() {
                       </div>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => { handleVoidRefund(tx.id, 'void'); }}
-                          disabled={tx.status === 'voided' || tx.status === 'refunded'}
+                          onClick={() => { handleVoidRefundReturn(tx.id, 'void'); }}
+                          disabled={tx.status === 'voided' || tx.status === 'refunded' || tx.status === 'returned'}
                           className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold uppercase"
-                          title={tx.status === 'voided' ? 'Already voided' : tx.status === 'refunded' ? 'Already refunded' : 'Void this transaction'}
+                          title={tx.status === 'voided' ? 'Already voided' : tx.status === 'refunded' ? 'Already refunded' : tx.status === 'returned' ? 'Already returned' : 'Void this transaction'}
                         >
                           Void
                         </button>
                         <button
-                          onClick={() => { handleVoidRefund(tx.id, 'refund'); }}
-                          disabled={tx.status === 'refunded'}
+                          onClick={() => { handleVoidRefundReturn(tx.id, 'refund'); }}
+                          disabled={tx.status === 'refunded' || tx.status === 'returned'}
                           className="px-3 py-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold uppercase"
-                          title={tx.status === 'refunded' ? 'Already refunded' : 'Refund this transaction'}
+                          title={tx.status === 'refunded' ? 'Already refunded' : tx.status === 'returned' ? 'Already returned' : 'Refund this transaction'}
                         >
                           Refund
+                        </button>
+                        <button
+                          onClick={() => { handleVoidRefundReturn(tx.id, 'return'); }}
+                          disabled={tx.status === 'returned'}
+                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold uppercase"
+                          title={tx.status === 'returned' ? 'Already returned' : 'Return this transaction'}
+                        >
+                          Return
                         </button>
                       </div>
                     </div>
