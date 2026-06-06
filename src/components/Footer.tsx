@@ -68,11 +68,6 @@ export function Footer() {
         <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-[0.3em]">
           © 2024 ABSOLUTE SOCCER. ALL RIGHTS RESERVED.
         </p>
-        {(window.location.hostname === 'torontosoccershop.com' || window.location.hostname === 'www.torontosoccershop.com') && (
-          <Link to="/admin" className="text-zinc-600 hover:text-zinc-400 transition-colors text-[10px] font-bold uppercase tracking-widest">
-            Admin Dashboard
-          </Link>
-        )}
       </div>
     </footer>
   );
