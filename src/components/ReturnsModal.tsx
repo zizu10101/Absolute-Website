@@ -231,7 +231,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         .insert({
           transaction_id: transaction.id,
           customer_id: transaction.customer_id,
-          refund_method: refundMethod,
+          refund_method: refundMethod === 'store-credit' ? 'store_credit' : 'original_payment',
           items: selectedItems,
           refund_amount: amounts.total,
           status: 'completed',

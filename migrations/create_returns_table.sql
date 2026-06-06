@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS returns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES customers(id),
-  refund_method VARCHAR(20) NOT NULL CHECK (refund_method IN ('store-credit', 'original-payment')),
+  refund_method VARCHAR(20) NOT NULL CHECK (refund_method IN ('store_credit', 'original_payment')),
   refund_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
   items JSONB NOT NULL DEFAULT '[]'::jsonb,
   status VARCHAR(20) NOT NULL DEFAULT 'completed' CHECK (status IN ('pending', 'completed', 'failed')),
