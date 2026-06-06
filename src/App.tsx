@@ -66,25 +66,40 @@ function AppContent() {
   return <AppRoutes />;
 }
 
+function AdminAccessDenied() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">Access Denied</h1>
+        <p className="text-gray-600 mb-8">Admin access is only available at torontosoccershop.com</p>
+        <a href="/" className="text-blue-600 hover:text-blue-800 font-medium">Return to Home</a>
+      </div>
+    </div>
+  );
+}
+
 function AppRoutes() {
   const { navigationMenus, seoSettings } = useSettings();
   useSEO(seoSettings);
+
+  // Check if current domain is torontosoccershop.com
+  const isAdminDomain = window.location.hostname === 'torontosoccershop.com' || window.location.hostname === 'www.torontosoccershop.com';
 
   return (
     <>
       <Meta />
       <Routes>
         <Route path="/custom-lab" element={<CustomLabPage />} />
-        
+
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
-          
+
           {/* Dynamic Routes from Navigation Menus */}
           {navigationMenus.map(menu => (
             <Fragment key={menu.path}>
-              <Route 
-                path={menu.path.startsWith('/') ? menu.path.slice(1) : menu.path} 
-                element={<ProductGridPage title={menu.label} category={menu.label} />} 
+              <Route
+                path={menu.path.startsWith('/') ? menu.path.slice(1) : menu.path}
+                element={<ProductGridPage title={menu.label} category={menu.label} />}
               />
             </Fragment>
           ))}
@@ -123,9 +138,11 @@ function AppRoutes() {
           <Route path="contact-us" element={<ContactUsPage />} />
           <Route path="product/:id" element={<ProductDetailPage />} />
         </Route>
-        <Route path="/admin" element={<AdminLogin />} />
-        <Route path="/pos" element={<POSPage />} />
-        <Route path="/reports" element={<ReportsPageFull />} />
+
+        {/* Admin, POS, Reports - Only on torontosoccershop.com */}
+        <Route path="/admin" element={isAdminDomain ? <AdminLogin /> : <AdminAccessDenied />} />
+        <Route path="/pos" element={isAdminDomain ? <POSPage /> : <AdminAccessDenied />} />
+        <Route path="/reports" element={isAdminDomain ? <ReportsPageFull /> : <AdminAccessDenied />} />
       </Routes>
     </>
   );
