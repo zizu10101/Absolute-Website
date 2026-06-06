@@ -10,7 +10,15 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
-## Current Status (as of June 6, 2026)
+## Current Status (as of June 7, 2026)
+
+### Latest Fix
+- ✅ Fixed: Transaction status now correctly updates to 'returned' or 'partial_return' after return processing
+  - Full returns update status to 'returned'
+  - Partial returns update status to 'partial_return'
+  - Prevents duplicate returns on same transaction
+
+## Previous Status (June 6, 2026)
 
 ### ✅ Production-Ready Features
 
