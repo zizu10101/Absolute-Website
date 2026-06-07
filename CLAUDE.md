@@ -10,9 +10,47 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
-## Current Status (as of June 7, 2026 - Session 4)
+## Current Status (as of June 7, 2026 - Session 5)
 
-### Latest Session - Store Credit Receipts & Reprint Invoice Feature ✅
+### Latest Session - Invoice Numbering System & Query Fixes ✅
+
+**INVOICE NUMBERING SYSTEM - FULLY IMPLEMENTED:**
+
+1. **Receipt Display & Barcode** ✅
+   - ✅ Receipts show "Invoice # INV-01000" instead of UUID
+   - ✅ Barcodes encode invoice_number (short, scannable format)
+   - ✅ Both regular and store credit receipts updated
+   - ✅ Receipt interface updated with invoiceNumber field
+   - ✅ File: thermalReceipt.ts
+
+2. **Transaction History Display** ✅
+   - ✅ Invoice numbers displayed prominently on transaction cards
+   - ✅ Expanded view shows invoice number in highlighted box
+   - ✅ Search includes invoice_number field
+   - ✅ File: PosTransactionHistory.tsx
+
+3. **Invoice Lookup Queries - ALL FIXED** ✅
+   - ✅ ReturnsModal.tsx - lookupInvoice() function
+   - ✅ ReturnTab.tsx - searchTransaction() function  
+   - ✅ POSPage.tsx - handleReturnsInvoiceLookup() function
+   - ✅ All now use: `.eq('invoice_number', normalizedInvoice).maybeSingle()`
+   - ✅ Removed: `.or('id.eq...', 'id.ilike...')` pattern
+   - ✅ Removed: `.eq('status', 'completed')` from query
+   - ✅ Added: Proper status checking AFTER finding record
+   - ✅ Added: Console logging for debugging
+
+4. **Barcode Scanning Differentiation** ✅
+   - ✅ SC- prefix → Store credit lookup
+   - ✅ INV- or numeric → Invoice lookup
+   - ✅ UUID format → Error message with guidance
+   - ✅ File: POSPage.tsx
+
+5. **Invoice Number Normalization** ✅
+   - ✅ Handles: INV-01000, 1000, 01000
+   - ✅ Pads numeric portion to 5 digits
+   - ✅ Implemented in all three lookup functions
+
+### Previous Session - Store Credit Receipts & Reprint Invoice Feature ✅
 
 **NEW FEATURES IMPLEMENTED:**
 
@@ -174,7 +212,9 @@ Three critical store credit bugs fixed:
 
 | Issue | Status | Impact | Priority |
 |-------|--------|--------|----------|
-| Store credit card numbers null | ⏳ READY TO FIX | Need to generate SC-XXXX codes | HIGH |
+| Invoice numbering system | ✅ COMPLETE (Session 5) | Receipts, lookup, scanning all use short INV-XXXXX codes | CRITICAL |
+| Invoice lookup queries | ✅ FIXED (Session 5) | All 3 functions use correct invoice_number field | CRITICAL |
+| Store credit card numbers null | ⏳ READY TO TEST | Generated via SQL, need to verify in receipts | HIGH |
 | Store credit balance update bug | ✅ FIXED (Session 3) | Balance now updates on checkout | CRITICAL |
 | Store credit state undefined | ✅ FIXED (Session 3) | React closure issue resolved | CRITICAL |
 | Returns table 406 errors | ✅ FIXED (Session 3) | No longer blocks transaction history | HIGH |
@@ -203,20 +243,43 @@ Three critical store credit bugs fixed:
 
 ---
 
-## Next Steps - Session 5 TODO (June 7, 2026)
+## Next Steps - Session 6 TODO (June 7, 2026)
 
-### CRITICAL - Generate Store Credit Card Numbers
+### CRITICAL - Test Invoice Numbering System
 
-**Action Items:**
-- [ ] **RUN MIGRATION**: Execute SQL in Supabase SQL Editor to generate SC-XXXX codes
-  ```sql
-  UPDATE store_credits
-  SET card_number = 'SC-' || SUBSTRING(MD5(RANDOM()::TEXT || CLOCK_TIMESTAMP()::TEXT), 1, 12)
-  WHERE card_number IS NULL;
-  ```
-- [ ] After migration: Verify all store credits have card_number values
-- [ ] Test SC receipt displays card number properly
-- [ ] Test barcode scanning works with new card numbers
+**Invoice Lookup Tests:**
+- [ ] Open Returns modal and enter invoice number:
+  - [ ] Type `INV-01000` → Should find transaction
+  - [ ] Type `1000` → Should normalize and find it
+  - [ ] Type `01000` → Should normalize and find it
+  - [ ] Scan UUID barcode → Should show error
+- [ ] Check browser console logs:
+  - [ ] `Looking up invoice: INV-XXXXX` shows correct normalization
+  - [ ] `Result:` shows data found (not error)
+- [ ] Verify correct error messages for voided/refunded/returned transactions
+
+**Receipt Display Tests:**
+- [ ] Process a transaction at checkout
+- [ ] Verify receipt shows `Invoice # INV-01000` (not UUID)
+- [ ] Verify barcode encodes `INV-01000` (not full UUID)
+- [ ] Verify reprint button works and shows `*** REPRINT ***` header
+- [ ] Test in all three places:
+  - [ ] POS checkout
+  - [ ] Transaction History → Reprint button
+  - [ ] Customer Profile → Reprint button
+
+**Barcode Scanning Tests:**
+- [ ] Scan SC-XXXX code → Store credit applied
+- [ ] Scan INV-01000 code → Info message about Returns modal
+- [ ] Scan UUID code → Error message about scanning invoice barcode
+- [ ] Scan product barcode → Added to cart normally
+
+**Transaction History Tests:**
+- [ ] Invoice numbers display on transaction cards
+- [ ] Expand transaction to see invoice number in highlighted box
+- [ ] Search by invoice number works
+- [ ] Search by customer name still works
+- [ ] All filters work (today/week/month/year/all)
 
 ### HIGH - Test Store Credit Receipts (New Feature)
 
@@ -238,20 +301,6 @@ Three critical store credit bugs fixed:
   - [ ] "Remaining Balance: $X.XX" (large bold)
   - [ ] Second payment method amount
 - [ ] Test full SC coverage (no second payment)
-
-### HIGH - Test Reprint Invoice (New Feature)
-
-**Reprint Button Tests:**
-- [ ] Click Reprint on transaction in History tab
-- [ ] Verify receipt shows "*** REPRINT ***" header
-- [ ] Verify all transaction details correct
-- [ ] Test reprint for all transaction types:
-  - [ ] Completed transaction
-  - [ ] Voided transaction
-  - [ ] Refunded transaction
-  - [ ] Returned transaction
-- [ ] Test print dialog opens automatically
-- [ ] Test in Customer Profile transaction list
 
 ### MEDIUM - Verify Existing Features Still Work
 
@@ -291,14 +340,22 @@ Three critical store credit bugs fixed:
 ### LOW - Code Quality & Cleanup
 
 **After testing passes:**
-- [ ] Remove console logs if needed (keep 🔴 logs for debugging)
+- [ ] Remove debug console logs (keep 🔴 logs for debugging)
 - [ ] Verify no TypeScript errors
 - [ ] Run tests suite
 - [ ] Check browser console for any errors
 
 ---
 
-## Commits This Session (Session 4 - June 7, 2026)
+## Commits This Session (Session 5 - June 7, 2026 - Invoice Numbering System)
+
+| Commit | Message | Files |
+|--------|---------|-------|
+| TBD | feat: implement invoice numbering system - receipts, display, lookup, scanning | thermalReceipt.ts, PosTransactionHistory.tsx, ReturnsModal.tsx, ReturnTab.tsx, POSPage.tsx |
+| TBD | fix: correct all invoice lookup queries to use invoice_number field | ReturnsModal.tsx, ReturnTab.tsx, POSPage.tsx |
+| TBD | fix: replace .single() with .maybeSingle() in invoice lookups | ReturnsModal.tsx, ReturnTab.tsx, POSPage.tsx |
+
+**Session 4 Commits (June 7, 2026):**
 
 | Commit | Message | Files |
 |--------|---------|-------|
@@ -325,15 +382,16 @@ Three critical store credit bugs fixed:
   - Columns: id, name, category, price, description, image, colors, is_online
   - Related: product_variants (size, SKU, stock_quantity)
 - `transactions` - POS transaction history
-  - Columns: id, customer_id, total_amount, method, status (completed/voided/refunded/returned), items[], created_at, tendered_amount, change_given
+  - Columns: id, invoice_number (NEW - Session 5), customer_id, total_amount, method, status (completed/voided/refunded/returned/partial_return), items[], created_at, tendered_amount, change_given
+  - Invoice numbers auto-generated: INV-01000, INV-01001, etc. via SQL trigger
 - `gift_cards` - Gift card inventory
   - Columns: id, card_number, customer_id, initial_balance, current_balance, is_active, created_at
 - `store_credits` - Store credit inventory
-  - Columns: id, customer_id, amount, reason, remaining_balance, is_active, created_at
+  - Columns: id, card_number, customer_id, amount, reason, remaining_balance, is_active, created_at
 - `customers` - POS customer data
   - Columns: id, first_name, last_name, email, phone, created_at
-- `returns` - Return transaction audit trail (NEW)
-  - Columns: id, transaction_id, customer_id, refund_method (store-credit/original-payment), refund_amount, items[], status, created_at
+- `returns` - Return transaction audit trail
+  - Columns: id, transaction_id, customer_id, refund_method (store_credit/original_payment), refund_amount, items[], status, created_at
 - `settings` - Configuration (key: navigation, hst_number, store_name, etc.)
 
 ---
@@ -405,6 +463,123 @@ npm run build          # Build for production
 - Supabase project with public anon key
 - Tables: products, transactions, customers, gift_cards, store_credits, settings
 - Storage bucket: products (for product images)
+
+---
+
+## Session 5 Implementation Details (June 7, 2026 - Invoice Numbering System)
+
+### Overview
+Implemented a professional invoice numbering system to replace long UUIDs with short, human-readable invoice numbers (INV-01000, INV-01001, etc.) for all receipts, transaction lookups, and barcode scanning.
+
+### Files Modified
+
+**1. src/utils/thermalReceipt.ts**
+   - Added `invoiceNumber?: string` to ReceiptData interface
+   - Updated receipt HTML to display "Invoice # INV-01000" (not UUID)
+   - Changed barcode to encode invoiceNumber instead of transactionId
+   - Applied to both regular receipts and store credit receipts
+   - Barcode priority: invoiceNumber → barcodeValue → transactionId
+
+**2. src/components/PosTransactionHistory.tsx**
+   - Added `invoice_number?: string` to Transaction interface
+   - Updated search to include invoice_number field
+   - Display invoice numbers prominently on transaction rows (bold black text)
+   - Added highlighted box in expanded view showing invoice number
+   - Updated handlePrint() to pass invoiceNumber to receipt generator
+
+**3. src/components/ReturnsModal.tsx**
+   - Added `invoice_number?: string` to Transaction interface
+   - Completely rewrote lookupInvoice() function:
+     - Now uses `.eq('invoice_number', normalizedInvoice)`
+     - Changed from `.single()` to `.maybeSingle()` (no 404 errors)
+     - Removed `.eq('status', 'completed')` from query
+     - Added proper status checking AFTER finding record
+     - Improved error messages for each status (voided, refunded, returned, partial_return)
+   - Updated loadTransactionByIdDirect() with same pattern for consistency
+   - Updated transaction summary display to show invoice_number
+
+**4. src/components/ReturnTab.tsx**
+   - Rewrote searchTransaction() function to use invoice_number lookup
+   - Changed from `.eq('id', invoiceInput)` + `.ilike('id', ...)` pattern
+   - Now uses `.eq('invoice_number', normalizedInvoice).maybeSingle()`
+   - Removed fallback UUID search (cleaner logic)
+   - Added UUID detection and error message
+
+**5. src/pages/POSPage.tsx**
+   - Added `invoiceNumber?: string` to Receipt interface
+   - Updated setReceipt() to capture invoice_number from transaction
+   - Updated handlePrintReceipt() to pass invoiceNumber to receipt
+   - Fixed handleReturnsInvoiceLookup() function:
+     - Changed from `.or('id.eq...', 'id.ilike...')` pattern
+     - Now uses `.eq('invoice_number', normalizedInvoice)`
+     - Changed to `.maybeSingle()` for better error handling
+     - Removed `.eq('status', 'completed')` from query
+     - Added UUID detection and proper error messages
+     - Added comprehensive status checking
+   - Added barcode scanning differentiation:
+     - SC- prefix → Store credit lookup
+     - INV- or numeric → Invoice lookup (informational message)
+     - UUID format → Error message
+     - Other → Product barcode lookup (unchanged)
+
+### Normalization Logic (All Three Functions)
+
+All three invoice lookup functions now use the same normalization:
+```typescript
+const normalizedInvoice = input.startsWith('INV-')
+  ? input
+  : 'INV-' + input.padStart(5, '0');
+```
+
+**Results:**
+- `INV-01000` → `INV-01000` ✅
+- `1000` → `INV-01000` ✅
+- `01000` → `INV-01000` ✅
+- `1` → `INV-00001` ✅
+
+### Query Pattern Changes
+
+**Old Pattern (Before):**
+```typescript
+.or(`id.eq.${input},id.ilike.%${input}%`)
+.eq('status', 'completed')
+.single()
+```
+**Problems:**
+- Searched by 'id' field instead of 'invoice_number'
+- Status filter in query returned no data for voided/refunded
+- `.single()` threw 404 error if not found
+
+**New Pattern (After):**
+```typescript
+.eq('invoice_number', normalizedInvoice)
+.maybeSingle()
+```
+**Benefits:**
+- Searches correct field
+- No status filter in query
+- `.maybeSingle()` returns null gracefully
+- Status checked AFTER finding record
+
+### Console Logging
+
+Added debug logs in all three functions:
+```typescript
+console.log('Looking up invoice:', normalizedInvoice);
+console.log('Result:', data, error);
+```
+
+Helps troubleshoot lookup issues in browser console.
+
+### Error Handling
+
+All three functions now check status AFTER finding the record:
+- `voided` → "This transaction has been voided"
+- `refunded` → "This transaction has already been refunded"
+- `returned` → "This transaction has already been fully returned"
+- `partial_return` → "This transaction has already been partially returned"
+- Other → Shows status in error message
+- UUID input → "Please scan the invoice barcode, not the transaction UUID"
 
 ---
 

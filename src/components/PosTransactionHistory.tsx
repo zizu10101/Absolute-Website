@@ -14,6 +14,7 @@ type StatusFilter = 'all' | 'completed' | 'voided' | 'refunded' | 'returned' | '
 
 interface Transaction {
   id: string;
+  invoice_number?: string;
   total_amount: number;
   method: string;
   status: string;
@@ -135,7 +136,8 @@ export const PosTransactionHistory: React.FC = () => {
         const q = searchQuery.toLowerCase();
         const name = getCustomerName(tx).toLowerCase();
         const id = tx.id.toLowerCase();
-        if (!name.includes(q) && !id.includes(q) && !tx.method?.toLowerCase().includes(q)) return false;
+        const invoiceNum = (tx.invoice_number || '').toLowerCase();
+        if (!name.includes(q) && !id.includes(q) && !invoiceNum.includes(q) && !tx.method?.toLowerCase().includes(q)) return false;
       }
 
       return true;
@@ -204,6 +206,7 @@ export const PosTransactionHistory: React.FC = () => {
 
     const html = generateThermalReceiptHTML({
       transactionId: tx.id,
+      invoiceNumber: tx.invoice_number,
       customerName,
       items: (tx.items || []).map((item: any) => ({
         name: item.name || 'Item',
@@ -386,7 +389,7 @@ export const PosTransactionHistory: React.FC = () => {
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-mono text-zinc-400">{tx.id.slice(0,8).toUpperCase()}</span>
+                    <span className="text-[10px] font-mono font-bold text-zinc-900">{tx.invoice_number || tx.id.slice(0,8).toUpperCase()}</span>
                     <span className={statusBadge(tx.status || 'completed')}>{tx.status || 'completed'}</span>
                     {tx.total_amount < 0 && <span className={statusBadge('refunded')}>REFUND</span>}
                   </div>
@@ -408,6 +411,12 @@ export const PosTransactionHistory: React.FC = () => {
                   {/* Barcode */}
                   <div className="flex justify-center py-2 bg-zinc-50 rounded-lg">
                     <Barcode value={tx.id} width={1.2} height={32} fontSize={9} />
+                  </div>
+
+                  {/* Invoice Number Display */}
+                  <div className="p-2 bg-zinc-100 rounded-lg text-center">
+                    <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Invoice</p>
+                    <p className="text-[14px] font-mono font-black text-zinc-900">{tx.invoice_number || tx.id.slice(0,8).toUpperCase()}</p>
                   </div>
 
                   {/* Items */}
@@ -435,16 +444,9 @@ export const PosTransactionHistory: React.FC = () => {
                   <div className="flex gap-2 pt-1 flex-wrap">
                     <button
                       onClick={() => handlePrint(tx)}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-zinc-200 text-[10px] font-black uppercase tracking-wide hover:bg-zinc-50 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wide hover:bg-indigo-700 transition-colors"
                     >
-                      <Printer size={12} /> Print
-                    </button>
-                    <button
-                      onClick={() => handleReprint(tx.id)}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-400 bg-slate-500 text-white text-[10px] font-black uppercase tracking-wide hover:bg-slate-600 transition-colors"
-                      title="Reprint this transaction receipt"
-                    >
-                      <RefreshCw size={12} /> Reprint
+                      <Printer size={12} /> Reprint
                     </button>
                     {canVoid && (
                       <button

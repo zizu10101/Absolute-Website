@@ -49,7 +49,8 @@ export function ReturnTab() {
   }, []);
 
   const searchTransaction = async () => {
-    if (!invoiceInput.trim()) {
+    const input = invoiceInput.trim();
+    if (!input) {
       setError('Please enter invoice number');
       return;
     }
@@ -59,34 +60,38 @@ export function ReturnTab() {
     setSuccess(null);
 
     try {
-      // Search by transaction ID (invoice number)
+      // Detect UUID format
+      const isUUID = input.length === 36 && input.includes('-') && !input.startsWith('INV-');
+      if (isUUID) {
+        setError('❌ Please scan the invoice barcode, not the transaction UUID');
+        setLoading(false);
+        return;
+      }
+
+      // Normalize invoice number
+      const normalizedInvoice = input.startsWith('INV-')
+        ? input
+        : 'INV-' + input.padStart(5, '0');
+
+      console.log('Looking up invoice:', normalizedInvoice);
+
       const { data, error: dbError } = await supabase
         .from('transactions')
         .select('*')
-        .eq('id', invoiceInput.trim())
-        .single();
+        .eq('invoice_number', normalizedInvoice)
+        .maybeSingle();
 
-      if (dbError || !data) {
-        // Try searching by partial ID in case user entered last few digits
-        const { data: partialData, error: partialError } = await supabase
-          .from('transactions')
-          .select('*')
-          .ilike('id', `%${invoiceInput.trim()}%`)
-          .limit(1)
-          .single();
+      console.log('Result:', data, dbError);
 
-        if (partialError || !partialData) {
-          setError('Invoice not found');
-          setTransaction(null);
-          setReturnItems([]);
-          setLoading(false);
-          return;
-        }
-
-        loadTransaction(partialData);
-      } else {
-        loadTransaction(data);
+      if (!data) {
+        setError(`Invoice ${normalizedInvoice} not found`);
+        setTransaction(null);
+        setReturnItems([]);
+        setLoading(false);
+        return;
       }
+
+      loadTransaction(data);
     } catch (err) {
       setError('Error searching transaction');
       console.error(err);

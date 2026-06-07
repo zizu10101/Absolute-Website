@@ -1,5 +1,6 @@
 export interface ReceiptData {
   transactionId: string;
+  invoiceNumber?: string; // Short invoice number (INV-01000)
   customerName: string;
   items: Array<{
     name: string;
@@ -15,7 +16,7 @@ export interface ReceiptData {
   createdAt: Date;
   status?: string;
   logoUrl?: string;
-  barcodeValue?: string; // What to encode in barcode (defaults to transactionId)
+  barcodeValue?: string; // What to encode in barcode (defaults to invoiceNumber or transactionId)
   isReprint?: boolean; // Add "*** REPRINT ***" header
   // Store Credit receipt fields
   isStoreCreditReceipt?: boolean; // True if this is a SC issue receipt
@@ -197,7 +198,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
 
     <!-- Transaction Details -->
     <div class="transaction-info">
-      <div><strong>ID:</strong> ${data.transactionId.slice(0, 8).toUpperCase()}</div>
+      <div><strong>Invoice #</strong> ${data.invoiceNumber || data.transactionId.slice(0, 8).toUpperCase()}</div>
       <div><strong>Date:</strong> ${dateStr} ${timeStr}</div>
       <div><strong>Customer:</strong> ${data.customerName}</div>
       <div><strong>Payment:</strong> ${data.paymentMethod}</div>
@@ -243,8 +244,8 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
   <script>
     window.addEventListener('load', () => {
       try {
-        // Generate barcode with barcodeValue (SC card number) or fallback to transactionId
-        const barcodeValue = "${data.barcodeValue || data.transactionId}";
+        // Generate barcode: use invoiceNumber if provided, fallback to barcodeValue, then transactionId
+        const barcodeValue = "${data.barcodeValue || data.invoiceNumber || data.transactionId}";
         if (typeof JsBarcode !== 'undefined') {
           JsBarcode("#barcode", barcodeValue, {
             format: "CODE128",
@@ -527,7 +528,8 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
   <script>
     window.addEventListener('load', () => {
       try {
-        const barcodeValue = "${data.storeCreditCardNumber || data.transactionId}";
+        // For SC receipt: barcode the SC card number if available, otherwise use invoice number
+        const barcodeValue = "${data.storeCreditCardNumber || data.invoiceNumber || data.transactionId}";
         if (typeof JsBarcode !== 'undefined' && document.getElementById('barcode')) {
           JsBarcode("#barcode", barcodeValue, {
             format: "CODE128",

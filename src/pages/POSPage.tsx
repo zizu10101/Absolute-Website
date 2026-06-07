@@ -24,6 +24,7 @@ type CategoryTab = 'ALL' | 'FOOTWEAR' | 'KITS' | 'BALLS' | 'EQUIPMENT' | 'TEAMWE
 
 interface Receipt {
   transactionId?: string;
+  invoiceNumber?: string;
   method: string;
   items: CartItem[];
   subtotal: number;
@@ -258,6 +259,23 @@ export function POSPage() {
         }
       }
 
+      // CHECK IF THIS IS AN INVOICE/TRANSACTION BARCODE (INV-XXXXX or UUID)
+      // UUID format: 8-4-4-4-12 hex digits (36 chars total with hyphens)
+      const isUUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(barcode);
+      if (isUUID) {
+        setBarcodeError('❌ That appears to be a transaction UUID. Please scan the invoice barcode (INV-XXXXX) instead.');
+        setTimeout(() => setBarcodeError(null), 4000);
+        return;
+      }
+
+      // Check for invoice barcode (INV-XXXXX or numeric XXXXX)
+      const isInvoiceNum = barcode.startsWith('INV-') || /^\d+$/.test(barcode);
+      if (isInvoiceNum) {
+        setBarcodeError('ℹ️ Invoice number detected. Use the Returns modal to process returns or look up receipts.');
+        setTimeout(() => setBarcodeError(null), 4000);
+        return;
+      }
+
       // PRODUCT BARCODE SCANNING
       const { data: exact } = await supabase
         .from('product_variants')
@@ -397,22 +415,65 @@ export function POSPage() {
   };
 
   const handleReturnsInvoiceLookup = async (invoiceId: string) => {
-    if (!invoiceId.trim()) {
+    const input = invoiceId.trim();
+    if (!input) {
       setReturnsLookupError('Please enter invoice number or scan barcode');
       return;
     }
 
     try {
       setReturnsLookupError(null);
+
+      // Detect UUID format
+      const isUUID = input.length === 36 && input.includes('-') && !input.startsWith('INV-');
+      if (isUUID) {
+        setReturnsLookupError('❌ Please scan the invoice barcode, not the transaction UUID');
+        return;
+      }
+
+      // Normalize invoice number
+      const normalizedInvoice = input.startsWith('INV-')
+        ? input
+        : 'INV-' + input.padStart(5, '0');
+
+      console.log('Looking up invoice:', normalizedInvoice);
+
       const { data, error } = await supabase
         .from('transactions')
         .select('*, customers(first_name, last_name, email, phone)')
-        .or(`id.eq.${invoiceId.trim()},id.ilike.%${invoiceId.trim()}%`)
-        .eq('status', 'completed')
-        .single();
+        .eq('invoice_number', normalizedInvoice)
+        .maybeSingle();
 
-      if (error || !data) {
-        setReturnsLookupError('Invoice not found or already voided');
+      console.log('Result:', data, error);
+
+      if (!data) {
+        setReturnsLookupError(`Invoice ${normalizedInvoice} not found`);
+        return;
+      }
+
+      // Check status AFTER finding the record
+      if (data.status === 'voided') {
+        setReturnsLookupError('This transaction has been voided');
+        return;
+      }
+
+      if (data.status === 'refunded') {
+        setReturnsLookupError('This transaction has already been refunded');
+        return;
+      }
+
+      if (data.status === 'returned') {
+        setReturnsLookupError('This transaction has already been returned');
+        return;
+      }
+
+      if (data.status === 'partial_return') {
+        setReturnsLookupError('This transaction has already been partially returned');
+        return;
+      }
+
+      if (data.status !== 'completed') {
+        setReturnsLookupError(`This transaction cannot be returned (status: ${data.status})`);
         return;
       }
 
@@ -811,6 +872,7 @@ export function POSPage() {
 
       setReceipt({
         transactionId: result?.data?.[0]?.id,
+        invoiceNumber: result?.data?.[0]?.invoice_number,
         method,
         items: [...cart],
         subtotal,
@@ -908,10 +970,11 @@ export function POSPage() {
     if (!receipt) return;
 
     // For store credit receipts, barcode should show SC card number instead of transaction ID
-    const barcodeValue = receipt.storeCreditCardNumber || receipt.transactionId || 'N/A';
+    const barcodeValue = receipt.storeCreditCardNumber || receipt.invoiceNumber || receipt.transactionId || 'N/A';
 
     const receiptHtml = generateThermalReceiptHTML({
       transactionId: receipt.transactionId || 'N/A',
+      invoiceNumber: receipt.invoiceNumber,
       customerName: receipt.customer ? `${receipt.customer.first_name} ${receipt.customer.last_name}` : 'Walk-in',
       items: receipt.items,
       subtotal: receipt.subtotal,
