@@ -485,6 +485,16 @@ export function POSPage() {
   };
 
   const processPayment = async (method: string, tenderedAmount?: number) => {
+    // CRITICAL: Capture state values BEFORE any awaits - state can change during async operations
+    const capturedStoreCredit = selectedStoreCredit;
+    const capturedGiftCard = selectedGiftCard;
+
+    console.log('🔴 CAPTURED AT FUNCTION START:', {
+      creditId: capturedStoreCredit?.id,
+      creditAmount: capturedStoreCredit?.amount,
+      creditBalance: capturedStoreCredit?.balance,
+    });
+
     setIsConfirming(true);
     const cartItemsPayload = cart.map(item => ({
       ...item,
@@ -494,12 +504,12 @@ export function POSPage() {
 
     try {
       // Calculate actual amount to charge after gift card and store credit are applied
-      let amountAfterGiftCard = selectedGiftCard
-        ? Math.max(0, grandTotal - selectedGiftCard.amount)
+      let amountAfterGiftCard = capturedGiftCard
+        ? Math.max(0, grandTotal - capturedGiftCard.amount)
         : grandTotal;
 
-      let amountAfterStoreCredit = selectedStoreCredit
-        ? Math.max(0, amountAfterGiftCard - selectedStoreCredit.amount)
+      let amountAfterStoreCredit = capturedStoreCredit
+        ? Math.max(0, amountAfterGiftCard - capturedStoreCredit.amount)
         : amountAfterGiftCard;
 
       const payload: any = {
@@ -549,16 +559,16 @@ export function POSPage() {
       const actualAmountUsed = amountAfterGiftCard - amountAfterStoreCredit;
 
       // UPDATE STORE CREDIT BALANCE DIRECTLY (not via API)
-      let storeCreditNewBalance = selectedStoreCredit?.balance;
+      let storeCreditNewBalance = capturedStoreCredit?.balance;
 
       console.log('🔴 STORE CREDIT UPDATE STARTING');
-      console.log('🔴 Credit ID:', selectedStoreCredit?.id);
+      console.log('🔴 Credit ID:', capturedStoreCredit?.id);
       console.log('🔴 Amount used:', actualAmountUsed);
-      console.log('🔴 Current balance:', selectedStoreCredit?.balance);
+      console.log('🔴 Current balance:', capturedStoreCredit?.balance);
 
-      if (selectedStoreCredit?.id && actualAmountUsed > 0) {
+      if (capturedStoreCredit?.id && actualAmountUsed > 0) {
         try {
-          const newBalance = Number(selectedStoreCredit.balance) - Number(actualAmountUsed);
+          const newBalance = Number(capturedStoreCredit.balance) - Number(actualAmountUsed);
 
           console.log('🔴 New balance will be:', newBalance);
 
@@ -568,7 +578,7 @@ export function POSPage() {
               remaining_balance: newBalance,
               is_active: newBalance > 0,
             })
-            .eq('id', selectedStoreCredit.id)
+            .eq('id', capturedStoreCredit.id)
             .select();
 
           console.log('🔴 SC UPDATE RESULT:', scData, scError);
@@ -583,7 +593,7 @@ export function POSPage() {
             const { error: txError } = await supabase
               .from('store_credit_transactions')
               .insert({
-                store_credit_id: selectedStoreCredit.id,
+                store_credit_id: capturedStoreCredit.id,
                 amount: -Number(actualAmountUsed),
                 transaction_type: 'redeemed',
               });
@@ -598,7 +608,7 @@ export function POSPage() {
           console.error('🔴 Error updating store credit balance:', err);
         }
       } else {
-        console.log('🔴 SKIPPED: selectedStoreCredit?.id:', selectedStoreCredit?.id, 'actualAmountUsed:', actualAmountUsed);
+        console.log('🔴 SKIPPED: capturedStoreCredit?.id:', capturedStoreCredit?.id, 'actualAmountUsed:', actualAmountUsed);
       }
 
       setReceipt({
@@ -613,10 +623,10 @@ export function POSPage() {
         time: new Date().toLocaleString(),
         tenderedAmount,
         changeGiven: tenderedAmount !== undefined ? tenderedAmount - amountAfterStoreCredit : undefined,
-        giftCardAmount: selectedGiftCard?.amount,
-        giftCardNumber: selectedGiftCard?.cardNumber,
-        storeCreditAmount: selectedStoreCredit?.amount,
-        storeCreditId: selectedStoreCredit?.id,
+        giftCardAmount: capturedGiftCard?.amount,
+        giftCardNumber: capturedGiftCard?.cardNumber,
+        storeCreditAmount: capturedStoreCredit?.amount,
+        storeCreditId: capturedStoreCredit?.id,
         storeCreditNewBalance: storeCreditNewBalance,
       });
 
@@ -626,11 +636,11 @@ export function POSPage() {
       setPendingPaymentMethod(null);
 
       // Process gift card redemption AFTER transaction is confirmed
-      if (selectedGiftCard) {
+      if (capturedGiftCard) {
         try {
           console.log('🎁 Processing gift card redemption after transaction:', {
-            cardNumber: selectedGiftCard.cardNumber,
-            amount: selectedGiftCard.amount,
+            cardNumber: capturedGiftCard.cardNumber,
+            amount: capturedGiftCard.amount,
             transactionId: result?.data?.[0]?.id,
           });
 
@@ -638,8 +648,8 @@ export function POSPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              card_number: selectedGiftCard.cardNumber,
-              amount: selectedGiftCard.amount,
+              card_number: capturedGiftCard.cardNumber,
+              amount: capturedGiftCard.amount,
               transaction_id: result?.data?.[0]?.id,
             }),
           });
