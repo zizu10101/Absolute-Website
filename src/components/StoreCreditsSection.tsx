@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabase';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { motion } from 'motion/react';
 
