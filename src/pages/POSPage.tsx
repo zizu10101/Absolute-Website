@@ -38,6 +38,7 @@ interface Receipt {
   giftCardNumber?: string;
   storeCreditAmount?: number;
   storeCreditId?: string;
+  storeCreditNewBalance?: number;
 }
 
 export function POSPage() {
@@ -503,6 +504,8 @@ export function POSPage() {
         }
       }
 
+      let storeCreditNewBalance = selectedStoreCredit?.balance;
+
       setReceipt({
         transactionId: result?.data?.[0]?.id,
         method,
@@ -519,6 +522,7 @@ export function POSPage() {
         giftCardNumber: selectedGiftCard?.cardNumber,
         storeCreditAmount: selectedStoreCredit?.amount,
         storeCreditId: selectedStoreCredit?.id,
+        storeCreditNewBalance: storeCreditNewBalance,
       });
 
       // Close cash calculator if it was open
@@ -582,7 +586,9 @@ export function POSPage() {
             console.error('⚠️ Store credit redemption warning:', redeemResult?.error);
             // Don't fail the transaction if store credit redemption fails
           } else {
-            console.log('✅ Store credit successfully redeemed');
+            console.log('✅ Store credit successfully redeemed, new balance:', redeemResult.newBalance);
+            // Update receipt with new balance
+            setReceipt(prev => prev ? { ...prev, storeCreditNewBalance: redeemResult.newBalance } : null);
           }
         } catch (err: any) {
           console.error('⚠️ Store credit redemption error:', err);
@@ -1163,7 +1169,12 @@ export function POSPage() {
                         <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span>💳 Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
                       )}
                       {receipt.storeCreditAmount && receipt.storeCreditAmount > 0 && (
-                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>🎟 Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
+                        <>
+                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>🎟 Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
+                          {receipt.storeCreditNewBalance !== undefined && (
+                            <div className="flex justify-between text-xs text-blue-500"><span>Remaining Balance</span><span>${receipt.storeCreditNewBalance.toFixed(2)}</span></div>
+                          )}
+                        </>
                       )}
                       {receipt.method === 'Cash' && receipt.tenderedAmount !== undefined && (
                         <>
