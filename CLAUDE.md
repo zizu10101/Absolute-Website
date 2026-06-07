@@ -10,9 +10,9 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
-## Current Status (as of June 7, 2026)
+## Current Status (as of June 7, 2026 - Session 2)
 
-### Latest Session - Returns Processing Complete ✅
+### Latest Session - Store Credit & Product Management Complete ✅
 
 **Returns Feature - FULLY IMPLEMENTED & TESTED:**
 - ✅ 5-step returns wizard in ReturnsModal (invoice lookup → item selection → refund method → confirmation → completion)
@@ -184,15 +184,26 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 - `src/hooks/usePOSCart.ts` - Cart state management
 
 **API Routes:**
-- `/api/products` - GET/POST products
+- `/api/products` - GET/POST products, PUT/DELETE for edits (uses service role key)
 - `/api/transactions` - GET/POST transactions
 - `/api/transactions/void` - POST void transaction
 - `/api/transactions/refund` - POST refund transaction
 - `/api/transactions/return` - POST return transaction
+- `/api/store-credits` - GET all store credits (NEW - June 7)
+  - Returns: { success, data: StoreCredit[] }
+  - Includes customer data and transaction history
+- `/api/store-credits/customer/:customerId` - GET customer's store credits (NEW - June 7)
+  - Returns: { success, data: StoreCredit[] }
+  - Filters for active credits with remaining balance
 - `/api/store-credits` - POST create store credit (NEW - June 7)
   - Body: { customerId, amount, reason }
   - Uses service role key to bypass RLS
   - Automatically creates store_credit_transactions record
+- `/api/store-credits/redeem` - POST redeem store credit (NEW - June 7)
+  - Body: { creditId, amount, transactionId }
+  - Deducts balance from store credit
+  - Returns: { success, newBalance }
+  - Creates transaction record for audit trail
 - `/api/gift-cards/*` - Gift card endpoints
 
 **Configuration:**
@@ -305,47 +316,73 @@ npm run preview        # Preview production build locally
 
 ---
 
-## Latest Session Summary (June 7, 2026)
+## Latest Session Summary (June 7, 2026 - Continued)
 
 ### ✅ Completed This Session
 
-**1. POS Returns Tab Integration (NEW)**
-- Added blue "Return" button to register (between Void/Refund and History)
-- New Returns tab on right side:
-  - Invoice number or barcode lookup input
-  - Real-time transaction search
-  - Shows found transaction details
-  - Auto-opens returns modal on "Continue to Return"
+**1. Fixed Product Editing (RLS Bypass)**
+- ✅ Product editing was failing due to RLS policies
+- ✅ Updated `updateProduct()` to use `/api/products/:id` PUT endpoint (like delete already did)
+- ✅ Server now uses service role key for all product operations
+- ✅ Product edit/delete fully functional in admin panel
 
-**2. Smart Quantity Controls in Returns Modal**
-- Single-item transactions: Simple "Select" button (no qty picker)
-- Multi-item transactions: Full +/- quantity picker with max limits
-- All item text rendered in BLACK for better visibility
-- Blue highlight on selected items for visual feedback
-- Qty picker only shows when items.quantity > 1
+**2. Fixed Admin Panel Access**
+- ✅ Added localhost/127.0.0.1 to allowed domains for /admin, /pos, /reports
+- ✅ Production access still restricted to torontosoccershop.com
+- ✅ Development access working without "Access Denied" errors
 
-**3. Bug Fixes & Schema Corrections**
-- ✅ Fixed transaction status update (was missing, now updates to returned/partial_return)
-- ✅ Fixed refund_method enum values (store_credit vs store-credit)
-- ✅ Fixed store_credits schema (removed transaction_id, created_at fields)
-- ✅ Fixed RLS policy violation: Created /api/store-credits endpoint with service role key
-- ✅ Added detailed error logging throughout ReturnsModal for debugging
+**3. Fixed Store Credit Display System**
+- ✅ Created GET `/api/store-credits` endpoint (all credits with customer data)
+- ✅ Created GET `/api/store-credits/customer/:customerId` endpoint (customer-specific)
+- ✅ Updated `StoreCreditsSection.tsx` to use API instead of direct Supabase
+- ✅ Updated `StoreCreditsTab.tsx` to use API for history tab
+- ✅ Updated `StoreCreditReport.tsx` to use API for reports
+- ✅ Store credits now display correctly in all locations (Reports, History, Customer Profile)
 
-**4. Architecture Improvements**
-- Created /api/store-credits endpoint on server (bypasses Supabase RLS)
-- ReturnsModal now calls API instead of direct Supabase insert
-- Better separation of concerns (client vs server responsibilities)
-- Consistent error handling with detailed console logs
+**4. Fixed Diana Mamoori's Missing Store Credit**
+- ✅ Diana's return was processed but store credit was never created (API endpoint didn't exist at time)
+- ✅ Manually created $107.35 store credit for Diana
+- ✅ Updated returns table with store_credit_id link
+- ✅ Now shows in all store credit locations
 
-**5. Code Quality**
-- ✅ TypeScript compilation passing (no errors)
-- ✅ Builds successfully without warnings
-- ✅ All imports and components properly integrated
-- ✅ End-to-end returns flow working (tested in console)
+**5. Implemented Store Credit Redemption (POS Checkout)**
+- ✅ Fixed store credit selection modal to use API endpoint
+- ✅ Created POST `/api/store-credits/redeem` endpoint
+- ✅ Store credit selection dropdown working in POS
+- ✅ Transaction saved with store credit applied
+- ✅ Balance deducted from store_credits table
+- ✅ Created transaction record for audit trail
+
+**6. Fixed Transaction Payload Schema**
+- ✅ Removed invalid fields: `discount`, `subtotal`, `hst`, `isTaxExempt`
+- ✅ Transaction table schema: total_amount, method, items, customer_id, created_at, tendered_amount, change_given
+- ✅ Checkout no longer fails with "column not found" errors
+
+**7. Enhanced Receipt Display**
+- ✅ Receipt now shows store credit amount used
+- ✅ Added "Remaining Balance" display below amount used
+- ✅ Captures new balance from API response
+- ✅ Customer can see their balance after redemption on receipt
+
+**8. Improved Returns System**
+- ✅ Added store_credit_id save to returns table after creation
+- ✅ Links return record to store credit created
+- ✅ Full audit trail now maintained
 
 ### 📋 Next Session Checklist
 
-**Immediate (Testing & Verification):**
+**CRITICAL - Store Credit Redemption Testing:**
+- [ ] **Verify store credit balance deduction working**:
+  - [ ] Process transaction with store credit payment
+  - [ ] Check that remaining_balance is updated in database
+  - [ ] Verify receipt shows remaining balance correctly
+  - [ ] Test partial redemption (use $20 of $50 credit)
+- [ ] **Test edge cases**:
+  - [ ] Use exact remaining balance (credit should become inactive)
+  - [ ] Try to use more than available balance (should fail/show error)
+  - [ ] Use store credit multiple times in separate transactions
+
+**High Priority (Testing & Verification):**
 - [ ] **Test returns end-to-end** (all flows now working):
   - [ ] POS Returns Tab: Scan invoice → find transaction → process return
   - [ ] Customer Profile: Expand transaction → click Return → complete flow
@@ -353,19 +390,18 @@ npm run preview        # Preview production build locally
   - [ ] Verify return summary appears when expanded
   - [ ] Verify inventory restored for returned items
   - [ ] Verify store credit issued correctly
-
-**High Priority:**
 - [ ] Verify all payment methods with returns (Cash, Debit, Visa, MC, Amex, GC, Store Credit)
 - [ ] Test multi-payment returns (transaction with GC + Store Credit)
 - [ ] Test partial returns (return 1 of 3 items, verify status = partial_return)
 - [ ] Test void/refund/return flow with inventory and payment reversal
-- [ ] Upload Germany product images (7 products needing images)
 
 **Medium Priority:**
+- [ ] Upload Germany product images (7 products needing images)
 - [ ] Verify thermal receipt printing for returns
 - [ ] Test returns on already voided/refunded transactions (button should not show)
 - [ ] Load test with 100+ transactions in reports
 - [ ] Verify status badges display correctly in transaction history
+- [ ] Verify product edit/delete working in admin panel
 
 **Optional Enhancements (Future):**
 - [ ] Return reason tracking (defect, wrong size, changed mind)
@@ -374,3 +410,4 @@ npm run preview        # Preview production build locally
 - [ ] Manager approval workflow for high-value returns
 - [ ] Email notifications for refunds/returns
 - [ ] Return rate analytics by product/category
+- [ ] Store credit expiration dates
