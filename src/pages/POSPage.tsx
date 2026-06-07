@@ -606,9 +606,14 @@ export function POSPage() {
       // Process store credit redemption AFTER transaction is confirmed
       if (selectedStoreCredit && method === 'Store Credit') {
         try {
+          // CRITICAL FIX: Calculate actual amount of store credit used, not the selected amount
+          // Because if gift card is also used, actual amount might be less than selected
+          const actualAmountUsed = amountAfterGiftCard - amountAfterStoreCredit;
+
           console.log('🎟 Processing store credit redemption after transaction:', {
             creditId: selectedStoreCredit.id,
-            amount: selectedStoreCredit.amount,
+            selectedAmount: selectedStoreCredit.amount,
+            actualAmountUsed: actualAmountUsed,
             transactionId: result?.data?.[0]?.id,
           });
 
@@ -617,23 +622,23 @@ export function POSPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               creditId: selectedStoreCredit.id,
-              amount: selectedStoreCredit.amount,
+              amount: actualAmountUsed,
               transactionId: result?.data?.[0]?.id,
             }),
           });
 
           const redeemResult = await redeemRes.json();
           if (!redeemRes.ok) {
-            console.error('⚠️ Store credit redemption warning:', redeemResult?.error);
-            // Don't fail the transaction if store credit redemption fails
+            console.error('❌ CRITICAL: Store credit redemption FAILED:', redeemResult?.error);
+            throw new Error('Store credit redemption failed: ' + redeemResult?.error);
           } else {
-            console.log('✅ Store credit successfully redeemed, new balance:', redeemResult.newBalance);
+            console.log('✅ Store credit successfully redeemed, amount: $' + actualAmountUsed.toFixed(2) + ', new balance: $' + redeemResult.newBalance.toFixed(2));
             // Update receipt with new balance
             setReceipt(prev => prev ? { ...prev, storeCreditNewBalance: redeemResult.newBalance } : null);
           }
         } catch (err: any) {
-          console.error('⚠️ Store credit redemption error:', err);
-          // Don't fail the transaction if store credit redemption fails
+          console.error('❌ CRITICAL ERROR: Store credit redemption failed:', err.message);
+          alert('⚠️ WARNING: Transaction saved but store credit balance may not have been updated. Please contact support.');
         }
       }
     } catch (e: any) {
