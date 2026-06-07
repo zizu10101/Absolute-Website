@@ -10,38 +10,52 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
-## Current Status (as of June 7, 2026 - Session 3)
+## Current Status (as of June 7, 2026 - Session 4)
 
-### Latest Session - Critical Store Credit Bugs Found & Fixed ✅
+### Latest Session - Store Credit Receipts & Reprint Invoice Feature ✅
 
-**Store Credit Redemption - CRITICAL BUGS FIXED:**
+**NEW FEATURES IMPLEMENTED:**
 
-Three critical bugs were discovered in console logs and fixed:
+1. **Store Credit Receipt Format** ✅
+   - ✅ Dedicated receipt format for SC issuance vs redemption
+   - ✅ SC Issuance Receipt: Shows card number (SC-XXXX...), amount, remaining balance, reason
+   - ✅ SC Redemption Receipt: Shows amount used, remaining balance, second payment method
+   - ✅ Large bold formatting for amounts
+   - ✅ Barcode encodes SC card number for SC receipts
+   - ✅ Function: `generateStoreCreditReceiptHTML()` in thermalReceipt.ts
 
-1. **BUG: Store Credit Balance Update Never Runs**
-   - ❌ Problem: `actualAmountUsed` was never calculated
-   - ❌ Code checked `if (selectedStoreCredit && actualAmountUsed > 0)` but `actualAmountUsed` was `undefined`
-   - ✅ Fixed: Added `const actualAmountUsed = amountAfterGiftCard - amountAfterStoreCredit;` at line 548
+2. **Reprint Invoice Feature** ✅
+   - ✅ Reprint button added to Transaction History (next to Print/Void/Refund/Return)
+   - ✅ Reprint button added to Customer Profile transaction list
+   - ✅ Reconstructs full receipt from Supabase transaction data
+   - ✅ Includes `*** REPRINT ***` header for clarity
+   - ✅ Works for all transaction types: completed, voided, refunded, returned
+   - ✅ Auto-opens print dialog when clicked
+   - ✅ Function: `handleReprint()` in PosTransactionHistory.tsx
+
+3. **Store Credit Barcode Assignment** ⏳ (Pending)
+   - ⏳ Migration created: `generate_store_credit_card_numbers.sql`
+   - ⏳ Generates SC-XXXXXXXXXXXX codes for existing store credits with null card_number
+   - ⏳ Run in Supabase SQL Editor to generate codes for all existing credits
+
+**CRITICAL BUGS FIXED (Previous Session - Session 3):**
+
+Three critical store credit bugs fixed:
+
+1. **BUG: Store Credit Balance Update Never Runs** ✅
+   - ✅ Problem: `actualAmountUsed` was undefined
+   - ✅ Fixed: Added calculation before use
    - ✅ Commit: a80b799
 
-2. **BUG: Store Credit State Undefined During Checkout**
-   - ❌ Problem: Console showed `Credit ID: undefined` - state was cleared during async operations
-   - ❌ Root cause: React state closure issue - state variables can change during async operations
-   - ✅ Fixed: Capture `selectedStoreCredit` and `selectedGiftCard` at function start before any awaits
-   - ✅ Pattern: Use `capturedStoreCredit` instead of `selectedStoreCredit` throughout function
+2. **BUG: Store Credit State Undefined During Checkout** ✅
+   - ✅ Problem: React state closure issue
+   - ✅ Fixed: Capture values at function start
    - ✅ Commit: 6feb45e
 
-3. **BUG: Returns Table 406 Errors**
-   - ❌ Problem: `.from('returns').single()` throws error when no returns exist
-   - ✅ Fixed: Changed `.single()` to `.maybeSingle()` in PosCustomerManager.tsx
-   - ✅ Added error logging for debugging
+3. **BUG: Returns Table 406 Errors** ✅
+   - ✅ Problem: `.single()` fails when no data exists
+   - ✅ Fixed: Changed to `.maybeSingle()`
    - ✅ Commit: a80b799
-
-**Console Logging Added:**
-- 🔴 Captured values at function start
-- 🔴 Store credit update flow (starting, amount used, new balance)
-- 🔴 Supabase result with data/error
-- 🔴 Detailed logging for easy debugging
 
 ### Previous Session Summary - Store Credit & Product Management Complete ✅
 
@@ -160,10 +174,21 @@ Three critical bugs were discovered in console logs and fixed:
 
 | Issue | Status | Impact | Priority |
 |-------|--------|--------|----------|
+| Store credit card numbers null | ⏳ READY TO FIX | Need to generate SC-XXXX codes | HIGH |
 | Store credit balance update bug | ✅ FIXED (Session 3) | Balance now updates on checkout | CRITICAL |
 | Store credit state undefined | ✅ FIXED (Session 3) | React closure issue resolved | CRITICAL |
 | Returns table 406 errors | ✅ FIXED (Session 3) | No longer blocks transaction history | HIGH |
 | Germany product images (7 products) | ❌ Not fixed | Missing images for German national team products | Medium |
+
+**Store Credit Card Number Generation (NEXT STEP):**
+- ⏳ Run migration in Supabase SQL Editor:
+  ```sql
+  UPDATE store_credits
+  SET card_number = 'SC-' || SUBSTRING(MD5(RANDOM()::TEXT || CLOCK_TIMESTAMP()::TEXT), 1, 12)
+  WHERE card_number IS NULL;
+  ```
+- Once generated, all SC receipts will display proper card numbers
+- All existing credits will have scannable barcodes
 
 **Germany Products Needing Images:**
 - Germany Away Jersey Y (ID: d12a3349-c69f-46c4-af59-05c66e2c293c)
@@ -178,78 +203,117 @@ Three critical bugs were discovered in console logs and fixed:
 
 ---
 
-## Next Steps - Testing & Verification (June 7, 2026)
+## Next Steps - Session 5 TODO (June 7, 2026)
 
-### CRITICAL - Test Store Credit Redemption (Must Verify)
+### CRITICAL - Generate Store Credit Card Numbers
 
-**Test Case 1: Single Store Credit Payment**
-- [ ] Add items to cart (~$50 total)
-- [ ] Select customer
-- [ ] Choose Store Credit as payment method
-- [ ] Verify console logs:
+**Action Items:**
+- [ ] **RUN MIGRATION**: Execute SQL in Supabase SQL Editor to generate SC-XXXX codes
+  ```sql
+  UPDATE store_credits
+  SET card_number = 'SC-' || SUBSTRING(MD5(RANDOM()::TEXT || CLOCK_TIMESTAMP()::TEXT), 1, 12)
+  WHERE card_number IS NULL;
   ```
-  🔴 CAPTURED AT FUNCTION START: {
-    creditId: "...",
-    creditAmount: 96.05,
-    creditBalance: 150.00,
-  }
-  🔴 STORE CREDIT UPDATE STARTING
-  🔴 Credit ID: ... (should NOT be undefined)
-  🔴 Amount used: 96.05
-  🔴 New balance will be: 53.95
-  🔴 SC UPDATE SUCCESS
-  ```
-- [ ] Check Supabase `store_credits` table - verify `remaining_balance` was deducted
-- [ ] Check `store_credit_transactions` table - verify `redeemed` record created
-- [ ] Receipt shows correct store credit amount and remaining balance
+- [ ] After migration: Verify all store credits have card_number values
+- [ ] Test SC receipt displays card number properly
+- [ ] Test barcode scanning works with new card numbers
 
-**Test Case 2: Gift Card + Store Credit (Multi-Payment)**
-- [ ] Cart: $100 total
-- [ ] Gift card: $40
-- [ ] Store credit: $80
-- [ ] Remaining due: $0
-- [ ] Verify amount deducted: $60 (not $80)
-- [ ] Check database - $60 deducted from credit balance
+### HIGH - Test Store Credit Receipts (New Feature)
 
-**Test Case 3: Exact Amount Store Credit**
-- [ ] Store credit exact amount of total ($50 = $50 total)
-- [ ] Verify `is_active` becomes `false`
-- [ ] Verify balance shows $0.00
+**SC Issuance Receipt Tests:**
+- [ ] Issue a store credit manually (from return or manual issue)
+- [ ] Verify receipt shows:
+  - [ ] "STORE CREDIT ISSUED" header
+  - [ ] Card number (SC-XXXXXXXXXXXX)
+  - [ ] Barcode encodes card number
+  - [ ] Amount in large bold box
+  - [ ] "Keep this receipt safe!" footer
+- [ ] Test print and PDF download
 
-**Test Case 4: Returns Table Fix**
-- [ ] Load customer profile
-- [ ] Check console - NO 406 errors
-- [ ] Transaction history loads cleanly
-- [ ] Return buttons visible on completed transactions
+**SC Redemption Receipt Tests:**
+- [ ] Use store credit to partially pay for transaction
+- [ ] Verify receipt shows:
+  - [ ] "STORE CREDIT REDEEMED" header
+  - [ ] "Amount Used: -$X.XX"
+  - [ ] "Remaining Balance: $X.XX" (large bold)
+  - [ ] Second payment method amount
+- [ ] Test full SC coverage (no second payment)
 
-### High Priority - Returns System (Verify Still Works)
-- [ ] Test POS Returns Tab (scan invoice)
-- [ ] Test Customer Profile Returns (click button)
-- [ ] Verify transaction status updates
+### HIGH - Test Reprint Invoice (New Feature)
+
+**Reprint Button Tests:**
+- [ ] Click Reprint on transaction in History tab
+- [ ] Verify receipt shows "*** REPRINT ***" header
+- [ ] Verify all transaction details correct
+- [ ] Test reprint for all transaction types:
+  - [ ] Completed transaction
+  - [ ] Voided transaction
+  - [ ] Refunded transaction
+  - [ ] Returned transaction
+- [ ] Test print dialog opens automatically
+- [ ] Test in Customer Profile transaction list
+
+### MEDIUM - Verify Existing Features Still Work
+
+**Store Credit Redemption Flow:**
+- [ ] Partial payment: SC doesn't cover full amount
+- [ ] Show "Remaining to Pay" message correctly
+- [ ] Require second payment method
+- [ ] Exact payment: SC covers entire amount
+- [ ] Console logs show correct calculations
+
+**Returns System:**
+- [ ] POS Returns Tab: scan invoice and process return
+- [ ] Customer Profile: click Return on transaction
 - [ ] Verify inventory restored
-- [ ] Verify store credit issued on return
+- [ ] Verify store credit issued (or original payment reversed)
+- [ ] Verify transaction status updates
 
-### Medium Priority - General Testing
-- [ ] Test all payment methods with store credit combinations
-- [ ] Test void/refund with store credit transactions
-- [ ] Verify receipts show correct store credit info
-- [ ] Test gift card + store credit edge cases
+**Multi-Payment Combinations:**
+- [ ] Gift Card + Store Credit
+- [ ] Gift Card + Cash
+- [ ] Store Credit + Debit Card
+- [ ] All combinations show correct final amount
 
-### Code Quality
-- [ ] All console 🔴 logs appear on store credit transactions
-- [ ] No RLS or database errors
-- [ ] No 406 errors in console
-- [ ] Captured state pattern used consistently
+### MEDIUM - Product Images
+
+**Germany Products (7 items need images):**
+- [ ] Admin panel - upload images for:
+  - Germany Away Jersey Y
+  - Germany Home Jersey Y
+  - Germany Away Jersey
+  - Germany Ball
+  - Germany Cap
+  - Germany GK H JSY
+  - Germany Home Jersey
+- [ ] Verify images display in storefront
+
+### LOW - Code Quality & Cleanup
+
+**After testing passes:**
+- [ ] Remove console logs if needed (keep 🔴 logs for debugging)
+- [ ] Verify no TypeScript errors
+- [ ] Run tests suite
+- [ ] Check browser console for any errors
 
 ---
 
-## Commits This Session (June 7, 2026)
+## Commits This Session (Session 4 - June 7, 2026)
+
+| Commit | Message | Files |
+|--------|---------|-------|
+| 28d9b45 | Revert "fix: remove non-functional reprint button, keep only print button" | PosTransactionHistory.tsx |
+| 4f15a80 | fix: remove non-functional reprint button, keep only print button | PosTransactionHistory.tsx |
+| 776e7cc | fix: fix reprint button visibility and remove duplicate, add SC card number migration | PosTransactionHistory.tsx, PosCustomerManager.tsx, migrations/ |
+| a00fb88 | feat: implement store credit receipts and reprint invoice functionality | thermalReceipt.ts, POSPage.tsx, PosTransactionHistory.tsx, PosCustomerManager.tsx |
+
+**Previous Session Commits (Session 3):**
 
 | Commit | Message | Files |
 |--------|---------|-------|
 | a80b799 | fix: critical store credit and returns bugs found in console logs | POSPage.tsx, PosCustomerManager.tsx |
 | 6feb45e | fix: capture selectedStoreCredit before async operations (critical state bug) | POSPage.tsx |
-| 6711f74 | docs: add detailed explanation of store credit direct Supabase fix | (doc file) |
+| 6711f74 | docs: add detailed explanation of store credit direct Supabase fix | CLAUDE.md |
 | d0d90d2 | fix: implement direct Supabase store credit balance update | POSPage.tsx |
 
 ---
