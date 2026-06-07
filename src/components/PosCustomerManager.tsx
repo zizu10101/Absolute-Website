@@ -4,10 +4,11 @@ import { useCustomers, Customer } from '../context/CustomerContext';
 import { CustomerGiftCards } from './CustomerGiftCards';
 import { StoreCreditsSection } from './StoreCreditsSection';
 import { ReturnsModal } from './ReturnsModal';
+import { generateThermalReceiptHTML } from '../utils/thermalReceipt';
 import {
   Search, User, ArrowLeft, Edit2, Save, X, Plus,
   ShoppingBag, DollarSign, Clock, CheckCircle2, AlertTriangle, Check,
-  Undo2, ChevronDown, ChevronUp,
+  Undo2, ChevronDown, ChevronUp, Printer, RefreshCw,
 } from 'lucide-react';
 
 type View = 'list' | 'profile' | 'create' | 'edit';
@@ -100,6 +101,45 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
     // Reload customer data to refresh transactions
     if (selected) {
       loadCustomerTransactions(selected.id);
+    }
+  };
+
+  const handleReprint = async (tx: any) => {
+    try {
+      const customerName = selected
+        ? `${selected.first_name} ${selected.last_name}`
+        : 'Walk-in';
+
+      // Calculate totals (assume 13% HST)
+      const total = Math.abs(Number(tx.total_amount));
+      const subtotal = total / 1.13;
+      const hst = total - subtotal;
+
+      const html = generateThermalReceiptHTML({
+        transactionId: tx.id,
+        customerName,
+        items: (tx.items || []).map((item: any) => ({
+          name: item.name || 'Item',
+          quantity: item.quantity || 1,
+          price: Number(item.price),
+          size: item.size,
+          ageGroup: item.ageGroup,
+        })),
+        subtotal,
+        hst,
+        total,
+        paymentMethod: tx.method,
+        createdAt: new Date(tx.created_at),
+        status: tx.status,
+        isReprint: true,
+      });
+
+      const win = window.open('', '_blank');
+      if (!win) return;
+      win.document.write(html);
+      win.document.close();
+    } catch (e: any) {
+      flash('Error reprinting receipt', true);
     }
   };
 
@@ -353,14 +393,23 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
                           )}
 
                           {/* Action buttons */}
-                          {tx.status === 'completed' && !hasReturn && (
+                          <div className="flex gap-2 pt-2">
                             <button
-                              onClick={() => openReturnsModal(tx.id)}
-                              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-black uppercase transition"
+                              onClick={() => handleReprint(tx)}
+                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-zinc-300 bg-zinc-100 hover:bg-zinc-200 rounded text-[10px] font-black uppercase transition"
+                              title="Reprint receipt"
                             >
-                              <Undo2 size={12} /> Process Return
+                              <RefreshCw size={11} /> Reprint
                             </button>
-                          )}
+                            {tx.status === 'completed' && !hasReturn && (
+                              <button
+                                onClick={() => openReturnsModal(tx.id)}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-black uppercase transition"
+                              >
+                                <Undo2 size={11} /> Return
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
