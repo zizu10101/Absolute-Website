@@ -545,56 +545,60 @@ export function POSPage() {
         }
       }
 
+      // BUG FIX: Calculate actualAmountUsed (was missing before!)
+      const actualAmountUsed = amountAfterGiftCard - amountAfterStoreCredit;
+
       // UPDATE STORE CREDIT BALANCE DIRECTLY (not via API)
       let storeCreditNewBalance = selectedStoreCredit?.balance;
-      if (selectedStoreCredit && actualAmountUsed > 0) {
+
+      console.log('🔴 STORE CREDIT UPDATE STARTING');
+      console.log('🔴 Credit ID:', selectedStoreCredit?.id);
+      console.log('🔴 Amount used:', actualAmountUsed);
+      console.log('🔴 Current balance:', selectedStoreCredit?.balance);
+
+      if (selectedStoreCredit?.id && actualAmountUsed > 0) {
         try {
-          console.log('💰 Updating store credit balance directly in Supabase:', {
-            creditId: selectedStoreCredit.id,
-            currentBalance: selectedStoreCredit.remaining_balance,
-            amountUsed: actualAmountUsed,
-            newBalance: selectedStoreCredit.remaining_balance - actualAmountUsed,
-          });
+          const newBalance = Number(selectedStoreCredit.balance) - Number(actualAmountUsed);
 
-          const newBalance = Math.max(0, selectedStoreCredit.remaining_balance - actualAmountUsed);
+          console.log('🔴 New balance will be:', newBalance);
 
-          // Update store credit balance directly
-          const { data: updateData, error: updateError } = await supabase
+          const { data: scData, error: scError } = await supabase
             .from('store_credits')
             .update({
               remaining_balance: newBalance,
               is_active: newBalance > 0,
             })
             .eq('id', selectedStoreCredit.id)
-            .select('remaining_balance, is_active');
+            .select();
 
-          console.log('💰 Store credit update result:', { data: updateData, error: updateError });
+          console.log('🔴 SC UPDATE RESULT:', scData, scError);
 
-          if (updateError) {
-            console.error('❌ Store credit balance update FAILED:', updateError);
-          } else if (updateData && updateData.length > 0) {
-            storeCreditNewBalance = updateData[0].remaining_balance;
-            console.log('✅ Store credit balance updated successfully. New balance:', storeCreditNewBalance);
+          if (scError) {
+            console.error('🔴 SC UPDATE FAILED:', scError);
+          } else {
+            storeCreditNewBalance = newBalance;
+            console.log('🔴 SC UPDATE SUCCESS. New balance:', newBalance);
 
             // Create transaction record for audit trail
             const { error: txError } = await supabase
               .from('store_credit_transactions')
               .insert({
                 store_credit_id: selectedStoreCredit.id,
-                transaction_id: result?.data?.[0]?.id,
-                amount: -actualAmountUsed,
+                amount: -Number(actualAmountUsed),
                 transaction_type: 'redeemed',
               });
 
             if (txError) {
-              console.error('⚠️ Store credit transaction record creation failed:', txError);
+              console.error('🔴 Transaction record failed:', txError);
             } else {
-              console.log('✅ Store credit transaction record created');
+              console.log('🔴 Transaction record created');
             }
           }
         } catch (err) {
-          console.error('❌ Error updating store credit balance:', err);
+          console.error('🔴 Error updating store credit balance:', err);
         }
+      } else {
+        console.log('🔴 SKIPPED: selectedStoreCredit?.id:', selectedStoreCredit?.id, 'actualAmountUsed:', actualAmountUsed);
       }
 
       setReceipt({
