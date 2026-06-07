@@ -232,13 +232,14 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
   <script>
     window.addEventListener('load', () => {
       try {
-        // Generate barcode
+        // Generate barcode from first 8 characters (invoice number) for easy scanning
         if (typeof JsBarcode !== 'undefined') {
-          JsBarcode("#barcode", "${data.transactionId}", {
+          const invoiceNumber = "${data.transactionId.slice(0, 8).toUpperCase()}";
+          JsBarcode("#barcode", invoiceNumber, {
             format: "CODE128",
             width: 1.5,
             height: 40,
-            displayValue: false,
+            displayValue: true,
             margin: 0
           });
         }
