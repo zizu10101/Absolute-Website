@@ -65,19 +65,21 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
       const returns: Record<string, any> = {};
       for (const tx of filtered) {
         try {
-          const { data: returnData } = await supabase
+          const { data: returnData, error: returnError } = await supabase
             .from('returns')
             .select('*')
             .eq('transaction_id', tx.id)
             .order('created_at', { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
 
-          if (returnData) {
+          if (returnError) {
+            console.error('Return query error for txn', tx.id, ':', returnError);
+          } else if (returnData) {
             returns[tx.id] = returnData;
           }
-        } catch {
-          // No return for this transaction
+        } catch (err) {
+          console.error('Exception loading returns for txn', tx.id, ':', err);
         }
       }
       setReturnRecords(returns);

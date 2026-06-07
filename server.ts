@@ -1703,6 +1703,159 @@ async function startServer() {
     }
   });
 
+  // Get all store credits (for POS history and reports)
+  app.get("/api/store-credits", async (req, res) => {
+    const admin = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    try {
+      const { data, error } = await admin
+        .from("store_credits")
+        .select(`
+          *,
+          customers (id, first_name, last_name, email, phone),
+          store_credit_transactions (*)
+        `)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return res.status(200).json({
+        success: true,
+        data: data || [],
+      });
+    } catch (err: any) {
+      console.error("❌ Error fetching store credits:", err);
+      return res.status(500).json({ error: err.message || "Failed to fetch store credits" });
+    }
+  });
+
+  // Get store credits for a specific customer
+  app.get("/api/store-credits/customer/:customerId", async (req, res) => {
+    const admin = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { customerId } = req.params;
+
+    if (!customerId) {
+      return res.status(400).json({ error: "customerId is required" });
+    }
+
+    try {
+      const { data, error } = await admin
+        .from("store_credits")
+        .select(`
+          *,
+          store_credit_transactions (*)
+        `)
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return res.status(200).json({
+        success: true,
+        data: data || [],
+      });
+    } catch (err: any) {
+      console.error("❌ Error fetching customer store credits:", err);
+      return res.status(500).json({ error: err.message || "Failed to fetch store credits" });
+    }
+  });
+
+  // Redeem store credit
+  app.post("/api/store-credits/redeem", async (req, res) => {
+    const admin = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { creditId, amount, transactionId } = req.body;
+
+    if (!creditId || !amount || amount <= 0) {
+      return res.status(400).json({ error: "Missing or invalid creditId, amount" });
+    }
+
+    try {
+      console.log(`🔄 [STEP 1] Redeeming store credit: $${amount} from credit ${creditId.slice(0, 8)}`);
+
+      // Get current balance
+      const { data: credit, error: fetchError } = await admin
+        .from("store_credits")
+        .select("remaining_balance, is_active")
+        .eq("id", creditId)
+        .single();
+
+      if (fetchError || !credit) {
+        console.error(`❌ [STEP 1a] Credit not found:`, fetchError);
+        throw new Error("Store credit not found");
+      }
+
+      console.log(`✅ [STEP 1b] Credit found. Current balance: $${credit.remaining_balance.toFixed(2)}, amount to redeem: $${amount}`);
+
+      const newBalance = Math.max(0, credit.remaining_balance - amount);
+      const shouldBeActive = newBalance > 0;
+
+      console.log(`🔄 [STEP 2] Calculated new balance: $${newBalance.toFixed(2)}, is_active: ${shouldBeActive}`);
+
+      // Update balance with explicit verification
+      const { data: updateData, error: updateError } = await admin
+        .from("store_credits")
+        .update({
+          remaining_balance: newBalance,
+          is_active: shouldBeActive,
+        })
+        .eq("id", creditId)
+        .select("remaining_balance, is_active");
+
+      if (updateError) {
+        console.error(`❌ [STEP 2a] Update failed:`, updateError);
+        throw updateError;
+      }
+
+      if (!updateData || updateData.length === 0) {
+        console.error(`❌ [STEP 2b] Update returned no data`);
+        throw new Error("Balance update failed - no data returned");
+      }
+
+      const verifiedBalance = updateData[0].remaining_balance;
+      console.log(`✅ [STEP 2b] Database verified - new balance: $${verifiedBalance.toFixed(2)}`);
+
+      // Create transaction record
+      const { data: txData, error: txError } = await admin
+        .from("store_credit_transactions")
+        .insert({
+          store_credit_id: creditId,
+          transaction_id: transactionId || null,
+          amount: -amount,
+          transaction_type: "redeemed",
+        })
+        .select();
+
+      if (txError) {
+        console.error(`⚠️ [STEP 3] Transaction record creation warning:`, txError);
+        // Don't fail if transaction record creation fails - the important part is the balance update
+      } else {
+        console.log(`✅ [STEP 3] Transaction record created`);
+      }
+
+      console.log(`✅ [COMPLETE] Store credit redeemed: $${amount}, new balance: $${newBalance.toFixed(2)}`);
+
+      return res.status(200).json({
+        success: true,
+        newBalance: newBalance,
+        verified: true,
+      });
+    } catch (err: any) {
+      console.error("❌ [FAILED] Store credit redemption error:", err.message);
+      return res.status(500).json({ error: err.message || "Failed to redeem store credit" });
+    }
+  });
+
   // --- VITE & STATIC ---
 
   if (!isProduction) {

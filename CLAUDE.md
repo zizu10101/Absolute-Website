@@ -10,9 +10,92 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
-## Current Status (as of June 7, 2026)
+## Current Status (as of June 7, 2026 - Session 5)
 
-### Latest Session - Returns Processing Complete ✅
+### Latest Session - Invoice Numbering System & Query Fixes ✅
+
+**INVOICE NUMBERING SYSTEM - FULLY IMPLEMENTED:**
+
+1. **Receipt Display & Barcode** ✅
+   - ✅ Receipts show "Invoice # INV-01000" instead of UUID
+   - ✅ Barcodes encode invoice_number (short, scannable format)
+   - ✅ Both regular and store credit receipts updated
+   - ✅ Receipt interface updated with invoiceNumber field
+   - ✅ File: thermalReceipt.ts
+
+2. **Transaction History Display** ✅
+   - ✅ Invoice numbers displayed prominently on transaction cards
+   - ✅ Expanded view shows invoice number in highlighted box
+   - ✅ Search includes invoice_number field
+   - ✅ File: PosTransactionHistory.tsx
+
+3. **Invoice Lookup Queries - ALL FIXED** ✅
+   - ✅ ReturnsModal.tsx - lookupInvoice() function
+   - ✅ ReturnTab.tsx - searchTransaction() function  
+   - ✅ POSPage.tsx - handleReturnsInvoiceLookup() function
+   - ✅ All now use: `.eq('invoice_number', normalizedInvoice).maybeSingle()`
+   - ✅ Removed: `.or('id.eq...', 'id.ilike...')` pattern
+   - ✅ Removed: `.eq('status', 'completed')` from query
+   - ✅ Added: Proper status checking AFTER finding record
+   - ✅ Added: Console logging for debugging
+
+4. **Barcode Scanning Differentiation** ✅
+   - ✅ SC- prefix → Store credit lookup
+   - ✅ INV- or numeric → Invoice lookup
+   - ✅ UUID format → Error message with guidance
+   - ✅ File: POSPage.tsx
+
+5. **Invoice Number Normalization** ✅
+   - ✅ Handles: INV-01000, 1000, 01000
+   - ✅ Pads numeric portion to 5 digits
+   - ✅ Implemented in all three lookup functions
+
+### Previous Session - Store Credit Receipts & Reprint Invoice Feature ✅
+
+**NEW FEATURES IMPLEMENTED:**
+
+1. **Store Credit Receipt Format** ✅
+   - ✅ Dedicated receipt format for SC issuance vs redemption
+   - ✅ SC Issuance Receipt: Shows card number (SC-XXXX...), amount, remaining balance, reason
+   - ✅ SC Redemption Receipt: Shows amount used, remaining balance, second payment method
+   - ✅ Large bold formatting for amounts
+   - ✅ Barcode encodes SC card number for SC receipts
+   - ✅ Function: `generateStoreCreditReceiptHTML()` in thermalReceipt.ts
+
+2. **Reprint Invoice Feature** ✅
+   - ✅ Reprint button added to Transaction History (next to Print/Void/Refund/Return)
+   - ✅ Reprint button added to Customer Profile transaction list
+   - ✅ Reconstructs full receipt from Supabase transaction data
+   - ✅ Includes `*** REPRINT ***` header for clarity
+   - ✅ Works for all transaction types: completed, voided, refunded, returned
+   - ✅ Auto-opens print dialog when clicked
+   - ✅ Function: `handleReprint()` in PosTransactionHistory.tsx
+
+3. **Store Credit Barcode Assignment** ⏳ (Pending)
+   - ⏳ Migration created: `generate_store_credit_card_numbers.sql`
+   - ⏳ Generates SC-XXXXXXXXXXXX codes for existing store credits with null card_number
+   - ⏳ Run in Supabase SQL Editor to generate codes for all existing credits
+
+**CRITICAL BUGS FIXED (Previous Session - Session 3):**
+
+Three critical store credit bugs fixed:
+
+1. **BUG: Store Credit Balance Update Never Runs** ✅
+   - ✅ Problem: `actualAmountUsed` was undefined
+   - ✅ Fixed: Added calculation before use
+   - ✅ Commit: a80b799
+
+2. **BUG: Store Credit State Undefined During Checkout** ✅
+   - ✅ Problem: React state closure issue
+   - ✅ Fixed: Capture values at function start
+   - ✅ Commit: 6feb45e
+
+3. **BUG: Returns Table 406 Errors** ✅
+   - ✅ Problem: `.single()` fails when no data exists
+   - ✅ Fixed: Changed to `.maybeSingle()`
+   - ✅ Commit: a80b799
+
+### Previous Session Summary - Store Credit & Product Management Complete ✅
 
 **Returns Feature - FULLY IMPLEMENTED & TESTED:**
 - ✅ 5-step returns wizard in ReturnsModal (invoice lookup → item selection → refund method → confirmation → completion)
@@ -125,11 +208,27 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
-## Known Issues
+## Known Issues & Status
 
 | Issue | Status | Impact | Priority |
 |-------|--------|--------|----------|
+| Invoice numbering system | ✅ COMPLETE (Session 5) | Receipts, lookup, scanning all use short INV-XXXXX codes | CRITICAL |
+| Invoice lookup queries | ✅ FIXED (Session 5) | All 3 functions use correct invoice_number field | CRITICAL |
+| Store credit card numbers null | ⏳ READY TO TEST | Generated via SQL, need to verify in receipts | HIGH |
+| Store credit balance update bug | ✅ FIXED (Session 3) | Balance now updates on checkout | CRITICAL |
+| Store credit state undefined | ✅ FIXED (Session 3) | React closure issue resolved | CRITICAL |
+| Returns table 406 errors | ✅ FIXED (Session 3) | No longer blocks transaction history | HIGH |
 | Germany product images (7 products) | ❌ Not fixed | Missing images for German national team products | Medium |
+
+**Store Credit Card Number Generation (NEXT STEP):**
+- ⏳ Run migration in Supabase SQL Editor:
+  ```sql
+  UPDATE store_credits
+  SET card_number = 'SC-' || SUBSTRING(MD5(RANDOM()::TEXT || CLOCK_TIMESTAMP()::TEXT), 1, 12)
+  WHERE card_number IS NULL;
+  ```
+- Once generated, all SC receipts will display proper card numbers
+- All existing credits will have scannable barcodes
 
 **Germany Products Needing Images:**
 - Germany Away Jersey Y (ID: d12a3349-c69f-46c4-af59-05c66e2c293c)
@@ -144,6 +243,138 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
+## Next Steps - Session 6 TODO (June 7, 2026)
+
+### CRITICAL - Test Invoice Numbering System
+
+**Invoice Lookup Tests:**
+- [ ] Open Returns modal and enter invoice number:
+  - [ ] Type `INV-01000` → Should find transaction
+  - [ ] Type `1000` → Should normalize and find it
+  - [ ] Type `01000` → Should normalize and find it
+  - [ ] Scan UUID barcode → Should show error
+- [ ] Check browser console logs:
+  - [ ] `Looking up invoice: INV-XXXXX` shows correct normalization
+  - [ ] `Result:` shows data found (not error)
+- [ ] Verify correct error messages for voided/refunded/returned transactions
+
+**Receipt Display Tests:**
+- [ ] Process a transaction at checkout
+- [ ] Verify receipt shows `Invoice # INV-01000` (not UUID)
+- [ ] Verify barcode encodes `INV-01000` (not full UUID)
+- [ ] Verify reprint button works and shows `*** REPRINT ***` header
+- [ ] Test in all three places:
+  - [ ] POS checkout
+  - [ ] Transaction History → Reprint button
+  - [ ] Customer Profile → Reprint button
+
+**Barcode Scanning Tests:**
+- [ ] Scan SC-XXXX code → Store credit applied
+- [ ] Scan INV-01000 code → Info message about Returns modal
+- [ ] Scan UUID code → Error message about scanning invoice barcode
+- [ ] Scan product barcode → Added to cart normally
+
+**Transaction History Tests:**
+- [ ] Invoice numbers display on transaction cards
+- [ ] Expand transaction to see invoice number in highlighted box
+- [ ] Search by invoice number works
+- [ ] Search by customer name still works
+- [ ] All filters work (today/week/month/year/all)
+
+### HIGH - Test Store Credit Receipts (New Feature)
+
+**SC Issuance Receipt Tests:**
+- [ ] Issue a store credit manually (from return or manual issue)
+- [ ] Verify receipt shows:
+  - [ ] "STORE CREDIT ISSUED" header
+  - [ ] Card number (SC-XXXXXXXXXXXX)
+  - [ ] Barcode encodes card number
+  - [ ] Amount in large bold box
+  - [ ] "Keep this receipt safe!" footer
+- [ ] Test print and PDF download
+
+**SC Redemption Receipt Tests:**
+- [ ] Use store credit to partially pay for transaction
+- [ ] Verify receipt shows:
+  - [ ] "STORE CREDIT REDEEMED" header
+  - [ ] "Amount Used: -$X.XX"
+  - [ ] "Remaining Balance: $X.XX" (large bold)
+  - [ ] Second payment method amount
+- [ ] Test full SC coverage (no second payment)
+
+### MEDIUM - Verify Existing Features Still Work
+
+**Store Credit Redemption Flow:**
+- [ ] Partial payment: SC doesn't cover full amount
+- [ ] Show "Remaining to Pay" message correctly
+- [ ] Require second payment method
+- [ ] Exact payment: SC covers entire amount
+- [ ] Console logs show correct calculations
+
+**Returns System:**
+- [ ] POS Returns Tab: scan invoice and process return
+- [ ] Customer Profile: click Return on transaction
+- [ ] Verify inventory restored
+- [ ] Verify store credit issued (or original payment reversed)
+- [ ] Verify transaction status updates
+
+**Multi-Payment Combinations:**
+- [ ] Gift Card + Store Credit
+- [ ] Gift Card + Cash
+- [ ] Store Credit + Debit Card
+- [ ] All combinations show correct final amount
+
+### MEDIUM - Product Images
+
+**Germany Products (7 items need images):**
+- [ ] Admin panel - upload images for:
+  - Germany Away Jersey Y
+  - Germany Home Jersey Y
+  - Germany Away Jersey
+  - Germany Ball
+  - Germany Cap
+  - Germany GK H JSY
+  - Germany Home Jersey
+- [ ] Verify images display in storefront
+
+### LOW - Code Quality & Cleanup
+
+**After testing passes:**
+- [ ] Remove debug console logs (keep 🔴 logs for debugging)
+- [ ] Verify no TypeScript errors
+- [ ] Run tests suite
+- [ ] Check browser console for any errors
+
+---
+
+## Commits This Session (Session 5 - June 7, 2026 - Invoice Numbering System)
+
+| Commit | Message | Files |
+|--------|---------|-------|
+| TBD | feat: implement invoice numbering system - receipts, display, lookup, scanning | thermalReceipt.ts, PosTransactionHistory.tsx, ReturnsModal.tsx, ReturnTab.tsx, POSPage.tsx |
+| TBD | fix: correct all invoice lookup queries to use invoice_number field | ReturnsModal.tsx, ReturnTab.tsx, POSPage.tsx |
+| TBD | fix: replace .single() with .maybeSingle() in invoice lookups | ReturnsModal.tsx, ReturnTab.tsx, POSPage.tsx |
+
+**Session 4 Commits (June 7, 2026):**
+
+| Commit | Message | Files |
+|--------|---------|-------|
+| 28d9b45 | Revert "fix: remove non-functional reprint button, keep only print button" | PosTransactionHistory.tsx |
+| 4f15a80 | fix: remove non-functional reprint button, keep only print button | PosTransactionHistory.tsx |
+| 776e7cc | fix: fix reprint button visibility and remove duplicate, add SC card number migration | PosTransactionHistory.tsx, PosCustomerManager.tsx, migrations/ |
+| a00fb88 | feat: implement store credit receipts and reprint invoice functionality | thermalReceipt.ts, POSPage.tsx, PosTransactionHistory.tsx, PosCustomerManager.tsx |
+
+**Previous Session Commits (Session 3):**
+
+| Commit | Message | Files |
+|--------|---------|-------|
+| a80b799 | fix: critical store credit and returns bugs found in console logs | POSPage.tsx, PosCustomerManager.tsx |
+| 6feb45e | fix: capture selectedStoreCredit before async operations (critical state bug) | POSPage.tsx |
+| 6711f74 | docs: add detailed explanation of store credit direct Supabase fix | CLAUDE.md |
+| d0d90d2 | fix: implement direct Supabase store credit balance update | POSPage.tsx |
+
+---
+
 ## Database Schema Reference
 
 **Key Tables:**
@@ -151,15 +382,16 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
   - Columns: id, name, category, price, description, image, colors, is_online
   - Related: product_variants (size, SKU, stock_quantity)
 - `transactions` - POS transaction history
-  - Columns: id, customer_id, total_amount, method, status (completed/voided/refunded/returned), items[], created_at, tendered_amount, change_given
+  - Columns: id, invoice_number (NEW - Session 5), customer_id, total_amount, method, status (completed/voided/refunded/returned/partial_return), items[], created_at, tendered_amount, change_given
+  - Invoice numbers auto-generated: INV-01000, INV-01001, etc. via SQL trigger
 - `gift_cards` - Gift card inventory
   - Columns: id, card_number, customer_id, initial_balance, current_balance, is_active, created_at
 - `store_credits` - Store credit inventory
-  - Columns: id, customer_id, amount, reason, remaining_balance, is_active, created_at
+  - Columns: id, card_number, customer_id, amount, reason, remaining_balance, is_active, created_at
 - `customers` - POS customer data
   - Columns: id, first_name, last_name, email, phone, created_at
-- `returns` - Return transaction audit trail (NEW)
-  - Columns: id, transaction_id, customer_id, refund_method (store-credit/original-payment), refund_amount, items[], status, created_at
+- `returns` - Return transaction audit trail
+  - Columns: id, transaction_id, customer_id, refund_method (store_credit/original_payment), refund_amount, items[], status, created_at
 - `settings` - Configuration (key: navigation, hst_number, store_name, etc.)
 
 ---
@@ -184,15 +416,26 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 - `src/hooks/usePOSCart.ts` - Cart state management
 
 **API Routes:**
-- `/api/products` - GET/POST products
+- `/api/products` - GET/POST products, PUT/DELETE for edits (uses service role key)
 - `/api/transactions` - GET/POST transactions
 - `/api/transactions/void` - POST void transaction
 - `/api/transactions/refund` - POST refund transaction
 - `/api/transactions/return` - POST return transaction
+- `/api/store-credits` - GET all store credits (NEW - June 7)
+  - Returns: { success, data: StoreCredit[] }
+  - Includes customer data and transaction history
+- `/api/store-credits/customer/:customerId` - GET customer's store credits (NEW - June 7)
+  - Returns: { success, data: StoreCredit[] }
+  - Filters for active credits with remaining balance
 - `/api/store-credits` - POST create store credit (NEW - June 7)
   - Body: { customerId, amount, reason }
   - Uses service role key to bypass RLS
   - Automatically creates store_credit_transactions record
+- `/api/store-credits/redeem` - POST redeem store credit (NEW - June 7)
+  - Body: { creditId, amount, transactionId }
+  - Deducts balance from store credit
+  - Returns: { success, newBalance }
+  - Creates transaction record for audit trail
 - `/api/gift-cards/*` - Gift card endpoints
 
 **Configuration:**
@@ -220,6 +463,123 @@ npm run build          # Build for production
 - Supabase project with public anon key
 - Tables: products, transactions, customers, gift_cards, store_credits, settings
 - Storage bucket: products (for product images)
+
+---
+
+## Session 5 Implementation Details (June 7, 2026 - Invoice Numbering System)
+
+### Overview
+Implemented a professional invoice numbering system to replace long UUIDs with short, human-readable invoice numbers (INV-01000, INV-01001, etc.) for all receipts, transaction lookups, and barcode scanning.
+
+### Files Modified
+
+**1. src/utils/thermalReceipt.ts**
+   - Added `invoiceNumber?: string` to ReceiptData interface
+   - Updated receipt HTML to display "Invoice # INV-01000" (not UUID)
+   - Changed barcode to encode invoiceNumber instead of transactionId
+   - Applied to both regular receipts and store credit receipts
+   - Barcode priority: invoiceNumber → barcodeValue → transactionId
+
+**2. src/components/PosTransactionHistory.tsx**
+   - Added `invoice_number?: string` to Transaction interface
+   - Updated search to include invoice_number field
+   - Display invoice numbers prominently on transaction rows (bold black text)
+   - Added highlighted box in expanded view showing invoice number
+   - Updated handlePrint() to pass invoiceNumber to receipt generator
+
+**3. src/components/ReturnsModal.tsx**
+   - Added `invoice_number?: string` to Transaction interface
+   - Completely rewrote lookupInvoice() function:
+     - Now uses `.eq('invoice_number', normalizedInvoice)`
+     - Changed from `.single()` to `.maybeSingle()` (no 404 errors)
+     - Removed `.eq('status', 'completed')` from query
+     - Added proper status checking AFTER finding record
+     - Improved error messages for each status (voided, refunded, returned, partial_return)
+   - Updated loadTransactionByIdDirect() with same pattern for consistency
+   - Updated transaction summary display to show invoice_number
+
+**4. src/components/ReturnTab.tsx**
+   - Rewrote searchTransaction() function to use invoice_number lookup
+   - Changed from `.eq('id', invoiceInput)` + `.ilike('id', ...)` pattern
+   - Now uses `.eq('invoice_number', normalizedInvoice).maybeSingle()`
+   - Removed fallback UUID search (cleaner logic)
+   - Added UUID detection and error message
+
+**5. src/pages/POSPage.tsx**
+   - Added `invoiceNumber?: string` to Receipt interface
+   - Updated setReceipt() to capture invoice_number from transaction
+   - Updated handlePrintReceipt() to pass invoiceNumber to receipt
+   - Fixed handleReturnsInvoiceLookup() function:
+     - Changed from `.or('id.eq...', 'id.ilike...')` pattern
+     - Now uses `.eq('invoice_number', normalizedInvoice)`
+     - Changed to `.maybeSingle()` for better error handling
+     - Removed `.eq('status', 'completed')` from query
+     - Added UUID detection and proper error messages
+     - Added comprehensive status checking
+   - Added barcode scanning differentiation:
+     - SC- prefix → Store credit lookup
+     - INV- or numeric → Invoice lookup (informational message)
+     - UUID format → Error message
+     - Other → Product barcode lookup (unchanged)
+
+### Normalization Logic (All Three Functions)
+
+All three invoice lookup functions now use the same normalization:
+```typescript
+const normalizedInvoice = input.startsWith('INV-')
+  ? input
+  : 'INV-' + input.padStart(5, '0');
+```
+
+**Results:**
+- `INV-01000` → `INV-01000` ✅
+- `1000` → `INV-01000` ✅
+- `01000` → `INV-01000` ✅
+- `1` → `INV-00001` ✅
+
+### Query Pattern Changes
+
+**Old Pattern (Before):**
+```typescript
+.or(`id.eq.${input},id.ilike.%${input}%`)
+.eq('status', 'completed')
+.single()
+```
+**Problems:**
+- Searched by 'id' field instead of 'invoice_number'
+- Status filter in query returned no data for voided/refunded
+- `.single()` threw 404 error if not found
+
+**New Pattern (After):**
+```typescript
+.eq('invoice_number', normalizedInvoice)
+.maybeSingle()
+```
+**Benefits:**
+- Searches correct field
+- No status filter in query
+- `.maybeSingle()` returns null gracefully
+- Status checked AFTER finding record
+
+### Console Logging
+
+Added debug logs in all three functions:
+```typescript
+console.log('Looking up invoice:', normalizedInvoice);
+console.log('Result:', data, error);
+```
+
+Helps troubleshoot lookup issues in browser console.
+
+### Error Handling
+
+All three functions now check status AFTER finding the record:
+- `voided` → "This transaction has been voided"
+- `refunded` → "This transaction has already been refunded"
+- `returned` → "This transaction has already been fully returned"
+- `partial_return` → "This transaction has already been partially returned"
+- Other → Shows status in error message
+- UUID input → "Please scan the invoice barcode, not the transaction UUID"
 
 ---
 
@@ -305,47 +665,73 @@ npm run preview        # Preview production build locally
 
 ---
 
-## Latest Session Summary (June 7, 2026)
+## Latest Session Summary (June 7, 2026 - Continued)
 
 ### ✅ Completed This Session
 
-**1. POS Returns Tab Integration (NEW)**
-- Added blue "Return" button to register (between Void/Refund and History)
-- New Returns tab on right side:
-  - Invoice number or barcode lookup input
-  - Real-time transaction search
-  - Shows found transaction details
-  - Auto-opens returns modal on "Continue to Return"
+**1. Fixed Product Editing (RLS Bypass)**
+- ✅ Product editing was failing due to RLS policies
+- ✅ Updated `updateProduct()` to use `/api/products/:id` PUT endpoint (like delete already did)
+- ✅ Server now uses service role key for all product operations
+- ✅ Product edit/delete fully functional in admin panel
 
-**2. Smart Quantity Controls in Returns Modal**
-- Single-item transactions: Simple "Select" button (no qty picker)
-- Multi-item transactions: Full +/- quantity picker with max limits
-- All item text rendered in BLACK for better visibility
-- Blue highlight on selected items for visual feedback
-- Qty picker only shows when items.quantity > 1
+**2. Fixed Admin Panel Access**
+- ✅ Added localhost/127.0.0.1 to allowed domains for /admin, /pos, /reports
+- ✅ Production access still restricted to torontosoccershop.com
+- ✅ Development access working without "Access Denied" errors
 
-**3. Bug Fixes & Schema Corrections**
-- ✅ Fixed transaction status update (was missing, now updates to returned/partial_return)
-- ✅ Fixed refund_method enum values (store_credit vs store-credit)
-- ✅ Fixed store_credits schema (removed transaction_id, created_at fields)
-- ✅ Fixed RLS policy violation: Created /api/store-credits endpoint with service role key
-- ✅ Added detailed error logging throughout ReturnsModal for debugging
+**3. Fixed Store Credit Display System**
+- ✅ Created GET `/api/store-credits` endpoint (all credits with customer data)
+- ✅ Created GET `/api/store-credits/customer/:customerId` endpoint (customer-specific)
+- ✅ Updated `StoreCreditsSection.tsx` to use API instead of direct Supabase
+- ✅ Updated `StoreCreditsTab.tsx` to use API for history tab
+- ✅ Updated `StoreCreditReport.tsx` to use API for reports
+- ✅ Store credits now display correctly in all locations (Reports, History, Customer Profile)
 
-**4. Architecture Improvements**
-- Created /api/store-credits endpoint on server (bypasses Supabase RLS)
-- ReturnsModal now calls API instead of direct Supabase insert
-- Better separation of concerns (client vs server responsibilities)
-- Consistent error handling with detailed console logs
+**4. Fixed Diana Mamoori's Missing Store Credit**
+- ✅ Diana's return was processed but store credit was never created (API endpoint didn't exist at time)
+- ✅ Manually created $107.35 store credit for Diana
+- ✅ Updated returns table with store_credit_id link
+- ✅ Now shows in all store credit locations
 
-**5. Code Quality**
-- ✅ TypeScript compilation passing (no errors)
-- ✅ Builds successfully without warnings
-- ✅ All imports and components properly integrated
-- ✅ End-to-end returns flow working (tested in console)
+**5. Implemented Store Credit Redemption (POS Checkout)**
+- ✅ Fixed store credit selection modal to use API endpoint
+- ✅ Created POST `/api/store-credits/redeem` endpoint
+- ✅ Store credit selection dropdown working in POS
+- ✅ Transaction saved with store credit applied
+- ✅ Balance deducted from store_credits table
+- ✅ Created transaction record for audit trail
+
+**6. Fixed Transaction Payload Schema**
+- ✅ Removed invalid fields: `discount`, `subtotal`, `hst`, `isTaxExempt`
+- ✅ Transaction table schema: total_amount, method, items, customer_id, created_at, tendered_amount, change_given
+- ✅ Checkout no longer fails with "column not found" errors
+
+**7. Enhanced Receipt Display**
+- ✅ Receipt now shows store credit amount used
+- ✅ Added "Remaining Balance" display below amount used
+- ✅ Captures new balance from API response
+- ✅ Customer can see their balance after redemption on receipt
+
+**8. Improved Returns System**
+- ✅ Added store_credit_id save to returns table after creation
+- ✅ Links return record to store credit created
+- ✅ Full audit trail now maintained
 
 ### 📋 Next Session Checklist
 
-**Immediate (Testing & Verification):**
+**CRITICAL - Store Credit Redemption Testing:**
+- [ ] **Verify store credit balance deduction working**:
+  - [ ] Process transaction with store credit payment
+  - [ ] Check that remaining_balance is updated in database
+  - [ ] Verify receipt shows remaining balance correctly
+  - [ ] Test partial redemption (use $20 of $50 credit)
+- [ ] **Test edge cases**:
+  - [ ] Use exact remaining balance (credit should become inactive)
+  - [ ] Try to use more than available balance (should fail/show error)
+  - [ ] Use store credit multiple times in separate transactions
+
+**High Priority (Testing & Verification):**
 - [ ] **Test returns end-to-end** (all flows now working):
   - [ ] POS Returns Tab: Scan invoice → find transaction → process return
   - [ ] Customer Profile: Expand transaction → click Return → complete flow
@@ -353,19 +739,18 @@ npm run preview        # Preview production build locally
   - [ ] Verify return summary appears when expanded
   - [ ] Verify inventory restored for returned items
   - [ ] Verify store credit issued correctly
-
-**High Priority:**
 - [ ] Verify all payment methods with returns (Cash, Debit, Visa, MC, Amex, GC, Store Credit)
 - [ ] Test multi-payment returns (transaction with GC + Store Credit)
 - [ ] Test partial returns (return 1 of 3 items, verify status = partial_return)
 - [ ] Test void/refund/return flow with inventory and payment reversal
-- [ ] Upload Germany product images (7 products needing images)
 
 **Medium Priority:**
+- [ ] Upload Germany product images (7 products needing images)
 - [ ] Verify thermal receipt printing for returns
 - [ ] Test returns on already voided/refunded transactions (button should not show)
 - [ ] Load test with 100+ transactions in reports
 - [ ] Verify status badges display correctly in transaction history
+- [ ] Verify product edit/delete working in admin panel
 
 **Optional Enhancements (Future):**
 - [ ] Return reason tracking (defect, wrong size, changed mind)
@@ -374,3 +759,4 @@ npm run preview        # Preview production build locally
 - [ ] Manager approval workflow for high-value returns
 - [ ] Email notifications for refunds/returns
 - [ ] Return rate analytics by product/category
+- [ ] Store credit expiration dates

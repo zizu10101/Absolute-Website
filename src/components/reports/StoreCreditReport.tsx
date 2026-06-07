@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../../supabase';
 import { CreditCard, Download, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
@@ -38,26 +37,29 @@ export function StoreCreditReport() {
 
   useEffect(() => {
     fetchStoreCredits();
+    // Auto-refresh every 3 seconds to catch balance updates
+    const interval = setInterval(fetchStoreCredits, 3000);
+    return () => clearInterval(interval);
   }, [dateRange]);
 
   const fetchStoreCredits = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('store_credits')
-        .select(`
-          *,
-          customers (first_name, last_name, email, phone),
-          store_credit_transactions (*)
-        `)
-        .gte('created_at', `${dateRange.start}T00:00:00`)
-        .lte('created_at', `${dateRange.end}T23:59:59`)
-        .order('created_at', { ascending: false });
+      const response = await fetch('/api/store-credits');
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      const result = await response.json();
 
-      if (error) throw error;
-      setStoreCredits(data || []);
+      // Filter by date range client-side
+      const filtered = (result.data || []).filter((credit: any) => {
+        const creditDate = new Date(credit.created_at).toISOString().split('T')[0];
+        return creditDate >= dateRange.start && creditDate <= dateRange.end;
+      });
+
+      console.log('Store credits fetched for report:', filtered);
+      setStoreCredits(filtered);
     } catch (err) {
       console.error('Error fetching store credits:', err);
+      setStoreCredits([]);
     } finally {
       setIsLoading(false);
     }

@@ -24,6 +24,7 @@ type CategoryTab = 'ALL' | 'FOOTWEAR' | 'KITS' | 'BALLS' | 'EQUIPMENT' | 'TEAMWE
 
 interface Receipt {
   transactionId?: string;
+  invoiceNumber?: string;
   method: string;
   items: CartItem[];
   subtotal: number;
@@ -38,6 +39,9 @@ interface Receipt {
   giftCardNumber?: string;
   storeCreditAmount?: number;
   storeCreditId?: string;
+  storeCreditNewBalance?: number;
+  storeCreditCardNumber?: string; // SC card number for barcode on SC receipts
+  barcodeValue?: string; // What to encode in barcode (transaction ID or SC card number)
 }
 
 export function POSPage() {
@@ -54,10 +58,17 @@ export function POSPage() {
   const [selectedGiftCard, setSelectedGiftCard] = useState<{ cardNumber: string; amount: number } | null>(null);
 
   // Store credit payment tracking
-  const [selectedStoreCredit, setSelectedStoreCredit] = useState<{ id: string; amount: number; balance: number } | null>(null);
+  const [selectedStoreCredit, setSelectedStoreCredit] = useState<{ id: string; amount: number; balance: number; cardNumber?: string } | null>(null);
   const [availableStoreCredits, setAvailableStoreCredits] = useState<any[]>([]);
   const [showStoreCreditModal, setShowStoreCreditModal] = useState(false);
   const [storeCreditError, setStoreCreditError] = useState<string | null>(null);
+  const [scModalTab, setScModalTab] = useState<'customer' | 'scan' | 'search'>('customer'); // 'customer' = old flow, 'scan' = barcode, 'search' = search
+  const [scScanInput, setScScanInput] = useState('');
+  const [scSearchInput, setScSearchInput] = useState('');
+  const [scSearchResults, setScSearchResults] = useState<any[]>([]);
+  const [scLookupLoading, setScLookupLoading] = useState(false);
+  const [scRemainingBalance, setScRemainingBalance] = useState(0); // Amount still owed after SC is applied
+  const [scSecondPaymentMethod, setScSecondPaymentMethod] = useState<string | null>(null); // Cash, Debit, etc. for remaining balance
 
   // POS State
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
@@ -208,6 +219,64 @@ export function POSPage() {
     setBarcodeSuccess(null);
 
     try {
+      // CHECK IF THIS IS A STORE CREDIT BARCODE (SC-XXXXXXXXXXXX)
+      if (barcode.startsWith('SC-')) {
+        console.log('🎟 Store credit barcode detected:', barcode);
+
+        if (!selectedCustomerId) {
+          setBarcodeError('Please select a customer first to apply store credit');
+          setTimeout(() => setBarcodeError(null), 4000);
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/store-credits/customer/${selectedCustomerId}`);
+          if (!response.ok) throw new Error(`API error: ${response.status}`);
+          const result = await response.json();
+
+          // Find the credit with matching card_number
+          const credit = (result.data || []).find(
+            (c: any) => c.card_number === barcode && c.is_active && c.remaining_balance > 0
+          );
+
+          if (!credit) {
+            setBarcodeError(`Store credit ${barcode} not found or not available`);
+            setTimeout(() => setBarcodeError(null), 4000);
+            return;
+          }
+
+          // Auto-select this store credit for payment
+          const amount = Math.min(credit.remaining_balance, grandTotal);
+          setSelectedStoreCredit({ id: credit.id, amount, balance: credit.remaining_balance });
+          setBarcodeSuccess(`🎟 Store Credit scanned: ${barcode} · $${amount.toFixed(2)} available`);
+          setTimeout(() => setBarcodeSuccess(null), 3000);
+          setBarcodeInput('');
+          return;
+        } catch (err: any) {
+          setBarcodeError('Error looking up store credit: ' + err.message);
+          setTimeout(() => setBarcodeError(null), 4000);
+          return;
+        }
+      }
+
+      // CHECK IF THIS IS AN INVOICE/TRANSACTION BARCODE (INV-XXXXX or UUID)
+      // UUID format: 8-4-4-4-12 hex digits (36 chars total with hyphens)
+      const isUUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(barcode);
+      if (isUUID) {
+        setBarcodeError('❌ That appears to be a transaction UUID. Please scan the invoice barcode (INV-XXXXX) instead.');
+        setTimeout(() => setBarcodeError(null), 4000);
+        return;
+      }
+
+      // Check for invoice barcode (INV-XXXXX or numeric XXXXX)
+      const isInvoiceNum = barcode.startsWith('INV-') || /^\d+$/.test(barcode);
+      if (isInvoiceNum) {
+        setBarcodeError('ℹ️ Invoice number detected. Use the Returns modal to process returns or look up receipts.');
+        setTimeout(() => setBarcodeError(null), 4000);
+        return;
+      }
+
+      // PRODUCT BARCODE SCANNING
       const { data: exact } = await supabase
         .from('product_variants')
         .select('*, products(*)')
@@ -346,22 +415,65 @@ export function POSPage() {
   };
 
   const handleReturnsInvoiceLookup = async (invoiceId: string) => {
-    if (!invoiceId.trim()) {
+    const input = invoiceId.trim();
+    if (!input) {
       setReturnsLookupError('Please enter invoice number or scan barcode');
       return;
     }
 
     try {
       setReturnsLookupError(null);
+
+      // Detect UUID format
+      const isUUID = input.length === 36 && input.includes('-') && !input.startsWith('INV-');
+      if (isUUID) {
+        setReturnsLookupError('❌ Please scan the invoice barcode, not the transaction UUID');
+        return;
+      }
+
+      // Normalize invoice number
+      const normalizedInvoice = input.startsWith('INV-')
+        ? input
+        : 'INV-' + input.padStart(5, '0');
+
+      console.log('Looking up invoice:', normalizedInvoice);
+
       const { data, error } = await supabase
         .from('transactions')
         .select('*, customers(first_name, last_name, email, phone)')
-        .or(`id.eq.${invoiceId.trim()},id.ilike.%${invoiceId.trim()}%`)
-        .eq('status', 'completed')
-        .single();
+        .eq('invoice_number', normalizedInvoice)
+        .maybeSingle();
 
-      if (error || !data) {
-        setReturnsLookupError('Invoice not found or already voided');
+      console.log('Result:', data, error);
+
+      if (!data) {
+        setReturnsLookupError(`Invoice ${normalizedInvoice} not found`);
+        return;
+      }
+
+      // Check status AFTER finding the record
+      if (data.status === 'voided') {
+        setReturnsLookupError('This transaction has been voided');
+        return;
+      }
+
+      if (data.status === 'refunded') {
+        setReturnsLookupError('This transaction has already been refunded');
+        return;
+      }
+
+      if (data.status === 'returned') {
+        setReturnsLookupError('This transaction has already been returned');
+        return;
+      }
+
+      if (data.status === 'partial_return') {
+        setReturnsLookupError('This transaction has already been partially returned');
+        return;
+      }
+
+      if (data.status !== 'completed') {
+        setReturnsLookupError(`This transaction cannot be returned (status: ${data.status})`);
         return;
       }
 
@@ -406,43 +518,242 @@ export function POSPage() {
       return;
     }
 
-    // For Store Credit, fetch available credits and show selection modal
+    // For Store Credit, show modal with scan/search tabs (customer selection is optional now)
     if (method === 'Store Credit') {
-      if (!selectedCustomerId) {
-        alert('Please select a customer first');
-        return;
-      }
+      let hasCustomerCredits = false;
 
-      try {
-        const { data: credits, error } = await supabase
-          .from('store_credits')
-          .select('*')
-          .eq('customer_id', selectedCustomerId)
-          .eq('is_active', true)
-          .gt('remaining_balance', 0)
-          .order('created_at', { ascending: false });
+      console.log('🔴 SC MODAL OPEN: selectedCustomerId=', selectedCustomerId);
 
-        if (error) throw error;
+      // If customer is already selected, fetch their credits for the customer tab
+      if (selectedCustomerId) {
+        try {
+          const response = await fetch(`/api/store-credits/customer/${selectedCustomerId}`);
+          if (!response.ok) throw new Error(`API error: ${response.status}`);
+          const result = await response.json();
 
-        if (!credits || credits.length === 0) {
-          alert('No store credits available for this customer');
-          return;
+          console.log('🔴 SC MODAL API RESULT:', result);
+
+          // Filter for active credits with available balance
+          const credits = (result.data || []).filter(
+            (c: any) => c.is_active && c.remaining_balance > 0
+          );
+
+          console.log('🔴 SC MODAL FILTERED CREDITS:', credits);
+
+          setAvailableStoreCredits(credits);
+          hasCustomerCredits = credits.length > 0;
+        } catch (err: any) {
+          console.error('🔴 SC MODAL ERROR fetching customer store credits:', err);
+          setAvailableStoreCredits([]);
         }
-
-        setAvailableStoreCredits(credits);
-        setShowStoreCreditModal(true);
-        return;
-      } catch (err: any) {
-        alert('Error fetching store credits: ' + err.message);
-        return;
+      } else {
+        console.log('🔴 SC MODAL: No customer selected, clearing credits');
+        setAvailableStoreCredits([]);
       }
+
+      // Open modal - start on customer tab if credits available, otherwise scan tab
+      setScModalTab(hasCustomerCredits ? 'customer' : 'scan');
+      setScScanInput('');
+      setScSearchInput('');
+      setScSearchResults([]);
+      setStoreCreditError(null);
+      setShowStoreCreditModal(true);
+      return;
     }
 
     // Non-cash methods proceed directly to payment
     await processPayment(method);
   };
 
-  const processPayment = async (method: string, tenderedAmount?: number) => {
+  // Scan/lookup store credit by code
+  const handleScScan = async (code: string) => {
+    if (!code.trim()) return;
+
+    setScLookupLoading(true);
+    setStoreCreditError(null);
+
+    try {
+      const searchCode = code.trim();
+      console.log('🔴 SC SCAN: Looking up code:', searchCode);
+
+      // Detect if this looks like a UUID (transaction ID) - format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(searchCode)) {
+        setStoreCreditError(
+          '❌ This is a transaction receipt barcode, not a store credit.\n\n' +
+          'Store Credit codes are in format: SC-XXXXXXXXXXXX\n\n' +
+          'Please scan the STORE CREDIT receipt instead.'
+        );
+        return;
+      }
+
+      // First try by card_number
+      const { data: byCardNumber, error: cardError } = await supabase
+        .from('store_credits')
+        .select('*, customers(first_name, last_name, email, phone)')
+        .eq('card_number', searchCode)
+        .eq('is_active', true)
+        .gt('remaining_balance', 0)
+        .single();
+
+      console.log('🔴 SC SCAN BY CARD_NUMBER:', { byCardNumber, cardError });
+
+      let data = byCardNumber;
+
+      // If not found by card number, try by customer name or ID
+      if (!byCardNumber && cardError?.code === 'PGRST116') { // not found
+        console.log('🔴 SC SCAN: Not found by card_number, trying by customer name...');
+
+        const { data: byCustomer, error: customerError } = await supabase
+          .from('store_credits')
+          .select('*, customers(first_name, last_name, email, phone)')
+          .eq('is_active', true)
+          .gt('remaining_balance', 0);
+
+        if (!customerError && byCustomer) {
+          // Filter locally for first name or last name match
+          const matches = byCustomer.filter(
+            sc =>
+              sc.customers?.first_name?.toLowerCase().includes(searchCode.toLowerCase()) ||
+              sc.customers?.last_name?.toLowerCase().includes(searchCode.toLowerCase())
+          );
+
+          if (matches.length === 1) {
+            data = matches[0];
+            console.log('🔴 SC SCAN: Found by customer name:', data);
+          } else if (matches.length > 1) {
+            setStoreCreditError(`Multiple credits found for "${searchCode}". Please use customer tab or search.`);
+            return;
+          }
+        }
+      }
+
+      if (!data) {
+        setStoreCreditError(
+          `Store credit not found for: "${searchCode}"\n\n` +
+          'Scan a store credit code (SC-XXXX...) or customer name.\n' +
+          'Use Search tab for more options.'
+        );
+        return;
+      }
+
+      // Found a credit - apply it
+      console.log('🔴 SC FOUND:', data);
+      const amount = Math.min(data.remaining_balance, grandTotal);
+      const storeCreditData = { id: data.id, amount, balance: data.remaining_balance, cardNumber: data.card_number };
+      setSelectedStoreCredit(storeCreditData);
+
+      // Auto-link customer if not already selected
+      if (!selectedCustomerId && data.customer_id) {
+        setSelectedCustomerId(data.customer_id);
+      }
+
+      console.log('🔴 SC APPLIED:', storeCreditData);
+      console.log('🔴 SC covers $' + amount.toFixed(2) + ' of $' + grandTotal.toFixed(2));
+      console.log('🔴 Remaining to pay: $' + (grandTotal - amount).toFixed(2));
+
+      setShowStoreCreditModal(false);
+      setScScanInput('');
+      // DO NOT call processPayment here - user will select payment method next
+    } catch (err: any) {
+      console.error('🔴 SC SCAN EXCEPTION:', err);
+      setStoreCreditError('Error scanning store credit: ' + err.message);
+    } finally {
+      setScLookupLoading(false);
+    }
+  };
+
+  // Search store credits by card number or customer name
+  const handleScSearch = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setScSearchResults([]);
+      return;
+    }
+
+    setScLookupLoading(true);
+    setStoreCreditError(null);
+
+    try {
+      const searchLower = searchTerm.trim().toLowerCase();
+      console.log('🔴 SC SEARCH: term=', searchLower);
+
+      // Fetch all active store credits with balances
+      const { data: allCredits, error } = await supabase
+        .from('store_credits')
+        .select('*, customers(first_name, last_name, email, phone)')
+        .eq('is_active', true)
+        .gt('remaining_balance', 0);
+
+      console.log('🔴 SC SEARCH ALL CREDITS:', { allCredits, error });
+
+      if (error) throw error;
+
+      // Filter locally for matches on:
+      // 1. Customer first name
+      // 2. Customer last name
+      // 3. Card number (if it exists)
+      // 4. Customer email or phone
+      const results = (allCredits || []).filter(credit =>
+        credit.customers?.first_name?.toLowerCase().includes(searchLower) ||
+        credit.customers?.last_name?.toLowerCase().includes(searchLower) ||
+        credit.card_number?.toLowerCase().includes(searchLower) ||
+        credit.customers?.email?.toLowerCase().includes(searchLower) ||
+        credit.customers?.phone?.includes(searchTerm)
+      );
+
+      console.log('🔴 SC SEARCH RESULTS:', results);
+
+      setScSearchResults(results);
+      if (results.length === 0) {
+        setStoreCreditError('No store credits found matching that search');
+      }
+    } catch (err: any) {
+      console.error('🔴 SC SEARCH ERROR:', err);
+      setStoreCreditError('Error searching store credits: ' + err.message);
+      setScSearchResults([]);
+    } finally {
+      setScLookupLoading(false);
+    }
+  };
+
+  // Apply selected store credit from search/scan
+  const applyStoreCredit = (credit: any) => {
+    const scAmount = Math.min(credit.remaining_balance, grandTotal);
+    const remaining = grandTotal - scAmount;
+
+    const storeCreditData = { id: credit.id, amount: scAmount, balance: credit.remaining_balance, cardNumber: credit.card_number };
+    setSelectedStoreCredit(storeCreditData);
+    setScRemainingBalance(remaining);
+    setScSecondPaymentMethod(null); // Reset second payment method
+
+    // Auto-link customer if not already selected
+    if (!selectedCustomerId && credit.customer_id) {
+      setSelectedCustomerId(credit.customer_id);
+    }
+
+    console.log('🔴 SC APPLIED:', storeCreditData);
+    console.log('🔴 SC covers $' + scAmount.toFixed(2) + ' of $' + grandTotal.toFixed(2));
+    console.log('🔴 Remaining to pay: $' + remaining.toFixed(2));
+
+    // Close modal - user will select payment method next
+    // DO NOT call processPayment here - wait for payment method selection
+    setShowStoreCreditModal(false);
+    setScScanInput('');
+    setScSearchInput('');
+    setScSearchResults([]);
+  };
+
+  const processPayment = async (method: string, tenderedAmount?: number, storeCredit?: any, giftCard?: any) => {
+    // CRITICAL: Capture state values BEFORE any awaits - state can change during async operations
+    const capturedStoreCredit = storeCredit || selectedStoreCredit;
+    const capturedGiftCard = giftCard || selectedGiftCard;
+
+    console.log('🔴 CAPTURED AT FUNCTION START:', {
+      creditId: capturedStoreCredit?.id,
+      creditAmount: capturedStoreCredit?.amount,
+      creditBalance: capturedStoreCredit?.balance,
+    });
+
     setIsConfirming(true);
     const cartItemsPayload = cart.map(item => ({
       ...item,
@@ -452,12 +763,12 @@ export function POSPage() {
 
     try {
       // Calculate actual amount to charge after gift card and store credit are applied
-      let amountAfterGiftCard = selectedGiftCard
-        ? Math.max(0, grandTotal - selectedGiftCard.amount)
+      let amountAfterGiftCard = capturedGiftCard
+        ? Math.max(0, grandTotal - capturedGiftCard.amount)
         : grandTotal;
 
-      let amountAfterStoreCredit = selectedStoreCredit
-        ? Math.max(0, amountAfterGiftCard - selectedStoreCredit.amount)
+      let amountAfterStoreCredit = capturedStoreCredit
+        ? Math.max(0, amountAfterGiftCard - capturedStoreCredit.amount)
         : amountAfterGiftCard;
 
       const payload: any = {
@@ -466,10 +777,6 @@ export function POSPage() {
         items: cartItemsPayload,
         customer_id: selectedCustomerId?.trim() || null,
         created_at: new Date().toISOString(),
-        subtotal: Number(subtotal.toFixed(2)),
-        hst: Number(hst.toFixed(2)),
-        isTaxExempt,
-        discount,
       };
 
       // Add cash-specific fields (use amount after gift card and store credit)
@@ -507,8 +814,65 @@ export function POSPage() {
         }
       }
 
+      // BUG FIX: Calculate actualAmountUsed (was missing before!)
+      const actualAmountUsed = amountAfterGiftCard - amountAfterStoreCredit;
+
+      // UPDATE STORE CREDIT BALANCE DIRECTLY (not via API)
+      let storeCreditNewBalance = capturedStoreCredit?.balance;
+
+      console.log('🔴 STORE CREDIT UPDATE STARTING');
+      console.log('🔴 Credit ID:', capturedStoreCredit?.id);
+      console.log('🔴 Amount used:', actualAmountUsed);
+      console.log('🔴 Current balance:', capturedStoreCredit?.balance);
+
+      if (capturedStoreCredit?.id && actualAmountUsed > 0) {
+        try {
+          const newBalance = Number(capturedStoreCredit.balance) - Number(actualAmountUsed);
+
+          console.log('🔴 New balance will be:', newBalance);
+
+          const { data: scData, error: scError } = await supabase
+            .from('store_credits')
+            .update({
+              remaining_balance: newBalance,
+              is_active: newBalance > 0,
+            })
+            .eq('id', capturedStoreCredit.id)
+            .select();
+
+          console.log('🔴 SC UPDATE RESULT:', scData, scError);
+
+          if (scError) {
+            console.error('🔴 SC UPDATE FAILED:', scError);
+          } else {
+            storeCreditNewBalance = newBalance;
+            console.log('🔴 SC UPDATE SUCCESS. New balance:', newBalance);
+
+            // Create transaction record for audit trail
+            const { error: txError } = await supabase
+              .from('store_credit_transactions')
+              .insert({
+                store_credit_id: capturedStoreCredit.id,
+                amount: -Number(actualAmountUsed),
+                transaction_type: 'redeemed',
+              });
+
+            if (txError) {
+              console.error('🔴 Transaction record failed:', txError);
+            } else {
+              console.log('🔴 Transaction record created');
+            }
+          }
+        } catch (err) {
+          console.error('🔴 Error updating store credit balance:', err);
+        }
+      } else {
+        console.log('🔴 SKIPPED: capturedStoreCredit?.id:', capturedStoreCredit?.id, 'actualAmountUsed:', actualAmountUsed);
+      }
+
       setReceipt({
         transactionId: result?.data?.[0]?.id,
+        invoiceNumber: result?.data?.[0]?.invoice_number,
         method,
         items: [...cart],
         subtotal,
@@ -519,10 +883,11 @@ export function POSPage() {
         time: new Date().toLocaleString(),
         tenderedAmount,
         changeGiven: tenderedAmount !== undefined ? tenderedAmount - amountAfterStoreCredit : undefined,
-        giftCardAmount: selectedGiftCard?.amount,
-        giftCardNumber: selectedGiftCard?.cardNumber,
-        storeCreditAmount: selectedStoreCredit?.amount,
-        storeCreditId: selectedStoreCredit?.id,
+        giftCardAmount: capturedGiftCard?.amount,
+        giftCardNumber: capturedGiftCard?.cardNumber,
+        storeCreditAmount: capturedStoreCredit?.amount,
+        storeCreditId: capturedStoreCredit?.id,
+        storeCreditNewBalance: storeCreditNewBalance,
       });
 
       // Close cash calculator if it was open
@@ -531,11 +896,11 @@ export function POSPage() {
       setPendingPaymentMethod(null);
 
       // Process gift card redemption AFTER transaction is confirmed
-      if (selectedGiftCard) {
+      if (capturedGiftCard) {
         try {
           console.log('🎁 Processing gift card redemption after transaction:', {
-            cardNumber: selectedGiftCard.cardNumber,
-            amount: selectedGiftCard.amount,
+            cardNumber: capturedGiftCard.cardNumber,
+            amount: capturedGiftCard.amount,
             transactionId: result?.data?.[0]?.id,
           });
 
@@ -543,8 +908,8 @@ export function POSPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              card_number: selectedGiftCard.cardNumber,
-              amount: selectedGiftCard.amount,
+              card_number: capturedGiftCard.cardNumber,
+              amount: capturedGiftCard.amount,
               transaction_id: result?.data?.[0]?.id,
             }),
           });
@@ -562,48 +927,8 @@ export function POSPage() {
         }
       }
 
-      // Process store credit redemption AFTER transaction is confirmed
-      if (selectedStoreCredit && method === 'Store Credit') {
-        try {
-          console.log('🎟 Processing store credit redemption after transaction:', {
-            creditId: selectedStoreCredit.id,
-            amount: selectedStoreCredit.amount,
-            transactionId: result?.data?.[0]?.id,
-          });
-
-          const newBalance = Math.max(0, selectedStoreCredit.balance - selectedStoreCredit.amount);
-
-          // Update store credit balance
-          const { error: updateError } = await supabase
-            .from('store_credits')
-            .update({
-              remaining_balance: newBalance,
-              is_active: newBalance > 0,
-            })
-            .eq('id', selectedStoreCredit.id);
-
-          if (updateError) throw updateError;
-
-          // Insert transaction record
-          const { error: txError } = await supabase
-            .from('store_credit_transactions')
-            .insert([
-              {
-                store_credit_id: selectedStoreCredit.id,
-                transaction_id: result?.data?.[0]?.id,
-                amount: -selectedStoreCredit.amount,
-                transaction_type: 'redeemed',
-              },
-            ]);
-
-          if (txError) throw txError;
-
-          console.log('✅ Store credit successfully redeemed');
-        } catch (err: any) {
-          console.error('⚠️ Store credit redemption warning:', err);
-          // Don't fail the transaction if store credit redemption fails
-        }
-      }
+      // Note: Store credit balance is now updated DIRECTLY above (in Supabase section)
+      // No need for API call - everything is handled locally
     } catch (e: any) {
       console.error('Checkout error:', e);
       alert('Checkout failed: ' + e.message);
@@ -634,16 +959,22 @@ export function POSPage() {
   const handleRedeemGiftCard = async (cardNumber: string, amount: number) => {
     // Just store the gift card info, don't call API yet
     // The actual redemption happens after transaction is confirmed
-    setSelectedGiftCard({ cardNumber, amount });
-    console.log('✅ Gift card selected for payment:', { cardNumber, amount });
+    const giftCardData = { cardNumber, amount };
+    setSelectedGiftCard(giftCardData);
+    console.log('✅ Gift card selected for payment:', giftCardData);
+    return Promise.resolve(); // Explicitly resolve for the async callback
   };
 
   // Print thermal receipt
   const handlePrintReceipt = () => {
     if (!receipt) return;
 
+    // For store credit receipts, barcode should show SC card number instead of transaction ID
+    const barcodeValue = receipt.storeCreditCardNumber || receipt.invoiceNumber || receipt.transactionId || 'N/A';
+
     const receiptHtml = generateThermalReceiptHTML({
       transactionId: receipt.transactionId || 'N/A',
+      invoiceNumber: receipt.invoiceNumber,
       customerName: receipt.customer ? `${receipt.customer.first_name} ${receipt.customer.last_name}` : 'Walk-in',
       items: receipt.items,
       subtotal: receipt.subtotal,
@@ -652,6 +983,7 @@ export function POSPage() {
       paymentMethod: receipt.method,
       createdAt: new Date(),
       logoUrl: logo || '/logo.svg',
+      barcodeValue: barcodeValue,
     });
 
     // Open in new window for printing
@@ -1178,7 +1510,22 @@ export function POSPage() {
                         <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span>💳 Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
                       )}
                       {receipt.storeCreditAmount && receipt.storeCreditAmount > 0 && (
-                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>🎟 Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
+                        <>
+                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>🎟 Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
+                          {receipt.storeCreditNewBalance !== undefined && (
+                            <div className="mt-3 p-4 bg-gradient-to-r from-blue-100 to-blue-50 border-4 border-blue-500 rounded-lg text-center space-y-2">
+                              <div className="text-[9px] font-bold text-blue-700 uppercase tracking-widest">Store Credit Payment</div>
+                              <div className="text-sm text-blue-600">Amount Used: −${receipt.storeCreditAmount.toFixed(2)}</div>
+                              {receipt.storeCreditNewBalance === 0 ? (
+                                <div className="text-[18px] font-black text-blue-900 py-2">★ STORE CREDIT FULLY REDEEMED ★</div>
+                              ) : (
+                                <div className="py-2 space-y-1">
+                                  <div className="text-[18px] font-black text-blue-900">★ REMAINING BALANCE: ${receipt.storeCreditNewBalance.toFixed(2)} ★</div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
                       )}
                       {receipt.method === 'Cash' && receipt.tenderedAmount !== undefined && (
                         <>
@@ -1250,18 +1597,76 @@ export function POSPage() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Store Credit'].map(method => (
-                        <button
-                          key={method}
-                          disabled={isConfirming}
-                          onClick={() => handleConfirmSale(method)}
-                          className="bg-[#b90014] hover:bg-red-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
-                        >
-                          {method}
-                        </button>
-                      ))}
-                    </div>
+                    {selectedStoreCredit && (
+                      <div className="bg-[#2d3547] p-3 rounded-lg border border-blue-500/30 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-blue-400 uppercase">🎟 Store Credit Payment</span>
+                          <button
+                            onClick={() => setSelectedStoreCredit(null)}
+                            className="text-blue-400 hover:text-blue-300 text-[11px] font-bold uppercase"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-gray-300">Credit: {selectedStoreCredit.id.slice(-4).padStart(8, '*')}</span>
+                          <span className="text-blue-400 font-bold">${selectedStoreCredit.amount.toFixed(2)}</span>
+                        </div>
+                        {selectedStoreCredit.amount < grandTotal && (
+                          <p className="text-[9px] text-blue-300">Remaining due: ${(grandTotal - selectedStoreCredit.amount).toFixed(2)}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Show message if SC is applied */}
+                    {selectedStoreCredit && (
+                      <div className={`border-2 rounded-lg p-3 mb-3 space-y-2 ${scRemainingBalance === 0 ? 'bg-green-900/30 border-green-500' : 'bg-blue-900/30 border-blue-500'}`}>
+                        <div className={`text-[9px] font-bold uppercase ${scRemainingBalance === 0 ? 'text-green-300' : 'text-blue-300'}`}>
+                          Store Credit Applied
+                        </div>
+                        <div className="flex justify-between text-[10px] text-white">
+                          <span>SC Used:</span>
+                          <span className="font-bold">-${selectedStoreCredit.amount.toFixed(2)}</span>
+                        </div>
+                        {scRemainingBalance > 0 && (
+                          <>
+                            <div className={`border-t ${scRemainingBalance === 0 ? 'border-green-500/30' : 'border-blue-500/30'} pt-2 flex justify-between text-[10px] font-bold`}>
+                              <span className={scRemainingBalance === 0 ? 'text-green-300' : 'text-blue-300'}>Remaining to Pay:</span>
+                              <span className={scRemainingBalance === 0 ? 'text-green-400' : 'text-blue-400'}>${scRemainingBalance.toFixed(2)}</span>
+                            </div>
+                            <div className="text-[9px] text-blue-300 italic">Select a payment method below to collect the remaining amount</div>
+                          </>
+                        )}
+                        {scRemainingBalance === 0 && (
+                          <div className="text-[9px] text-green-300 font-bold italic">✅ Store credit fully covers this transaction. Click "Complete Sale" below.</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* If SC fully covers amount, show Complete Sale button instead of payment methods */}
+                    {selectedStoreCredit && scRemainingBalance === 0 ? (
+                      <button
+                        onClick={() => handleConfirmSale('Store Credit')}
+                        disabled={isConfirming}
+                        className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white p-3 rounded font-bold text-sm uppercase mb-3"
+                      >
+                        ✅ Complete Sale (Store Credit)
+                      </button>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Store Credit'].map(method => (
+                          <button
+                            key={method}
+                            disabled={isConfirming || (selectedStoreCredit && method === 'Store Credit')}
+                            onClick={() => handleConfirmSale(method)}
+                            className="bg-[#b90014] hover:bg-red-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
+                            title={selectedStoreCredit && method === 'Store Credit' ? 'SC already applied' : ''}
+                          >
+                            {method}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                     <button
                       onClick={() => {
@@ -1379,11 +1784,11 @@ export function POSPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* Store Credit Selection Modal */}
+                  {/* Store Credit Selection Modal - With Scan/Search Tabs */}
                   <AnimatePresence>
                     {showStoreCreditModal && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 rounded-lg">
-                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a2236] p-6 rounded-lg shadow-2xl w-full max-w-sm space-y-4 border border-[#2d3547]">
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 rounded-lg z-50">
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a2236] p-6 rounded-lg shadow-2xl w-full max-w-lg space-y-4 border border-[#2d3547] max-h-[90vh] overflow-y-auto">
                           <div className="text-center">
                             <h2 className="text-sm font-black uppercase text-white mb-2">Select Store Credit</h2>
                             <p className="text-xs text-gray-300">Total Due: <span className="text-[#b90014] text-base">${grandTotal.toFixed(2)}</span></p>
@@ -1395,39 +1800,195 @@ export function POSPage() {
                             </div>
                           )}
 
-                          {/* Available Credits List */}
-                          <div className="space-y-2 max-h-64 overflow-y-auto">
-                            {availableStoreCredits.map((credit) => (
-                              <button
-                                key={credit.id}
-                                onClick={() => {
-                                  const amount = Math.min(credit.remaining_balance, grandTotal);
-                                  setSelectedStoreCredit({ id: credit.id, amount, balance: credit.remaining_balance });
-                                  setShowStoreCreditModal(false);
-                                  processPayment('Store Credit');
-                                }}
-                                className="w-full p-3 bg-[#2d3547] hover:bg-[#3d4557] rounded text-left border border-[#3d4557] transition-colors"
-                              >
-                                <div className="flex justify-between items-start">
-                                  <div>
-                                    <p className="text-white font-bold text-sm">Credit #{credit.id.slice(0, 8)}</p>
-                                    <p className="text-gray-400 text-xs">{credit.reason}</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-white font-bold">${credit.remaining_balance.toFixed(2)}</p>
-                                    <p className="text-gray-400 text-xs">Available</p>
-                                  </div>
-                                </div>
-                              </button>
-                            ))}
+                          {/* Tab Navigation */}
+                          <div className="flex gap-2 border-b border-[#2d3547]">
+                            <button
+                              onClick={() => {
+                                setScModalTab('customer');
+                                setScScanInput('');
+                                setScSearchInput('');
+                                setScSearchResults([]);
+                                setStoreCreditError(null);
+                              }}
+                              className={`flex-1 py-2 px-3 text-xs font-bold uppercase border-b-2 transition-colors ${
+                                scModalTab === 'customer'
+                                  ? 'border-blue-500 text-blue-400'
+                                  : 'border-transparent text-gray-400 hover:text-gray-300'
+                              }`}
+                            >
+                              Customer
+                            </button>
+                            <button
+                              onClick={() => {
+                                setScModalTab('scan');
+                                setScScanInput('');
+                                setScSearchResults([]);
+                                setStoreCreditError(null);
+                              }}
+                              className={`flex-1 py-2 px-3 text-xs font-bold uppercase border-b-2 transition-colors ${
+                                scModalTab === 'scan'
+                                  ? 'border-blue-500 text-blue-400'
+                                  : 'border-transparent text-gray-400 hover:text-gray-300'
+                              }`}
+                            >
+                              Scan Code
+                            </button>
+                            <button
+                              onClick={() => {
+                                setScModalTab('search');
+                                setScSearchInput('');
+                                setScSearchResults([]);
+                                setStoreCreditError(null);
+                              }}
+                              className={`flex-1 py-2 px-3 text-xs font-bold uppercase border-b-2 transition-colors ${
+                                scModalTab === 'search'
+                                  ? 'border-blue-500 text-blue-400'
+                                  : 'border-transparent text-gray-400 hover:text-gray-300'
+                              }`}
+                            >
+                              Search
+                            </button>
                           </div>
 
+                          {/* TAB 1: CUSTOMER (Original Flow) */}
+                          {scModalTab === 'customer' && (
+                            <div className="space-y-3">
+                              {selectedCustomerId ? (
+                                <>
+                                  <div className="text-xs text-blue-400 font-semibold">
+                                    Credits for: {safeCustomers.find(c => c.id === selectedCustomerId)?.first_name} {safeCustomers.find(c => c.id === selectedCustomerId)?.last_name}
+                                  </div>
+                                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                                    {availableStoreCredits.length > 0 ? (
+                                      availableStoreCredits.map((credit) => (
+                                        <button
+                                          key={credit.id}
+                                          onClick={() => applyStoreCredit(credit)}
+                                          className="w-full p-3 bg-[#2d3547] hover:bg-[#3d4557] rounded text-left border border-[#3d4557] transition-colors"
+                                        >
+                                          <div className="flex justify-between items-start">
+                                            <div>
+                                              <p className="text-white font-bold text-sm">Credit #{credit.id.slice(0, 8)}</p>
+                                              <p className="text-gray-400 text-xs">{credit.reason}</p>
+                                            </div>
+                                            <div className="text-right">
+                                              <p className="text-white font-bold">${credit.remaining_balance.toFixed(2)}</p>
+                                              <p className="text-gray-400 text-xs">Available</p>
+                                            </div>
+                                          </div>
+                                        </button>
+                                      ))
+                                    ) : (
+                                      <div className="text-center py-6 text-gray-400 text-xs">
+                                        No store credits available
+                                      </div>
+                                    )}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-center py-8 text-gray-400 text-xs space-y-2">
+                                  <p>No customer selected</p>
+                                  <p>Use "Scan Code" or "Search" tabs instead</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* TAB 2: SCAN CODE */}
+                          {scModalTab === 'scan' && (
+                            <div className="space-y-3">
+                              <div className="text-xs text-gray-400 italic">Scan barcode code OR enter customer first/last name</div>
+                              <input
+                                type="text"
+                                value={scScanInput}
+                                onChange={(e) => setScScanInput(e.target.value)}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') handleScScan(scScanInput);
+                                }}
+                                placeholder="e.g., SC-123456789012 or Diana"
+                                autoFocus
+                                className="w-full p-3 bg-[#0f1117] border-2 border-[#2d3547] rounded text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                              />
+                              <button
+                                onClick={() => handleScScan(scScanInput)}
+                                disabled={scLookupLoading || !scScanInput.trim()}
+                                className="w-full p-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-xs font-bold uppercase text-white transition-colors"
+                              >
+                                {scLookupLoading ? 'Looking up...' : 'Lookup'}
+                              </button>
+                            </div>
+                          )}
+
+                          {/* TAB 3: SEARCH */}
+                          {scModalTab === 'search' && (
+                            <div className="space-y-3">
+                              <div className="text-xs text-gray-400 italic">Search by customer name or credit code</div>
+                              <input
+                                type="text"
+                                value={scSearchInput}
+                                onChange={(e) => {
+                                  setScSearchInput(e.target.value);
+                                  handleScSearch(e.target.value);
+                                }}
+                                placeholder="Search..."
+                                autoFocus
+                                className="w-full p-3 bg-[#0f1117] border-2 border-[#2d3547] rounded text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                              />
+                              <div className="space-y-2 max-h-64 overflow-y-auto">
+                                {scLookupLoading ? (
+                                  <div className="text-center py-4 text-gray-400 text-xs">Searching...</div>
+                                ) : scSearchResults.length > 0 ? (
+                                  scSearchResults.map((credit) => (
+                                    <button
+                                      key={credit.id}
+                                      onClick={() => applyStoreCredit(credit)}
+                                      className="w-full p-3 bg-[#2d3547] hover:bg-[#3d4557] rounded text-left border border-[#3d4557] transition-colors"
+                                    >
+                                      <div className="flex justify-between items-start">
+                                        <div>
+                                          <p className="text-white font-bold text-sm">
+                                            {credit.card_number ? `#${credit.card_number.slice(-6).padStart(8, '*')}` : `#${credit.id.slice(0, 8)}`}
+                                          </p>
+                                          {credit.customers && (
+                                            <p className="text-blue-400 text-xs font-semibold">
+                                              {credit.customers.first_name} {credit.customers.last_name}
+                                            </p>
+                                          )}
+                                          {credit.created_at && (
+                                            <p className="text-gray-500 text-xs">Issued: {new Date(credit.created_at).toLocaleDateString()}</p>
+                                          )}
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-white font-bold">${credit.remaining_balance.toFixed(2)}</p>
+                                          <p className="text-gray-400 text-xs">Available</p>
+                                        </div>
+                                      </div>
+                                    </button>
+                                  ))
+                                ) : scSearchInput.trim() ? (
+                                  <div className="text-center py-6 text-gray-400 text-xs">
+                                    No store credits found
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-6 text-gray-400 text-xs">
+                                    Type to search...
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
                           {/* Action Buttons */}
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 pt-4 border-t border-[#2d3547]">
                             <button
                               onClick={() => {
                                 setShowStoreCreditModal(false);
                                 setSelectedStoreCredit(null);
+                                setScScanInput('');
+                                setScSearchInput('');
+                                setScSearchResults([]);
+                                setScModalTab('customer');
+                                setStoreCreditError(null);
                               }}
                               className="flex-1 p-2 bg-[#2d3547] hover:bg-[#3d4557] rounded text-xs font-bold uppercase text-white transition-colors"
                             >

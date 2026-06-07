@@ -17,6 +17,7 @@ interface ReturnItem {
 
 interface Transaction {
   id: string;
+  invoice_number?: string;
   created_at: string;
   total_amount: number;
   method: string;
@@ -83,11 +84,38 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
       if (dbError || !data) {
         setError('Invoice not found');
+        setLoading(false);
+        return;
+      }
+
+      // Check status AFTER finding the record
+      if (data.status === 'voided') {
+        setError('This transaction has been voided and cannot be returned.');
+        setLoading(false);
+        return;
+      }
+
+      if (data.status === 'refunded') {
+        setError('This transaction has already been refunded and cannot be returned.');
+        setLoading(false);
+        return;
+      }
+
+      if (data.status === 'returned') {
+        setError('This transaction has already been fully returned.');
+        setLoading(false);
+        return;
+      }
+
+      if (data.status === 'partial_return') {
+        setError('This transaction has already been partially returned. Full returns cannot be processed again.');
+        setLoading(false);
         return;
       }
 
       if (data.status !== 'completed') {
-        setError('This transaction has already been voided or refunded');
+        setError(`This transaction cannot be returned (status: ${data.status})`);
+        setLoading(false);
         return;
       }
 
@@ -102,7 +130,8 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
   };
 
   const lookupInvoice = async () => {
-    if (!invoiceInput.trim()) {
+    const input = invoiceInput.trim();
+    if (!input) {
       setError('Please enter invoice number or scan barcode');
       return;
     }
@@ -111,20 +140,63 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     setError(null);
 
     try {
-      const { data, error: dbError } = await supabase
+      // Detect format: UUID (UUID will be 36 chars), INV-XXXXX, or just XXXXX
+      const isUUID = input.length === 36 && input.includes('-') && !input.startsWith('INV-');
+      if (isUUID) {
+        setError('❌ Please scan the invoice barcode, not the transaction UUID');
+        setLoading(false);
+        return;
+      }
+
+      // Normalize invoice number
+      const normalizedInvoice = input.startsWith('INV-')
+        ? input
+        : 'INV-' + input.padStart(5, '0');
+
+      console.log('Looking up invoice:', normalizedInvoice);
+
+      const { data, error } = await supabase
         .from('transactions')
         .select('*, customers(first_name, last_name, email, phone)')
-        .or(`id.eq.${invoiceInput.trim()},id.ilike.%${invoiceInput.trim()}%`)
-        .eq('status', 'completed')
-        .single();
+        .eq('invoice_number', normalizedInvoice)
+        .maybeSingle();
 
-      if (dbError || !data) {
-        setError('Invoice not found or already voided');
+      console.log('Result:', data, error);
+
+      if (!data) {
+        setError(`Invoice ${normalizedInvoice} not found`);
+        setLoading(false);
+        return;
+      }
+
+      // Check status AFTER finding the record
+      if (data.status === 'voided') {
+        setError('This transaction has been voided');
+        setLoading(false);
+        return;
+      }
+
+      if (data.status === 'refunded') {
+        setError('This transaction has already been refunded');
+        setLoading(false);
+        return;
+      }
+
+      if (data.status === 'returned') {
+        setError('This transaction has already been returned');
+        setLoading(false);
+        return;
+      }
+
+      if (data.status === 'partial_return') {
+        setError('This transaction has already been partially returned');
+        setLoading(false);
         return;
       }
 
       if (data.status !== 'completed') {
-        setError('This transaction has already been voided or refunded');
+        setError(`This transaction cannot be returned (status: ${data.status})`);
+        setLoading(false);
         return;
       }
 
@@ -298,6 +370,18 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         }
 
         console.log('✅ [Returns] Store credit created:', scData.creditId);
+
+        // Update returns record with store_credit_id
+        const { error: updateReturnError } = await supabase
+          .from('returns')
+          .update({ store_credit_id: scData.creditId })
+          .eq('id', returnRecord.id);
+
+        if (updateReturnError) {
+          console.error('⚠️ [Returns] Error updating return with store_credit_id:', updateReturnError);
+        } else {
+          console.log('✅ [Returns] Return record updated with store_credit_id');
+        }
 
         setCompletionData({
           type: 'store-credit',
@@ -503,7 +587,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-gray-600">Invoice #</p>
-                      <p className="font-mono font-bold text-gray-900">{transaction.id.slice(0, 8)}</p>
+                      <p className="font-mono font-bold text-gray-900">{transaction.invoice_number || transaction.id.slice(0, 8)}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Date</p>
