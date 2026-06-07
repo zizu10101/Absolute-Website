@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, ChevronDown, ChevronUp, Plus, AlertCircle, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { supabase } from '../supabase';
 
 type SCTab = 'issue' | 'history';
 
@@ -149,6 +150,9 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
     setIsIssuing(true);
 
     try {
+      // Generate unique card number: SC-XXXXXXXXXXXX (12 random digits)
+      const cardNumber = 'SC-' + Math.random().toString().slice(2, 14).padEnd(12, '0');
+
       // Insert store credit
       const { data: creditData, error: creditError } = await supabase
         .from('store_credits')
@@ -159,6 +163,7 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
             remaining_balance: creditAmount,
             reason: reason === 'Other' ? customReason : reason,
             is_active: true,
+            card_number: cardNumber, // Add barcode number
           },
         ])
         .select();
@@ -187,6 +192,7 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
         creditId: creditData?.[0]?.id,
         amount: creditAmount,
         customer: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`,
+        cardNumber: cardNumber,
       });
 
       // Reset form
@@ -201,8 +207,8 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
         onIssueStoreCredit(creditData?.[0]);
       }
 
-      // Clear success message after 3 seconds
-      setTimeout(() => setIssueSuccess(null), 3000);
+      // Clear success message after 5 seconds
+      setTimeout(() => setIssueSuccess(null), 5000);
     } catch (err: any) {
       console.error('Error issuing store credit:', err);
       setIssueError(err.message || 'Failed to issue store credit');
@@ -380,12 +386,13 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
 
           {/* Success Message */}
           {issueSuccess && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-[11px] font-bold text-green-700 mb-1">✓ Store Credit Issued!</p>
-              <p className="text-[10px] text-green-600">
-                Credit ID: {issueSuccess.creditId.slice(0, 8)}
-              </p>
-              <p className="text-[10px] text-green-600">${issueSuccess.amount.toFixed(2)}</p>
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg space-y-1">
+              <p className="text-[11px] font-bold text-green-700">✓ Store Credit Issued!</p>
+              <p className="text-[10px] text-green-600">Customer: {issueSuccess.customer}</p>
+              <p className="text-[10px] text-green-600">Amount: ${issueSuccess.amount.toFixed(2)}</p>
+              {issueSuccess.cardNumber && (
+                <p className="text-[10px] font-mono font-bold text-green-700">Card: {issueSuccess.cardNumber}</p>
+              )}
             </div>
           )}
 

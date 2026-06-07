@@ -28,7 +28,13 @@ export const StoreCreditsSection: React.FC<StoreCreditionsSectionProps> = ({ cus
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!customerId) return;
+
     fetchStoreCredits();
+
+    // Auto-refresh every 2 seconds to catch balance updates after redemption
+    const interval = setInterval(fetchStoreCredits, 2000);
+    return () => clearInterval(interval);
   }, [customerId]);
 
   const fetchStoreCredits = async () => {

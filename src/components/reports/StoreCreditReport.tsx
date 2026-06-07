@@ -37,6 +37,9 @@ export function StoreCreditReport() {
 
   useEffect(() => {
     fetchStoreCredits();
+    // Auto-refresh every 3 seconds to catch balance updates
+    const interval = setInterval(fetchStoreCredits, 3000);
+    return () => clearInterval(interval);
   }, [dateRange]);
 
   const fetchStoreCredits = async () => {

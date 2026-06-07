@@ -1781,52 +1781,77 @@ async function startServer() {
     }
 
     try {
-      console.log(`🔄 Redeeming store credit: $${amount} from credit ${creditId.slice(0, 8)}`);
+      console.log(`🔄 [STEP 1] Redeeming store credit: $${amount} from credit ${creditId.slice(0, 8)}`);
 
       // Get current balance
       const { data: credit, error: fetchError } = await admin
         .from("store_credits")
-        .select("remaining_balance")
+        .select("remaining_balance, is_active")
         .eq("id", creditId)
         .single();
 
       if (fetchError || !credit) {
+        console.error(`❌ [STEP 1a] Credit not found:`, fetchError);
         throw new Error("Store credit not found");
       }
 
-      const newBalance = Math.max(0, credit.remaining_balance - amount);
+      console.log(`✅ [STEP 1b] Credit found. Current balance: $${credit.remaining_balance.toFixed(2)}, amount to redeem: $${amount}`);
 
-      // Update balance
-      const { error: updateError } = await admin
+      const newBalance = Math.max(0, credit.remaining_balance - amount);
+      const shouldBeActive = newBalance > 0;
+
+      console.log(`🔄 [STEP 2] Calculated new balance: $${newBalance.toFixed(2)}, is_active: ${shouldBeActive}`);
+
+      // Update balance with explicit verification
+      const { data: updateData, error: updateError } = await admin
         .from("store_credits")
         .update({
           remaining_balance: newBalance,
-          is_active: newBalance > 0,
+          is_active: shouldBeActive,
         })
-        .eq("id", creditId);
+        .eq("id", creditId)
+        .select("remaining_balance, is_active");
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error(`❌ [STEP 2a] Update failed:`, updateError);
+        throw updateError;
+      }
+
+      if (!updateData || updateData.length === 0) {
+        console.error(`❌ [STEP 2b] Update returned no data`);
+        throw new Error("Balance update failed - no data returned");
+      }
+
+      const verifiedBalance = updateData[0].remaining_balance;
+      console.log(`✅ [STEP 2b] Database verified - new balance: $${verifiedBalance.toFixed(2)}`);
 
       // Create transaction record
-      const { error: txError } = await admin
+      const { data: txData, error: txError } = await admin
         .from("store_credit_transactions")
         .insert({
           store_credit_id: creditId,
           transaction_id: transactionId || null,
           amount: -amount,
           transaction_type: "redeemed",
-        });
+        })
+        .select();
 
-      if (txError) throw txError;
+      if (txError) {
+        console.error(`⚠️ [STEP 3] Transaction record creation warning:`, txError);
+        // Don't fail if transaction record creation fails - the important part is the balance update
+      } else {
+        console.log(`✅ [STEP 3] Transaction record created`);
+      }
 
-      console.log(`✅ Store credit redeemed: $${amount}, new balance: $${newBalance.toFixed(2)}`);
+      console.log(`✅ [COMPLETE] Store credit redeemed: $${amount}, new balance: $${newBalance.toFixed(2)}`);
 
       return res.status(200).json({
         success: true,
         newBalance: newBalance,
+        verified: true,
       });
     } catch (err: any) {
-      console.error("❌ Store credit redemption error:", err);
+      console.error("❌ [FAILED] Store credit redemption error:", err.message);
       return res.status(500).json({ error: err.message || "Failed to redeem store credit" });
     }
   });

@@ -209,6 +209,47 @@ export function POSPage() {
     setBarcodeSuccess(null);
 
     try {
+      // CHECK IF THIS IS A STORE CREDIT BARCODE (SC-XXXXXXXXXXXX)
+      if (barcode.startsWith('SC-')) {
+        console.log('🎟 Store credit barcode detected:', barcode);
+
+        if (!selectedCustomerId) {
+          setBarcodeError('Please select a customer first to apply store credit');
+          setTimeout(() => setBarcodeError(null), 4000);
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/store-credits/customer/${selectedCustomerId}`);
+          if (!response.ok) throw new Error(`API error: ${response.status}`);
+          const result = await response.json();
+
+          // Find the credit with matching card_number
+          const credit = (result.data || []).find(
+            (c: any) => c.card_number === barcode && c.is_active && c.remaining_balance > 0
+          );
+
+          if (!credit) {
+            setBarcodeError(`Store credit ${barcode} not found or not available`);
+            setTimeout(() => setBarcodeError(null), 4000);
+            return;
+          }
+
+          // Auto-select this store credit for payment
+          const amount = Math.min(credit.remaining_balance, grandTotal);
+          setSelectedStoreCredit({ id: credit.id, amount, balance: credit.remaining_balance });
+          setBarcodeSuccess(`🎟 Store Credit scanned: ${barcode} · $${amount.toFixed(2)} available`);
+          setTimeout(() => setBarcodeSuccess(null), 3000);
+          setBarcodeInput('');
+          return;
+        } catch (err: any) {
+          setBarcodeError('Error looking up store credit: ' + err.message);
+          setTimeout(() => setBarcodeError(null), 4000);
+          return;
+        }
+      }
+
+      // PRODUCT BARCODE SCANNING
       const { data: exact } = await supabase
         .from('product_variants')
         .select('*, products(*)')
@@ -1172,7 +1213,13 @@ export function POSPage() {
                         <>
                           <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>🎟 Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
                           {receipt.storeCreditNewBalance !== undefined && (
-                            <div className="flex justify-between text-xs text-blue-500"><span>Remaining Balance</span><span>${receipt.storeCreditNewBalance.toFixed(2)}</span></div>
+                            <div className="mt-2 p-3 bg-blue-100 border-2 border-blue-500 rounded-lg text-center space-y-1">
+                              <div className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">Store Credit Remaining</div>
+                              <div className="text-xl font-black text-blue-900">${receipt.storeCreditNewBalance.toFixed(2)}</div>
+                              {receipt.storeCreditNewBalance === 0 && (
+                                <div className="text-[10px] font-bold text-blue-600">FULLY REDEEMED</div>
+                              )}
+                            </div>
                           )}
                         </>
                       )}
@@ -1242,6 +1289,27 @@ export function POSPage() {
                         </div>
                         {selectedGiftCard.amount < grandTotal && (
                           <p className="text-[9px] text-amber-300">Remaining due: ${(grandTotal - selectedGiftCard.amount).toFixed(2)}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {selectedStoreCredit && (
+                      <div className="bg-[#2d3547] p-3 rounded-lg border border-blue-500/30 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-blue-400 uppercase">🎟 Store Credit Payment</span>
+                          <button
+                            onClick={() => setSelectedStoreCredit(null)}
+                            className="text-blue-400 hover:text-blue-300 text-[11px] font-bold uppercase"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-gray-300">Credit: {selectedStoreCredit.id.slice(-4).padStart(8, '*')}</span>
+                          <span className="text-blue-400 font-bold">${selectedStoreCredit.amount.toFixed(2)}</span>
+                        </div>
+                        {selectedStoreCredit.amount < grandTotal && (
+                          <p className="text-[9px] text-blue-300">Remaining due: ${(grandTotal - selectedStoreCredit.amount).toFixed(2)}</p>
                         )}
                       </div>
                     )}
