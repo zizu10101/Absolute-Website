@@ -414,26 +414,26 @@ export function POSPage() {
       }
 
       try {
-        const { data: credits, error } = await supabase
-          .from('store_credits')
-          .select('*')
-          .eq('customer_id', selectedCustomerId)
-          .eq('is_active', true)
-          .gt('remaining_balance', 0)
-          .order('created_at', { ascending: false });
+        const response = await fetch(`/api/store-credits/customer/${selectedCustomerId}`);
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        const result = await response.json();
 
-        if (error) throw error;
+        // Filter for active credits with available balance
+        const credits = (result.data || []).filter(
+          (c: any) => c.is_active && c.remaining_balance > 0
+        );
 
         if (!credits || credits.length === 0) {
-          alert('No store credits available for this customer');
+          setStoreCreditError('No store credits available for this customer');
           return;
         }
 
         setAvailableStoreCredits(credits);
+        setStoreCreditError(null);
         setShowStoreCreditModal(true);
         return;
       } catch (err: any) {
-        alert('Error fetching store credits: ' + err.message);
+        setStoreCreditError('Error fetching store credits: ' + err.message);
         return;
       }
     }
@@ -571,36 +571,25 @@ export function POSPage() {
             transactionId: result?.data?.[0]?.id,
           });
 
-          const newBalance = Math.max(0, selectedStoreCredit.balance - selectedStoreCredit.amount);
+          const redeemRes = await fetch('/api/store-credits/redeem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              creditId: selectedStoreCredit.id,
+              amount: selectedStoreCredit.amount,
+              transactionId: result?.data?.[0]?.id,
+            }),
+          });
 
-          // Update store credit balance
-          const { error: updateError } = await supabase
-            .from('store_credits')
-            .update({
-              remaining_balance: newBalance,
-              is_active: newBalance > 0,
-            })
-            .eq('id', selectedStoreCredit.id);
-
-          if (updateError) throw updateError;
-
-          // Insert transaction record
-          const { error: txError } = await supabase
-            .from('store_credit_transactions')
-            .insert([
-              {
-                store_credit_id: selectedStoreCredit.id,
-                transaction_id: result?.data?.[0]?.id,
-                amount: -selectedStoreCredit.amount,
-                transaction_type: 'redeemed',
-              },
-            ]);
-
-          if (txError) throw txError;
-
-          console.log('✅ Store credit successfully redeemed');
+          const redeemResult = await redeemRes.json();
+          if (!redeemRes.ok) {
+            console.error('⚠️ Store credit redemption warning:', redeemResult?.error);
+            // Don't fail the transaction if store credit redemption fails
+          } else {
+            console.log('✅ Store credit successfully redeemed');
+          }
         } catch (err: any) {
-          console.error('⚠️ Store credit redemption warning:', err);
+          console.error('⚠️ Store credit redemption error:', err);
           // Don't fail the transaction if store credit redemption fails
         }
       }

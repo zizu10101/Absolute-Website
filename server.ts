@@ -1767,6 +1767,70 @@ async function startServer() {
     }
   });
 
+  // Redeem store credit
+  app.post("/api/store-credits/redeem", async (req, res) => {
+    const admin = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { creditId, amount, transactionId } = req.body;
+
+    if (!creditId || !amount || amount <= 0) {
+      return res.status(400).json({ error: "Missing or invalid creditId, amount" });
+    }
+
+    try {
+      console.log(`🔄 Redeeming store credit: $${amount} from credit ${creditId.slice(0, 8)}`);
+
+      // Get current balance
+      const { data: credit, error: fetchError } = await admin
+        .from("store_credits")
+        .select("remaining_balance")
+        .eq("id", creditId)
+        .single();
+
+      if (fetchError || !credit) {
+        throw new Error("Store credit not found");
+      }
+
+      const newBalance = Math.max(0, credit.remaining_balance - amount);
+
+      // Update balance
+      const { error: updateError } = await admin
+        .from("store_credits")
+        .update({
+          remaining_balance: newBalance,
+          is_active: newBalance > 0,
+        })
+        .eq("id", creditId);
+
+      if (updateError) throw updateError;
+
+      // Create transaction record
+      const { error: txError } = await admin
+        .from("store_credit_transactions")
+        .insert({
+          store_credit_id: creditId,
+          transaction_id: transactionId || null,
+          amount: -amount,
+          transaction_type: "redeemed",
+        });
+
+      if (txError) throw txError;
+
+      console.log(`✅ Store credit redeemed: $${amount}, new balance: $${newBalance.toFixed(2)}`);
+
+      return res.status(200).json({
+        success: true,
+        newBalance: newBalance,
+      });
+    } catch (err: any) {
+      console.error("❌ Store credit redemption error:", err);
+      return res.status(500).json({ error: err.message || "Failed to redeem store credit" });
+    }
+  });
+
   // --- VITE & STATIC ---
 
   if (!isProduction) {
