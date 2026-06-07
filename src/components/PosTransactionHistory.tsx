@@ -6,7 +6,7 @@ import { generateThermalReceiptHTML } from '../utils/thermalReceipt';
 import { ReturnsModal } from './ReturnsModal';
 import {
   Search, ChevronDown, ChevronUp, Printer,
-  RotateCcw, CheckCircle2, XCircle, AlertTriangle, Undo2,
+  RotateCcw, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Undo2,
 } from 'lucide-react';
 
 type DateFilter = 'today' | 'week' | 'month' | 'year' | 'all';
@@ -227,6 +227,60 @@ export const PosTransactionHistory: React.FC = () => {
     win.document.close();
   };
 
+  // Reprint receipt from transaction data
+  const handleReprint = async (txId: string) => {
+    try {
+      // Fetch full transaction details from Supabase
+      const { data: fullTx, error } = await supabase
+        .from('transactions')
+        .select('*, customers(first_name, last_name, email, phone)')
+        .eq('id', txId)
+        .single();
+
+      if (error || !fullTx) {
+        flash('Could not fetch transaction details', true);
+        return;
+      }
+
+      const customerName = fullTx.customers
+        ? `${fullTx.customers.first_name} ${fullTx.customers.last_name}`
+        : 'Walk-in';
+
+      // Calculate totals (assume 13% HST)
+      const total = Math.abs(Number(fullTx.total_amount));
+      const subtotal = total / 1.13;
+      const hst = total - subtotal;
+
+      const html = generateThermalReceiptHTML({
+        transactionId: fullTx.id,
+        customerName,
+        items: (fullTx.items || []).map((item: any) => ({
+          name: item.name || 'Item',
+          quantity: item.quantity || 1,
+          price: Number(item.price),
+          size: item.size,
+          ageGroup: item.ageGroup,
+        })),
+        subtotal,
+        hst,
+        total,
+        paymentMethod: fullTx.method,
+        createdAt: new Date(fullTx.created_at),
+        status: fullTx.status,
+        logoUrl: logo,
+        isReprint: true,
+      });
+
+      const win = window.open('', '_blank');
+      if (!win) return;
+      win.document.write(html);
+      win.document.close();
+    } catch (e: any) {
+      console.error('Reprint error:', e);
+      flash('Error reprinting receipt', true);
+    }
+  };
+
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
       completed: 'bg-emerald-100 text-emerald-700',
@@ -378,12 +432,19 @@ export const PosTransactionHistory: React.FC = () => {
                   </div>
 
                   {/* Action buttons */}
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex gap-2 pt-1 flex-wrap">
                     <button
                       onClick={() => handlePrint(tx)}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-zinc-200 text-[10px] font-black uppercase tracking-wide hover:bg-zinc-50 transition-colors"
                     >
                       <Printer size={12} /> Print
+                    </button>
+                    <button
+                      onClick={() => handleReprint(tx.id)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-400 bg-slate-500 text-white text-[10px] font-black uppercase tracking-wide hover:bg-slate-600 transition-colors"
+                      title="Reprint this transaction receipt"
+                    >
+                      <RefreshCw size={12} /> Reprint
                     </button>
                     {canVoid && (
                       <button
