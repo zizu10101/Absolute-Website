@@ -109,19 +109,14 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
   const fetchStoreCredits = async () => {
     setIsHistoryLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('store_credits')
-        .select(`
-          *,
-          customers (first_name, last_name, email, phone),
-          store_credit_transactions (*)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setStoreCredits(data || []);
+      const response = await fetch('/api/store-credits');
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      const result = await response.json();
+      console.log('Store credits history fetched:', result.data);
+      setStoreCredits(result.data || []);
     } catch (err) {
       console.error('Error fetching store credits:', err);
+      setStoreCredits([]);
     } finally {
       setIsHistoryLoading(false);
     }

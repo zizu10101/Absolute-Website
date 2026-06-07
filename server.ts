@@ -1703,6 +1703,70 @@ async function startServer() {
     }
   });
 
+  // Get all store credits (for POS history and reports)
+  app.get("/api/store-credits", async (req, res) => {
+    const admin = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    try {
+      const { data, error } = await admin
+        .from("store_credits")
+        .select(`
+          *,
+          customers (id, first_name, last_name, email, phone),
+          store_credit_transactions (*)
+        `)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return res.status(200).json({
+        success: true,
+        data: data || [],
+      });
+    } catch (err: any) {
+      console.error("❌ Error fetching store credits:", err);
+      return res.status(500).json({ error: err.message || "Failed to fetch store credits" });
+    }
+  });
+
+  // Get store credits for a specific customer
+  app.get("/api/store-credits/customer/:customerId", async (req, res) => {
+    const admin = createClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { customerId } = req.params;
+
+    if (!customerId) {
+      return res.status(400).json({ error: "customerId is required" });
+    }
+
+    try {
+      const { data, error } = await admin
+        .from("store_credits")
+        .select(`
+          *,
+          store_credit_transactions (*)
+        `)
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return res.status(200).json({
+        success: true,
+        data: data || [],
+      });
+    } catch (err: any) {
+      console.error("❌ Error fetching customer store credits:", err);
+      return res.status(500).json({ error: err.message || "Failed to fetch store credits" });
+    }
+  });
+
   // --- VITE & STATIC ---
 
   if (!isProduction) {

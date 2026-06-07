@@ -35,19 +35,14 @@ export const StoreCreditsSection: React.FC<StoreCreditionsSectionProps> = ({ cus
   const fetchStoreCredits = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('store_credits')
-        .select(`
-          *,
-          store_credit_transactions (*)
-        `)
-        .eq('customer_id', customerId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setStoreCredits(data || []);
+      const response = await fetch(`/api/store-credits/customer/${customerId}`);
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      const result = await response.json();
+      console.log('Store credits fetched for customer:', result.data);
+      setStoreCredits(result.data || []);
     } catch (err) {
       console.error('Error fetching store credits:', err);
+      setStoreCredits([]);
     } finally {
       setIsLoading(false);
     }
