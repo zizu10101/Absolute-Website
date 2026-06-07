@@ -299,6 +299,18 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
         console.log('✅ [Returns] Store credit created:', scData.creditId);
 
+        // Update returns record with store_credit_id
+        const { error: updateReturnError } = await supabase
+          .from('returns')
+          .update({ store_credit_id: scData.creditId })
+          .eq('id', returnRecord.id);
+
+        if (updateReturnError) {
+          console.error('⚠️ [Returns] Error updating return with store_credit_id:', updateReturnError);
+        } else {
+          console.log('✅ [Returns] Return record updated with store_credit_id');
+        }
+
         setCompletionData({
           type: 'store-credit',
           returnId: returnRecord.id,
