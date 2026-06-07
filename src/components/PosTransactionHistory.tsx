@@ -441,7 +441,7 @@ export const PosTransactionHistory: React.FC = () => {
                     </button>
                     <button
                       onClick={() => handleReprint(tx.id)}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-zinc-300 bg-zinc-100 text-[10px] font-black uppercase tracking-wide hover:bg-zinc-200 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-400 bg-slate-500 text-white text-[10px] font-black uppercase tracking-wide hover:bg-slate-600 transition-colors"
                       title="Reprint this transaction receipt"
                     >
                       <RefreshCw size={12} /> Reprint
