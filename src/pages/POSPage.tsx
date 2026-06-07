@@ -545,7 +545,57 @@ export function POSPage() {
         }
       }
 
+      // UPDATE STORE CREDIT BALANCE DIRECTLY (not via API)
       let storeCreditNewBalance = selectedStoreCredit?.balance;
+      if (selectedStoreCredit && actualAmountUsed > 0) {
+        try {
+          console.log('💰 Updating store credit balance directly in Supabase:', {
+            creditId: selectedStoreCredit.id,
+            currentBalance: selectedStoreCredit.remaining_balance,
+            amountUsed: actualAmountUsed,
+            newBalance: selectedStoreCredit.remaining_balance - actualAmountUsed,
+          });
+
+          const newBalance = Math.max(0, selectedStoreCredit.remaining_balance - actualAmountUsed);
+
+          // Update store credit balance directly
+          const { data: updateData, error: updateError } = await supabase
+            .from('store_credits')
+            .update({
+              remaining_balance: newBalance,
+              is_active: newBalance > 0,
+            })
+            .eq('id', selectedStoreCredit.id)
+            .select('remaining_balance, is_active');
+
+          console.log('💰 Store credit update result:', { data: updateData, error: updateError });
+
+          if (updateError) {
+            console.error('❌ Store credit balance update FAILED:', updateError);
+          } else if (updateData && updateData.length > 0) {
+            storeCreditNewBalance = updateData[0].remaining_balance;
+            console.log('✅ Store credit balance updated successfully. New balance:', storeCreditNewBalance);
+
+            // Create transaction record for audit trail
+            const { error: txError } = await supabase
+              .from('store_credit_transactions')
+              .insert({
+                store_credit_id: selectedStoreCredit.id,
+                transaction_id: result?.data?.[0]?.id,
+                amount: -actualAmountUsed,
+                transaction_type: 'redeemed',
+              });
+
+            if (txError) {
+              console.error('⚠️ Store credit transaction record creation failed:', txError);
+            } else {
+              console.log('✅ Store credit transaction record created');
+            }
+          }
+        } catch (err) {
+          console.error('❌ Error updating store credit balance:', err);
+        }
+      }
 
       setReceipt({
         transactionId: result?.data?.[0]?.id,
@@ -603,44 +653,8 @@ export function POSPage() {
         }
       }
 
-      // Process store credit redemption AFTER transaction is confirmed
-      if (selectedStoreCredit && method === 'Store Credit') {
-        try {
-          // CRITICAL FIX: Calculate actual amount of store credit used, not the selected amount
-          // Because if gift card is also used, actual amount might be less than selected
-          const actualAmountUsed = amountAfterGiftCard - amountAfterStoreCredit;
-
-          console.log('🎟 Processing store credit redemption after transaction:', {
-            creditId: selectedStoreCredit.id,
-            selectedAmount: selectedStoreCredit.amount,
-            actualAmountUsed: actualAmountUsed,
-            transactionId: result?.data?.[0]?.id,
-          });
-
-          const redeemRes = await fetch('/api/store-credits/redeem', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              creditId: selectedStoreCredit.id,
-              amount: actualAmountUsed,
-              transactionId: result?.data?.[0]?.id,
-            }),
-          });
-
-          const redeemResult = await redeemRes.json();
-          if (!redeemRes.ok) {
-            console.error('❌ CRITICAL: Store credit redemption FAILED:', redeemResult?.error);
-            throw new Error('Store credit redemption failed: ' + redeemResult?.error);
-          } else {
-            console.log('✅ Store credit successfully redeemed, amount: $' + actualAmountUsed.toFixed(2) + ', new balance: $' + redeemResult.newBalance.toFixed(2));
-            // Update receipt with new balance
-            setReceipt(prev => prev ? { ...prev, storeCreditNewBalance: redeemResult.newBalance } : null);
-          }
-        } catch (err: any) {
-          console.error('❌ CRITICAL ERROR: Store credit redemption failed:', err.message);
-          alert('⚠️ WARNING: Transaction saved but store credit balance may not have been updated. Please contact support.');
-        }
-      }
+      // Note: Store credit balance is now updated DIRECTLY above (in Supabase section)
+      // No need for API call - everything is handled locally
     } catch (e: any) {
       console.error('Checkout error:', e);
       alert('Checkout failed: ' + e.message);
