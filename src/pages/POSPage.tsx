@@ -469,7 +469,6 @@ export function POSPage() {
         subtotal: Number(subtotal.toFixed(2)),
         hst: Number(hst.toFixed(2)),
         isTaxExempt,
-        discount,
       };
 
       // Add cash-specific fields (use amount after gift card and store credit)
