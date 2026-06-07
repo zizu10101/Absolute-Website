@@ -466,9 +466,6 @@ export function POSPage() {
         items: cartItemsPayload,
         customer_id: selectedCustomerId?.trim() || null,
         created_at: new Date().toISOString(),
-        subtotal: Number(subtotal.toFixed(2)),
-        hst: Number(hst.toFixed(2)),
-        isTaxExempt,
       };
 
       // Add cash-specific fields (use amount after gift card and store credit)
