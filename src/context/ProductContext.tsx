@@ -446,57 +446,49 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const updateProduct = async (product: Product) => {
     try {
-      if (supabase) {
-        const { id, ...rest } = product as any;
-        
-        const payload: any = {
-          name: rest.name,
-          price: rest.price,
-          category: rest.category,
-          submenu: rest.submenu,
-          submenus: rest.submenus,
-          image: rest.image,
-          images: rest.images,
-          description: rest.description,
-          isNewArrival: rest.isNewArrival,
-          isOnSale: rest.isOnSale,
-          isFeatured: rest.isFeatured,
-          salePrice: rest.salePrice,
-          colors: rest.colors,
-          show_sizes: rest.showSizes,
-          is_online: rest.is_online,
-          release_date: rest.release_date || null
-        };
+      const { id, ...rest } = product as any;
 
-        // Remove undefined values
-        Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+      const payload: any = {
+        name: rest.name,
+        price: rest.price,
+        category: rest.category,
+        submenu: rest.submenu,
+        submenus: rest.submenus,
+        image: rest.image,
+        images: rest.images,
+        description: rest.description,
+        isNewArrival: rest.isNewArrival,
+        isOnSale: rest.isOnSale,
+        isFeatured: rest.isFeatured,
+        salePrice: rest.salePrice,
+        colors: rest.colors,
+        show_sizes: rest.showSizes,
+        is_online: rest.is_online,
+        release_date: rest.release_date || null
+      };
 
-        const { error } = await supabase
-          .from('products')
-          .update(payload)
-          .eq('id', id);
+      // Remove undefined values
+      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
-        if (error) throw error;
+      const response = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-        // Force fresh fetch from Supabase to get the actual saved data
-        const { data: fresh, error: fetchErr } = await supabase
-          .from('products')
-          .select('*')
-          .eq('id', id)
-          .single();
-
-        if (!fetchErr && fresh) {
-          const mapped = mapProductFromDb(fresh);
-          setProducts(prev => prev.map(p => p.id === id ? mapped : p));
-        } else {
-          setProducts(prev => prev.map(p => p.id === id ? { ...p, ...product } : p));
-        }
-
-        clearProductCache();
-        return product;
+      if (!response.ok) {
+        const errPayload = await response.json().catch(() => ({}));
+        throw new Error(errPayload.message || errPayload.error || `API failed: ${response.status}`);
       }
+
+      const updatedData = await response.json();
+      const mapped = mapProductFromDb(updatedData);
+      setProducts(prev => prev.map(p => p.id === id ? mapped : p));
+
+      clearProductCache();
+      return product;
     } catch (err: any) {
-      console.error('Direct Supabase update failed:', err);
+      console.error('Product update failed:', err);
       throw err;
     }
   };
