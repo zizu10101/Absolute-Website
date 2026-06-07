@@ -4,15 +4,19 @@ import { useSettings } from '../context/SettingsContext';
 
 export function Footer() {
   const { footerLogo, footerLinks } = useSettings();
-  
+
   // Group links into categories for the footer columns
   const shopLabels = ['FOOTWEAR', 'APPAREL', 'EQUIPMENT', 'TEAMS'];
   const customLabels = ['CUSTOM LAB', 'UNIFORM SUBMISSION', 'CLUB REGISTRY'];
+  const adminPaths = ['/admin', '/pos', '/reports'];
 
-  const shopLinks = footerLinks.filter(l => shopLabels.includes(l.label.toUpperCase()));
-  const customLinks = footerLinks.filter(l => customLabels.includes(l.label.toUpperCase()));
-  const supportLinks = footerLinks.filter(l => 
-    !shopLabels.includes(l.label.toUpperCase()) && 
+  // Filter out admin routes
+  const visibleLinks = footerLinks.filter(l => !adminPaths.includes(l.path));
+
+  const shopLinks = visibleLinks.filter(l => shopLabels.includes(l.label.toUpperCase()));
+  const customLinks = visibleLinks.filter(l => customLabels.includes(l.label.toUpperCase()));
+  const supportLinks = visibleLinks.filter(l =>
+    !shopLabels.includes(l.label.toUpperCase()) &&
     !customLabels.includes(l.label.toUpperCase())
   );
 
@@ -68,9 +72,6 @@ export function Footer() {
         <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-[0.3em]">
           © 2024 ABSOLUTE SOCCER. ALL RIGHTS RESERVED.
         </p>
-        <Link to="/admin" className="text-zinc-600 hover:text-zinc-400 transition-colors text-[10px] font-bold uppercase tracking-widest">
-          Admin Dashboard
-        </Link>
       </div>
     </footer>
   );
