@@ -10,9 +10,40 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
-## Current Status (as of June 7, 2026 - Session 2)
+## Current Status (as of June 7, 2026 - Session 3)
 
-### Latest Session - Store Credit & Product Management Complete ✅
+### Latest Session - Critical Store Credit Bugs Found & Fixed ✅
+
+**Store Credit Redemption - CRITICAL BUGS FIXED:**
+
+Three critical bugs were discovered in console logs and fixed:
+
+1. **BUG: Store Credit Balance Update Never Runs**
+   - ❌ Problem: `actualAmountUsed` was never calculated
+   - ❌ Code checked `if (selectedStoreCredit && actualAmountUsed > 0)` but `actualAmountUsed` was `undefined`
+   - ✅ Fixed: Added `const actualAmountUsed = amountAfterGiftCard - amountAfterStoreCredit;` at line 548
+   - ✅ Commit: a80b799
+
+2. **BUG: Store Credit State Undefined During Checkout**
+   - ❌ Problem: Console showed `Credit ID: undefined` - state was cleared during async operations
+   - ❌ Root cause: React state closure issue - state variables can change during async operations
+   - ✅ Fixed: Capture `selectedStoreCredit` and `selectedGiftCard` at function start before any awaits
+   - ✅ Pattern: Use `capturedStoreCredit` instead of `selectedStoreCredit` throughout function
+   - ✅ Commit: 6feb45e
+
+3. **BUG: Returns Table 406 Errors**
+   - ❌ Problem: `.from('returns').single()` throws error when no returns exist
+   - ✅ Fixed: Changed `.single()` to `.maybeSingle()` in PosCustomerManager.tsx
+   - ✅ Added error logging for debugging
+   - ✅ Commit: a80b799
+
+**Console Logging Added:**
+- 🔴 Captured values at function start
+- 🔴 Store credit update flow (starting, amount used, new balance)
+- 🔴 Supabase result with data/error
+- 🔴 Detailed logging for easy debugging
+
+### Previous Session Summary - Store Credit & Product Management Complete ✅
 
 **Returns Feature - FULLY IMPLEMENTED & TESTED:**
 - ✅ 5-step returns wizard in ReturnsModal (invoice lookup → item selection → refund method → confirmation → completion)
@@ -125,10 +156,13 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
-## Known Issues
+## Known Issues & Status
 
 | Issue | Status | Impact | Priority |
 |-------|--------|--------|----------|
+| Store credit balance update bug | ✅ FIXED (Session 3) | Balance now updates on checkout | CRITICAL |
+| Store credit state undefined | ✅ FIXED (Session 3) | React closure issue resolved | CRITICAL |
+| Returns table 406 errors | ✅ FIXED (Session 3) | No longer blocks transaction history | HIGH |
 | Germany product images (7 products) | ❌ Not fixed | Missing images for German national team products | Medium |
 
 **Germany Products Needing Images:**
@@ -141,6 +175,82 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 - Germany Home Jersey (ID: a03ed579-ee87-4823-a0b0-8ae4c1100bb7)
 
 **Fix:** Admin uploads images through `/admin` product editor for each product.
+
+---
+
+## Next Steps - Testing & Verification (June 7, 2026)
+
+### CRITICAL - Test Store Credit Redemption (Must Verify)
+
+**Test Case 1: Single Store Credit Payment**
+- [ ] Add items to cart (~$50 total)
+- [ ] Select customer
+- [ ] Choose Store Credit as payment method
+- [ ] Verify console logs:
+  ```
+  🔴 CAPTURED AT FUNCTION START: {
+    creditId: "...",
+    creditAmount: 96.05,
+    creditBalance: 150.00,
+  }
+  🔴 STORE CREDIT UPDATE STARTING
+  🔴 Credit ID: ... (should NOT be undefined)
+  🔴 Amount used: 96.05
+  🔴 New balance will be: 53.95
+  🔴 SC UPDATE SUCCESS
+  ```
+- [ ] Check Supabase `store_credits` table - verify `remaining_balance` was deducted
+- [ ] Check `store_credit_transactions` table - verify `redeemed` record created
+- [ ] Receipt shows correct store credit amount and remaining balance
+
+**Test Case 2: Gift Card + Store Credit (Multi-Payment)**
+- [ ] Cart: $100 total
+- [ ] Gift card: $40
+- [ ] Store credit: $80
+- [ ] Remaining due: $0
+- [ ] Verify amount deducted: $60 (not $80)
+- [ ] Check database - $60 deducted from credit balance
+
+**Test Case 3: Exact Amount Store Credit**
+- [ ] Store credit exact amount of total ($50 = $50 total)
+- [ ] Verify `is_active` becomes `false`
+- [ ] Verify balance shows $0.00
+
+**Test Case 4: Returns Table Fix**
+- [ ] Load customer profile
+- [ ] Check console - NO 406 errors
+- [ ] Transaction history loads cleanly
+- [ ] Return buttons visible on completed transactions
+
+### High Priority - Returns System (Verify Still Works)
+- [ ] Test POS Returns Tab (scan invoice)
+- [ ] Test Customer Profile Returns (click button)
+- [ ] Verify transaction status updates
+- [ ] Verify inventory restored
+- [ ] Verify store credit issued on return
+
+### Medium Priority - General Testing
+- [ ] Test all payment methods with store credit combinations
+- [ ] Test void/refund with store credit transactions
+- [ ] Verify receipts show correct store credit info
+- [ ] Test gift card + store credit edge cases
+
+### Code Quality
+- [ ] All console 🔴 logs appear on store credit transactions
+- [ ] No RLS or database errors
+- [ ] No 406 errors in console
+- [ ] Captured state pattern used consistently
+
+---
+
+## Commits This Session (June 7, 2026)
+
+| Commit | Message | Files |
+|--------|---------|-------|
+| a80b799 | fix: critical store credit and returns bugs found in console logs | POSPage.tsx, PosCustomerManager.tsx |
+| 6feb45e | fix: capture selectedStoreCredit before async operations (critical state bug) | POSPage.tsx |
+| 6711f74 | docs: add detailed explanation of store credit direct Supabase fix | (doc file) |
+| d0d90d2 | fix: implement direct Supabase store credit balance update | POSPage.tsx |
 
 ---
 
