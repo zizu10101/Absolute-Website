@@ -10,9 +10,86 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
-## Current Status (as of June 8, 2026 - Session 7)
+## Current Status (as of June 8, 2026 - Session 8)
 
-### Latest Session - Comprehensive Brand Filtering System ✅
+### Latest Session 8 - POS Barcode System & Store Credit Enhancements ✅
+
+**PRODUCT UPDATE BUG - FIXED:**
+
+1. **Issue: Product edits showed success but didn't save** ✅
+   - ✅ ProductContext was using /api/products endpoint (404 on Vercel)
+   - ✅ Changed to direct Supabase.update() with anon key
+   - ✅ RLS policies now allow direct Supabase updates
+   - ✅ Product changes now persist correctly
+   - ✅ Removed misleading Google AI Studio error messages
+
+**BARCODE ROUTING SYSTEM - FULLY IMPLEMENTED:**
+
+1. **Main Register Barcode Routing** ✅
+   - ✅ SC-XXXXXXXXXXXX → Opens Store Credit modal (scan tab)
+   - ✅ INV-XXXXX → Opens Returns modal (pre-fills invoice)
+   - ✅ Product codes → Add to cart (variant lookup + product code fallback)
+   - ✅ UUID detection → Helpful error message
+   - ✅ Proper flow for each barcode type
+
+2. **Store Credit Modal Validation** ✅
+   - ✅ Rejects INV- codes with clear message
+   - ✅ Directs user to Returns tab for invoice processing
+   - ✅ Only accepts SC- card numbers
+
+3. **Returns Modal Integration** ✅
+   - ✅ Already handles INV-XXXXX codes correctly
+   - ✅ Normalizes numeric input to INV-XXXXX format
+   - ✅ UUID detection with helpful error
+
+**RECEIPT BARCODE ENCODING - FIXED:**
+
+1. **Transaction History Barcode** ✅
+   - ✅ Changed from UUID to invoice_number
+   - ✅ Barcode now encodes: INV-01001 (not UUID)
+   - ✅ handlePrint passes barcodeValue to receipt generator
+   - ✅ handleReprint passes barcodeValue for reprints
+
+2. **Store Credit Barcode** ✅
+   - ✅ Store credit receipts now encode SC card number
+   - ✅ Changed from INV-XXXXX to SC-ADEH8IZCLEO
+   - ✅ Uses dedicated generateStoreCreditReceiptHTML function
+   - ✅ Shows clear SC card number in completion message
+
+**STORE CREDIT CARD NUMBERS - FULLY ENHANCED:**
+
+1. **Consistent Card Number Format** ✅
+   - ✅ Format: SC- + 12 alphanumeric characters (uppercase)
+   - ✅ Both ReturnsModal and StoreCreditsTab use same generator
+   - ✅ Examples: SC-ADEH8IZCLEO, SC-KJM2P7VXQW9
+   - ✅ Supabase query: .eq('card_number', scannedCode)
+
+2. **Store Credit Receipt Enhancements** ✅
+   - ✅ Dedicated receipt format when SC issued after return
+   - ✅ Shows "STORE CREDIT ISSUED" header
+   - ✅ Displays customer name, amount, card number
+   - ✅ Barcode encodes SC card number
+   - ✅ Instructions: "Keep this receipt safe!"
+
+3. **Store Credit History Display** ✅
+   - ✅ Card number visible in expanded history view
+   - ✅ Easy reference for cashier manual entry
+   - ✅ Shows: "Card Number: SC-ADEH8IZCLEO"
+   - ✅ Positioned for quick visibility
+
+**COMMITS THIS SESSION:**
+   - ✅ a3916c8: "remove incorrect Google AI Studio references"
+   - ✅ d1f617c: "replace /api/ fetch calls with direct Supabase"
+   - ✅ 1052a9c: "remove /api/products endpoint call"
+   - ✅ 750d189: "add logging to verify invoice_number flows to barcode"
+   - ✅ 4b25e77: "barcode now encodes invoice_number instead of UUID"
+   - ✅ 4c87ac1: "proper barcode routing for SC, INV, and products"
+   - ✅ 9373af2: "store credit uses SC card number not INV"
+   - ✅ 269a4d8: "enhance store credit receipt with card number"
+
+---
+
+### Previous Session 7 - Comprehensive Brand Filtering System ✅
 
 **BRAND FILTERING SYSTEM - FULLY IMPLEMENTED:**
 
@@ -377,78 +454,64 @@ Three critical store credit bugs fixed:
 
 ---
 
-## Next Steps - Session 8+ TODO (June 8, 2026+)
+## Next Steps - Session 9+ TODO (June 8, 2026+)
 
-### CRITICAL - Test Brand Filtering System on Production
+### CRITICAL - POS Barcode System Testing
 
-**Test Brand Navigation:**
-- [ ] Navigate to main menu
-- [ ] Click "Shop by Brand" section
-- [ ] Verify all brands listed alphabetically
-- [ ] Click a brand → should navigate to /brand/nike
-- [ ] Products display only from that brand
+**Test Receipt Barcode Encoding:**
+- [ ] Complete a transaction → Receipt prints
+- [ ] Verify barcode shows INV-01001 format (not UUID)
+- [ ] Scan barcode with returns lookup → Should find invoice ✅
+- [ ] Verify barcode readable and properly encoded
 
-**Test Brand Pages:**
-- [ ] Visit /brands route (brands hub)
-- [ ] Verify all brands display with product counts
-- [ ] Click alphabet filter (A-Z)
-- [ ] Verify filtered brand list updates
-- [ ] Click a brand card → navigate to /brand/:brandName
-- [ ] Verify category filter works within brand page
+**Test Store Credit Barcode System:**
+- [ ] Process return with Store Credit refund
+- [ ] Verify SC receipt prints with "STORE CREDIT ISSUED" header
+- [ ] Verify barcode encodes SC-ADEH8IZCLEO (not INV)
+- [ ] Scan SC barcode at checkout → Opens Store Credit modal ✅
+- [ ] Verify card number displays to customer
 
-**Test Brand Filtering on Category Pages:**
-- [ ] Visit /footwear or any category
-- [ ] Verify BrandFilter component appears below search
-- [ ] Click a brand to filter
-- [ ] Products list updates in real-time
-- [ ] Click same brand again to clear filter
-- [ ] Test on multiple pages: /kits, /balls, /equipment
+**Test Barcode Routing at POS:**
+- [ ] Scan product barcode → Adds to cart ✅
+- [ ] Scan INV-01001 → Opens Returns modal ✅
+- [ ] Scan SC-XXXXX → Opens Store Credit tab ✅
+- [ ] Scan UUID → Shows helpful error ✅
 
-**Test URL Query Parameters:**
-- [ ] Visit /footwear?brand=Nike manually
-- [ ] Brand should auto-select in filter
-- [ ] Products show only Nike items
-- [ ] Verify on other categories
+### HIGH - Data Cleanup & Verification
 
-**Test Admin Bulk Brand Assignment:**
-- [ ] Go to admin product list
-- [ ] Select multiple products (checkboxes)
-- [ ] Choose brand from dropdown
-- [ ] Click "Assign Brand" button
-- [ ] Verify all selected products updated
-- [ ] Refresh page to confirm persistence
+**Verify Store Credit Card Numbers:**
+- [ ] Check all store_credits have card_number field populated
+- [ ] Verify format: SC- + 12 alphanumeric uppercase chars
+- [ ] Test manual lookup in admin by card number
+- [ ] Test barcode scanning for existing store credits
 
-### HIGH - Data Cleanup
+**Brand System Verification (from Session 7):**
+- [ ] All products have brand assigned or show ⚠️ indicator
+- [ ] Use bulk brand assignment to complete any missing brands
+- [ ] Target: 100% of products have brand
 
-**Assign Missing Brands:**
-- [ ] Admin shows products with ⚠️ Missing Brand indicator
-- [ ] Use bulk brand assignment to assign brands to all products
-- [ ] Target: 100% of products have a brand assigned
-- [ ] Enables best brand filtering experience
+**Product Codes (Optional):**
+- [ ] Assign product codes to frequently scanned items
+- [ ] Enables POS fallback barcode lookup if variant barcode missing
 
-**Assign Product Codes (Optional):**
-- [ ] Research standard product codes for each brand
-- [ ] Assign codes to all products (optional but recommended)
-- [ ] Enables more robust barcode scanning in POS
+### MEDIUM - Enhanced Features
 
-### MEDIUM - Enhanced Brand Features
+**Store Credit Features:**
+- [ ] Add store credit expiration date tracking (optional)
+- [ ] Store credit statement/history printout for customers
+- [ ] Balance check receipt at customer request
 
-**Brand Navigation Enhancements:**
+**Barcode System Enhancements:**
+- [ ] Add barcode scanning sound/visual feedback
+- [ ] Track which barcodes scan successfully vs fail
+- [ ] Generate barcode scan report for inventory audit
+
+**Brand System Enhancements (from Session 7):**
 - [ ] Add brand counts in navigation dropdown
-- [ ] Show most popular brands first (based on product count)
-- [ ] Search within brand list for large catalogs
+- [ ] Show most popular brands first
+- [ ] Brand comparison tool (compare across brands)
 
-**Brand Page Enhancements:**
-- [ ] Add "Related Brands" section
-- [ ] Show brand product distribution by category
-- [ ] Display brand description/bio if available
-
-**Additional Brand Features:**
-- [ ] Brand page with brand info/description field
-- [ ] "Popular Brands" or "Trending" section based on sales
-- [ ] Brand comparison tool (compare products across brands)
-
-### LOW - Germany Products Images
+### LOW - Missing Product Images
 
 **Still Need Images (7 products):**
 - Germany Away Jersey Y, Home Jersey Y, Away Jersey, Ball, Cap, GK H JSY, Home Jersey
@@ -456,13 +519,37 @@ Three critical store credit bugs fixed:
 
 ---
 
-## Commits This Session (Session 7 - June 8, 2026 - Comprehensive Brand Filtering)
+## Commits This Session (Session 8 - June 8, 2026 - POS Barcode System & Store Credit)
 
 | Commit | Message | Files |
 |--------|---------|-------|
-| c6845f0 | feat: implement comprehensive brand filtering system across store | App.tsx, BrandNavigation.tsx, BrandPage.tsx, BrandsPage.tsx, NavigationDrawer.tsx, AdminPage.tsx, ProductGridPage.tsx |
+| 269a4d8 | feat: enhance store credit receipt with card number and consistent formatting | ReturnsModal.tsx, StoreCreditsTab.tsx, thermalReceipt.ts |
+| 9373af2 | fix: store credit issued after return now uses SC card number not INV number | ReturnsModal.tsx |
+| 4c87ac1 | fix: proper barcode routing at POS register for SC, INV, and product codes | POSPage.tsx |
+| 4b25e77 | fix: barcode now encodes invoice_number instead of UUID in transaction history | PosTransactionHistory.tsx |
+| 750d189 | refactor: add logging to verify invoice_number flows to receipt barcode | POSPage.tsx |
+| d1f617c | fix: replace /api/ fetch calls with direct Supabase for Vercel compatibility | ProductContext.tsx, POSPage.tsx, StoreCreditsSection.tsx |
+| 1052a9c | fix: remove /api/products endpoint call - use direct Supabase for Vercel | ProductContext.tsx |
+| a3916c8 | fix: remove incorrect Google AI Studio references from error messages | AdminPage.tsx |
 
-**What was added:**
+**What was fixed:**
+- ✅ Product updates now use direct Supabase (not /api/products)
+- ✅ Removed misleading Google AI Studio error messages
+- ✅ Receipt barcodes encode invoice_number (INV-XXXXX) not UUID
+- ✅ Store credit barcodes encode SC card number (SC-ADEH8IZCLEO)
+- ✅ Proper barcode routing: SC- → Store Credit, INV- → Returns, products → Cart
+- ✅ Store credit receipts show dedicated format with card number
+- ✅ Store credit history displays card numbers for manual lookup
+- ✅ Consistent SC card number format across app
+- ✅ /api/ calls replaced with direct Supabase for Vercel compatibility
+
+**Session 7 Commits (June 8, 2026 - Comprehensive Brand Filtering):**
+
+| Commit | Message |
+|--------|---------|
+| c6845f0 | feat: implement comprehensive brand filtering system across store |
+
+**What was added in Session 7:**
 - ✅ BrandNavigation.tsx - Dynamic brand dropdown in navigation
 - ✅ BrandPage.tsx - Individual brand page with category filtering
 - ✅ BrandsPage.tsx - Hub page showing all brands with alphabet filter
