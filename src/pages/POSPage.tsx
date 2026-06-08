@@ -215,63 +215,40 @@ export function POSPage() {
     setBarcodeSuccess(null);
 
     try {
-      // CHECK IF THIS IS A STORE CREDIT BARCODE (SC-XXXXXXXXXXXX)
+      // BARCODE ROUTING LOGIC
+
+      // 1. STORE CREDIT BARCODE (SC-XXXXXXXXXXXX)
       if (barcode.startsWith('SC-')) {
         console.log('🎟 Store credit barcode detected:', barcode);
 
-        if (!selectedCustomerId) {
-          setBarcodeError('Please select a customer first to apply store credit');
-          setTimeout(() => setBarcodeError(null), 4000);
-          return;
-        }
-
-        try {
-          const { data: credits, error } = await supabase
-            .from('store_credits')
-            .select('*')
-            .eq('customer_id', selectedCustomerId)
-            .eq('is_active', true);
-
-          if (error) throw error;
-
-          // Find the credit with matching card_number
-          const credit = (credits || []).find(
-            (c: any) => c.card_number === barcode && c.is_active && c.remaining_balance > 0
-          );
-
-          if (!credit) {
-            setBarcodeError(`Store credit ${barcode} not found or not available`);
-            setTimeout(() => setBarcodeError(null), 4000);
-            return;
-          }
-
-          // Auto-select this store credit for payment
-          const amount = Math.min(credit.remaining_balance, grandTotal);
-          setSelectedStoreCredit({ id: credit.id, amount, balance: credit.remaining_balance });
-          setBarcodeSuccess(`🎟 Store Credit scanned: ${barcode} · $${amount.toFixed(2)} available`);
-          setTimeout(() => setBarcodeSuccess(null), 3000);
-          setBarcodeInput('');
-          return;
-        } catch (err: any) {
-          setBarcodeError('Error looking up store credit: ' + err.message);
-          setTimeout(() => setBarcodeError(null), 4000);
-          return;
-        }
+        // Open store credit modal on scan tab with pre-filled barcode
+        setShowStoreCreditModal(true);
+        setScModalTab('scan');
+        setScScanInput(barcode);
+        setBarcodeSuccess(`Opening Store Credit lookup for: ${barcode}`);
+        setTimeout(() => setBarcodeSuccess(null), 2000);
+        setBarcodeInput('');
+        return;
       }
 
-      // CHECK IF THIS IS AN INVOICE/TRANSACTION BARCODE (INV-XXXXX or UUID)
+      // 2. INVOICE/TRANSACTION BARCODE (INV-XXXXX)
+      if (barcode.startsWith('INV-') || /^INV-\d+$/.test(barcode)) {
+        console.log('📋 Invoice barcode detected:', barcode);
+
+        // Open Returns modal with pre-filled invoice number
+        setShowReturnsModal(true);
+        setReturnsInvoiceInput(barcode);
+        setBarcodeSuccess(`Opening Returns for invoice: ${barcode}`);
+        setTimeout(() => setBarcodeSuccess(null), 2000);
+        setBarcodeInput('');
+        return;
+      }
+
+      // 3. CHECK IF THIS IS A TRANSACTION UUID (shouldn't happen but detect it)
       // UUID format: 8-4-4-4-12 hex digits (36 chars total with hyphens)
       const isUUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(barcode);
       if (isUUID) {
         setBarcodeError('❌ That appears to be a transaction UUID. Please scan the invoice barcode (INV-XXXXX) instead.');
-        setTimeout(() => setBarcodeError(null), 4000);
-        return;
-      }
-
-      // Check for invoice barcode (INV-XXXXX or numeric XXXXX)
-      const isInvoiceNum = barcode.startsWith('INV-') || /^\d+$/.test(barcode);
-      if (isInvoiceNum) {
-        setBarcodeError('ℹ️ Invoice number detected. Use the Returns modal to process returns or look up receipts.');
         setTimeout(() => setBarcodeError(null), 4000);
         return;
       }
@@ -602,6 +579,16 @@ export function POSPage() {
     try {
       const searchCode = code.trim();
       console.log('🔴 SC SCAN: Looking up code:', searchCode);
+
+      // Detect if this is an invoice number (INV-XXXXX format)
+      if (searchCode.startsWith('INV-') || /^INV-\d+$/.test(searchCode)) {
+        setStoreCreditError(
+          '⛔ This is an invoice barcode, not a store credit.\n\n' +
+          'Invoice codes are in format: INV-XXXXX\n\n' +
+          'To process a return or look up a transaction, use the Returns tab instead.'
+        );
+        return;
+      }
 
       // Detect if this looks like a UUID (transaction ID) - format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
