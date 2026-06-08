@@ -132,13 +132,15 @@ function AdminPageInner() {
     fetchAdminProducts();
   }, []);
   
-  const [newProduct, setNewProduct] = useState<Omit<Product, 'id'>>({ 
-    name: '', 
-    price: 0, 
-    category: 'Uncategorized', 
+  const [newProduct, setNewProduct] = useState<Omit<Product, 'id'>>({
+    name: '',
+    price: 0,
+    category: 'Uncategorized',
+    brand: '',
+    product_code: '',
     submenu: '',
     submenus: [],
-    image: '', 
+    image: '',
     images: [],
     description: '',
     isNewArrival: true,
@@ -781,6 +783,8 @@ function AdminPageInner() {
         price: 0,
         description: '',
         category: availableCategories[0] || 'Uncategorized',
+        brand: '',
+        product_code: '',
         submenu: '',
         submenus: [],
         image: '',
@@ -3006,6 +3010,11 @@ function AdminPageInner() {
                           <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none" placeholder="e.g. Nike, Adidas, Puma" value={newProduct.brand || ''} onChange={e => setNewProduct({...newProduct, brand: e.target.value})} />
                         </div>
 
+                        <div>
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Product Code <span className="text-zinc-400">(Optional)</span></label>
+                          <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none" placeholder="e.g. NK-DV9237, ADI-HG6164" value={newProduct.product_code || ''} onChange={e => setNewProduct({...newProduct, product_code: e.target.value})} />
+                        </div>
+
                         {(() => {
                           const menu = navigationMenus.find(m => m.label.toUpperCase() === newProduct.category.toUpperCase());
                           if (!menu || menu.submenus.length === 0) return null;
@@ -3750,6 +3759,9 @@ function AdminPageInner() {
                               )}
                             </p>
                             <p className="text-[10px] text-zinc-400 line-clamp-1">{product.description}</p>
+                            {product.product_code && (
+                              <p className="text-[9px] text-zinc-300 mt-1">Code: <span className="font-mono">{product.product_code}</span></p>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
@@ -4017,6 +4029,11 @@ function AdminPageInner() {
                     <div>
                       <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Brand</label>
                       <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none" placeholder="e.g. Nike, Adidas, Puma" value={editingProduct.brand || ''} onChange={e => setEditingProduct({...editingProduct, brand: e.target.value})} />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Product Code <span className="text-zinc-400">(Optional)</span></label>
+                      <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none" placeholder="e.g. NK-DV9237, ADI-HG6164" value={editingProduct.product_code || ''} onChange={e => setEditingProduct({...editingProduct, product_code: e.target.value})} />
                     </div>
 
                     {(() => {

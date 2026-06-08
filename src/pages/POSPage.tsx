@@ -289,50 +289,86 @@ export function POSPage() {
         variantData = fuzzy;
       }
 
+      // Fallback: Search by product code if no variant found
+      let productByCode: any = null;
       if (!variantData) {
+        const { data: codeMatch } = await supabase
+          .from('products')
+          .select('*')
+          .eq('product_code', barcode)
+          .maybeSingle();
+        productByCode = codeMatch;
+      }
+
+      if (!variantData && !productByCode) {
         setBarcodeError(`No product found for barcode: ${barcode}`);
         setTimeout(() => setBarcodeError(null), 4000);
         return;
       }
 
-      const variant = variantData;
-      const product = Array.isArray(variant.products) ? variant.products[0] : variant.products;
-      if (!product) {
-        setBarcodeError('Product data missing for this barcode');
+      let cartItem: any;
+
+      if (variantData) {
+        // Product found via variant barcode
+        const variant = variantData;
+        const product = Array.isArray(variant.products) ? variant.products[0] : variant.products;
+        if (!product) {
+          setBarcodeError('Product data missing for this barcode');
+          setTimeout(() => setBarcodeError(null), 4000);
+          return;
+        }
+
+        const stock = variant.stock_quantity ?? 0;
+        if (stock <= 0) {
+          setBarcodeError(`OUT OF STOCK — ${product.name} · Size ${variant.size}`);
+          setTimeout(() => setBarcodeError(null), 4000);
+          return;
+        }
+
+        cartItem = {
+          id: `var-${variant.id}`,
+          variantId: variant.id,
+          name: product.name,
+          price: product.isOnSale && product.salePrice ? product.salePrice : (product.price ?? 0),
+          originalPrice: product.price ?? 0,
+          category: product.category || '',
+          isOnSale: product.isOnSale,
+          salePrice: product.salePrice,
+          image: product.image,
+          size: variant.size,
+          ageGroup: variant.age_group,
+          stockQuantity: stock,
+          barcode: variant.barcode,
+          quantity: 1,
+        };
+      } else if (productByCode) {
+        // Product found via product code (no specific size/variant)
+        const product = productByCode;
+        cartItem = {
+          id: product.id,
+          name: product.name,
+          price: product.isOnSale && product.salePrice ? product.salePrice : (product.price ?? 0),
+          originalPrice: product.price ?? 0,
+          category: product.category || '',
+          isOnSale: product.isOnSale,
+          salePrice: product.salePrice,
+          image: product.image,
+          barcode: product.product_code,
+          quantity: 1,
+        };
+      } else {
+        setBarcodeError('Product data missing');
         setTimeout(() => setBarcodeError(null), 4000);
         return;
       }
-
-      const stock = variant.stock_quantity ?? 0;
-      if (stock <= 0) {
-        setBarcodeError(`OUT OF STOCK — ${product.name} · Size ${variant.size}`);
-        setTimeout(() => setBarcodeError(null), 4000);
-        return;
-      }
-
-      const cartItem = {
-        id: `var-${variant.id}`,
-        variantId: variant.id,
-        name: product.name,
-        price: product.isOnSale && product.salePrice ? product.salePrice : (product.price ?? 0),
-        originalPrice: product.price ?? 0,
-        category: product.category || '',
-        isOnSale: product.isOnSale,
-        salePrice: product.salePrice,
-        image: product.image,
-        size: variant.size,
-        ageGroup: variant.age_group,
-        stockQuantity: stock,
-        barcode: variant.barcode,
-        quantity: 1,
-      };
 
       const addError = addItem(cartItem);
       if (addError) {
         setBarcodeError(addError);
         setTimeout(() => setBarcodeError(null), 4000);
       } else {
-        setBarcodeSuccess(`Added: ${product.name} · Sz ${variant.size}`);
+        const sizeText = cartItem.size ? ` · Sz ${cartItem.size}` : '';
+        setBarcodeSuccess(`Added: ${cartItem.name}${sizeText}`);
         setTimeout(() => setBarcodeSuccess(null), 2000);
       }
     } catch (err: any) {

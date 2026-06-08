@@ -14,6 +14,7 @@ export interface Product {
   price: number;
   category: string;
   brand?: string;
+  product_code?: string;
   submenu?: string;
   submenus?: string[];
   image: string;
@@ -339,6 +340,24 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const payload = mapProductToDb(normalizedData);
 
     try {
+      // Check for duplicate by product code first (if provided)
+      if (payload.product_code?.trim()) {
+        const { data: codeExists, error: codeCheckErr } = await supabase
+          .from('products')
+          .select('id, name, product_code')
+          .eq('product_code', payload.product_code.trim())
+          .maybeSingle();
+
+        if (!codeCheckErr && codeExists) {
+          const error = new Error(
+            `Product code "${payload.product_code}" is already used by "${codeExists.name}". ` +
+            `Please use a different code or edit the existing product.`
+          );
+          (error as any).isDuplicate = true;
+          throw error;
+        }
+      }
+
       // Check for duplicate product (same name + category)
       const { data: existing, error: checkErr } = await supabase
         .from('products')
@@ -391,6 +410,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       price: rest.price,
       category: rest.category,
       brand: rest.brand,
+      product_code: rest.product_code,
       submenu: rest.submenu,
       submenus: rest.submenus,
       image: rest.image,
@@ -409,11 +429,30 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
     try {
+      // Check for duplicate product code on update (if code changed)
+      if (payload.product_code?.trim()) {
+        const { data: codeExists } = await supabase
+          .from('products')
+          .select('id, name, product_code')
+          .eq('product_code', payload.product_code.trim())
+          .neq('id', id)
+          .maybeSingle();
+
+        if (codeExists) {
+          const error = new Error(
+            `Product code "${payload.product_code}" is already used by "${codeExists.name}". ` +
+            `Please use a different code or edit that product.`
+          );
+          (error as any).isDuplicate = true;
+          throw error;
+        }
+      }
+
       const { data, error } = await supabase.from('products').update(payload).eq('id', id).select('*');
 
       // Handle unique constraint error
       if (error?.code === '23505') {
-        const err = new Error('A product with this name and category already exists.');
+        const err = new Error('A product code or name+category combination is already in use.');
         (err as any).isDuplicate = true;
         throw err;
       }
