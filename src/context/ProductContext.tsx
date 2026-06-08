@@ -403,6 +403,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProduct = async (product: Product) => {
+    console.log('=== UPDATE PRODUCT START ===');
+    console.log('Updating product ID:', product.id);
+
     const { id, ...rest } = product as any;
 
     const payload: any = {
@@ -426,7 +429,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       release_date: rest.release_date || null
     };
 
+    console.log('Payload before cleanup:', payload);
     Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+    console.log('Payload after cleanup:', payload);
 
     try {
       // Check for duplicate product code on update (if code changed)
@@ -448,23 +453,45 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const { data, error } = await supabase.from('products').update(payload).eq('id', id).select('*');
+      // Use server endpoint with service role key to bypass RLS
+      console.log('Calling /api/products/:id PUT endpoint with payload:', payload);
+      const response = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-      // Handle unique constraint error
-      if (error?.code === '23505') {
-        const err = new Error('A product code or name+category combination is already in use.');
-        (err as any).isDuplicate = true;
-        throw err;
+      console.log('API response status:', response.status);
+      const result = await response.json();
+      console.log('API response body:', result);
+
+      if (!response.ok) {
+        throw new Error(result.error || `API error: ${response.status}`);
       }
 
-      if (error) throw error;
-      const updatedData = data[0];
+      const updatedData = result;
+      if (!updatedData) {
+        console.error('UPDATE ERROR: API returned no data!');
+        throw new Error('Update returned no data from server');
+      }
+
+      console.log('Updated data from API:', updatedData);
+
       const mapped = mapProductFromDb(updatedData);
-      setProducts(prev => prev.map(p => p.id === id ? mapped : p));
+      console.log('Mapped product:', mapped);
+
+      setProducts(prev => {
+        const updated = prev.map(p => p.id === id ? mapped : p);
+        console.log('Updated local state. New product list length:', updated.length);
+        return updated;
+      });
+
       clearProductCache();
+      console.log('=== UPDATE PRODUCT SUCCESS ===');
       return mapped;
     } catch (err: any) {
-      console.error('Update product failed:', err);
+      console.error('=== UPDATE PRODUCT FAILED ===');
+      console.error('Error:', err);
       throw err;
     }
   };

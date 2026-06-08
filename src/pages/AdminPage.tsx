@@ -911,9 +911,24 @@ function AdminPageInner() {
         }
 
         console.log('Saving product with images:', productData.image, productData.images);
-        await updateProduct(productData);
+        console.log('AdminPage: Calling updateProduct with product ID:', productData.id);
+        console.log('AdminPage: Product data to update:', productData);
+
+        const result = await updateProduct(productData);
+        console.log('AdminPage: updateProduct returned:', result);
+
+        console.log('AdminPage: Calling resetProducts to refresh from Supabase...');
         await resetProducts();
-        
+        console.log('AdminPage: resetProducts completed. Fetching updated product from DB...');
+
+        // Force fetch the product from Supabase to confirm it was saved
+        const refreshedProduct = await fetchProductById(productData.id);
+        console.log('AdminPage: Refreshed product from DB:', refreshedProduct);
+
+        if (!refreshedProduct) {
+          throw new Error('Product not found in database after update');
+        }
+
         setEditStatus('success');
         setTimeout(() => {
           setEditingProduct(null);
