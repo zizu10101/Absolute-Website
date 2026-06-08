@@ -818,6 +818,11 @@ export function POSPage() {
         .select();
 
       if (error) throw error;
+
+      console.log('✅ Transaction created:');
+      console.log('  ID:', data?.[0]?.id);
+      console.log('  Invoice #:', data?.[0]?.invoice_number);
+
       const result = { data };
 
       // Deduct stock
@@ -994,6 +999,11 @@ export function POSPage() {
 
     // For store credit receipts, barcode should show SC card number instead of transaction ID
     const barcodeValue = receipt.storeCreditCardNumber || receipt.invoiceNumber || receipt.transactionId || 'N/A';
+
+    console.log('🖨️ Printing receipt:');
+    console.log('  transactionId:', receipt.transactionId);
+    console.log('  invoiceNumber:', receipt.invoiceNumber);
+    console.log('  barcodeValue:', barcodeValue);
 
     const receiptHtml = generateThermalReceiptHTML({
       transactionId: receipt.transactionId || 'N/A',
