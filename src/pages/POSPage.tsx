@@ -226,12 +226,16 @@ export function POSPage() {
         }
 
         try {
-          const response = await fetch(`/api/store-credits/customer/${selectedCustomerId}`);
-          if (!response.ok) throw new Error(`API error: ${response.status}`);
-          const result = await response.json();
+          const { data: credits, error } = await supabase
+            .from('store_credits')
+            .select('*')
+            .eq('customer_id', selectedCustomerId)
+            .eq('is_active', true);
+
+          if (error) throw error;
 
           // Find the credit with matching card_number
-          const credit = (result.data || []).find(
+          const credit = (credits || []).find(
             (c: any) => c.card_number === barcode && c.is_active && c.remaining_balance > 0
           );
 
@@ -546,21 +550,25 @@ export function POSPage() {
       // If customer is already selected, fetch their credits for the customer tab
       if (selectedCustomerId) {
         try {
-          const response = await fetch(`/api/store-credits/customer/${selectedCustomerId}`);
-          if (!response.ok) throw new Error(`API error: ${response.status}`);
-          const result = await response.json();
+          const { data: credits, error } = await supabase
+            .from('store_credits')
+            .select('*')
+            .eq('customer_id', selectedCustomerId)
+            .eq('is_active', true);
 
-          console.log('🔴 SC MODAL API RESULT:', result);
+          if (error) throw error;
+
+          console.log('🔴 SC MODAL API RESULT:', credits);
 
           // Filter for active credits with available balance
-          const credits = (result.data || []).filter(
+          const filteredCredits = (credits || []).filter(
             (c: any) => c.is_active && c.remaining_balance > 0
           );
 
-          console.log('🔴 SC MODAL FILTERED CREDITS:', credits);
+          console.log('🔴 SC MODAL FILTERED CREDITS:', filteredCredits);
 
-          setAvailableStoreCredits(credits);
-          hasCustomerCredits = credits.length > 0;
+          setAvailableStoreCredits(filteredCredits);
+          hasCustomerCredits = filteredCredits.length > 0;
         } catch (err: any) {
           console.error('🔴 SC MODAL ERROR fetching customer store credits:', err);
           setAvailableStoreCredits([]);

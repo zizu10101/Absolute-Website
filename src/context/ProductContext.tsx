@@ -186,18 +186,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         setHasMoreProducts(data.length === 1000);
       }
     } catch (e) {
-      console.warn('Direct Supabase admin fetch failed, falling back to API:', e);
-      try {
-        const response = await fetch(`/api/products?limit=5000&fields=${ADMIN_LIST_FIELDS}`);
-        const result = await response.json();
-        console.log('ProductContext: API fetch results', { resultDataLength: result.data?.length });
-        if (result.data) {
-          setProducts((result.data as Product[]).map(mapProductFromDb));
-          setHasMoreProducts(result.data.length === PAGE_SIZE);
-        }
-      } catch (apiErr) {
-        console.error('API admin fetch also failed:', apiErr);
-      }
+      console.warn('Direct Supabase admin fetch failed:', e);
+      // No /api/ fallback - use direct Supabase only for Vercel compatibility
+      throw e;
     } finally {
       setIsLoading(false);
     }

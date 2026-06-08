@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { motion } from 'motion/react';
+import { createClient } from '@supabase/supabase-js';
 
 interface StoreCreditData {
   id: string;
@@ -27,6 +28,11 @@ export const StoreCreditsSection: React.FC<StoreCreditionsSectionProps> = ({ cus
   const [isLoading, setIsLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const supabase = createClient(
+    import.meta.env.VITE_SUPABASE_URL || '',
+    import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+  );
+
   useEffect(() => {
     if (!customerId) return;
 
@@ -40,11 +46,14 @@ export const StoreCreditsSection: React.FC<StoreCreditionsSectionProps> = ({ cus
   const fetchStoreCredits = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/store-credits/customer/${customerId}`);
-      if (!response.ok) throw new Error(`API error: ${response.status}`);
-      const result = await response.json();
-      console.log('Store credits fetched for customer:', result.data);
-      setStoreCredits(result.data || []);
+      const { data, error } = await supabase
+        .from('store_credits')
+        .select('*')
+        .eq('customer_id', customerId);
+
+      if (error) throw error;
+      console.log('Store credits fetched for customer:', data);
+      setStoreCredits(data || []);
     } catch (err) {
       console.error('Error fetching store credits:', err);
       setStoreCredits([]);
