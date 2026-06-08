@@ -3,7 +3,7 @@ import { X, Search, AlertCircle, Check, ChevronRight, Package, Undo2 } from 'luc
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../supabase';
 import { useCustomers } from '../context/CustomerContext';
-import { generateThermalReceiptHTML } from '../utils/thermalReceipt';
+import { generateThermalReceiptHTML, generateStoreCreditReceiptHTML } from '../utils/thermalReceipt';
 
 interface ReturnItem {
   id: string;
@@ -471,32 +471,43 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       ? `${transaction.customers.first_name} ${transaction.customers.last_name}`
       : 'Walk-in';
 
-    // For store credit returns, use SC card number for barcode instead of transaction UUID
-    const receiptData: any = {
-      transactionId: transaction.id,
-      customerName,
-      items: selectedItems.map(item => ({
-        name: `${item.name} (Return)`,
-        quantity: item.returnQuantity,
-        price: item.pricePerUnit,
-        size: item.size,
-      })),
-      subtotal: amounts.subtotal,
-      hst: amounts.tax,
-      total: amounts.total,
-      paymentMethod: `${refundMethod === 'store-credit' ? 'Store Credit' : transaction.method} - RETURN`,
-      createdAt: new Date(),
-      status: 'return',
-    };
+    let html: string;
 
-    // If store credit was issued, add the SC card number for the barcode
+    // If store credit was issued, use the dedicated store credit receipt
     if (refundMethod === 'store-credit' && issuedStoreCreditCardNumber) {
-      receiptData.storeCreditCardNumber = issuedStoreCreditCardNumber;
-      receiptData.barcodeValue = issuedStoreCreditCardNumber;
-      console.log('📋 [Returns] Receipt barcode set to SC card number:', issuedStoreCreditCardNumber);
-    }
+      console.log('📋 [Returns] Generating Store Credit receipt with SC#:', issuedStoreCreditCardNumber);
 
-    const html = generateThermalReceiptHTML(receiptData);
+      const scReceiptData: any = {
+        customerName,
+        storeCreditCardNumber: issuedStoreCreditCardNumber,
+        storeCreditAmount: amounts.total,
+        storeCreditReason: 'Product Return',
+        transactionId: transaction.id,
+        createdAt: new Date(),
+      };
+
+      html = generateStoreCreditReceiptHTML(scReceiptData);
+    } else {
+      // Regular return receipt for refund to original payment method
+      const receiptData: any = {
+        transactionId: transaction.id,
+        customerName,
+        items: selectedItems.map(item => ({
+          name: `${item.name} (Return)`,
+          quantity: item.returnQuantity,
+          price: item.pricePerUnit,
+          size: item.size,
+        })),
+        subtotal: amounts.subtotal,
+        hst: amounts.tax,
+        total: amounts.total,
+        paymentMethod: `${transaction.method} - RETURN`,
+        createdAt: new Date(),
+        status: 'return',
+      };
+
+      html = generateThermalReceiptHTML(receiptData);
+    }
 
     const win = window.open('', '_blank');
     if (win) {

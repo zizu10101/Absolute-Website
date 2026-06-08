@@ -153,8 +153,8 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
     setIsIssuing(true);
 
     try {
-      // Generate unique card number: SC-XXXXXXXXXXXX (12 random digits)
-      const cardNumber = 'SC-' + Math.random().toString().slice(2, 14).padEnd(12, '0');
+      // Generate unique card number: SC-XXXXXXXXXXXX (12 random alphanumeric chars)
+      const cardNumber = 'SC-' + Math.random().toString(36).substr(2, 12).toUpperCase();
 
       // Insert store credit
       const { data: creditData, error: creditError } = await supabase
@@ -490,8 +490,8 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
                     <div className="px-4 py-3 bg-zinc-50 border-t border-zinc-200 space-y-3">
                       <div className="text-xs space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-zinc-600">Credit ID:</span>
-                          <span className="font-mono">{credit.id.slice(0, 8)}</span>
+                          <span className="text-zinc-600">Card Number:</span>
+                          <span className="font-mono font-bold text-blue-700">{credit.card_number || 'N/A'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-zinc-600">Created:</span>
