@@ -797,7 +797,12 @@ function AdminPageInner() {
       await resetProducts();
     } catch (error: any) {
       console.error('AdminPage: Failed to add product', error);
-      setAddErrorMessage(error.message || 'Failed to save to database.');
+      // Handle duplicate product error
+      if (error.isDuplicate) {
+        setAddErrorMessage(error.message);
+      } else {
+        setAddErrorMessage(error.message || 'Failed to save to database.');
+      }
       setAddStatus('error');
       setTimeout(() => setAddStatus('idle'), 5000);
     }
@@ -892,7 +897,9 @@ function AdminPageInner() {
       } catch (error: any) {
         console.error('AdminPage: Failed to update product', error);
         setEditStatus('error');
-        if (error.message?.includes('RLS') || error.message?.toLowerCase().includes('row-level security')) {
+        if (error.isDuplicate) {
+          setEditErrorMessage(error.message);
+        } else if (error.message?.includes('RLS') || error.message?.toLowerCase().includes('row-level security')) {
           setEditErrorMessage("SUPABASE ROW-LEVEL SECURITY BLOCK! Please add 'SUPABASE_SERVICE_ROLE_KEY' to your Google AI Studio Settings using your Supabase project's service_role API credential.");
         } else {
           setEditErrorMessage('Failed to update product: ' + (error.message || error));
@@ -2983,15 +2990,20 @@ function AdminPageInner() {
                       <div className="space-y-4">
                         <div>
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Category</label>
-                          <select 
-                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer" 
-                            value={availableCategories.find(c => c.toLowerCase() === (newProduct.category || '').toLowerCase()) || newProduct.category} 
+                          <select
+                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer"
+                            value={availableCategories.find(c => c.toLowerCase() === (newProduct.category || '').toLowerCase()) || newProduct.category}
                             onChange={e => setNewProduct({...newProduct, category: e.target.value, submenu: '', submenus: []})}
                           >
                             {availableCategories.map(cat => (
                               <option key={cat} value={cat}>{cat}</option>
                             ))}
                           </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Brand</label>
+                          <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none" placeholder="e.g. Nike, Adidas, Puma" value={newProduct.brand || ''} onChange={e => setNewProduct({...newProduct, brand: e.target.value})} />
                         </div>
 
                         {(() => {
@@ -3991,9 +4003,9 @@ function AdminPageInner() {
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Category</label>
-                      <select 
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer" 
-                        value={availableCategories.find(c => c.toLowerCase() === (editingProduct.category || '').toLowerCase()) || editingProduct.category} 
+                      <select
+                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer"
+                        value={availableCategories.find(c => c.toLowerCase() === (editingProduct.category || '').toLowerCase()) || editingProduct.category}
                         onChange={e => setEditingProduct({...editingProduct, category: e.target.value, submenu: '', submenus: []})}
                       >
                         {availableCategories.map(cat => (
@@ -4002,10 +4014,15 @@ function AdminPageInner() {
                       </select>
                     </div>
 
+                    <div>
+                      <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Brand</label>
+                      <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none" placeholder="e.g. Nike, Adidas, Puma" value={editingProduct.brand || ''} onChange={e => setEditingProduct({...editingProduct, brand: e.target.value})} />
+                    </div>
+
                     {(() => {
                       const menu = navigationMenus.find(m => m.label.toUpperCase() === editingProduct.category.toUpperCase());
                       if (!menu || menu.submenus.length === 0) return null;
-                      
+
                       return (
                         <div>
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Submenus / Columns (Multiple)</label>

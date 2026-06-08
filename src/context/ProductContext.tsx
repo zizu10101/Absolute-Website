@@ -13,6 +13,7 @@ export interface Product {
   name: string;
   price: number;
   category: string;
+  brand?: string;
   submenu?: string;
   submenus?: string[];
   image: string;
@@ -338,7 +339,35 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const payload = mapProductToDb(normalizedData);
 
     try {
+      // Check for duplicate product (same name + category)
+      const { data: existing, error: checkErr } = await supabase
+        .from('products')
+        .select('id, name, category')
+        .ilike('name', payload.name.trim())
+        .eq('category', payload.category)
+        .maybeSingle();
+
+      if (checkErr) {
+        console.error('Duplicate check failed:', checkErr);
+      } else if (existing) {
+        const error = new Error(
+          `A product named "${payload.name}" already exists in the "${payload.category}" category. ` +
+          `Please edit the existing product instead.`
+        );
+        (error as any).isDuplicate = true;
+        throw error;
+      }
+
+      // Insert new product
       const { data, error } = await supabase.from('products').insert([payload]).select().single();
+
+      // Handle unique constraint error
+      if (error?.code === '23505') {
+        const err = new Error('A product with this name and category already exists.');
+        (err as any).isDuplicate = true;
+        throw err;
+      }
+
       if (error) throw error;
       const mapped = mapProductFromDb(data);
       setProducts(prev => [...prev, mapped]);
@@ -361,6 +390,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       name: rest.name,
       price: rest.price,
       category: rest.category,
+      brand: rest.brand,
       submenu: rest.submenu,
       submenus: rest.submenus,
       image: rest.image,
@@ -380,6 +410,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
     try {
       const { data, error } = await supabase.from('products').update(payload).eq('id', id).select('*');
+
+      // Handle unique constraint error
+      if (error?.code === '23505') {
+        const err = new Error('A product with this name and category already exists.');
+        (err as any).isDuplicate = true;
+        throw err;
+      }
+
       if (error) throw error;
       const updatedData = data[0];
       const mapped = mapProductFromDb(updatedData);
