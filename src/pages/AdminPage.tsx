@@ -170,19 +170,8 @@ function AdminPageInner() {
   }, [availableCategories, newProduct.category]);
 
   const [activeTab, setActiveTab] = useState<Tab>('slider');
-  const [dbMode, setDbMode] = useState<'supabase' | 'fallback' | 'unknown'>('unknown');
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then(r => r.json())
-      .then(data => {
-        if (data.mode === 'supabase') setDbMode('supabase');
-        else setDbMode('fallback');
-      })
-      .catch(() => setDbMode('unknown'));
-  }, []);
-
-  const isSupabaseConnected = dbMode === 'supabase';
+  // On Vercel, Supabase is always the database (no /api/health check needed)
+  const isSupabaseConnected = true;
 
   useEffect(() => {
     fetchAdminProducts();

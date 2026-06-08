@@ -151,16 +151,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
           mode = 'direct-supabase';
         } catch (err) {
-          console.warn('SettingsContext: Supabase fetch failed, fallback to network proxy:', err);
-          try {
-            const response = await fetch('/api/settings/bulk', { cache: 'no-store' });
-            if (response.ok) {
-              results = await response.json();
-              mode = 'api-proxy';
-            }
-          } catch (apiErr) {
-            console.error('API fetch proxy error:', apiErr);
-          }
+          console.warn('SettingsContext: Supabase fetch failed:', err);
         }
 
         if (results) {

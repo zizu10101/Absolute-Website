@@ -125,21 +125,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         console.error('Initial featured products fetch failed:', e);
       }
-      
-      // Also fetch a small batch of all products to have some local cache
-      try {
-        const response = await fetch(`/api/products?limit=1000&fields=${LIST_FIELDS}`);
-        const contentType = response.headers.get('content-type');
-        if (!response.ok || (contentType && contentType.includes('text/html'))) {
-          console.warn(`Initial product batch fetch failed: ${response.status} ${response.statusText}`);
-          return;
-        }
-        const result = await response.json();
-        console.log(`ProductContext: Fetched ${result.data?.length || 0} initial products (Mode: ${result.mode || 'unknown'})`);
-        if (result.data) mergeProducts(result.data);
-      } catch (e) {
-        console.error('Initial product batch fetch error:', e);
-      }
     };
     init();
   }, [user]);
@@ -150,19 +135,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const fetchFeaturedProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/products?isFeatured=true&limit=8&fields=${LIST_FIELDS}`);
-      
-      // If we get index.html (SPA fallback), handle it
-      const contentType = response.headers.get('content-type');
-      if (!response.ok || (contentType && contentType.includes('text/html'))) {
-        throw new Error('API unavailable or returned HTML');
-      }
-      
-      const result = await response.json();
-      const featuredData = result.data || [];
-      
-      if (featuredData.length > 0) {
-        mergeProducts(featuredData);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('isFeatured', true)
+        .limit(8);
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        mergeProducts(data);
       }
     } catch (e) {
       console.warn('Featured fetch from API failed, trying direct Supabase:', e);
@@ -398,9 +379,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
     try {
-      const { data, error } = await supabase.from('products').update(payload).eq('id', id).select().single();
+      const { data, error } = await supabase.from('products').update(payload).eq('id', id).select('*');
       if (error) throw error;
-      const mapped = mapProductFromDb(data);
+      const updatedData = data[0];
+      const mapped = mapProductFromDb(updatedData);
       setProducts(prev => prev.map(p => p.id === id ? mapped : p));
       clearProductCache();
       return mapped;
