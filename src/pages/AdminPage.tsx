@@ -3762,6 +3762,9 @@ function AdminPageInner() {
                               )}
                             </p>
                             <p className="text-[10px] text-zinc-400 line-clamp-1">{product.description}</p>
+                            {!product.brand && (
+                              <p className="text-[9px] text-amber-600 mt-1 font-medium">⚠️ Missing Brand</p>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 

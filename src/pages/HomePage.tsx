@@ -5,6 +5,7 @@ import { useSettings } from '../context/SettingsContext';
 import { ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProductCard } from '../components/ProductCard';
+import { BrandShowcase } from '../components/BrandShowcase';
 
 export function HomePage() {
   const { products, fetchFeaturedProducts } = useProducts();
@@ -215,6 +216,8 @@ export function HomePage() {
           </div>
         </section>
       )}
+
+      <BrandShowcase />
 
       <section className="bg-zinc-950 text-white py-20 px-8 border-t border-zinc-900">
         <div className="max-w-5xl mx-auto">

@@ -2,6 +2,7 @@ import { useProducts } from '../context/ProductContext';
 import { useSettings } from '../context/SettingsContext';
 import { Search, ChevronDown } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
+import { BrandFilter } from '../components/BrandFilter';
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -27,6 +28,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
   const [localSearch, setLocalSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [sortBy, setSortBy] = useState<'newest' | 'price-low' | 'price-high'>('newest');
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
 
   // Sync local search with URL query if on search page
   useEffect(() => {
@@ -78,8 +80,8 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     // 5. Handle Search Filtering
     const searchTerm = localSearch.toLowerCase().trim();
     if (searchTerm) {
-      filtered = filtered.filter(p => 
-        (p.name || '').toLowerCase().includes(searchTerm) || 
+      filtered = filtered.filter(p =>
+        (p.name || '').toLowerCase().includes(searchTerm) ||
         (p.category || '').toLowerCase().includes(searchTerm) ||
         (p.description || '').toLowerCase().includes(searchTerm) ||
         p.submenu?.toLowerCase().includes(searchTerm) ||
@@ -87,7 +89,12 @@ export function ProductGridPage({ title, category, submenu }: Props) {
       );
     }
 
-    // 6. Sorting
+    // 6. Handle Brand Filtering
+    if (selectedBrand) {
+      filtered = filtered.filter(p => p.brand === selectedBrand);
+    }
+
+    // 7. Sorting
     if (sortBy === 'newest') {
       filtered.reverse(); // Assuming original order is chronological
     } else if (sortBy === 'price-low') {
@@ -97,7 +104,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     }
     
     return filtered;
-  }, [products, title, category, submenu, localSearch, sortBy]);
+  }, [products, title, category, submenu, localSearch, sortBy, selectedBrand]);
 
   const paginatedProducts = filteredProducts.slice(0, visibleCount);
   const hasMore = visibleCount < filteredProducts.length;
@@ -219,7 +226,15 @@ export function ProductGridPage({ title, category, submenu }: Props) {
           )}
         </div>
       </div>
-      
+
+      {/* Brand Filter */}
+      <BrandFilter
+        category={category}
+        selectedBrand={selectedBrand}
+        onBrandSelect={setSelectedBrand}
+        isLoading={isLoading}
+      />
+
       {/* Submenu Logo Grid - Grouped by Category */}
       {groupedSubmenuItems.length > 0 && !urlQuery && (
         <div className="mb-24 space-y-16">
