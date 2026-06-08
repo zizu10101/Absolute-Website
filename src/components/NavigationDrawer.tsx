@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Shield, Footprints, Flag, CircleDot, Shirt, Dumbbell, Star, Sparkles, Tag, Bolt, ClipboardList, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
+import { BrandNavigation } from './BrandNavigation';
 import { useState } from 'react';
 
 interface Props {
@@ -58,6 +59,10 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                 >
                   Home
                 </Link>
+
+                {/* Brand Navigation Section */}
+                <BrandNavigation onNavigate={onClose} />
+
                 {navigationMenus.map((menu) => (
                   <div key={menu.label} className="flex flex-col">
                     <div className="flex items-center justify-between pr-4">

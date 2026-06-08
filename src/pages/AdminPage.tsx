@@ -177,6 +177,23 @@ function AdminPageInner() {
 
   useEffect(() => {
     fetchAdminProducts();
+    // Fetch available brands
+    const fetchBrands = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('brand')
+          .not('brand', 'is', null);
+        if (!error && data) {
+          const uniqueBrands = Array.from(new Set(data.map(p => p.brand).filter(Boolean)))
+            .sort() as string[];
+          setAvailableBrands(uniqueBrands);
+        }
+      } catch (err) {
+        console.error('Error fetching brands:', err);
+      }
+    };
+    fetchBrands();
   }, []);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [originalProduct, setOriginalProduct] = useState<Product | null>(null);
@@ -216,6 +233,12 @@ function AdminPageInner() {
   const [localRestoreStatus, setLocalRestoreStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isPullingCloud, setIsPullingCloud] = useState(false);
   const [pullStatus, setPullStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [availableBrands, setAvailableBrands] = useState<string[]>([]);
+  const [brandInputOpen, setBrandInputOpen] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
+  const [bulkBrandAssignBrand, setBulkBrandAssignBrand] = useState<string>('');
+  const [isBulkBrandAssigning, setIsBulkBrandAssigning] = useState(false);
+  const [bulkBrandStatus, setBulkBrandStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const syncToLocal = async () => {
     setIsSyncingLocal(true);
@@ -935,6 +958,39 @@ function AdminPageInner() {
       }
     } catch (error) {
       console.error('AdminPage: Failed to clear all products', error);
+    }
+  };
+
+  const handleBulkBrandAssign = async () => {
+    if (selectedProductIds.size === 0 || !bulkBrandAssignBrand.trim()) {
+      alert('Please select products and choose a brand');
+      return;
+    }
+
+    setIsBulkBrandAssigning(true);
+    setBulkBrandStatus('idle');
+
+    try {
+      const ids = Array.from(selectedProductIds);
+      const { error } = await supabase
+        .from('products')
+        .update({ brand: bulkBrandAssignBrand })
+        .in('id', ids);
+
+      if (error) throw error;
+
+      // Refresh products
+      await resetProducts();
+      setSelectedProductIds(new Set());
+      setBulkBrandAssignBrand('');
+      setBulkBrandStatus('success');
+      setTimeout(() => setBulkBrandStatus('idle'), 3000);
+    } catch (error: any) {
+      console.error('Bulk brand assignment failed:', error);
+      setBulkBrandStatus('error');
+      setTimeout(() => setBulkBrandStatus('idle'), 5000);
+    } finally {
+      setIsBulkBrandAssigning(false);
     }
   };
 
@@ -2977,186 +3033,329 @@ function AdminPageInner() {
               )}
 
               {productSubTab === 'add' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-8">
-                  <h2 className="text-xl font-bold text-zinc-900 mb-6 flex items-center gap-2">
-                    <Plus size={20} className="text-[#b90014]" /> Add New Product
-                  </h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Product Name</label>
-                      <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none" placeholder="e.g. Real Madrid Home Kit" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Price ($)</label>
-                        <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none" placeholder="0.00" type="number" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: parseFloat(e.target.value)})} />
-                      </div>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Category</label>
-                          <select
-                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer"
-                            value={availableCategories.find(c => c.toLowerCase() === (newProduct.category || '').toLowerCase()) || newProduct.category}
-                            onChange={e => setNewProduct({...newProduct, category: e.target.value, submenu: '', submenus: []})}
-                          >
-                            {availableCategories.map(cat => (
-                              <option key={cat} value={cat}>{cat}</option>
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
+                  <div className="p-8 border-b border-zinc-100">
+                    <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
+                      <Plus size={20} className="text-[#b90014]" /> Add New Product
+                    </h2>
+                    <p className="text-sm text-zinc-500 mt-1">Use the form below to quickly add products to your catalog</p>
+                  </div>
+
+                  <div className="p-8">
+                    {/* Two-Column Layout */}
+                    <div className="grid grid-cols-3 gap-8 mb-8">
+                      {/* LEFT COLUMN - 60% */}
+                      <div className="col-span-2 space-y-6">
+                        {/* Product Name */}
+                        <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Product Name</label>
+                          <input
+                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none"
+                            placeholder="e.g. Real Madrid Home Kit"
+                            value={newProduct.name}
+                            onChange={e => setNewProduct({...newProduct, name: e.target.value})}
+                          />
+                        </div>
+
+                        {/* Description */}
+                        <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Description</label>
+                          <textarea
+                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none min-h-[120px] resize-none"
+                            placeholder="Describe the product features, materials, and fit..."
+                            value={newProduct.description}
+                            onChange={e => setNewProduct({...newProduct, description: e.target.value})}
+                          />
+                        </div>
+
+                        {/* Product Image */}
+                        <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Product Image (1000x1250)</label>
+                          <div className="flex gap-4 items-start">
+                            <div className="w-24 h-32 rounded-lg bg-white border border-zinc-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                              {newProduct.image ? (
+                                <img src={newProduct.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <ImageIcon size={32} className="text-zinc-300" />
+                              )}
+                            </div>
+                            <div className="flex-1 space-y-2 pt-1">
+                              <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-zinc-900 rounded-lg font-bold uppercase tracking-widest text-[10px] cursor-pointer hover:bg-zinc-100 transition-colors border border-zinc-200">
+                                <Upload size={14} /> Upload Image
+                                <input type="file" className="hidden" accept="image/*" onChange={handleProductImageUpload} />
+                              </label>
+                              <input
+                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[#b90014] outline-none"
+                                placeholder="Or paste image URL..."
+                                value={newProduct.image}
+                                onChange={e => updateNewProductImage('image', e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Additional Images */}
+                        <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Additional Images</label>
+                          <div className="space-y-3">
+                            {(newProduct.images || []).map((img, idx) => (
+                              <div key={idx} className="flex gap-2 items-center">
+                                <div className="flex flex-col gap-1">
+                                  <button
+                                    type="button"
+                                    disabled={idx === 0}
+                                    onClick={() => {
+                                      const imgs = [...(newProduct.images || [])];
+                                      [imgs[idx - 1], imgs[idx]] = [imgs[idx], imgs[idx - 1]];
+                                      setNewProduct({...newProduct, images: imgs});
+                                    }}
+                                    className="w-5 h-5 bg-zinc-200 hover:bg-zinc-300 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
+                                  >▲</button>
+                                  <button
+                                    type="button"
+                                    disabled={idx === (newProduct.images || []).length - 1}
+                                    onClick={() => {
+                                      const imgs = [...(newProduct.images || [])];
+                                      [imgs[idx + 1], imgs[idx]] = [imgs[idx], imgs[idx + 1]];
+                                      setNewProduct({...newProduct, images: imgs});
+                                    }}
+                                    className="w-5 h-5 bg-zinc-200 hover:bg-zinc-300 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
+                                  >▼</button>
+                                </div>
+                                <div className="w-10 h-10 rounded bg-white border border-zinc-200 overflow-hidden flex-shrink-0">
+                                  {img ? (
+                                    <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-zinc-300">
+                                      <ImageIcon size={14} />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 flex flex-col gap-1">
+                                  <label className="inline-flex items-center gap-1 px-2 py-1 bg-white text-zinc-900 rounded font-bold uppercase tracking-widest text-[8px] cursor-pointer hover:bg-zinc-50 transition-colors border border-zinc-200 w-fit">
+                                    <Upload size={10} /> Upload
+                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleAdditionalImageUpload(e, idx)} />
+                                  </label>
+                                  <input
+                                    className="w-full p-1 bg-white border border-zinc-200 rounded text-[9px] focus:ring-1 focus:ring-[#b90014] outline-none"
+                                    placeholder="Or URL..."
+                                    value={img}
+                                    onChange={e => updateNewProductImage('additional', e.target.value, idx)}
+                                  />
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    const newImages = (newProduct.images || []).filter((_, i) => i !== idx);
+                                    setNewProduct({...newProduct, images: newImages});
+                                  }}
+                                  className="p-1 text-zinc-400 hover:text-red-600 transition-colors"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
                             ))}
-                          </select>
+                            <button
+                              onClick={() => setNewProduct({...newProduct, images: [...(newProduct.images || []), '']})}
+                              className="w-full py-2 border border-dashed border-zinc-300 rounded text-[10px] font-bold text-zinc-500 hover:text-zinc-900 transition-all uppercase tracking-widest bg-white"
+                            >
+                              + Add Image
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* RIGHT COLUMN - 40% */}
+                      <div className="col-span-1 space-y-4">
+                        {/* Price & Sale Price */}
+                        <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Pricing</label>
+                          <div className="space-y-2">
+                            <div>
+                              <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Price ($)</label>
+                              <input
+                                className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none"
+                                placeholder="0.00"
+                                type="number"
+                                value={newProduct.price}
+                                onChange={e => setNewProduct({...newProduct, price: parseFloat(e.target.value)})}
+                              />
+                            </div>
+                            {newProduct.isOnSale && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                              >
+                                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Sale Price ($)</label>
+                                <input
+                                  className="w-full p-3 bg-red-50 border border-red-100 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none font-bold text-[#b90014]"
+                                  placeholder="Discounted price..."
+                                  type="number"
+                                  value={newProduct.salePrice || ''}
+                                  onChange={e => setNewProduct({...newProduct, salePrice: parseFloat(e.target.value)})}
+                                />
+                              </motion.div>
+                            )}
+                          </div>
                         </div>
 
-                        <div>
-                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Brand</label>
-                          <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none" placeholder="e.g. Nike, Adidas, Puma" value={newProduct.brand || ''} onChange={e => setNewProduct({...newProduct, brand: e.target.value})} />
+                        {/* Category & Brand */}
+                        <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200 space-y-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Category</label>
+                            <select
+                              className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer"
+                              value={availableCategories.find(c => c.toLowerCase() === (newProduct.category || '').toLowerCase()) || newProduct.category}
+                              onChange={e => setNewProduct({...newProduct, category: e.target.value, submenu: '', submenus: []})}
+                            >
+                              {availableCategories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Brand</label>
+                            <div className="relative">
+                              <input
+                                className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none"
+                                placeholder="Nike, Adidas, Puma..."
+                                value={newProduct.brand || ''}
+                                onChange={e => setNewProduct({...newProduct, brand: e.target.value})}
+                                onFocus={() => setBrandInputOpen(true)}
+                              />
+                              {brandInputOpen && availableBrands.length > 0 && (
+                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-lg shadow-xl z-10 max-h-48 overflow-y-auto">
+                                  {availableBrands
+                                    .filter(b => b.toLowerCase().includes((newProduct.brand || '').toLowerCase()))
+                                    .map(brand => (
+                                      <button
+                                        key={brand}
+                                        onClick={() => {
+                                          setNewProduct({...newProduct, brand});
+                                          setBrandInputOpen(false);
+                                        }}
+                                        className="w-full text-left px-3 py-2 hover:bg-zinc-50 text-sm font-medium border-b border-zinc-100 last:border-0 transition-colors"
+                                      >
+                                        {brand}
+                                      </button>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
 
-                        <div>
-                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Product Code <span className="text-zinc-400">(Optional)</span></label>
-                          <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none" placeholder="e.g. NK-DV9237, ADI-HG6164" value={newProduct.product_code || ''} onChange={e => setNewProduct({...newProduct, product_code: e.target.value})} />
+                        {/* Product Code */}
+                        <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
+                          <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">
+                            Product Code <span className="text-zinc-400 normal-case">(Optional)</span>
+                          </label>
+                          <input
+                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none"
+                            placeholder="e.g. NK-DV9237, ADI-HG6164"
+                            value={newProduct.product_code || ''}
+                            onChange={e => setNewProduct({...newProduct, product_code: e.target.value})}
+                          />
                         </div>
 
+                        {/* Submenus */}
                         {(() => {
                           const menu = navigationMenus.find(m => m.label.toUpperCase() === newProduct.category.toUpperCase());
                           if (!menu || menu.submenus.length === 0) return null;
-                          
+
                           return (
-                            <div>
-                              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Submenus / Columns (Multiple)</label>
+                            <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
+                              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Submenus / Tags</label>
                               <div className="space-y-2">
-                                <div className="relative">
-                                  <select 
-                                    className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer pr-10" 
-                                    value="" 
-                                    onChange={e => {
-                                      if (e.target.value && !newProduct.submenus?.includes(e.target.value)) {
-                                        setNewProduct({...newProduct, submenus: [...(newProduct.submenus || []), e.target.value]});
-                                      }
-                                    }}
-                                  >
-                                    <option value="">Add Submenu...</option>
-                                    {menu.submenus.map(sub => (
-                                      <React.Fragment key={sub.heading}>
-                                        <option value={sub.heading} className="font-bold">{sub.heading} (Column Heading)</option>
-                                        {sub.items.map((item, itemIdx) => (
-                                          <option key={item.label + itemIdx} value={item.label}>&nbsp;&nbsp;{item.label}</option>
-                                        ))}
-                                      </React.Fragment>
-                                    ))}
-                                  </select>
-                                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={18} />
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  {newProduct.submenus?.map(sub => (
-                                    <span key={sub} className="inline-flex items-center gap-1 px-2 py-1 bg-zinc-100 text-zinc-700 text-[10px] font-bold uppercase rounded border border-zinc-200">
-                                      {sub}
-                                      <button onClick={() => setNewProduct({...newProduct, submenus: newProduct.submenus?.filter(s => s !== sub)})}>
-                                        <X size={10} />
-                                      </button>
-                                    </span>
+                                <select
+                                  className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer text-sm"
+                                  value=""
+                                  onChange={e => {
+                                    if (e.target.value && !newProduct.submenus?.includes(e.target.value)) {
+                                      setNewProduct({...newProduct, submenus: [...(newProduct.submenus || []), e.target.value]});
+                                    }
+                                  }}
+                                >
+                                  <option value="">Add tag...</option>
+                                  {menu.submenus.map(sub => (
+                                    <React.Fragment key={sub.heading}>
+                                      <option value={sub.heading} className="font-bold">{sub.heading}</option>
+                                      {sub.items.map((item, itemIdx) => (
+                                        <option key={item.label + itemIdx} value={item.label}>&nbsp;&nbsp;{item.label}</option>
+                                      ))}
+                                    </React.Fragment>
                                   ))}
-                                </div>
+                                </select>
+                                {newProduct.submenus && newProduct.submenus.length > 0 && (
+                                  <div className="flex flex-wrap gap-2 pt-2">
+                                    {newProduct.submenus.map(sub => (
+                                      <span key={sub} className="inline-flex items-center gap-1 px-3 py-1 bg-white text-zinc-700 text-[10px] font-bold uppercase rounded border border-zinc-200">
+                                        {sub}
+                                        <button onClick={() => setNewProduct({...newProduct, submenus: newProduct.submenus?.filter(s => s !== sub)})}>
+                                          <X size={10} />
+                                        </button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );
                         })()}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Product Image (1000x1250)</label>
-                      <div className="flex gap-4 items-start">
-                        <div className="w-20 h-20 rounded-lg bg-zinc-100 border border-zinc-200 overflow-hidden flex-shrink-0">
-                          {newProduct.image ? (
-                            <img src={newProduct.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                              <ImageIcon size={24} />
-                            </div>
+
+                        {/* Toggles Grid */}
+                        <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
+                          <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 block">Status & Flags</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer group select-none">
+                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.is_online} onChange={e => setNewProduct({...newProduct, is_online: e.target.checked})} />
+                              <span className="text-[9px] font-bold text-zinc-700 group-hover:text-zinc-900">Online</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer group select-none">
+                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.showSizes || false} onChange={e => setNewProduct({...newProduct, showSizes: e.target.checked})} />
+                              <span className="text-[9px] font-bold text-zinc-700 group-hover:text-zinc-900">Show Sizes</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer group select-none">
+                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.isNewArrival} onChange={e => setNewProduct({...newProduct, isNewArrival: e.target.checked})} />
+                              <span className="text-[9px] font-bold text-zinc-700 group-hover:text-zinc-900">New Arrival</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer group select-none">
+                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.isFeatured} onChange={e => setNewProduct({...newProduct, isFeatured: e.target.checked})} />
+                              <span className="text-[9px] font-bold text-zinc-700 group-hover:text-zinc-900">Featured</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer group select-none col-span-2">
+                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.isOnSale} onChange={e => setNewProduct({...newProduct, isOnSale: e.target.checked, salePrice: e.target.checked ? (newProduct.salePrice || 0) : 0})} />
+                              <span className="text-[9px] font-bold text-zinc-700 group-hover:text-zinc-900">On Sale</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Release Date */}
+                        <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
+                          <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Release Date <span className="text-zinc-400 normal-case">(Optional)</span></label>
+                          <input
+                            type="datetime-local"
+                            value={newProduct.release_date ? new Date(newProduct.release_date).toISOString().slice(0, 16) : ''}
+                            onChange={e => setNewProduct({...newProduct, release_date: e.target.value ? new Date(e.target.value).toISOString() : null})}
+                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                          />
+                          {newProduct.release_date && (
+                            <button
+                              type="button"
+                              onClick={() => setNewProduct({...newProduct, release_date: null})}
+                              className="mt-2 text-[9px] text-red-500 hover:underline uppercase tracking-widest font-bold cursor-pointer"
+                            >
+                              Clear
+                            </button>
                           )}
                         </div>
-                        <div className="flex-1 space-y-2">
-                          <label className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-100 text-zinc-900 rounded-lg font-bold uppercase tracking-widest text-[10px] cursor-pointer hover:bg-zinc-200 transition-colors">
-                            <Upload size={14} /> Upload Image
-                            <input type="file" className="hidden" accept="image/*" onChange={handleProductImageUpload} />
-                          </label>
-                          <input 
-                            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[#b90014] outline-none" 
-                            placeholder="Or paste image URL..." 
-                            value={newProduct.image} 
-                            onChange={e => updateNewProductImage('image', e.target.value)} 
-                          />
-                        </div>
                       </div>
                     </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Additional Images</label>
-                      <div className="space-y-3">
-                        {(newProduct.images || []).map((img, idx) => (
-                          <div key={idx} className="flex gap-2 items-center">
-                            <div className="flex flex-col gap-1">
-                              <button
-                                type="button"
-                                disabled={idx === 0}
-                                onClick={() => {
-                                  const imgs = [...(newProduct.images || [])];
-                                  [imgs[idx - 1], imgs[idx]] = [imgs[idx], imgs[idx - 1]];
-                                  setNewProduct({...newProduct, images: imgs});
-                                }}
-                                className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                              >▲</button>
-                              <button
-                                type="button"
-                                disabled={idx === (newProduct.images || []).length - 1}
-                                onClick={() => {
-                                  const imgs = [...(newProduct.images || [])];
-                                  [imgs[idx + 1], imgs[idx]] = [imgs[idx], imgs[idx + 1]];
-                                  setNewProduct({...newProduct, images: imgs});
-                                }}
-                                className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                              >▼</button>
-                            </div>
-                            <div className="w-10 h-10 rounded bg-zinc-100 border border-zinc-200 overflow-hidden flex-shrink-0">
-                              {img ? (
-                                <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                                  <ImageIcon size={14} />
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 flex flex-col gap-2">
-                              <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-100 text-zinc-900 rounded font-bold uppercase tracking-widest text-[8px] cursor-pointer hover:bg-zinc-200 transition-colors w-fit">
-                                <Upload size={12} /> Upload
-                                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleAdditionalImageUpload(e, idx)} />
-                              </label>
-                              <input 
-                                className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[#b90014] outline-none" 
-                                placeholder="Or paste image URL..." 
-                                value={img} 
-                                onChange={e => updateNewProductImage('additional', e.target.value, idx)} 
-                              />
-                            </div>
-                            <button 
-                              onClick={() => {
-                                const newImages = (newProduct.images || []).filter((_, i) => i !== idx);
-                                setNewProduct({...newProduct, images: newImages});
-                              }}
-                              className="p-2 text-zinc-400 hover:text-red-600 transition-colors"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        ))}
-                        <button 
-                          onClick={() => setNewProduct({...newProduct, images: [...(newProduct.images || []), '']})}
-                          className="w-full py-2 border border-dashed border-zinc-200 rounded text-[10px] font-bold text-zinc-400 hover:text-zinc-900 transition-all uppercase tracking-widest"
-                        >
-                          + Add Image
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Color Ways (Optional)</label>
+                    {/* Color Ways Section */}
+                    <div className="border-t border-zinc-200 pt-8 mt-8">
+                      <h3 className="text-sm font-bold text-zinc-900 mb-4 flex items-center gap-2">
+                        <span className="text-zinc-400">Optional</span> Color Variants
+                      </h3>
                       <div className="space-y-4">
                         {(newProduct.colors || []).map((color, colorIdx) => (
                           <div key={colorIdx} className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-4 relative group">
@@ -3261,74 +3460,6 @@ function AdminPageInner() {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Description</label>
-                      <textarea 
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none min-h-[100px] resize-none" 
-                        placeholder="Describe the product features, materials, and fit..." 
-                        value={newProduct.description} 
-                        onChange={e => setNewProduct({...newProduct, description: e.target.value})} 
-                      />
-                    </div>
-                    <div className="flex flex-col gap-3 pt-2">
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.is_online} onChange={e => setNewProduct({...newProduct, is_online: e.target.checked})} />
-                        <span className="text-sm font-medium text-zinc-700 group-hover:text-zinc-900 transition-colors">Available in Online Store</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.showSizes || false} onChange={e => setNewProduct({...newProduct, showSizes: e.target.checked})} />
-                        <span className="text-sm font-medium text-zinc-700 group-hover:text-zinc-900 transition-colors">Show Sizes on Product Page</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.isNewArrival} onChange={e => setNewProduct({...newProduct, isNewArrival: e.target.checked})} />
-                        <span className="text-sm font-medium text-zinc-700 group-hover:text-zinc-900 transition-colors">Mark as New Arrival</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.isOnSale} onChange={e => setNewProduct({...newProduct, isOnSale: e.target.checked, salePrice: e.target.checked ? (newProduct.salePrice || 0) : 0})} />
-                        <span className="text-sm font-medium text-zinc-700 group-hover:text-zinc-900 transition-colors">Mark as On Sale</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.isFeatured} onChange={e => setNewProduct({...newProduct, isFeatured: e.target.checked})} />
-                        <span className="text-sm font-medium text-zinc-700 group-hover:text-zinc-900 transition-colors">Featured on Home Page</span>
-                      </label>
-                    </div>
-                    {newProduct.isOnSale && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="pt-2"
-                      >
-                        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Sale Price ($)</label>
-                        <input 
-                          className="w-full p-3 bg-red-50 border border-red-100 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none font-bold text-[#b90014]" 
-                          placeholder="Discounted price..." 
-                          type="number" 
-                          value={newProduct.salePrice || ''} 
-                          onChange={e => setNewProduct({...newProduct, salePrice: parseFloat(e.target.value)})} 
-                        />
-                      </motion.div>
-                    )}
-
-                    <div className="pt-2">
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
-                        Release Date (optional — hides sizes until this date)
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={newProduct.release_date ? new Date(newProduct.release_date).toISOString().slice(0, 16) : ''}
-                        onChange={e => setNewProduct({...newProduct, release_date: e.target.value ? new Date(e.target.value).toISOString() : null})}
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
-                      />
-                      {newProduct.release_date && (
-                        <button
-                          type="button"
-                          onClick={() => setNewProduct({...newProduct, release_date: null})}
-                          className="mt-1 text-[9px] text-red-500 hover:underline uppercase tracking-widest font-bold cursor-pointer"
-                        >
-                          Clear release date
-                        </button>
-                      )}
-                    </div>
 
                     {/* PRODUCT SIZING & AGE GROUP VARIANT ENGINE FOR NEW PRODUCT (RAPID INTENSIVE) */}
                     <div className="mt-8 border-t border-zinc-200 pt-8" id="product-variants-creation-section">
@@ -3457,12 +3588,16 @@ function AdminPageInner() {
                         )}
                       </div>
                     </div>
-                    <button 
-                      className={`w-full mt-4 p-4 rounded-xl font-headline font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 ${
-                        addStatus === 'success' ? 'bg-green-600 text-white' : 
-                        addStatus === 'error' ? 'bg-red-600 text-white' : 
+                  </div>
+
+                  {/* Full-Width Button at Bottom */}
+                  <div className="border-t border-zinc-200 p-8 bg-zinc-50">
+                    <button
+                      className={`w-full p-4 rounded-xl font-headline font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-3 text-lg ${
+                        addStatus === 'success' ? 'bg-green-600 text-white' :
+                        addStatus === 'error' ? 'bg-red-600 text-white' :
                         addStatus === 'syncing' || isUploading ? 'bg-zinc-700 text-white' :
-                        'bg-zinc-900 text-white hover:bg-[#b90014] shadow-zinc-900/10'
+                        'bg-[#b90014] text-white hover:bg-red-800 shadow-lg shadow-red-900/20'
                       }`}
                       onClick={() => handleAdd()}
                       disabled={addStatus === 'syncing' || isUploading}
@@ -3706,6 +3841,49 @@ function AdminPageInner() {
                         </button>
                       ))}
                     </div>
+
+                    {/* Bulk Brand Assignment Section */}
+                    {selectedProductIds.size > 0 && (
+                      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-4">
+                        <div className="flex-1">
+                          <p className="text-[10px] font-bold text-blue-900 uppercase tracking-widest mb-2">
+                            {selectedProductIds.size} product{selectedProductIds.size !== 1 ? 's' : ''} selected
+                          </p>
+                          <div className="flex gap-2 items-center flex-wrap">
+                            <select
+                              value={bulkBrandAssignBrand}
+                              onChange={(e) => setBulkBrandAssignBrand(e.target.value)}
+                              className="px-3 py-2 bg-white border border-blue-200 rounded text-[10px] font-bold uppercase outline-none focus:ring-2 focus:ring-[#b90014]"
+                            >
+                              <option value="">Choose brand...</option>
+                              {availableBrands.map(brand => (
+                                <option key={brand} value={brand}>{brand}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={handleBulkBrandAssign}
+                              disabled={isBulkBrandAssigning || !bulkBrandAssignBrand}
+                              className={`px-4 py-2 rounded font-bold uppercase tracking-widest text-[10px] transition-all ${
+                                bulkBrandStatus === 'success' ? 'bg-green-600 text-white' :
+                                bulkBrandStatus === 'error' ? 'bg-red-600 text-white' :
+                                'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
+                              }`}
+                            >
+                              {isBulkBrandAssigning ? 'Assigning...' : bulkBrandStatus === 'success' ? 'Done!' : 'Assign Brand'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedProductIds(new Set());
+                                setBulkBrandAssignBrand('');
+                              }}
+                              className="px-3 py-2 bg-white border border-blue-200 text-blue-600 rounded text-[10px] font-bold uppercase hover:bg-blue-50 transition-colors"
+                            >
+                              Clear Selection
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="divide-y divide-zinc-100 relative">
                     {isLoading && products.length === 0 && (
@@ -3733,6 +3911,20 @@ function AdminPageInner() {
                     ) : (
                       paginatedProducts.map(product => (
                         <div key={product.id} className="p-6 flex items-center gap-6 hover:bg-zinc-50 transition-colors group">
+                          <input
+                            type="checkbox"
+                            checked={selectedProductIds.has(product.id)}
+                            onChange={(e) => {
+                              const newSelected = new Set(selectedProductIds);
+                              if (e.target.checked) {
+                                newSelected.add(product.id);
+                              } else {
+                                newSelected.delete(product.id);
+                              }
+                              setSelectedProductIds(newSelected);
+                            }}
+                            className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014] cursor-pointer flex-shrink-0"
+                          />
                           <div className="w-20 h-20 rounded-lg overflow-hidden bg-zinc-100 border border-zinc-200 flex-shrink-0">
                             <img src={product.image || `https://picsum.photos/seed/${product.id}/80`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           </div>

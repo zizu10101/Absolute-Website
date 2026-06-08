@@ -22,6 +22,8 @@ import { CustomizationPage } from './pages/CustomizationPage';
 import { CustomLabPage } from './pages/CustomLabPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ContactUsPage } from './pages/ContactUsPage';
+import { BrandPage } from './pages/BrandPage';
+import { BrandsPage } from './pages/BrandsPage';
 import { useSEO } from './hooks/useSEO';
 
 function LoadingScreen() {
@@ -133,6 +135,8 @@ function AppRoutes() {
           <Route path="new-arrivals" element={<ProductGridPage title="New Arrivals" />} />
           <Route path="sale" element={<ProductGridPage title="Sale" />} />
           <Route path="search" element={<ProductGridPage title="Search Results" />} />
+          <Route path="brands" element={<BrandsPage />} />
+          <Route path="brand/:brandName" element={<BrandPage />} />
           <Route path="customization" element={<CustomizationPage />} />
           <Route path="uniform-submission" element={<UniformSubmissionPage />} />
           <Route path="contact-us" element={<ContactUsPage />} />

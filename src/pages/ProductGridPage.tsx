@@ -24,7 +24,8 @@ export function ProductGridPage({ title, category, submenu }: Props) {
   }, [category, submenu]);
   const [searchParams] = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
-  
+  const urlBrand = searchParams.get('brand') || '';
+
   const [localSearch, setLocalSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [sortBy, setSortBy] = useState<'newest' | 'price-low' | 'price-high'>('newest');
@@ -34,6 +35,13 @@ export function ProductGridPage({ title, category, submenu }: Props) {
   useEffect(() => {
     if (urlQuery) setLocalSearch(urlQuery);
   }, [urlQuery]);
+
+  // Sync brand from URL parameter
+  useEffect(() => {
+    if (urlBrand) {
+      setSelectedBrand(urlBrand.charAt(0).toUpperCase() + urlBrand.slice(1));
+    }
+  }, [urlBrand]);
 
   const filteredProducts = useMemo(() => {
     let filtered = [...products];
