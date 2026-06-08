@@ -57,6 +57,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
   const [refundMethod, setRefundMethod] = useState<'store-credit' | 'original-payment' | null>(null);
   const [processing, setProcessing] = useState(false);
   const [completionData, setCompletionData] = useState<any>(null);
+  const [issuedStoreCreditCardNumber, setIssuedStoreCreditCardNumber] = useState<string | null>(null);
 
   // Auto-load transaction if prefilled
   useEffect(() => {
@@ -371,7 +372,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           throw new Error('Failed to create store credit');
         }
 
-        console.log('✅ [Returns] Store credit created:', scData.id);
+        console.log('✅ [Returns] Store credit created:', scData.id, 'Card#:', scData.card_number);
 
         // Update returns record with store_credit_id
         const { error: updateReturnError } = await supabase
@@ -385,11 +386,15 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           console.log('✅ [Returns] Return record updated with store_credit_id');
         }
 
+        // Store the SC card number for the receipt
+        setIssuedStoreCreditCardNumber(scData.card_number);
+
         setCompletionData({
           type: 'store-credit',
           returnId: returnRecord.id,
           amount: amounts.total,
           creditId: scData.id,
+          cardNumber: scData.card_number,
         });
       } else {
         // Refund to original payment method
@@ -466,7 +471,8 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       ? `${transaction.customers.first_name} ${transaction.customers.last_name}`
       : 'Walk-in';
 
-    const html = generateThermalReceiptHTML({
+    // For store credit returns, use SC card number for barcode instead of transaction UUID
+    const receiptData: any = {
       transactionId: transaction.id,
       customerName,
       items: selectedItems.map(item => ({
@@ -481,7 +487,16 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       paymentMethod: `${refundMethod === 'store-credit' ? 'Store Credit' : transaction.method} - RETURN`,
       createdAt: new Date(),
       status: 'return',
-    });
+    };
+
+    // If store credit was issued, add the SC card number for the barcode
+    if (refundMethod === 'store-credit' && issuedStoreCreditCardNumber) {
+      receiptData.storeCreditCardNumber = issuedStoreCreditCardNumber;
+      receiptData.barcodeValue = issuedStoreCreditCardNumber;
+      console.log('📋 [Returns] Receipt barcode set to SC card number:', issuedStoreCreditCardNumber);
+    }
+
+    const html = generateThermalReceiptHTML(receiptData);
 
     const win = window.open('', '_blank');
     if (win) {
@@ -498,6 +513,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     setRefundMethod(null);
     setError(null);
     setCompletionData(null);
+    setIssuedStoreCreditCardNumber(null);
   };
 
   const handleClose = () => {
@@ -834,6 +850,11 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                       ? `Store credit of $${completionData.amount.toFixed(2)} has been issued`
                       : `Refund of $${completionData.amount.toFixed(2)} has been processed to ${completionData.method}`}
                   </p>
+                  {completionData.type === 'store-credit' && completionData.cardNumber && (
+                    <p className="text-sm text-gray-600 mt-3 font-mono bg-gray-100 p-2 rounded border-2 border-blue-300">
+                      Card #: <span className="font-bold text-blue-700">{completionData.cardNumber}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div className="p-4 bg-green-50 rounded-lg border border-green-200 text-sm text-gray-900">
