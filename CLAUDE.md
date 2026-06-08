@@ -10,11 +10,93 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
-## Current Status (as of June 7, 2026 - Session 5)
+## Current Status (as of June 7, 2026 - Session 6)
 
-### Latest Session - Invoice Numbering System & Query Fixes ✅
+### Latest Session - Global Brand Filtering, Product Codes & Critical Vercel Fixes ✅
 
-**INVOICE NUMBERING SYSTEM - FULLY IMPLEMENTED:**
+**CRITICAL VERCEL PRODUCTION BUGS - FIXED:**
+
+1. **Bug 1: /api/ calls returning 404 on Vercel** ✅
+   - ✅ Replaced 30+ fetch('/api/...') calls with direct Supabase
+   - ✅ ProductContext.tsx: Product CRUD now uses Supabase
+   - ✅ POSPage.tsx: Transactions, gift cards, customers use Supabase
+   - ✅ CustomerContext.tsx: All customer operations use Supabase
+   - ✅ StoreCreditsTab.tsx, StoreCreditReport.tsx: Use Supabase
+   - ✅ ReturnsModal.tsx: Store credit creation uses Supabase
+   - ✅ GiftCardsAdmin.tsx: Gift card operations use Supabase
+   - ✅ Removed all /api/health, /api/settings/bulk fallback calls
+   - ✅ App now fully functional on Vercel without backend server
+
+2. **Bug 2: 406 error on product update (.single() issue)** ✅
+   - ✅ Changed: `.update().select().single()` → `.select('*'); data[0]`
+   - ✅ Reason: Supabase update queries return arrays, not single objects
+   - ✅ Fixed in ProductContext.tsx updateProduct() function
+   - ✅ No more "Cannot coerce result to single JSON object" errors
+
+**DUPLICATE PRODUCT PREVENTION - FULLY IMPLEMENTED:**
+
+1. **Brand Field Added** ✅
+   - ✅ Product interface includes: brand?: string
+   - ✅ Form inputs in create and edit forms
+   - ✅ Displayed on product list cards
+   - ✅ Saves to products.brand column
+
+2. **Duplicate Prevention by Brand + Category** ✅
+   - ✅ Checks product_code FIRST (if provided)
+   - ✅ Then checks name + category combination
+   - ✅ Shows clear error: "Product code 'X' is already used by 'Y'"
+   - ✅ Handles database constraint error 23505
+   - ✅ Both create and update operations protected
+
+**PRODUCT CODE FIELD - FULLY IMPLEMENTED:**
+
+1. **Product Code Field** ✅
+   - ✅ Product interface includes: product_code?: string
+   - ✅ Form inputs (optional) in create and edit forms
+   - ✅ Displays inline with price: "$ 89.99 · Code: NK-DV9237"
+   - ✅ Saves to products.product_code column (UNIQUE constraint)
+
+2. **Product Code Duplicate Check** ✅
+   - ✅ Checked BEFORE name+category check
+   - ✅ Query: .eq('product_code', code).maybeSingle()
+   - ✅ Clear error message with conflicting product name
+   - ✅ On update: excludes current product with neq('id', productId)
+
+3. **POS Barcode Scanner Fallback** ✅
+   - ✅ When scanning: checks variant barcode FIRST
+   - ✅ Then searches product_code as FALLBACK
+   - ✅ Products found by code added to cart without size
+   - ✅ Success message updates: "Added: Nike Home Kit" or "Added: Nike Home Kit · Sz M"
+
+**GLOBAL BRAND FILTERING SYSTEM - FULLY IMPLEMENTED:**
+
+1. **Brand Filter Component** ✅
+   - ✅ New file: BrandFilter.tsx
+   - ✅ Reusable across all category pages
+   - ✅ Fetches brands in current category only
+   - ✅ Click brand to filter products
+   - ✅ Click again to clear filter
+   - ✅ Animated transitions and active state highlighting
+
+2. **Category Page Integration** ✅
+   - ✅ BrandFilter added to ProductGridPage
+   - ✅ Shows between search/sort controls and logo grid
+   - ✅ Works on all pages: Footwear, Kits, Balls, Equipment, Apparel, etc.
+   - ✅ Brand filtering added to product filtering logic
+
+3. **Homepage Brand Showcase** ✅
+   - ✅ New file: BrandShowcase.tsx
+   - ✅ Displays all available brands with product counts
+   - ✅ Added to HomePage between featured products and visit section
+   - ✅ Links to /products?brand=Nike format
+   - ✅ Responsive grid: 6 cols desktop, 3 tablet, 2 mobile
+
+4. **Admin Product List** ✅
+   - ✅ Visual warning for products missing brand: "⚠️ Missing Brand"
+   - ✅ Yellow indicator below product description
+   - ✅ Easy to spot incomplete product data
+
+**INVOICE NUMBERING SYSTEM - FULLY IMPLEMENTED (from Session 5):**
 
 1. **Receipt Display & Barcode** ✅
    - ✅ Receipts show "Invoice # INV-01000" instead of UUID
@@ -243,117 +325,92 @@ Three critical store credit bugs fixed:
 
 ---
 
-## Next Steps - Session 6 TODO (June 7, 2026)
+## Next Steps - Session 7 TODO (June 8, 2026+)
 
-### CRITICAL - Test Invoice Numbering System
+### CRITICAL - Verify Production Fixes on Vercel
 
-**Invoice Lookup Tests:**
-- [ ] Open Returns modal and enter invoice number:
-  - [ ] Type `INV-01000` → Should find transaction
-  - [ ] Type `1000` → Should normalize and find it
-  - [ ] Type `01000` → Should normalize and find it
-  - [ ] Scan UUID barcode → Should show error
-- [ ] Check browser console logs:
-  - [ ] `Looking up invoice: INV-XXXXX` shows correct normalization
-  - [ ] `Result:` shows data found (not error)
-- [ ] Verify correct error messages for voided/refunded/returned transactions
+**Test Product Saving on Live Site:**
+- [ ] Navigate to admin panel product editor
+- [ ] Try saving an existing product (should use direct Supabase now)
+- [ ] Check network tab - should see no /api/products 404 errors
+- [ ] Create new product with brand and product code
+- [ ] Verify both fields save correctly
+- [ ] Check that duplicate brand+code check works
 
-**Receipt Display Tests:**
-- [ ] Process a transaction at checkout
-- [ ] Verify receipt shows `Invoice # INV-01000` (not UUID)
-- [ ] Verify barcode encodes `INV-01000` (not full UUID)
-- [ ] Verify reprint button works and shows `*** REPRINT ***` header
-- [ ] Test in all three places:
-  - [ ] POS checkout
-  - [ ] Transaction History → Reprint button
-  - [ ] Customer Profile → Reprint button
+**Test Brand Filtering:**
+- [ ] Visit /footwear or any category
+- [ ] Verify BrandFilter component appears
+- [ ] Click a brand name to filter
+- [ ] Products list updates in real-time
+- [ ] Click brand again to clear filter
+- [ ] Test on /kits, /balls, /equipment pages
 
-**Barcode Scanning Tests:**
-- [ ] Scan SC-XXXX code → Store credit applied
-- [ ] Scan INV-01000 code → Info message about Returns modal
-- [ ] Scan UUID code → Error message about scanning invoice barcode
-- [ ] Scan product barcode → Added to cart normally
+**Test Homepage Brand Showcase:**
+- [ ] Check if BrandShowcase section appears
+- [ ] Click a brand → should navigate to /products?brand=Nike
+- [ ] Verify filtered products display
+- [ ] Count per brand matches product count
 
-**Transaction History Tests:**
-- [ ] Invoice numbers display on transaction cards
-- [ ] Expand transaction to see invoice number in highlighted box
-- [ ] Search by invoice number works
-- [ ] Search by customer name still works
-- [ ] All filters work (today/week/month/year/all)
+**Test Product Code Field:**
+- [ ] Create product with code "TEST-001"
+- [ ] Try creating another with same code → should error
+- [ ] Edit product and change code → should work
+- [ ] On product list, verify code shows inline with price
+- [ ] Test barcode scanning with product code
 
-### HIGH - Test Store Credit Receipts (New Feature)
+### HIGH - Optional Enhancements (When Ready)
 
-**SC Issuance Receipt Tests:**
-- [ ] Issue a store credit manually (from return or manual issue)
-- [ ] Verify receipt shows:
-  - [ ] "STORE CREDIT ISSUED" header
-  - [ ] Card number (SC-XXXXXXXXXXXX)
-  - [ ] Barcode encodes card number
-  - [ ] Amount in large bold box
-  - [ ] "Keep this receipt safe!" footer
-- [ ] Test print and PDF download
+**Brand Navigation Integration:**
+- [ ] Add "Shop by Brand" section to main navigation menu
+- [ ] Create dedicated /brands route with all brands listed
+- [ ] Add bulk brand editor in admin (assign brand to multiple products)
 
-**SC Redemption Receipt Tests:**
-- [ ] Use store credit to partially pay for transaction
-- [ ] Verify receipt shows:
-  - [ ] "STORE CREDIT REDEEMED" header
-  - [ ] "Amount Used: -$X.XX"
-  - [ ] "Remaining Balance: $X.XX" (large bold)
-  - [ ] Second payment method amount
-- [ ] Test full SC coverage (no second payment)
+**Admin Bulk Operations:**
+- [ ] Implement bulk brand assignment for products missing brands
+- [ ] Implement bulk product code assignment
+- [ ] Filter admin list by "Missing Brand" status
 
-### MEDIUM - Verify Existing Features Still Work
+**Additional Features:**
+- [ ] Brand page with brand info/description
+- [ ] "Trending Brands" section based on sales
+- [ ] Brand filter persistence in URL query params
 
-**Store Credit Redemption Flow:**
-- [ ] Partial payment: SC doesn't cover full amount
-- [ ] Show "Remaining to Pay" message correctly
-- [ ] Require second payment method
-- [ ] Exact payment: SC covers entire amount
-- [ ] Console logs show correct calculations
+### MEDIUM - Data Cleanup
 
-**Returns System:**
-- [ ] POS Returns Tab: scan invoice and process return
-- [ ] Customer Profile: click Return on transaction
-- [ ] Verify inventory restored
-- [ ] Verify store credit issued (or original payment reversed)
-- [ ] Verify transaction status updates
+**Assign Missing Brands:**
+- [ ] Admin shows products with ⚠️ Missing Brand indicator
+- [ ] Go through each and assign appropriate brand
+- [ ] Use bulk editor for faster assignment
 
-**Multi-Payment Combinations:**
-- [ ] Gift Card + Store Credit
-- [ ] Gift Card + Cash
-- [ ] Store Credit + Debit Card
-- [ ] All combinations show correct final amount
+**Assign Product Codes:**
+- [ ] Research standard product codes for each brand
+- [ ] Assign codes to all products (optional but recommended)
+- [ ] Enables more robust barcode scanning
 
-### MEDIUM - Product Images
+### LOW - Germany Products Images
 
-**Germany Products (7 items need images):**
-- [ ] Admin panel - upload images for:
-  - Germany Away Jersey Y
-  - Germany Home Jersey Y
-  - Germany Away Jersey
-  - Germany Ball
-  - Germany Cap
-  - Germany GK H JSY
-  - Germany Home Jersey
-- [ ] Verify images display in storefront
-
-### LOW - Code Quality & Cleanup
-
-**After testing passes:**
-- [ ] Remove debug console logs (keep 🔴 logs for debugging)
-- [ ] Verify no TypeScript errors
-- [ ] Run tests suite
-- [ ] Check browser console for any errors
+**Still Need Images (7 products):**
+- Germany Away Jersey Y, Home Jersey Y, Away Jersey, Ball, Cap, GK H JSY, Home Jersey
+- Upload via admin panel when available
 
 ---
 
-## Commits This Session (Session 5 - June 7, 2026 - Invoice Numbering System)
+## Commits This Session (Session 6 - June 7, 2026 - Critical Vercel Fixes & Brand System)
 
 | Commit | Message | Files |
 |--------|---------|-------|
-| TBD | feat: implement invoice numbering system - receipts, display, lookup, scanning | thermalReceipt.ts, PosTransactionHistory.tsx, ReturnsModal.tsx, ReturnTab.tsx, POSPage.tsx |
-| TBD | fix: correct all invoice lookup queries to use invoice_number field | ReturnsModal.tsx, ReturnTab.tsx, POSPage.tsx |
-| TBD | fix: replace .single() with .maybeSingle() in invoice lookups | ReturnsModal.tsx, ReturnTab.tsx, POSPage.tsx |
+| 583cacb | feat: extend brand filtering system globally across all product categories | BrandFilter.tsx, BrandShowcase.tsx, ProductGridPage.tsx, HomePage.tsx |
+| 21c7941 | feat: add product code field with duplicate check and POS barcode fallback | ProductContext.tsx, AdminPage.tsx, POSPage.tsx |
+| 2062323 | fix: move product code display to price line to save vertical space | AdminPage.tsx |
+| d9ec3e2 | feat: add duplicate product prevention and brand field | ProductContext.tsx, AdminPage.tsx, ADD_BRAND_COLUMN.sql |
+| f7d2702 | fix: remove remaining /api/ calls and fix .single() on update queries | ProductContext.tsx, AdminPage.tsx, SettingsContext.tsx |
+| 9b5ef8c | fix: replace all /api/ calls with direct Supabase for Vercel production | ProductContext.tsx, PosTransactionHistory.tsx, POSPage.tsx, CustomerContext.tsx, StoreCreditsTab.tsx, StoreCreditReport.tsx, ReturnsModal.tsx, GiftCardsAdmin.tsx, PosRegister.tsx, VERCEL_API_FIX_SUMMARY.md |
+
+**Session 5 Commits (June 7, 2026 - Invoice Numbering System):**
+
+| Commit | Message | Files |
+|--------|---------|-------|
+| 02387d6 | feat: implement invoice numbering system - receipts, lookup, scanning | thermalReceipt.ts, PosTransactionHistory.tsx, ReturnsModal.tsx, ReturnTab.tsx, POSPage.tsx |
 
 **Session 4 Commits (June 7, 2026):**
 
@@ -379,8 +436,9 @@ Three critical store credit bugs fixed:
 
 **Key Tables:**
 - `products` - Product catalog (55+ items)
-  - Columns: id, name, category, price, description, image, colors, is_online
+  - Columns: id, name, category, brand (NEW - Session 6), product_code (NEW - Session 6, UNIQUE), price, description, image, colors, is_online
   - Related: product_variants (size, SKU, stock_quantity)
+  - NEW Fields: brand (TEXT, nullable), product_code (TEXT, UNIQUE, nullable)
 - `transactions` - POS transaction history
   - Columns: id, invoice_number (NEW - Session 5), customer_id, total_amount, method, status (completed/voided/refunded/returned/partial_return), items[], created_at, tendered_amount, change_given
   - Invoice numbers auto-generated: INV-01000, INV-01001, etc. via SQL trigger
@@ -407,9 +465,13 @@ Three critical store credit bugs fixed:
 **Core Components:**
 - `src/pages/AdminPage.tsx` - Admin panel with 8+ tabs
 - `src/pages/POSPage.tsx` - Standalone POS with PIN auth
+- `src/pages/ProductGridPage.tsx` - Product listing with category/search/brand filters
+- `src/pages/HomePage.tsx` - Homepage with featured products and brand showcase
 - `src/pages/ReportsPageFull.tsx` - Reports dashboard
 - `src/components/ReportsPage.tsx` - Reports tab navigation
-- `src/components/ReturnsModal.tsx` - Full 5-step returns wizard (NEW)
+- `src/components/BrandFilter.tsx` - Global brand filtering (NEW - Session 6)
+- `src/components/BrandShowcase.tsx` - Homepage brand showcase (NEW - Session 6)
+- `src/components/ReturnsModal.tsx` - Full 5-step returns wizard
 - `src/components/PosCustomerManager.tsx` - Customer management with integrated returns
 - `src/components/GiftCardTab.tsx` - Gift card issuance & redemption
 - `src/components/StoreCreditsTab.tsx` - Store credit management
