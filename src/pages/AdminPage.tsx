@@ -3748,7 +3748,7 @@ function AdminPageInner() {
                               {product.isOnSale && <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[8px] font-black uppercase rounded tracking-widest">Sale</span>}
                             </div>
                             <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest mb-1">
-                              {product.category} {product.submenus && product.submenus.length > 0 ? `• ${product.submenus.join(', ')}` : product.submenu && `• ${product.submenu}`} • 
+                              {product.category} {product.submenus && product.submenus.length > 0 ? `• ${product.submenus.join(', ')}` : product.submenu && `• ${product.submenu}`} •
                               {product.isOnSale && product.salePrice ? (
                                 <span className="ml-1">
                                   <span className="line-through opacity-50 mr-1">${product.price}</span>
@@ -3757,11 +3757,11 @@ function AdminPageInner() {
                               ) : (
                                 <span className="ml-1">${product.price}</span>
                               )}
+                              {product.product_code && (
+                                <span className="ml-2 text-[9px] text-zinc-400 normal-case font-mono">Code: {product.product_code}</span>
+                              )}
                             </p>
                             <p className="text-[10px] text-zinc-400 line-clamp-1">{product.description}</p>
-                            {product.product_code && (
-                              <p className="text-[9px] text-zinc-300 mt-1">Code: <span className="font-mono">{product.product_code}</span></p>
-                            )}
                           </div>
                           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
