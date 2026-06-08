@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, AlertCircle, RefreshCw } from 'lucide-react';
+import { supabase } from '../supabase';
 
 interface GiftCard {
   id: string;
@@ -34,11 +35,13 @@ export const GiftCardsAdmin: React.FC = () => {
   const fetchGiftCards = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/gift-cards');
-      const result = await res.json();
-      if (result.data) {
-        setGiftCards(result.data);
-      }
+      const { data, error } = await supabase
+        .from('gift_cards')
+        .select('*, customers(first_name, last_name)')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setGiftCards(data || []);
     } catch (e) {
       console.error('Failed to fetch gift cards:', e);
     } finally {
@@ -54,11 +57,14 @@ export const GiftCardsAdmin: React.FC = () => {
 
     setTxLoading(giftCardId);
     try {
-      const res = await fetch(`/api/gift-cards/history?gift_card_id=${giftCardId}`);
-      const result = await res.json();
-      if (result.data) {
-        setCardTransactions(prev => ({ ...prev, [giftCardId]: result.data }));
-      }
+      const { data, error } = await supabase
+        .from('gift_card_transactions')
+        .select('*')
+        .eq('gift_card_id', giftCardId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCardTransactions(prev => ({ ...prev, [giftCardId]: data || [] }));
     } catch (e) {
       console.error('Failed to fetch transactions:', e);
     } finally {

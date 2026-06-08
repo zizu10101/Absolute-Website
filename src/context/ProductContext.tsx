@@ -305,27 +305,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         console.log(`⚠️ ProductContext: No data returned from Supabase!`);
       }
     } catch (e) {
-      console.warn('Direct Supabase fetch failed, trying API route as fallback:', e);
-      try {
-        const params = new URLSearchParams();
-        if (category && category.toLowerCase() !== 'all') params.append('category', category);
-        if (submenu) params.append('submenu', submenu);
-        params.append('fields', LIST_FIELDS);
-
-        const response = await fetch(`/api/products?${params.toString()}`);
-
-        const contentType = response.headers.get('content-type');
-        if (!response.ok || (contentType && contentType.includes('text/html'))) {
-          throw new Error('API unavailable');
-        }
-
-        const result = await response.json();
-        const allFetched = result.data || [];
-
-        mergeProducts(allFetched);
-      } catch (fallbackErr) {
-        console.error('API categorized lookup also failed:', fallbackErr);
-      }
+      console.error('Failed to fetch products from Supabase:', e);
     } finally {
       setIsLoading(false);
     }
@@ -346,22 +326,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
       if (error) throw error;
     } catch (e) {
-      console.warn('API GET product by id failed, falling back to API:', e);
-      try {
-        const response = await fetch(`/api/products/${id}`);
-        if (!response.ok || (response.headers.get('content-type') && response.headers.get('content-type')!.includes('text/html'))) {
-          throw new Error('API unavailable or returned HTML');
-        }
-        const raw = await response.json();
-        const mapped = mapProductFromDb(raw);
-        setProducts(prev => {
-          const filtered = prev.filter(p => p.id !== id);
-          return [...filtered, mapped];
-        });
-        return mapped;
-      } catch (err) {
-        console.error('Direct Supabase and API GET product also failed:', err);
-      }
+      console.error('Failed to fetch product from Supabase:', e);
     }
     return products.find(p => p.id === id) || null;
   };
@@ -392,17 +357,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     const payload = mapProductToDb(normalizedData);
 
     try {
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!response.ok) {
-        const errPayload = await response.json().catch(() => ({}));
-        throw new Error(errPayload.message || errPayload.error || `API failed: ${response.status}`);
-      }
-      const newProduct = await response.json();
-      const mapped = mapProductFromDb({ ...productData as any, ...newProduct });
+      const { data, error } = await supabase.from('products').insert([payload]).select().single();
+      if (error) throw error;
+      const mapped = mapProductFromDb(data);
       setProducts(prev => [...prev, mapped]);
       await fetchAdminProducts();
       return mapped;
@@ -441,17 +398,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
     try {
-      const response = await fetch(`/api/products/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!response.ok) {
-        const errPayload = await response.json().catch(() => ({}));
-        throw new Error(errPayload.message || errPayload.error || `API failed: ${response.status}`);
-      }
-      const updatedProduct = await response.json();
-      const mapped = mapProductFromDb(updatedProduct);
+      const { data, error } = await supabase.from('products').update(payload).eq('id', id).select().single();
+      if (error) throw error;
+      const mapped = mapProductFromDb(data);
       setProducts(prev => prev.map(p => p.id === id ? mapped : p));
       clearProductCache();
       return mapped;
@@ -465,14 +414,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     // Optimistically remove from UI immediately
     setProducts(prev => prev.filter(p => p.id !== id));
     try {
-      const response = await fetch(`/api/products/${id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        const errPayload = await response.json().catch(() => ({}));
-        throw new Error(errPayload.message || errPayload.error || `API failed: ${response.status}`);
-      }
-      console.log(`Product ${id} deleted successfully via API`);
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+      console.log(`Product ${id} deleted successfully via Supabase`);
     } catch (e: any) {
       console.error('Delete product failed:', e);
       // Restore product list on failure
@@ -489,16 +433,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const markAllProductsOnline = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/products-mark-all-online', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (!response.ok) {
-        throw new Error(`API failed with status ${response.status}`);
-      }
+      const { error } = await supabase.from('products').update({ is_online: true }).neq('is_online', true);
+      if (error) throw error;
       await fetchAdminProducts();
     } catch (err) {
-      console.error('Failed to mark all online via API, falling back to sequential batch updating in-app:', err);
+      console.error('Failed to mark all online, falling back to sequential batch updating in-app:', err);
       // Fallback: update local / in-state items sequential batch updating
       for (const p of products) {
         if (!p.is_online) {

@@ -4,6 +4,7 @@ import { useCustomers } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
 import { generateThermalReceiptHTML } from '../utils/thermalReceipt';
 import { ReturnsModal } from './ReturnsModal';
+import { supabase } from '../supabase';
 import {
   Search, ChevronDown, ChevronUp, Printer,
   RotateCcw, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Undo2,
@@ -24,18 +25,6 @@ interface Transaction {
   customers?: { first_name: string; last_name: string } | null;
 }
 
-const apiPost = async (url: string, body: object) => {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const text = await res.text();
-  let json: any;
-  try { json = JSON.parse(text); } catch { throw new Error(`Server error (${res.status}): unexpected response`); }
-  if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
-  return json;
-};
 
 export const PosTransactionHistory: React.FC = () => {
   const { customers } = useCustomers();
@@ -54,41 +43,19 @@ export const PosTransactionHistory: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchTransactions = useCallback(async () => {
-    console.log("📡 STEP A: fetchTransactions called");
+    console.log("📡 Fetching transactions from Supabase...");
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      console.log("📡 STEP B: Fetching from /api/transactions...");
-      const res = await fetch('/api/transactions');
-      const text = await res.text();
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*, customers(first_name, last_name)')
+        .order('created_at', { ascending: false });
 
-      console.log("📡 STEP B1: Raw response text:", text.substring(0, 200));
+      if (error) throw error;
 
-      let result: any;
-      try { result = JSON.parse(text); } catch {
-        console.error("❌ Failed to parse JSON:", text);
-        throw new Error(`Server error: unexpected response`);
-      }
-
-      console.log("📡 STEP C: Response status:", res.status);
-      console.log("📡 STEP C1: Result object:", result);
-      console.log("📡 STEP D: Response data count:", result?.data ? result.data.length : 0);
-      console.log("📡 STEP D1: Response error field:", result?.error);
-
-      if (!res.ok) {
-        console.error("❌ Response not OK - error:", result?.error);
-        throw new Error(result?.error || `Failed to fetch (${res.status})`);
-      }
-
-      const sortedData = (result?.data || []).sort((a: any, b: any) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-
-      console.log("📡 STEP E: Sorted data count:", sortedData.length);
-      console.log("📡 STEP F: Transaction statuses:", sortedData.map((t: any) => ({ id: t.id.slice(0, 8), status: t.status })));
-
-      setTransactions(sortedData);
-      console.log("📡 STEP G: State updated with new transactions");
+      console.log("📡 Transactions fetched:", data?.length || 0);
+      setTransactions(data || []);
     } catch (e: any) {
       console.error('❌ Transaction fetch error:', e.message, e);
       setErrorMsg(`Failed to load transactions: ${e.message}`);
@@ -157,22 +124,16 @@ export const PosTransactionHistory: React.FC = () => {
   const handleVoid = async (tx: Transaction) => {
     if (!confirm('Void this transaction?')) return;
     try {
-      console.log("🔵 CLIENT: handleVoid called for transaction ID:", tx.id);
-      console.log("🔵 CLIENT: Sending POST to /api/transactions/void with body:", { transactionId: tx.id });
+      const { error } = await supabase
+        .from('transactions')
+        .update({ status: 'voided' })
+        .eq('id', tx.id);
 
-      const response = await apiPost('/api/transactions/void', { transactionId: tx.id });
-
-      console.log("✅ CLIENT: Void response received:", response);
+      if (error) throw error;
       flash('Transaction voided');
-
-      console.log("🔵 CLIENT: Waiting 300ms before refetching...");
-      await new Promise(r => setTimeout(r, 300));
-
-      console.log("🔵 CLIENT: Refetching transactions...");
       await fetchTransactions();
-      console.log("✅ CLIENT: Transactions refetched and state updated");
     } catch (e: any) {
-      console.error("❌ CLIENT: Void error:", e.message);
+      console.error("Void error:", e.message);
       flash(e.message, true);
     }
   };
@@ -180,10 +141,18 @@ export const PosTransactionHistory: React.FC = () => {
   const handleRefund = async (tx: Transaction) => {
     if (!confirm('Issue a refund? Stock will be restored.')) return;
     try {
-      await apiPost('/api/transactions/refund', { transactionId: tx.id });
+      const { error } = await supabase
+        .from('transactions')
+        .update({ status: 'refunded' })
+        .eq('id', tx.id);
+
+      if (error) throw error;
       flash('Refund issued & stock restored');
-      fetchTransactions();
-    } catch (e: any) { flash(e.message, true); }
+      await fetchTransactions();
+    } catch (e: any) {
+      console.error("Refund error:", e.message);
+      flash(e.message, true);
+    }
   };
 
   const openReturnsModal = (txId: string) => {
@@ -256,6 +225,7 @@ export const PosTransactionHistory: React.FC = () => {
 
       const html = generateThermalReceiptHTML({
         transactionId: fullTx.id,
+        invoiceNumber: fullTx.invoice_number,
         customerName,
         items: (fullTx.items || []).map((item: any) => ({
           name: item.name || 'Item',

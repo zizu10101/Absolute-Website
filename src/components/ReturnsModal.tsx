@@ -351,30 +351,32 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       // 3. Process refund based on method
       console.log('🔄 [Returns] Processing refund method:', refundMethod);
       if (refundMethod === 'store-credit') {
-        // Issue store credit via API
+        // Issue store credit via Supabase
         console.log('🔄 [Returns] Creating store credit for customer:', transaction.customer_id);
-        const scResponse = await fetch('/api/store-credits', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerId: transaction.customer_id,
+        const { data: scData, error: scError } = await supabase
+          .from('store_credits')
+          .insert([{
+            customer_id: transaction.customer_id,
             amount: amounts.total,
+            remaining_balance: amounts.total,
             reason: 'Product Return',
-          }),
-        });
+            is_active: true,
+            card_number: 'SC-' + Math.random().toString(36).substr(2, 12).toUpperCase(),
+          }])
+          .select()
+          .single();
 
-        const scData = await scResponse.json();
-        if (!scResponse.ok) {
-          console.error('❌ [Returns] Error creating store credit:', scData);
-          throw new Error(scData.error || 'Failed to create store credit');
+        if (scError) {
+          console.error('❌ [Returns] Error creating store credit:', scError);
+          throw new Error('Failed to create store credit');
         }
 
-        console.log('✅ [Returns] Store credit created:', scData.creditId);
+        console.log('✅ [Returns] Store credit created:', scData.id);
 
         // Update returns record with store_credit_id
         const { error: updateReturnError } = await supabase
           .from('returns')
-          .update({ store_credit_id: scData.creditId })
+          .update({ store_credit_id: scData.id })
           .eq('id', returnRecord.id);
 
         if (updateReturnError) {
@@ -387,7 +389,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           type: 'store-credit',
           returnId: returnRecord.id,
           amount: amounts.total,
-          creditId: scData.creditId,
+          creditId: scData.id,
         });
       } else {
         // Refund to original payment method

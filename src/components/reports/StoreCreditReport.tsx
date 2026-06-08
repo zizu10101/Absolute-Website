@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { CreditCard, Download, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
+import { supabase } from '../../supabase';
 
 interface StoreCredit {
   id: string;
@@ -45,12 +46,14 @@ export function StoreCreditReport() {
   const fetchStoreCredits = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/store-credits');
-      if (!response.ok) throw new Error(`API error: ${response.status}`);
-      const result = await response.json();
+      const { data, error } = await supabase
+        .from('store_credits')
+        .select('*, customers(first_name, last_name, email, phone), store_credit_transactions(*)');
+
+      if (error) throw error;
 
       // Filter by date range client-side
-      const filtered = (result.data || []).filter((credit: any) => {
+      const filtered = (data || []).filter((credit: any) => {
         const creditDate = new Date(credit.created_at).toISOString().split('T')[0];
         return creditDate >= dateRange.start && creditDate <= dateRange.end;
       });

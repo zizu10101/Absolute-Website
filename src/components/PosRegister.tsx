@@ -168,17 +168,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
           throw new Error('No products from Supabase');
         }
       } catch {
-        try {
-          const response = await fetch('/api/products?limit=1000');
-          if (response.ok) {
-            const result = await response.json();
-            if (result.data && result.data.length > 0 && active) {
-              setAllProducts(result.data.map(mapProductFromDb));
-            }
-          }
-        } catch {
-          if (active && contextProducts.length > 0) setAllProducts(contextProducts);
-        }
+        if (active && contextProducts.length > 0) setAllProducts(contextProducts);
       } finally {
         if (active) setIsLoadingAll(false);
       }

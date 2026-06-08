@@ -29,15 +29,13 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   const fetchCustomers = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/customers');
-      const text = await res.text();
-      let result: any;
-      try { result = JSON.parse(text); } catch { throw new Error('Server error: unexpected response'); }
-      if (!res.ok) throw new Error(result?.error || 'Failed to fetch');
-      const sorted = (result?.data || []).sort((a: Customer, b: Customer) =>
-        (a.last_name || '').localeCompare(b.last_name || '')
-      );
-      setCustomers(sorted);
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('last_name', { ascending: true });
+
+      if (error) throw error;
+      setCustomers(data || []);
     } catch (e: any) {
       console.error('Failed to fetch customers:', e.message);
     } finally {
@@ -47,16 +45,15 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
 
   const addCustomer = async (data: Partial<Customer>): Promise<Customer | null> => {
     try {
-      const res = await fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error);
-      const newCustomer = result.data?.[0] || null;
-      if (newCustomer) setCustomers(prev => [...prev, newCustomer].sort((a, b) => a.last_name.localeCompare(b.last_name)));
-      return newCustomer;
+      const { data: newData, error } = await supabase
+        .from('customers')
+        .insert([data])
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (newData) setCustomers(prev => [...prev, newData].sort((a, b) => a.last_name.localeCompare(b.last_name)));
+      return newData || null;
     } catch (e: any) {
       console.error('Failed to add customer:', e.message);
       return null;
@@ -65,16 +62,16 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
 
   const updateCustomer = async (id: string, data: Partial<Customer>): Promise<Customer | null> => {
     try {
-      const res = await fetch('/api/customers', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, ...data }),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error);
-      const updated = result.data || null;
+      const { data: updated, error } = await supabase
+        .from('customers')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
       if (updated) setCustomers(prev => prev.map(c => c.id === id ? updated : c));
-      return updated;
+      return updated || null;
     } catch (e: any) {
       console.error('Failed to update customer:', e.message);
       return null;

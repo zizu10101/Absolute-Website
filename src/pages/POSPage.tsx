@@ -162,10 +162,14 @@ export function POSPage() {
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
-        const res = await fetch('/api/transactions?limit=20');
-        const result = await res.json();
-        if (result.data) {
-          setRecentTransactions(result.data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(20);
+        if (error) throw error;
+        if (data) {
+          setRecentTransactions(data);
         }
       } catch (err) {
         console.error('Failed to fetch transactions:', err);
@@ -187,16 +191,8 @@ export function POSPage() {
           .limit(1000);
         if (error) throw error;
         if (data) setProducts(data.map(mapProductFromDb));
-      } catch {
-        try {
-          const res = await fetch('/api/products?limit=1000');
-          if (res.ok) {
-            const result = await res.json();
-            if (result.data) setProducts(result.data.map(mapProductFromDb));
-          }
-        } catch (err) {
-          console.error('Failed to fetch products:', err);
-        }
+      } catch (err) {
+        console.error('Failed to fetch products:', err);
       } finally {
         setProductsLoading(false);
       }
@@ -370,43 +366,30 @@ export function POSPage() {
 
   // Void/Refund/Return handler
   const handleVoidRefundReturn = async (transactionId: string, action: 'void' | 'refund' | 'return') => {
-    const url = `/api/transactions/${action}`;
-    console.log(`🔴 STEP 1: handleVoidRefundReturn called`);
-    console.log(`🔴 STEP 1a: action=${action}, transactionId=${transactionId}, url=${url}`);
+    console.log(`Transaction ${action} for:`, transactionId);
 
     try {
-      console.log(`🔴 STEP 2: Sending fetch request...`);
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionId }),
-      });
-      console.log(`🔴 STEP 3: Response received`);
-      console.log(`🔴 STEP 3a: Response status: ${res.status}, statusText: ${res.statusText}`);
+      const { error } = await supabase
+        .from('transactions')
+        .update({ status: action })
+        .eq('id', transactionId);
 
-      const result = await res.json();
-      console.log(`🔴 STEP 4: Response JSON parsed`);
-      console.log(`🔴 STEP 4a: Response data:`, result);
+      if (error) throw error;
 
-      if (!res.ok) {
-        console.error(`❌ STEP 4b: Response not ok - error: ${result?.error}`);
-        throw new Error(result?.error || 'Failed to process request');
-      }
-
-      console.log(`✅ STEP 5: Transaction ${action} successful`);
       const actionText = action === 'void' ? 'voided' : action === 'refund' ? 'refunded' : 'returned';
       alert(`Transaction ${actionText} successfully`);
       setShowVoidRefundModal(false);
 
       // Refresh transactions
-      console.log(`🔴 STEP 6: Refreshing transaction list...`);
-      const txRes = await fetch('/api/transactions?limit=20');
-      const txResult = await txRes.json();
-      console.log(`🔴 STEP 6a: Transactions refreshed, count:`, txResult.data ? txResult.data.length : 0);
+      const { data, error: fetchErr } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-      if (txResult.data) {
-        setRecentTransactions(txResult.data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-        console.log(`✅ STEP 7: Recent transactions state updated`);
+      if (fetchErr) throw fetchErr;
+      if (data) {
+        setRecentTransactions(data);
       }
     } catch (e: any) {
       console.error(`❌ STEP 8: Caught exception:`, e.message);
@@ -785,14 +768,13 @@ export function POSPage() {
         payload.change_given = Number((tenderedAmount - amountAfterStoreCredit).toFixed(2));
       }
 
-      const res = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([payload])
+        .select();
 
-      const result = await res.json();
-      if (!res.ok) throw new Error(result?.error || 'Failed to save transaction');
+      if (error) throw error;
+      const result = { data };
 
       // Deduct stock
       for (const item of cart) {
@@ -904,20 +886,17 @@ export function POSPage() {
             transactionId: result?.data?.[0]?.id,
           });
 
-          const redeemRes = await fetch('/api/gift-cards/redeem', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              card_number: capturedGiftCard.cardNumber,
-              amount: capturedGiftCard.amount,
-              transaction_id: result?.data?.[0]?.id,
-            }),
-          });
+          const newBalance = Math.max(0, capturedGiftCard.balance - capturedGiftCard.amount);
+          const { error: updateErr } = await supabase
+            .from('gift_cards')
+            .update({
+              current_balance: newBalance,
+              is_active: newBalance > 0,
+            })
+            .eq('card_number', capturedGiftCard.cardNumber);
 
-          const redeemResult = await redeemRes.json();
-          if (!redeemRes.ok) {
-            console.error('⚠️ Gift card redemption warning:', redeemResult?.error);
-            // Don't fail the transaction if gift card redemption fails
+          if (updateErr) {
+            console.error('⚠️ Gift card redemption warning:', updateErr);
           } else {
             console.log('✅ Gift card successfully redeemed');
           }
@@ -1003,22 +982,21 @@ export function POSPage() {
     }
     setIsAddingCustomer(true);
     try {
-      const res = await fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data, error } = await supabase
+        .from('customers')
+        .insert([{
           first_name: customerForm.first_name.trim(),
           last_name: customerForm.last_name.trim(),
           email: customerForm.email.trim() || null,
           phone: customerForm.phone.trim() || null,
           club_affinity: customerForm.club_affinity.trim() || null,
-        }),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result?.error);
+        }])
+        .select();
+
+      if (error) throw error;
       await fetchCustomers();
-      if (result?.data?.[0]) {
-        const newCustomer = result.data[0];
+      if (data?.[0]) {
+        const newCustomer = data[0];
         setSelectedCustomerId(newCustomer.id);
         setCustomerSearchTerm(`${newCustomer.first_name} ${newCustomer.last_name}`);
       }
