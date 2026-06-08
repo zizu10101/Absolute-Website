@@ -176,6 +176,7 @@ export const PosTransactionHistory: React.FC = () => {
     const html = generateThermalReceiptHTML({
       transactionId: tx.id,
       invoiceNumber: tx.invoice_number,
+      barcodeValue: tx.invoice_number || tx.id,
       customerName,
       items: (tx.items || []).map((item: any) => ({
         name: item.name || 'Item',
@@ -226,6 +227,7 @@ export const PosTransactionHistory: React.FC = () => {
       const html = generateThermalReceiptHTML({
         transactionId: fullTx.id,
         invoiceNumber: fullTx.invoice_number,
+        barcodeValue: fullTx.invoice_number || fullTx.id,
         customerName,
         items: (fullTx.items || []).map((item: any) => ({
           name: item.name || 'Item',
@@ -380,7 +382,7 @@ export const PosTransactionHistory: React.FC = () => {
                 <div className="border-t border-zinc-100 p-4 space-y-4">
                   {/* Barcode */}
                   <div className="flex justify-center py-2 bg-zinc-50 rounded-lg">
-                    <Barcode value={tx.id} width={1.2} height={32} fontSize={9} />
+                    <Barcode value={tx.invoice_number || tx.id} width={1.2} height={32} fontSize={9} />
                   </div>
 
                   {/* Invoice Number Display */}
