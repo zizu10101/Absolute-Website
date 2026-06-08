@@ -453,36 +453,54 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Use server endpoint with service role key to bypass RLS
-      console.log('Calling /api/products/:id PUT endpoint with payload:', payload);
-      const response = await fetch(`/api/products/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      // Direct Supabase call - works on Vercel where /api/ endpoints don't exist
+      console.log('Calling Supabase update with payload:', payload);
+      const { data, error } = await supabase
+        .from('products')
+        .update({
+          name: payload.name,
+          price: payload.price,
+          category: payload.category,
+          brand: payload.brand,
+          product_code: payload.product_code,
+          description: payload.description,
+          image: payload.image,
+          images: payload.images,
+          is_online: payload.is_online,
+          isFeatured: payload.isFeatured,
+          isNewArrival: payload.isNewArrival,
+          isOnSale: payload.isOnSale,
+          salePrice: payload.salePrice,
+          submenu: payload.submenu,
+          submenus: payload.submenus,
+          show_sizes: payload.show_sizes,
+          release_date: payload.release_date
+        })
+        .eq('id', id)
+        .select();
 
-      console.log('API response status:', response.status);
-      const result = await response.json();
-      console.log('API response body:', result);
+      console.log('Supabase update result:');
+      console.log('  data:', data);
+      console.log('  error:', error);
 
-      if (!response.ok) {
-        throw new Error(result.error || `API error: ${response.status}`);
+      if (error) {
+        console.error('UPDATE FAILED:', error);
+        throw error;
       }
 
-      const updatedData = result;
+      const updatedData = data && data.length > 0 ? data[0] : null;
       if (!updatedData) {
-        console.error('UPDATE ERROR: API returned no data!');
-        throw new Error('Update returned no data from server');
+        console.error('UPDATE ERROR: No data returned after update');
+        throw new Error('Update returned no data - may be RLS policy issue');
       }
 
-      console.log('Updated data from API:', updatedData);
-
+      console.log('Updated data:', updatedData);
       const mapped = mapProductFromDb(updatedData);
       console.log('Mapped product:', mapped);
 
       setProducts(prev => {
         const updated = prev.map(p => p.id === id ? mapped : p);
-        console.log('Updated local state. New product list length:', updated.length);
+        console.log('Updated local state');
         return updated;
       });
 
