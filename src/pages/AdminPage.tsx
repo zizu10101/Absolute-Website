@@ -942,7 +942,7 @@ function AdminPageInner() {
         if (error.isDuplicate) {
           setEditErrorMessage(error.message);
         } else if (error.message?.includes('RLS') || error.message?.toLowerCase().includes('row-level security')) {
-          setEditErrorMessage("SUPABASE ROW-LEVEL SECURITY BLOCK! Please add 'SUPABASE_SERVICE_ROLE_KEY' to your Google AI Studio Settings using your Supabase project's service_role API credential.");
+          setEditErrorMessage('RLS policy error: Check Supabase RLS settings to allow product updates');
         } else {
           setEditErrorMessage('Failed to update product: ' + (error.message || error));
         }
@@ -3657,12 +3657,12 @@ function AdminPageInner() {
                         </div>
                         
                         <div className="text-[10px] space-y-2 text-red-950 font-bold leading-normal uppercase tracking-wider pl-6 select-all">
-                          <p className="text-[#b90014] font-black underline">💡 Fix inside Google AI Studio Build (10 seconds):</p>
+                          <p className="text-[#b90014] font-black underline">💡 Fix: Check Supabase RLS Policy</p>
                           <ol className="list-decimal pl-4 space-y-1 text-[9.5px]">
-                            <li>Open the <span className="font-extrabold text-[#b90014]">Settings</span> menu (located at the top right of the Google AI Studio console).</li>
-                            <li>Add a new secret environment variable named: <span className="font-mono bg-red-100 px-1 py-0.5 rounded select-all font-black text-[#b90014]">SUPABASE_SERVICE_ROLE_KEY</span></li>
-                            <li>Set its value to your Supabase Project's <span className="underline font-black text-[#b90014]">service_role</span> API token (find this inside your Supabase.com Dashboard under Settings &gt; API).</li>
-                            <li>Submit &amp; Reload. The app's Node framework will securely pull the key to execute admin-level database edits instantly!</li>
+                            <li>Go to your <span className="font-extrabold text-[#b90014]">Supabase Dashboard</span> and navigate to the products table.</li>
+                            <li>Check the <span className="underline font-black text-[#b90014]">RLS (Row Level Security)</span> policies.</li>
+                            <li>Ensure policies allow authenticated or public access for UPDATE operations.</li>
+                            <li>If RLS is disabled, the issue may be elsewhere - check browser console for details.</li>
                           </ol>
                         </div>
                       </div>
