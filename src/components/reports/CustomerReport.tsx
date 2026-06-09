@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { supabase } from '../../supabase';
 import { Download, RefreshCw } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
+import { getEasternRangeUTC } from '../../utils/timezoneUtils';
 
 interface CustomerReportProps {
   logo?: string;
@@ -31,11 +32,10 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Use UTC date range for timezone-independent filtering
-      const startUTC = `${dateFrom}T00:00:00.000Z`;
-      const endUTC = `${dateTo}T23:59:59.999Z`;
+      // Convert Eastern time range to UTC
+      const { start, end } = getEasternRangeUTC(dateFrom, dateTo);
 
-      console.log('📊 CUSTOMERS REPORT: Fetching data from', startUTC, 'to', endUTC);
+      console.log('📊 CUSTOMERS REPORT: Fetching data from', start, 'to', end);
 
       // Get all customers
       const { data: customersData, error: customersError } = await supabase
@@ -46,13 +46,13 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
       if (customersError) throw customersError;
       console.log('👥 Customers found:', customersData?.length || 0);
 
-      // Get transactions in date range - exclude voided
+      // Get transactions in Eastern date range (converted to UTC) - exclude voided
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select('*')
         .neq('status', 'voided')
-        .gte('created_at', startUTC)
-        .lte('created_at', endUTC);
+        .gte('created_at', start)
+        .lte('created_at', end);
 
       if (transactionsError) throw transactionsError;
       console.log('💳 Transactions found:', transactionsData?.length || 0, 'with customer_id:', transactionsData?.filter(t => t.customer_id).length);

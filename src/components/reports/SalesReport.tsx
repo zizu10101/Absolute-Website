@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { supabase } from '../../supabase';
 import { Download, RefreshCw, Printer } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
+import { getEasternDayRange, getEasternRangeUTC } from '../../utils/timezoneUtils';
 
 interface SalesReportProps {
   logo?: string;
@@ -36,7 +37,7 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const getDateRange = () => {
-    // Use UTC date strings for timezone-independent filtering
+    // Convert Eastern time dates to UTC for queries
     const today = new Date().toISOString().split('T')[0];
 
     let fromDate: string;
@@ -72,23 +73,20 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
         fromDate = today;
     }
 
-    // Return UTC date ranges (full day in UTC)
-    return {
-      from: `${fromDate}T00:00:00.000Z`,
-      to: `${toDate}T23:59:59.999Z`
-    };
+    // Convert Eastern time range to UTC
+    return getEasternRangeUTC(fromDate, toDate);
   };
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const { from, to } = getDateRange();
-      console.log('💰 SALES REPORT: Fetching from', from, 'to', to);
+      const { start, end } = getDateRange();
+      console.log('💰 SALES REPORT: Fetching from', start, 'to', end);
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
-        .gte('created_at', from)
-        .lte('created_at', to)
+        .gte('created_at', start)
+        .lte('created_at', end)
         .neq('status', 'voided');
 
       if (error) throw error;

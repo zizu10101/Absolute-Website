@@ -3,6 +3,7 @@ import { CreditCard, Download, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
 import { supabase } from '../../supabase';
+import { getEasternRangeUTC } from '../../utils/timezoneUtils';
 
 interface StoreCredit {
   id: string;
@@ -46,15 +47,14 @@ export function StoreCreditReport() {
   const fetchStoreCredits = async () => {
     setIsLoading(true);
     try {
-      // Use UTC date range for timezone-independent filtering
-      const startUTC = `${dateRange.start}T00:00:00.000Z`;
-      const endUTC = `${dateRange.end}T23:59:59.999Z`;
+      // Convert Eastern time range to UTC
+      const { start, end } = getEasternRangeUTC(dateRange.start, dateRange.end);
 
       const { data, error } = await supabase
         .from('store_credits')
         .select('*, customers(first_name, last_name, email, phone), store_credit_transactions(*)')
-        .gte('created_at', startUTC)
-        .lte('created_at', endUTC);
+        .gte('created_at', start)
+        .lte('created_at', end);
 
       if (error) throw error;
 

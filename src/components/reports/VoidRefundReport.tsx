@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { supabase } from '../../supabase';
 import { Download, RefreshCw } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
+import { getEasternRangeUTC } from '../../utils/timezoneUtils';
 
 interface VoidRefundReportProps {
   logo?: string;
@@ -29,18 +30,17 @@ export const VoidRefundReport: React.FC<VoidRefundReportProps> = ({ logo }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Use UTC date range for timezone-independent filtering
-      const startUTC = `${dateFrom}T00:00:00.000Z`;
-      const endUTC = `${dateTo}T23:59:59.999Z`;
+      // Convert Eastern time range to UTC
+      const { start, end } = getEasternRangeUTC(dateFrom, dateTo);
 
-      console.log('🔄 VOID/REFUND REPORT: Fetching from', startUTC, 'to', endUTC);
+      console.log('🔄 VOID/REFUND REPORT: Fetching from', start, 'to', end);
 
       const { data, error } = await supabase
         .from('transactions')
         .select('*, customers(first_name, last_name)')
         .or(`status.eq.voided,status.eq.refunded`)
-        .gte('created_at', startUTC)
-        .lte('created_at', endUTC)
+        .gte('created_at', start)
+        .lte('created_at', end)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

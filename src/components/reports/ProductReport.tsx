@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { supabase } from '../../supabase';
 import { Download, RefreshCw } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
+import { getEasternRangeUTC } from '../../utils/timezoneUtils';
 
 interface ProductReportProps {
   logo?: string;
@@ -36,18 +37,17 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Use UTC date range for timezone-independent filtering
-      const startUTC = `${dateFrom}T00:00:00.000Z`;
-      const endUTC = `${dateTo}T23:59:59.999Z`;
+      // Convert Eastern time range to UTC
+      const { start, end } = getEasternRangeUTC(dateFrom, dateTo);
 
-      console.log('📦 PRODUCTS REPORT: Fetching from', startUTC, 'to', endUTC);
+      console.log('📦 PRODUCTS REPORT: Fetching from', start, 'to', end);
 
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
         .neq('status', 'voided')
-        .gte('created_at', startUTC)
-        .lte('created_at', endUTC);
+        .gte('created_at', start)
+        .lte('created_at', end);
 
       if (error) throw error;
       console.log('📦 Transactions fetched:', data?.length);

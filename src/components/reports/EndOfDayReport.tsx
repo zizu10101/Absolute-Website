@@ -4,6 +4,7 @@ import { Download, RefreshCw } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
 import { useSettings } from '../../context/SettingsContext';
 import { generateThermalReceiptHTML } from '../../utils/thermalReceipt';
+import { getEasternDayRange } from '../../utils/timezoneUtils';
 
 interface EndOfDayReportProps {
   logo?: string;
@@ -39,20 +40,18 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Use UTC date range for consistent timezone handling
-      // selectedDate is YYYY-MM-DD format, querying full UTC day
-      const startUTC = `${selectedDate}T00:00:00.000Z`;
-      const endUTC = `${selectedDate}T23:59:59.999Z`;
+      // Convert Eastern time day to UTC range
+      const { start, end } = getEasternDayRange(selectedDate);
 
-      console.log('📅 EOD Report: Date selected:', selectedDate);
-      console.log('📅 EOD Report: UTC range:', startUTC, 'to', endUTC);
+      console.log('📅 EOD Report: Date selected (Eastern):', selectedDate);
+      console.log('📅 EOD Report: UTC range:', start, 'to', end);
 
-      // Fetch transactions in UTC range
+      // Fetch transactions in Eastern day range (converted to UTC)
       const { data: txData, error: txError } = await supabase
         .from('transactions')
         .select('*')
-        .gte('created_at', startUTC)
-        .lte('created_at', endUTC)
+        .gte('created_at', start)
+        .lte('created_at', end)
         .neq('status', 'voided');
 
       if (txError) throw txError;
@@ -69,12 +68,12 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
       }
       setTransactions(txData || []);
 
-      // Fetch gift card data in UTC range
+      // Fetch gift card data in Eastern day range (converted to UTC)
       const { data: gcData, error: gcError } = await supabase
         .from('gift_card_transactions')
         .select('*, gift_cards(*)')
-        .gte('created_at', startUTC)
-        .lte('created_at', endUTC);
+        .gte('created_at', start)
+        .lte('created_at', end);
 
       if (!gcError) {
         const sold = gcData?.filter(g => g.transaction_type === 'issue') || [];
