@@ -94,9 +94,10 @@ export const mapProductFromDb = (p: any): Product => {
 
 export const mapProductToDb = (p: any): any => {
   if (!p) return p;
-  const dbProduct = { ...p };
-  if (p.showSizes !== undefined) {
-    dbProduct.show_sizes = p.showSizes;
+  const { showSizes, ...rest } = p;
+  const dbProduct = { ...rest };
+  if (showSizes !== undefined) {
+    dbProduct.show_sizes = showSizes;
   }
   return dbProduct;
 };
