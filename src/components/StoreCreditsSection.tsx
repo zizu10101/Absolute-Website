@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 
 interface StoreCreditData {
   id: string;
+  card_number?: string;
   customer_id: string;
   amount: number;
   remaining_balance: number;
@@ -48,7 +49,7 @@ export const StoreCreditsSection: React.FC<StoreCreditionsSectionProps> = ({ cus
     try {
       const { data, error } = await supabase
         .from('store_credits')
-        .select('*')
+        .select('id, card_number, customer_id, amount, remaining_balance, reason, is_active, created_at, store_credit_transactions(*)')
         .eq('customer_id', customerId);
 
       if (error) throw error;
@@ -102,8 +103,8 @@ export const StoreCreditsSection: React.FC<StoreCreditionsSectionProps> = ({ cus
                 className="w-full px-4 py-3 bg-white hover:bg-zinc-50 flex items-center justify-between text-left transition-all"
               >
                 <div className="flex-1">
-                  <div className="text-sm font-bold text-zinc-900">
-                    Credit #{credit.id.slice(0, 8)}
+                  <div className="text-sm font-bold text-zinc-900 font-mono">
+                    {credit.card_number || `Credit #${credit.id.slice(0, 8)}`}
                   </div>
                   <div className="text-xs text-zinc-600 mt-1">{credit.reason}</div>
                 </div>
@@ -130,6 +131,10 @@ export const StoreCreditsSection: React.FC<StoreCreditionsSectionProps> = ({ cus
               {expandedId === credit.id && (
                 <div className="px-4 py-3 bg-zinc-50 border-t border-zinc-200 space-y-3">
                   <div className="text-xs space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-zinc-600">Card Number:</span>
+                      <span className="font-mono font-bold text-blue-700">{credit.card_number || 'N/A'}</span>
+                    </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-600">Issued:</span>
                       <span>{new Date(credit.created_at).toLocaleDateString()}</span>

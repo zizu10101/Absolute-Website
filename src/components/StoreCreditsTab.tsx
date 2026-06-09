@@ -7,6 +7,7 @@ type SCTab = 'issue' | 'history';
 
 interface StoreCredit {
   id: string;
+  card_number?: string;
   customer_id: string;
   amount: number;
   remaining_balance: number;
@@ -226,7 +227,11 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
     const query = historySearchQuery.toLowerCase();
     const customerName =
       `${credit.customers?.first_name || ''} ${credit.customers?.last_name || ''}`.toLowerCase();
-    return customerName.includes(query) || credit.id.toLowerCase().includes(query);
+    return (
+      customerName.includes(query) ||
+      credit.id.toLowerCase().includes(query) ||
+      (credit.card_number && credit.card_number.toLowerCase().includes(query))
+    );
   });
 
   return (
@@ -427,7 +432,7 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
             <Search size={14} className="absolute left-3 top-3 text-zinc-400" />
             <input
               type="text"
-              placeholder="Search by customer or ID..."
+              placeholder="Search by customer, card #, or ID..."
               value={historySearchQuery}
               onChange={(e) => setHistorySearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none"

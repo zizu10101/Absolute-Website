@@ -279,6 +279,10 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
     try {
       console.log('🔄 [Returns] Starting return processing...');
+
+      // Capture SC card number to pass to generateReturnReceipt
+      let issuedSCCardNumber: string | null = null;
+
       const selectedItems = getSelectedItems();
       if (selectedItems.length === 0) {
         setError('No items selected for return');
@@ -387,6 +391,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         }
 
         // Store the SC card number for the receipt
+        issuedSCCardNumber = scData.card_number;
         setIssuedStoreCreditCardNumber(scData.card_number);
 
         setCompletionData({
@@ -447,7 +452,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       }
 
       setCurrentStep('complete');
-      generateReturnReceipt();
+      generateReturnReceipt(issuedSCCardNumber || undefined);
       // Call onComplete callback if provided (for customer profile refresh)
       setTimeout(() => {
         if (onComplete) onComplete();
@@ -462,8 +467,11 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     }
   };
 
-  const generateReturnReceipt = () => {
+  const generateReturnReceipt = (scCardNumber?: string) => {
     if (!transaction) return;
+
+    console.log('generateReturnReceipt called with SC#:', scCardNumber);
+    console.log('refundMethod:', refundMethod);
 
     const selectedItems = getSelectedItems();
     const amounts = calculateReturnAmount();
@@ -471,48 +479,66 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       ? `${transaction.customers.first_name} ${transaction.customers.last_name}`
       : 'Walk-in';
 
-    let html: string;
+    // ALWAYS print return receipt first (showing what was returned)
+    console.log('📋 [Returns] Generating return receipt...');
+    const returnReceiptData: any = {
+      transactionId: transaction.id,
+      invoiceNumber: transaction.invoice_number,
+      barcodeValue: transaction.invoice_number,
+      customerName,
+      items: selectedItems.map(item => ({
+        name: `${item.name} (Return)`,
+        quantity: item.returnQuantity,
+        price: item.pricePerUnit,
+        size: item.size,
+      })),
+      subtotal: amounts.subtotal,
+      hst: amounts.tax,
+      total: amounts.total,
+      paymentMethod: refundMethod === 'store-credit' ? 'Store Credit' : `${transaction.method} - RETURN`,
+      createdAt: new Date(),
+      status: 'return',
+    };
 
-    // If store credit was issued, use the dedicated store credit receipt
-    if (refundMethod === 'store-credit' && issuedStoreCreditCardNumber) {
-      console.log('📋 [Returns] Generating Store Credit receipt with SC#:', issuedStoreCreditCardNumber);
+    const returnHtml = generateThermalReceiptHTML(returnReceiptData);
 
-      const scReceiptData: any = {
-        customerName,
-        storeCreditCardNumber: issuedStoreCreditCardNumber,
-        storeCreditAmount: amounts.total,
-        storeCreditReason: 'Product Return',
-        transactionId: transaction.id,
-        createdAt: new Date(),
-      };
-
-      html = generateStoreCreditReceiptHTML(scReceiptData);
-    } else {
-      // Regular return receipt for refund to original payment method
-      const receiptData: any = {
-        transactionId: transaction.id,
-        customerName,
-        items: selectedItems.map(item => ({
-          name: `${item.name} (Return)`,
-          quantity: item.returnQuantity,
-          price: item.pricePerUnit,
-          size: item.size,
-        })),
-        subtotal: amounts.subtotal,
-        hst: amounts.tax,
-        total: amounts.total,
-        paymentMethod: `${transaction.method} - RETURN`,
-        createdAt: new Date(),
-        status: 'return',
-      };
-
-      html = generateThermalReceiptHTML(receiptData);
+    // Open and print the return receipt
+    console.log('🖨️ [Returns] Printing return receipt');
+    const returnWin = window.open('', '_blank');
+    if (returnWin) {
+      returnWin.document.write(returnHtml);
+      returnWin.document.close();
     }
 
-    const win = window.open('', '_blank');
-    if (win) {
-      win.document.write(html);
-      win.document.close();
+    // If store credit, print SC receipt as second receipt after delay
+    if (refundMethod === 'store-credit' && scCardNumber) {
+      setTimeout(() => {
+        console.log('📋 [Returns] Generating Store Credit receipt with SC#:', scCardNumber);
+
+        const scReceiptData: any = {
+          customerName,
+          storeCreditCardNumber: scCardNumber,
+          storeCreditAmount: amounts.total,
+          storeCreditBalance: amounts.total,
+          storeCreditReason: 'Product Return',
+          transactionId: transaction.id,
+          invoiceNumber: undefined,
+          createdAt: new Date(),
+        };
+
+        console.log('SC Receipt data:', scReceiptData);
+        console.log('SC card number:', scCardNumber);
+
+        const scHtml = generateStoreCreditReceiptHTML(scReceiptData);
+
+        // Open and print the SC receipt
+        console.log('🖨️ [Returns] Printing Store Credit receipt');
+        const scWin = window.open('', '_blank');
+        if (scWin) {
+          scWin.document.write(scHtml);
+          scWin.document.close();
+        }
+      }, 1500); // Delay so return receipt prints first
     }
   };
 
@@ -862,9 +888,13 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                       : `Refund of $${completionData.amount.toFixed(2)} has been processed to ${completionData.method}`}
                   </p>
                   {completionData.type === 'store-credit' && completionData.cardNumber && (
-                    <p className="text-sm text-gray-600 mt-3 font-mono bg-gray-100 p-2 rounded border-2 border-blue-300">
-                      Card #: <span className="font-bold text-blue-700">{completionData.cardNumber}</span>
-                    </p>
+                    <div className="mt-4 p-4 bg-blue-50 border-3 border-blue-500 rounded-lg">
+                      <p className="text-xs text-gray-600 font-semibold mb-2">STORE CREDIT CARD NUMBER</p>
+                      <p className="text-2xl font-mono font-bold text-blue-700 text-center break-all">
+                        {completionData.cardNumber}
+                      </p>
+                      <p className="text-xs text-gray-600 text-center mt-2">Card printed on receipt below</p>
+                    </div>
                   )}
                 </div>
 

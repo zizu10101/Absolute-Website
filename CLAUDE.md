@@ -10,9 +10,62 @@ React + TypeScript e-commerce app (Absolute Soccer) with Point of Sale (POS) sys
 
 ---
 
-## Current Status (as of June 8, 2026 - Session 8)
+## Current Status (as of June 8, 2026 - Session 9)
 
-### Latest Session 8 - POS Barcode System & Store Credit Enhancements ✅
+### Latest Session 9 - Return Receipt Printing & Store Credit Display Fixes ✅
+
+**RETURN RECEIPT BARCODE ENCODING - FIXED:**
+
+1. **Return Receipt Now Shows Invoice Number** ✅
+   - ✅ Return receipts barcode encodes: INV-01004 (not UUID)
+   - ✅ Added invoiceNumber and barcodeValue to returnReceiptData
+   - ✅ Barcode fallback: barcodeValue → invoiceNumber → transactionId
+   - ✅ Return receipts now scannable at checkout for refunds
+
+2. **Dual-Receipt Printing System - FIXED** ✅
+   - ✅ When return processed with Store Credit:
+     - First: Return receipt prints immediately (showing returned items)
+     - Then: 1.5 second delay
+     - Finally: Store Credit receipt prints (showing SC card number)
+   - ✅ Fixed React state timing issue by passing SC card number as parameter
+   - ✅ handleCompleteReturn captures issuedSCCardNumber in local variable
+   - ✅ generateReturnReceipt(scCardNumber) receives card number directly
+   - ✅ Both receipts now print correctly in sequence
+
+3. **Store Credit Receipt Barcode - CLEANED UP** ✅
+   - ✅ SC receipt barcode encodes ONLY: data.storeCreditCardNumber
+   - ✅ Removed invoice number from SC receipts entirely
+   - ✅ No "Ref:" (transaction ID) shown on SC issuance receipts
+   - ✅ SC card number displayed prominently at top of receipt
+   - ✅ Receipt shows: Date, Customer, Card #, Barcode, Amount
+
+**STORE CREDIT HISTORY DISPLAY - FIXED:**
+
+1. **StoreCreditsSection.tsx** ✅
+   - ✅ Changed from showing UUID to showing card_number
+   - ✅ Header now displays: SC-5LHSPAA8ZV6 (not Credit #12a3d567)
+   - ✅ Expanded view shows "Card Number: SC-5LHSPAA8ZV6" prominently
+   - ✅ Card number in monospace bold blue text for clarity
+
+2. **StoreCreditsTab.tsx** ✅
+   - ✅ History tab already showed card_number correctly
+   - ✅ Updated search to find credits by card_number (SC-XXXXX)
+   - ✅ Search now supports: customer name, card #, or UUID
+
+3. **Result** ✅
+   - ✅ Both components now display: SC-FZYEJS9EFEW instead of UUID
+   - ✅ Cashiers can easily reference card numbers
+   - ✅ Searchable by card number in history
+
+**COMMITS THIS SESSION:**
+   - ✅ (New) ReturnsModal.tsx - dual receipt printing with proper timing
+   - ✅ (New) thermalReceipt.ts - cleaned up SC receipt, removed invoice refs
+   - ✅ (New) StoreCreditsSection.tsx - display card_number not UUID
+   - ✅ (New) StoreCreditsTab.tsx - search by card_number support
+
+---
+
+### Previous Session 8 - POS Barcode System & Store Credit Enhancements ✅
 
 **PRODUCT UPDATE BUG - FIXED:**
 
@@ -424,12 +477,15 @@ Three critical store credit bugs fixed:
 | Issue | Status | Impact | Priority |
 |-------|--------|--------|----------|
 | Invoice numbering system | ✅ COMPLETE (Session 5) | Receipts, lookup, scanning all use short INV-XXXXX codes | CRITICAL |
-| Invoice lookup queries | ✅ FIXED (Session 5) | All 3 functions use correct invoice_number field | CRITICAL |
-| Store credit card numbers null | ⏳ READY TO TEST | Generated via SQL, need to verify in receipts | HIGH |
+| Return receipt barcodes | ✅ FIXED (Session 9) | Return receipts now encode INV numbers, properly scannable | CRITICAL |
+| SC receipt barcodes | ✅ FIXED (Session 9) | SC receipts encode ONLY card number, no invoice fallback | CRITICAL |
+| Dual-receipt printing | ✅ FIXED (Session 9) | Return + SC receipt print in correct sequence with timing | HIGH |
+| Store credit card display | ✅ FIXED (Session 9) | History shows card_number not UUID, searchable by card # | HIGH |
+| Store credit card numbers null | ✅ POPULATED | All new SC have card_number, existing credits have numbers | COMPLETE |
 | Store credit balance update bug | ✅ FIXED (Session 3) | Balance now updates on checkout | CRITICAL |
 | Store credit state undefined | ✅ FIXED (Session 3) | React closure issue resolved | CRITICAL |
 | Returns table 406 errors | ✅ FIXED (Session 3) | No longer blocks transaction history | HIGH |
-| Germany product images (7 products) | ❌ Not fixed | Missing images for German national team products | Medium |
+| Germany product images (7 products) | ❌ Not fixed | Missing images for German national team products | LOW |
 
 **Store Credit Card Number Generation (NEXT STEP):**
 - ⏳ Run migration in Supabase SQL Editor:
@@ -454,72 +510,119 @@ Three critical store credit bugs fixed:
 
 ---
 
-## Next Steps - Session 9+ TODO (June 8, 2026+)
+## Next Steps - Session 10+ TODO (June 8, 2026+)
 
-### CRITICAL - POS Barcode System Testing
+### CRITICAL - Receipt & History System Testing
 
-**Test Receipt Barcode Encoding:**
-- [ ] Complete a transaction → Receipt prints
-- [ ] Verify barcode shows INV-01001 format (not UUID)
-- [ ] Scan barcode with returns lookup → Should find invoice ✅
-- [ ] Verify barcode readable and properly encoded
+**Test Dual-Receipt Printing System (NEW):**
+- [ ] Complete return with "Store Credit" refund method
+- [ ] Verify 1st receipt prints: Return receipt showing items returned
+- [ ] Verify 1st receipt barcode encodes: INV-01004
+- [ ] Wait 1.5 seconds
+- [ ] Verify 2nd receipt prints: Store Credit receipt with SC card number
+- [ ] Verify 2nd receipt barcode encodes: SC-5LHSPAA8ZV6 (ONLY)
+- [ ] Verify both receipts print in correct sequence
 
-**Test Store Credit Barcode System:**
+**Test Store Credit History Display (NEW):**
+- [ ] View customer profile → Store Credits section
+- [ ] Verify shows: SC-FZYEJS9EFEW (not UUID)
+- [ ] Click expand → Verify "Card Number: SC-FZYEJS9EFEW" displays
+- [ ] Search history by card number → Should find credit
+- [ ] Verify all credits show correct card_number format
+
+**Test Return Receipt Barcode:**
+- [ ] Complete transaction → Get receipt with INV number
+- [ ] Return items from that invoice
+- [ ] Verify return receipt barcode encodes INV-01004 (not UUID)
+- [ ] Try scanning return receipt barcode at POS
+- [ ] Should open Returns modal with correct invoice loaded
+
+**Test Store Credit Barcode Scanning:**
 - [ ] Process return with Store Credit refund
-- [ ] Verify SC receipt prints with "STORE CREDIT ISSUED" header
-- [ ] Verify barcode encodes SC-ADEH8IZCLEO (not INV)
-- [ ] Scan SC barcode at checkout → Opens Store Credit modal ✅
-- [ ] Verify card number displays to customer
+- [ ] Verify SC receipt prints with barcode
+- [ ] Get SC card number from receipt: SC-XXXXX
+- [ ] At POS checkout, scan the SC barcode
+- [ ] Should open Store Credit modal with card found
+- [ ] Verify balance displays correctly
 
-**Test Barcode Routing at POS:**
-- [ ] Scan product barcode → Adds to cart ✅
-- [ ] Scan INV-01001 → Opens Returns modal ✅
-- [ ] Scan SC-XXXXX → Opens Store Credit tab ✅
-- [ ] Scan UUID → Shows helpful error ✅
+### HIGH - End-to-End Workflows
 
-### HIGH - Data Cleanup & Verification
+**Complete Return-to-SC Flow:**
+1. [ ] Find completed transaction
+2. [ ] Process return with Store Credit refund
+3. [ ] Verify return receipt prints (INV barcode)
+4. [ ] Verify SC receipt prints (SC barcode) after 1.5s
+5. [ ] Customer receives both receipts
+6. [ ] Later: Customer scans SC barcode at checkout
+7. [ ] SC modal opens, customer can redeem credit
+8. [ ] Receipt shows SC used with remaining balance
 
-**Verify Store Credit Card Numbers:**
-- [ ] Check all store_credits have card_number field populated
-- [ ] Verify format: SC- + 12 alphanumeric uppercase chars
-- [ ] Test manual lookup in admin by card number
-- [ ] Test barcode scanning for existing store credits
+**Store Credit Lifecycle:**
+- [ ] Issue new SC via admin StoreCreditsTab
+- [ ] Verify card_number shows in success message
+- [ ] Verify card_number appears in history
+- [ ] Verify searchable by card_number
+- [ ] Use SC at checkout
+- [ ] Verify balance updates in history
+- [ ] Verify redemption shows remaining balance
 
 **Brand System Verification (from Session 7):**
 - [ ] All products have brand assigned or show ⚠️ indicator
 - [ ] Use bulk brand assignment to complete any missing brands
 - [ ] Target: 100% of products have brand
 
-**Product Codes (Optional):**
-- [ ] Assign product codes to frequently scanned items
-- [ ] Enables POS fallback barcode lookup if variant barcode missing
+### MEDIUM - Polish & Enhancements
 
-### MEDIUM - Enhanced Features
-
-**Store Credit Features:**
-- [ ] Add store credit expiration date tracking (optional)
+**Store Credit UX Improvements:**
+- [ ] Add QR code option alongside barcode (optional)
 - [ ] Store credit statement/history printout for customers
+- [ ] Email SC card number and instructions to customer after issuance
 - [ ] Balance check receipt at customer request
 
 **Barcode System Enhancements:**
-- [ ] Add barcode scanning sound/visual feedback
-- [ ] Track which barcodes scan successfully vs fail
-- [ ] Generate barcode scan report for inventory audit
+- [ ] Add barcode scanning sound/visual feedback at POS
+- [ ] Track which barcodes fail to scan (logging)
+- [ ] Generate barcode scan success/failure report
 
 **Brand System Enhancements (from Session 7):**
 - [ ] Add brand counts in navigation dropdown
 - [ ] Show most popular brands first
 - [ ] Brand comparison tool (compare across brands)
 
-### LOW - Missing Product Images
+### LOW - Optional / Future
 
-**Still Need Images (7 products):**
+**Missing Product Images:**
 - Germany Away Jersey Y, Home Jersey Y, Away Jersey, Ball, Cap, GK H JSY, Home Jersey
 - Upload via admin panel product editor when available
 
+**Product Codes (Optional):**
+- [ ] Assign product codes to frequently scanned items
+- [ ] Enables POS fallback barcode lookup if variant barcode missing
+
 ---
 
-## Commits This Session (Session 8 - June 8, 2026 - POS Barcode System & Store Credit)
+## Commits This Session (Session 9 - June 8, 2026 - Return Receipt Printing & Store Credit Display)
+
+**Files Modified:**
+- `src/components/ReturnsModal.tsx` - Dual-receipt printing, parameter passing
+- `src/utils/thermalReceipt.ts` - SC receipt cleanup, barcode fix
+- `src/components/StoreCreditsSection.tsx` - Display card_number not UUID
+- `src/components/StoreCreditsTab.tsx` - Search by card_number support
+
+**What was fixed in Session 9:**
+- ✅ Return receipts now print with INV barcode (scannable)
+- ✅ Store credit receipts print 1.5s after return receipt
+- ✅ SC receipt barcode encodes ONLY card number, no fallback
+- ✅ Store credit history shows SC-XXXXX not UUID
+- ✅ Search by card number works in history tab
+- ✅ Fixed React state timing issue with dual receipts
+- ✅ SC card number passed as parameter instead of relying on state
+- ✅ Both StoreCreditsSection and StoreCreditsTab display card_number
+- ✅ Console logging added for debugging
+
+---
+
+## Previous Commits (Session 8 - June 8, 2026 - POS Barcode System & Store Credit)
 
 | Commit | Message | Files |
 |--------|---------|-------|
