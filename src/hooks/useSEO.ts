@@ -63,11 +63,5 @@ export function useSEO(seoSettings: SEO) {
     if (seoSettings.canonicalUrl) {
       canonical.href = seoSettings.canonicalUrl;
     }
-
-      title: seoSettings.title,
-      description: seoSettings.description,
-      keywords: seoSettings.keywords,
-      canonicalUrl: seoSettings.canonicalUrl
-    });
   }, [seoSettings]);
 }

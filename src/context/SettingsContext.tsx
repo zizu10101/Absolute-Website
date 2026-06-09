@@ -117,11 +117,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             }, {});
           }
 
-          // Fetch relational navigation data
+          // Fetch relational navigation data (only if tables have content)
           const { data: menus, error: menusError } = await supabase.from('navigation_menus').select('*').order('order_index');
           const { data: items, error: itemsError } = await supabase.from('navigation_items').select('*').order('order_index');
 
-          if (!menusError && !itemsError && menus && items) {
+          // Use relational tables only if they have data
+          if (!menusError && !itemsError && menus && menus.length > 0 && items && items.length > 0) {
             const reconstructedMenus = menus.map(menu => ({
               id: menu.id,
               label: menu.label,
@@ -143,7 +144,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     }))
                 }))
             }));
-            
+
             if (!results) results = {};
             results.navigation = { navigationMenus: reconstructedMenus };
           }
