@@ -739,11 +739,6 @@ export function POSPage() {
     const capturedStoreCredit = storeCredit || selectedStoreCredit;
     const capturedGiftCard = giftCard || selectedGiftCard;
 
-      creditId: capturedStoreCredit?.id,
-      creditAmount: capturedStoreCredit?.amount,
-      creditBalance: capturedStoreCredit?.balance,
-    });
-
     setIsConfirming(true);
     const cartItemsPayload = cart.map(item => ({
       ...item,
@@ -880,11 +875,6 @@ export function POSPage() {
       // Process gift card redemption AFTER transaction is confirmed
       if (capturedGiftCard) {
         try {
-            cardNumber: capturedGiftCard.cardNumber,
-            amount: capturedGiftCard.amount,
-            transactionId: result?.data?.[0]?.id,
-          });
-
           const newBalance = Math.max(0, capturedGiftCard.balance - capturedGiftCard.amount);
           const { error: updateErr } = await supabase
             .from('gift_cards')
