@@ -35,8 +35,6 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
       // Convert Eastern time range to UTC
       const { start, end } = getEasternRangeUTC(dateFrom, dateTo);
 
-      console.log('📊 CUSTOMERS REPORT: Fetching data from', start, 'to', end);
-
       // Get all customers
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
@@ -44,7 +42,6 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
         .order('created_at', { ascending: false });
 
       if (customersError) throw customersError;
-      console.log('👥 Customers found:', customersData?.length || 0);
 
       // Get transactions in Eastern date range (converted to UTC) - exclude voided
       const { data: transactionsData, error: transactionsError } = await supabase
@@ -55,10 +52,6 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
         .lte('created_at', end);
 
       if (transactionsError) throw transactionsError;
-      console.log('💳 Transactions found:', transactionsData?.length || 0, 'with customer_id:', transactionsData?.filter(t => t.customer_id).length);
-      if (transactionsData && transactionsData.length > 0) {
-        console.log('💳 First transaction sample:', JSON.stringify(transactionsData[0], null, 2));
-      }
 
       // Aggregate customer data
       const customerMap: Record<string, Customer> = {};

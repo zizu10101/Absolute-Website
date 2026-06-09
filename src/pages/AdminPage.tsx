@@ -672,7 +672,6 @@ function AdminPageInner() {
 
             let mainImage = row.image;
             if (mainImage.startsWith('data:')) {
-              console.log(`Uploading bulk image for: ${row.name}`);
               const path = `products/bulk_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
               mainImage = await uploadImage(mainImage, path);
             }
@@ -910,20 +909,13 @@ function AdminPageInner() {
           productData.salePrice = isNaN(sPriceNum) ? 0 : sPriceNum;
         }
 
-        console.log('Saving product with images:', productData.image, productData.images);
-        console.log('AdminPage: Calling updateProduct with product ID:', productData.id);
-        console.log('AdminPage: Product data to update:', productData);
 
         const result = await updateProduct(productData);
-        console.log('AdminPage: updateProduct returned:', result);
 
-        console.log('AdminPage: Calling resetProducts to refresh from Supabase...');
         await resetProducts();
-        console.log('AdminPage: resetProducts completed. Fetching updated product from DB...');
 
         // Force fetch the product from Supabase to confirm it was saved
         const refreshedProduct = await fetchProductById(productData.id);
-        console.log('AdminPage: Refreshed product from DB:', refreshedProduct);
 
         if (!refreshedProduct) {
           throw new Error('Product not found in database after update');
@@ -1158,11 +1150,8 @@ function AdminPageInner() {
           }
       }).filter(Boolean);
       
-      console.log("Valid files from DB:", validFileNamesFromDb);
-      console.log("Valid files in bucket:", validFiles.map(f => f.name));
       
       const filesToDelete = validFiles.filter(file => !validFileNamesFromDb.includes(file.name));
-      console.log("Files to delete:", filesToDelete);
 
       if (filesToDelete.length === 0) {
         alert("Bucket is already in sync with database (no redundant files found).");
@@ -1186,12 +1175,9 @@ function AdminPageInner() {
   // Manual sync can be triggered from the "Sync Slider with Bucket" panel or Button by the admin.
 
   const handleDeleteSlide = async (targetIndex: number) => {
-    console.log("handleDeleteSlide clicked", targetIndex);
     
     const imageToDelete = sliderImages[targetIndex];
-    console.log("imageToDelete", imageToDelete);
     if (!imageToDelete) {
-      console.log("No image to delete found at index", targetIndex);
       return;
     }
     
@@ -1202,7 +1188,6 @@ function AdminPageInner() {
     // 2. Remove the URL from DB (via SettingsContext)
     try {
       await setContextSliderImages(finalArray);
-      console.log("Context updated");
     } catch (error) {
       console.error("Failed to update database slider settings:", error);
       alert("Failed to update database.");
@@ -1222,13 +1207,11 @@ function AdminPageInner() {
              path = `slider/${fileName}`;
         }
         
-        console.log("Removing from storage path:", path);
         
         const { error } = await supabase.storage.from('media').remove([path]);
         if (error) {
           console.error("Failed to remove slide from storage:", error);
         } else {
-            console.log("Removed from storage successfully");
         }
       } catch (err) {
         console.error("Storage removal error:", err);
@@ -1278,7 +1261,6 @@ function AdminPageInner() {
                     console.error("Failed to update database slider settings:", error);
                     setSaveErrorMessage("Failed to save image to settings table: " + error.message);
                   } else {
-                    console.log("Database slider settings updated successfully!");
                     setContextSliderImages(finalArray).catch(err => console.error("Context update error:", err));
                   }
                 });
@@ -1423,12 +1405,10 @@ function AdminPageInner() {
   };
 
   const sanitizeNavMenus = async (menus: NavMenu[]): Promise<NavMenu[]> => {
-    console.log('AdminPage: Sanitizing navigation menus (Deep recursion)...');
     const sanitized = await Promise.all(menus.map(async (menu) => {
       const sanitizedSubmenus = await Promise.all(menu.submenus.map(async (submenu) => {
         let sanitizedLogo = submenu.logo;
         if (sanitizedLogo?.startsWith('data:')) {
-          console.log(`AdminPage: Sanitizing submenu logo: ${submenu.heading}`);
           const resized = await resizeImage(sanitizedLogo, 200, 200, 0.8);
           const path = `nav/submenu_${Date.now()}_sanitized`;
           sanitizedLogo = await uploadImage(resized, path);
@@ -1437,7 +1417,6 @@ function AdminPageInner() {
         const sanitizedItems = await Promise.all(submenu.items.map(async (item) => {
           let itemLogo = item.logo;
           if (itemLogo?.startsWith('data:')) {
-            console.log(`AdminPage: Sanitizing item logo: ${item.label}`);
             const resized = await resizeImage(itemLogo, 200, 200, 0.8);
             const path = `nav/item_${Date.now()}_sanitized`;
             itemLogo = await uploadImage(resized, path);
@@ -1457,7 +1436,6 @@ function AdminPageInner() {
     
     if (typeof obj === 'string') {
       if (obj.startsWith('data:')) {
-        console.log('Sanitizing rogue base64 string during save...');
         const path = `sanitized/${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
         // For navigation logos, we want smaller sizes
         const resized = await resizeImage(obj, 800, 800, 0.7);
@@ -1938,7 +1916,6 @@ function AdminPageInner() {
           for (let j = 0; j < menu.submenus.length; j++) {
             const sub = menu.submenus[j];
             if (sub.logo && sub.logo.startsWith('data:image')) {
-              console.log(`Fixing logo at [${i}].submenus[${j}].logo`);
               const path = `nav/auto-fix_${Date.now()}_sub_${i}_${j}`;
               sub.logo = await uploadImage(sub.logo, path);
               fixCount++;
@@ -1947,7 +1924,6 @@ function AdminPageInner() {
               for (let k = 0; k < sub.items.length; k++) {
                 const item = sub.items[k];
                 if (item.logo && item.logo.startsWith('data:image')) {
-                  console.log(`Fixing logo at [${i}].submenus[${j}].items[${k}].logo`);
                   const path = `nav/auto-fix_${Date.now()}_item_${i}_${j}_${k}`;
                   item.logo = await uploadImage(item.logo, path);
                   fixCount++;
@@ -1965,7 +1941,6 @@ function AdminPageInner() {
         return;
       }
 
-      console.log(`Auto-fix complete. Total logos fixed: ${fixCount}`);
       setDraftNavigationMenus(menus);
       
       // Fixed: Removed invalid call to setNavigationMenus
@@ -3552,7 +3527,6 @@ function AdminPageInner() {
                             setCreatedProductVariants(prev => [...prev, payload]);
                           }}
                           onSuccessFinished={() => {
-                            console.log("Local variants registered in matrix!");
                           }}
                         />
                       )}

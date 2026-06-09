@@ -12,7 +12,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [activeColorIdx, setActiveColorIdx] = React.useState<number | null>(null);
   
   if (product.colors && product.colors.length > 0) {
-    console.log(`Product "${product.name}" has ${product.colors.length} color(s)`);
   }
 
   // Find the first image in the gallery that isn't the primary image

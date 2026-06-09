@@ -161,7 +161,6 @@ export function usePOSCart() {
     () => {
       const taxableItems = cart.filter(item => item.taxable !== false);
       if (taxableItems.length < cart.length) {
-        console.log('🎁 Gift card(s) excluded from tax:', cart.filter(item => item.taxable === false).map(i => i.name));
       }
       return cart.reduce((sum, item) => {
         const isTaxable = item.taxable !== false; // Default to taxable if not specified

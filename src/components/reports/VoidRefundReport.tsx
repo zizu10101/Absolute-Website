@@ -33,8 +33,6 @@ export const VoidRefundReport: React.FC<VoidRefundReportProps> = ({ logo }) => {
       // Convert Eastern time range to UTC
       const { start, end } = getEasternRangeUTC(dateFrom, dateTo);
 
-      console.log('🔄 VOID/REFUND REPORT: Fetching from', start, 'to', end);
-
       const { data, error } = await supabase
         .from('transactions')
         .select('*, customers(first_name, last_name)')
@@ -44,7 +42,6 @@ export const VoidRefundReport: React.FC<VoidRefundReportProps> = ({ logo }) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      console.log('🔄 Void/Refund transactions found:', data?.length || 0);
       setTransactions(data || []);
     } catch (error) {
       console.error('Error fetching void/refund data:', error);

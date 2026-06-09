@@ -43,7 +43,6 @@ export const PosTransactionHistory: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchTransactions = useCallback(async () => {
-    console.log("📡 Fetching transactions from Supabase...");
     setIsLoading(true);
     setErrorMsg(null);
     try {
@@ -54,7 +53,6 @@ export const PosTransactionHistory: React.FC = () => {
 
       if (error) throw error;
 
-      console.log("📡 Transactions fetched:", data?.length || 0);
       setTransactions(data || []);
     } catch (e: any) {
       console.error('❌ Transaction fetch error:', e.message, e);
@@ -78,7 +76,6 @@ export const PosTransactionHistory: React.FC = () => {
   };
 
   const filtered = useMemo(() => {
-    console.log("🔍 FILTER: Starting filter with", transactions.length, "transactions, statusFilter:", statusFilter);
     const now = new Date();
     const result = transactions.filter(tx => {
       const d = new Date(tx.created_at);
@@ -94,7 +91,6 @@ export const PosTransactionHistory: React.FC = () => {
 
       // Status filter - include all statuses including voided/refunded when 'all' is selected
       if (statusFilter !== 'all') {
-        console.log("🔍 FILTER: Checking status for tx", tx.id.slice(0, 8), "- tx.status:", tx.status, "statusFilter:", statusFilter, "match?", tx.status === statusFilter);
         if (tx.status !== statusFilter) return false;
       }
 
@@ -109,7 +105,6 @@ export const PosTransactionHistory: React.FC = () => {
 
       return true;
     });
-    console.log("🔍 FILTER: Filtered result:", result.length, "transactions");
     return result;
   }, [transactions, dateFilter, statusFilter, searchQuery, customerMap]);
 

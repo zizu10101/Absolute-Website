@@ -121,7 +121,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Pre-fetch some initial products to speed up first interactions
     const init = async () => {
-      console.log('ProductContext: Initializing products...');
       try {
         await fetchFeaturedProducts();
       } catch (e) {
@@ -169,15 +168,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const fetchAdminProducts = async () => {
     setIsLoading(true);
     try {
-      console.log('ProductContext: Fetching all admin products directly from Supabase...');
-      
+            
       const { data, error } = await supabase
         .from('products')
         .select('id,name,price,category,submenu,submenus,isNewArrival,isOnSale,isFeatured,salePrice,description,image,is_online,show_sizes')
         .order('name', { ascending: true })
         .limit(1000);
 
-      console.log('ProductContext: Supabase fetch results', { dataLength: data?.length, error });
 
       if (error) throw error;
 
@@ -201,7 +198,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const offset = products.length;
-      console.log(`ProductContext: Loading next batch of products (Offset: ${offset})...`);
       
       const { data, error } = await supabase
         .from('products')
@@ -225,7 +221,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const fetchProductsByCategory = async (category?: string, submenu?: string) => {
     setIsLoading(true);
     try {
-      console.log(`ProductContext: Fetching directly from database for category=${category}, submenu=${submenu}`);
 
       // Normalize the same way ProductGridPage does
       const normalize = (s: string) => s.trim().toLowerCase().replace(/-/g, ' ');
@@ -238,7 +233,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       if (data) {
-        console.log(`🔍 ProductContext: Fetched ${data.length} total products from Supabase`);
         let filtered = data;
 
         // Apply category filter client-side with proper normalization
@@ -247,10 +241,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           filtered = filtered.filter(p => {
             const productCat = (p.category || '').trim().toLowerCase().replace(/-/g, ' ');
             const matches = productCat === normalizedCategory;
-            if (matches) console.log(`  ✅ Product "${p.name}" matches category "${normalizedCategory}"`);
             return matches;
           });
-          console.log(`📁 ProductContext: Filtered by category="${category}" (normalized: "${normalizedCategory}"), ${beforeCategory} → ${filtered.length} products`);
         }
 
         // Apply submenu filter client-side with proper normalization
@@ -261,13 +253,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             const hasLegacyMatch = productSubmenu === normalizedSubmenu;
             const hasArrayMatch = Array.isArray(p.submenus) && p.submenus.some(s => normalize(s) === normalizedSubmenu);
             const matches = hasLegacyMatch || hasArrayMatch;
-            if (matches) console.log(`  ✅ Product "${p.name}" matches submenu "${normalizedSubmenu}" (submenu: "${p.submenu}", submenus: ${JSON.stringify(p.submenus)})`);
             return matches;
           });
-          console.log(`🏷️ ProductContext: Filtered by submenu="${submenu}" (normalized: "${normalizedSubmenu}"), ${beforeSubmenu} → ${filtered.length} products`);
         }
 
-        console.log(`✨ ProductContext: Final result: ${filtered.length} products to display`);
 
         const freshMapped = filtered.map(mapProductFromDb);
         setProducts(prev => {
@@ -276,7 +265,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           return Array.from(productMap.values());
         });
       } else {
-        console.log(`⚠️ ProductContext: No data returned from Supabase!`);
       }
     } catch (e) {
       console.error('Failed to fetch products from Supabase:', e);
@@ -287,7 +275,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const fetchProductById = async (id: string): Promise<Product | null> => {
     try {
-      console.log(`ProductContext: Fetching product by id=${id} directly from Supabase`);
       const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
       if (data && !error) {
         const mapped = mapProductFromDb(data as Product);
@@ -394,8 +381,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProduct = async (product: Product) => {
-    console.log('=== UPDATE PRODUCT START ===');
-    console.log('Updating product ID:', product.id);
 
     const { id, ...rest } = product as any;
 
@@ -420,9 +405,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       release_date: rest.release_date || null
     };
 
-    console.log('Payload before cleanup:', payload);
     Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
-    console.log('Payload after cleanup:', payload);
 
     try {
       // Check for duplicate product code on update (if code changed)
@@ -445,7 +428,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       }
 
       // Direct Supabase call - works on Vercel where /api/ endpoints don't exist
-      console.log('Calling Supabase update with payload:', payload);
       const { data, error } = await supabase
         .from('products')
         .update({
@@ -470,9 +452,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         .eq('id', id)
         .select();
 
-      console.log('Supabase update result:');
-      console.log('  data:', data);
-      console.log('  error:', error);
 
       if (error) {
         console.error('UPDATE FAILED:', error);
@@ -485,18 +464,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         throw new Error('Update returned no data - may be RLS policy issue');
       }
 
-      console.log('Updated data:', updatedData);
       const mapped = mapProductFromDb(updatedData);
-      console.log('Mapped product:', mapped);
 
       setProducts(prev => {
         const updated = prev.map(p => p.id === id ? mapped : p);
-        console.log('Updated local state');
         return updated;
       });
 
       clearProductCache();
-      console.log('=== UPDATE PRODUCT SUCCESS ===');
       return mapped;
     } catch (err: any) {
       console.error('=== UPDATE PRODUCT FAILED ===');
@@ -511,7 +486,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
-      console.log(`Product ${id} deleted successfully via Supabase`);
     } catch (e: any) {
       console.error('Delete product failed:', e);
       // Restore product list on failure

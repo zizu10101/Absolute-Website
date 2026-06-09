@@ -35,7 +35,6 @@ export const CustomerGiftCards: React.FC<CustomerGiftCardsProps> = ({ customerId
     setIsLoading(true);
     setError(null);
 
-    console.log('🎁 Fetching gift cards for customer:', customerId);
 
     try {
       const { data, error } = await supabase
@@ -52,14 +51,12 @@ export const CustomerGiftCards: React.FC<CustomerGiftCardsProps> = ({ customerId
         .eq('customer_id', customerId)
         .order('created_at', { ascending: false });
 
-      console.log('📦 Gift cards response:', { data, error });
 
       if (error) {
         console.error('❌ Gift cards fetch error:', error);
         throw error;
       }
 
-      console.log(`✅ Found ${data?.length || 0} gift cards for customer ${customerId}`);
       setGiftCards(data || []);
     } catch (e: any) {
       console.error('❌ Failed to fetch gift cards:', e);

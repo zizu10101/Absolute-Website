@@ -23,7 +23,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      console.log('AuthContext: Fallback timer elapsed, forcing isLoading = false');
       setIsLoading(false);
     }, 2500);
 

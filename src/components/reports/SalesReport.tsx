@@ -81,7 +81,6 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
     setIsLoading(true);
     try {
       const { start, end } = getDateRange();
-      console.log('💰 SALES REPORT: Fetching from', start, 'to', end);
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -90,18 +89,6 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
         .neq('status', 'voided');
 
       if (error) throw error;
-      console.log('💰 Transactions fetched:', data?.length || 0);
-      if (data && data.length > 0) {
-        console.log('💰 All transactions payment methods:', data.map(t => ({
-          id: t.id.slice(0, 8),
-          status: t.status,
-          method: `"${t.method}"`,
-          methodType: typeof t.method,
-          amount: t.total_amount
-        })));
-      }
-      console.log('📊 Completed:', data?.filter(t => t.status === 'completed').length);
-      console.log('📊 Refunded:', data?.filter(t => t.status === 'refunded').length);
       setTransactions(data || []);
     } catch (error) {
       console.error('Error fetching sales data:', error);

@@ -154,7 +154,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         ? input
         : 'INV-' + input.padStart(5, '0');
 
-      console.log('Looking up invoice:', normalizedInvoice);
 
       const { data, error } = await supabase
         .from('transactions')
@@ -162,7 +161,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         .eq('invoice_number', normalizedInvoice)
         .maybeSingle();
 
-      console.log('Result:', data, error);
 
       if (!data) {
         setError(`Invoice ${normalizedInvoice} not found`);
@@ -278,7 +276,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     setError(null);
 
     try {
-      console.log('🔄 [Returns] Starting return processing...');
 
       // Capture SC card number to pass to generateReturnReceipt
       let issuedSCCardNumber: string | null = null;
@@ -290,19 +287,15 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         return;
       }
 
-      console.log('✅ [Returns] Selected items:', selectedItems);
       const amounts = calculateReturnAmount();
-      console.log('✅ [Returns] Calculated amounts:', amounts);
 
       // Determine if full or partial return
       const totalOriginalQty = returnItems.reduce((sum, item) => sum + item.originalQuantity, 0);
       const totalReturnedQty = selectedItems.reduce((sum, item) => sum + item.returnQuantity, 0);
       const isFullReturn = totalReturnedQty === totalOriginalQty;
       const newTransactionStatus = isFullReturn ? 'returned' : 'partial_return';
-      console.log('✅ [Returns] Status will be:', newTransactionStatus);
 
       // 1. Create return record
-      console.log('🔄 [Returns] Creating return record...');
       const { data: returnRecord, error: returnError } = await supabase
         .from('returns')
         .insert({
@@ -321,19 +314,15 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         console.error('❌ [Returns] Error creating return record:', returnError);
         throw returnError;
       }
-      console.log('✅ [Returns] Return record created:', returnRecord.id);
 
       // Update transaction status
-      console.log('🔄 [Returns] Updating transaction status...');
       const { error: statusError } = await supabase
         .from('transactions')
         .update({ status: newTransactionStatus })
         .eq('id', transaction.id);
       if (statusError) console.error('⚠️ [Returns] Error updating status:', statusError);
-      else console.log('✅ [Returns] Transaction status updated');
 
       // 2. Restore inventory
-      console.log('🔄 [Returns] Restoring inventory...');
       for (const item of selectedItems) {
         if (item.variantId) {
           const { data: variant } = await supabase
@@ -348,16 +337,13 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
               .from('product_variants')
               .update({ stock_quantity: newQty })
               .eq('id', item.variantId);
-            console.log(`✅ [Returns] Restored ${item.returnQuantity} units of ${item.name}`);
           }
         }
       }
 
       // 3. Process refund based on method
-      console.log('🔄 [Returns] Processing refund method:', refundMethod);
       if (refundMethod === 'store-credit') {
         // Issue store credit via Supabase
-        console.log('🔄 [Returns] Creating store credit for customer:', transaction.customer_id);
         const { data: scData, error: scError } = await supabase
           .from('store_credits')
           .insert([{
@@ -376,7 +362,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           throw new Error('Failed to create store credit');
         }
 
-        console.log('✅ [Returns] Store credit created:', scData.id, 'Card#:', scData.card_number);
 
         // Update returns record with store_credit_id
         const { error: updateReturnError } = await supabase
@@ -387,7 +372,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         if (updateReturnError) {
           console.error('⚠️ [Returns] Error updating return with store_credit_id:', updateReturnError);
         } else {
-          console.log('✅ [Returns] Return record updated with store_credit_id');
         }
 
         // Store the SC card number for the receipt
@@ -470,8 +454,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
   const generateReturnReceipt = (scCardNumber?: string) => {
     if (!transaction) return;
 
-    console.log('generateReturnReceipt called with SC#:', scCardNumber);
-    console.log('refundMethod:', refundMethod);
 
     const selectedItems = getSelectedItems();
     const amounts = calculateReturnAmount();
@@ -480,7 +462,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       : 'Walk-in';
 
     // ALWAYS print return receipt first (showing what was returned)
-    console.log('📋 [Returns] Generating return receipt...');
     const returnReceiptData: any = {
       transactionId: transaction.id,
       invoiceNumber: transaction.invoice_number,
@@ -503,7 +484,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     const returnHtml = generateThermalReceiptHTML(returnReceiptData);
 
     // Open and print the return receipt
-    console.log('🖨️ [Returns] Printing return receipt');
     const returnWin = window.open('', '_blank');
     if (returnWin) {
       returnWin.document.write(returnHtml);
@@ -513,7 +493,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     // If store credit, print SC receipt as second receipt after delay
     if (refundMethod === 'store-credit' && scCardNumber) {
       setTimeout(() => {
-        console.log('📋 [Returns] Generating Store Credit receipt with SC#:', scCardNumber);
 
         const scReceiptData: any = {
           customerName,
@@ -526,13 +505,10 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           createdAt: new Date(),
         };
 
-        console.log('SC Receipt data:', scReceiptData);
-        console.log('SC card number:', scCardNumber);
 
         const scHtml = generateStoreCreditReceiptHTML(scReceiptData);
 
         // Open and print the SC receipt
-        console.log('🖨️ [Returns] Printing Store Credit receipt');
         const scWin = window.open('', '_blank');
         if (scWin) {
           scWin.document.write(scHtml);

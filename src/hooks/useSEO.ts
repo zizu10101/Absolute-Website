@@ -64,7 +64,6 @@ export function useSEO(seoSettings: SEO) {
       canonical.href = seoSettings.canonicalUrl;
     }
 
-    console.log('✅ SEO tags injected:', {
       title: seoSettings.title,
       description: seoSettings.description,
       keywords: seoSettings.keywords,

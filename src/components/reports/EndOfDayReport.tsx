@@ -43,8 +43,6 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
       // Convert Eastern time day to UTC range
       const { start, end } = getEasternDayRange(selectedDate);
 
-      console.log('📅 EOD Report: Date selected (Eastern):', selectedDate);
-      console.log('📅 EOD Report: UTC range:', start, 'to', end);
 
       // Fetch transactions in Eastern day range (converted to UTC)
       const { data: txData, error: txError } = await supabase
@@ -55,17 +53,6 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
         .neq('status', 'voided');
 
       if (txError) throw txError;
-      console.log('📊 EOD Report: Total transactions returned:', txData?.length || 0);
-      if (txData && txData.length > 0) {
-        console.log('📊 EOD Report: All transactions:', txData.map(t => ({
-          id: t.id.slice(0, 8),
-          status: t.status,
-          method: `"${t.method}"`,
-          methodType: typeof t.method,
-          amount: t.total_amount
-        })));
-        console.log('📊 EOD Report: First transaction full:', JSON.stringify(txData[0], null, 2));
-      }
       setTransactions(txData || []);
 
       // Fetch gift card data in Eastern day range (converted to UTC)
@@ -102,13 +89,9 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
     const voided = transactions.filter(t => t.status === 'voided');
     const refunded = transactions.filter(t => t.status === 'refunded');
 
-    console.log('📊 Metrics calc: Total txns:', transactions.length, 'Completed:', completed.length, 'Voided:', voided.length, 'Refunded:', refunded.length);
-
     const totalCompleted = completed.reduce((sum, t) => sum + Math.abs(Number(t.total_amount)), 0);
     const totalVoided = voided.reduce((sum, t) => sum + Math.abs(Number(t.total_amount)), 0);
     const totalRefunded = refunded.reduce((sum, t) => sum + Math.abs(Number(t.total_amount)), 0);
-
-    console.log('💰 Totals: Completed $' + totalCompleted.toFixed(2), 'Voided $' + totalVoided.toFixed(2), 'Refunded $' + totalRefunded.toFixed(2));
 
     const netSale = totalCompleted / 1.13;
     const hstCollected = totalCompleted - netSale;
@@ -139,21 +122,13 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
     };
 
     const completed = transactions.filter(t => t.status === 'completed');
-    console.log('💳 Payment breakdown: Processing', completed.length, 'completed transactions');
-    console.log('💳 Breakdown keys available:', Object.keys(breakdown));
 
     completed.forEach((t, idx) => {
       const method = t.method || 'Other';
-      const methodExists = method in breakdown;
-      console.log(`💳 [${idx}] payment_method="${t.method}" → method="${method}" → exists in breakdown=${methodExists}`);
       if (!breakdown[method]) breakdown[method] = { method, count: 0, amount: 0 };
       breakdown[method].count += 1;
       breakdown[method].amount += Math.abs(Number(t.total_amount));
     });
-
-    const resultsWithCount = Object.values(breakdown).filter(b => b.count > 0);
-    console.log('💳 Payment breakdown result (only >0):', resultsWithCount);
-    console.log('💳 Full breakdown:', Object.values(breakdown));
 
     // Return ALL methods, including those with 0 count
     return Object.values(breakdown);

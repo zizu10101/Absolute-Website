@@ -93,7 +93,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
 
   const fetchSettings = async () => {
-      console.log('SettingsContext: Fetching fresh rows (path:', location.pathname, ')...');
       setIsLoading(true);
       
       try {
@@ -179,7 +178,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             } else if (Array.isArray(slider.config)) {
               imgs = slider.config;
             }
-            console.log("SettingsContext parsed slider elements length:", imgs.length);
             setSliderImagesState(imgs);
           }
           if (home?.homeCategories) setHomeCategoriesState(home.homeCategories);
@@ -468,7 +466,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       });
 
       if (updated) {
-        console.log("Memory update succeeded, writing entire menu tree back via saveNavigation...");
         await saveNavigation(newMenus);
       } else {
         console.error("Item with id not found in navigation menus:", itemId);
@@ -599,7 +596,6 @@ export const useSettings = () => {
 
 export async function forceManualNavigationMigration() {
   try {
-    console.log("FETCHING LEGACY NAVIGATION...");
     const { data: settingsRow, error: fetchError } = await supabase
       .from('settings')
       .select('data')

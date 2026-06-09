@@ -40,8 +40,6 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
       // Convert Eastern time range to UTC
       const { start, end } = getEasternRangeUTC(dateFrom, dateTo);
 
-      console.log('📦 PRODUCTS REPORT: Fetching from', start, 'to', end);
-
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -50,11 +48,6 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
         .lte('created_at', end);
 
       if (error) throw error;
-      console.log('📦 Transactions fetched:', data?.length);
-      if (data && data.length > 0) {
-        console.log('📦 First transaction sample:', JSON.stringify(data[0], null, 2));
-        console.log('📦 Total items:', data.reduce((sum, t) => sum + (t.items?.length || 0), 0));
-      }
       setTransactions(data || []);
     } catch (error) {
       console.error('Error fetching product data:', error);
@@ -116,14 +109,8 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
 
     let filtered = Object.values(products);
 
-    // Debug: log actual categories in data
-    console.log('📦 Actual categories in data:', availableCategories);
-    console.log('📦 Current filter:', categoryFilter);
-    console.log('📦 Products before filter:', filtered.length);
-
     if (categoryFilter !== 'All') {
       filtered = filtered.filter(p => p.category === categoryFilter);
-      console.log('📦 Products after filter:', filtered.length);
     }
 
     // Sort

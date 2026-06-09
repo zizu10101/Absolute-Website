@@ -53,7 +53,6 @@ export const StoreCreditsSection: React.FC<StoreCreditionsSectionProps> = ({ cus
         .eq('customer_id', customerId);
 
       if (error) throw error;
-      console.log('Store credits fetched for customer:', data);
       setStoreCredits(data || []);
     } catch (err) {
       console.error('Error fetching store credits:', err);

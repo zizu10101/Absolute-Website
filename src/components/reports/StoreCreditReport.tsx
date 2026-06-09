@@ -57,8 +57,6 @@ export function StoreCreditReport() {
         .lte('created_at', end);
 
       if (error) throw error;
-
-      console.log('Store credits fetched for report:', data?.length || 0);
       setStoreCredits(data || []);
     } catch (err) {
       console.error('Error fetching store credits:', err);

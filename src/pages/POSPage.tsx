@@ -219,7 +219,6 @@ export function POSPage() {
 
       // 1. STORE CREDIT BARCODE (SC-XXXXXXXXXXXX)
       if (barcode.startsWith('SC-')) {
-        console.log('🎟 Store credit barcode detected:', barcode);
 
         // Open store credit modal on scan tab with pre-filled barcode
         setShowStoreCreditModal(true);
@@ -233,7 +232,6 @@ export function POSPage() {
 
       // 2. INVOICE/TRANSACTION BARCODE (INV-XXXXX)
       if (barcode.startsWith('INV-') || /^INV-\d+$/.test(barcode)) {
-        console.log('📋 Invoice barcode detected:', barcode);
 
         // Open Returns modal with pre-filled invoice number
         setShowReturnsModal(true);
@@ -383,7 +381,6 @@ export function POSPage() {
 
   // Void/Refund/Return handler
   const handleVoidRefundReturn = async (transactionId: string, action: 'void' | 'refund' | 'return') => {
-    console.log(`Transaction ${action} for:`, transactionId);
 
     try {
       const { error } = await supabase
@@ -436,7 +433,6 @@ export function POSPage() {
         ? input
         : 'INV-' + input.padStart(5, '0');
 
-      console.log('Looking up invoice:', normalizedInvoice);
 
       const { data, error } = await supabase
         .from('transactions')
@@ -444,7 +440,6 @@ export function POSPage() {
         .eq('invoice_number', normalizedInvoice)
         .maybeSingle();
 
-      console.log('Result:', data, error);
 
       if (!data) {
         setReturnsLookupError(`Invoice ${normalizedInvoice} not found`);
@@ -522,7 +517,6 @@ export function POSPage() {
     if (method === 'Store Credit') {
       let hasCustomerCredits = false;
 
-      console.log('🔴 SC MODAL OPEN: selectedCustomerId=', selectedCustomerId);
 
       // If customer is already selected, fetch their credits for the customer tab
       if (selectedCustomerId) {
@@ -535,14 +529,12 @@ export function POSPage() {
 
           if (error) throw error;
 
-          console.log('🔴 SC MODAL API RESULT:', credits);
 
           // Filter for active credits with available balance
           const filteredCredits = (credits || []).filter(
             (c: any) => c.is_active && c.remaining_balance > 0
           );
 
-          console.log('🔴 SC MODAL FILTERED CREDITS:', filteredCredits);
 
           setAvailableStoreCredits(filteredCredits);
           hasCustomerCredits = filteredCredits.length > 0;
@@ -551,7 +543,6 @@ export function POSPage() {
           setAvailableStoreCredits([]);
         }
       } else {
-        console.log('🔴 SC MODAL: No customer selected, clearing credits');
         setAvailableStoreCredits([]);
       }
 
@@ -578,7 +569,6 @@ export function POSPage() {
 
     try {
       const searchCode = code.trim();
-      console.log('🔴 SC SCAN: Looking up code:', searchCode);
 
       // Detect if this is an invoice number (INV-XXXXX format)
       if (searchCode.startsWith('INV-') || /^INV-\d+$/.test(searchCode)) {
@@ -610,13 +600,11 @@ export function POSPage() {
         .gt('remaining_balance', 0)
         .single();
 
-      console.log('🔴 SC SCAN BY CARD_NUMBER:', { byCardNumber, cardError });
 
       let data = byCardNumber;
 
       // If not found by card number, try by customer name or ID
       if (!byCardNumber && cardError?.code === 'PGRST116') { // not found
-        console.log('🔴 SC SCAN: Not found by card_number, trying by customer name...');
 
         const { data: byCustomer, error: customerError } = await supabase
           .from('store_credits')
@@ -634,7 +622,6 @@ export function POSPage() {
 
           if (matches.length === 1) {
             data = matches[0];
-            console.log('🔴 SC SCAN: Found by customer name:', data);
           } else if (matches.length > 1) {
             setStoreCreditError(`Multiple credits found for "${searchCode}". Please use customer tab or search.`);
             return;
@@ -652,7 +639,6 @@ export function POSPage() {
       }
 
       // Found a credit - apply it
-      console.log('🔴 SC FOUND:', data);
       const amount = Math.min(data.remaining_balance, grandTotal);
       const storeCreditData = { id: data.id, amount, balance: data.remaining_balance, cardNumber: data.card_number };
       setSelectedStoreCredit(storeCreditData);
@@ -662,9 +648,6 @@ export function POSPage() {
         setSelectedCustomerId(data.customer_id);
       }
 
-      console.log('🔴 SC APPLIED:', storeCreditData);
-      console.log('🔴 SC covers $' + amount.toFixed(2) + ' of $' + grandTotal.toFixed(2));
-      console.log('🔴 Remaining to pay: $' + (grandTotal - amount).toFixed(2));
 
       setShowStoreCreditModal(false);
       setScScanInput('');
@@ -689,7 +672,6 @@ export function POSPage() {
 
     try {
       const searchLower = searchTerm.trim().toLowerCase();
-      console.log('🔴 SC SEARCH: term=', searchLower);
 
       // Fetch all active store credits with balances
       const { data: allCredits, error } = await supabase
@@ -698,7 +680,6 @@ export function POSPage() {
         .eq('is_active', true)
         .gt('remaining_balance', 0);
 
-      console.log('🔴 SC SEARCH ALL CREDITS:', { allCredits, error });
 
       if (error) throw error;
 
@@ -715,7 +696,6 @@ export function POSPage() {
         credit.customers?.phone?.includes(searchTerm)
       );
 
-      console.log('🔴 SC SEARCH RESULTS:', results);
 
       setScSearchResults(results);
       if (results.length === 0) {
@@ -745,9 +725,6 @@ export function POSPage() {
       setSelectedCustomerId(credit.customer_id);
     }
 
-    console.log('🔴 SC APPLIED:', storeCreditData);
-    console.log('🔴 SC covers $' + scAmount.toFixed(2) + ' of $' + grandTotal.toFixed(2));
-    console.log('🔴 Remaining to pay: $' + remaining.toFixed(2));
 
     // Close modal - user will select payment method next
     // DO NOT call processPayment here - wait for payment method selection
@@ -762,7 +739,6 @@ export function POSPage() {
     const capturedStoreCredit = storeCredit || selectedStoreCredit;
     const capturedGiftCard = giftCard || selectedGiftCard;
 
-    console.log('🔴 CAPTURED AT FUNCTION START:', {
       creditId: capturedStoreCredit?.id,
       creditAmount: capturedStoreCredit?.amount,
       creditBalance: capturedStoreCredit?.balance,
@@ -806,9 +782,6 @@ export function POSPage() {
 
       if (error) throw error;
 
-      console.log('✅ Transaction created:');
-      console.log('  ID:', data?.[0]?.id);
-      console.log('  Invoice #:', data?.[0]?.invoice_number);
 
       const result = { data };
 
@@ -838,16 +811,11 @@ export function POSPage() {
       // UPDATE STORE CREDIT BALANCE DIRECTLY (not via API)
       let storeCreditNewBalance = capturedStoreCredit?.balance;
 
-      console.log('🔴 STORE CREDIT UPDATE STARTING');
-      console.log('🔴 Credit ID:', capturedStoreCredit?.id);
-      console.log('🔴 Amount used:', actualAmountUsed);
-      console.log('🔴 Current balance:', capturedStoreCredit?.balance);
 
       if (capturedStoreCredit?.id && actualAmountUsed > 0) {
         try {
           const newBalance = Number(capturedStoreCredit.balance) - Number(actualAmountUsed);
 
-          console.log('🔴 New balance will be:', newBalance);
 
           const { data: scData, error: scError } = await supabase
             .from('store_credits')
@@ -858,13 +826,11 @@ export function POSPage() {
             .eq('id', capturedStoreCredit.id)
             .select();
 
-          console.log('🔴 SC UPDATE RESULT:', scData, scError);
 
           if (scError) {
             console.error('🔴 SC UPDATE FAILED:', scError);
           } else {
             storeCreditNewBalance = newBalance;
-            console.log('🔴 SC UPDATE SUCCESS. New balance:', newBalance);
 
             // Create transaction record for audit trail
             const { error: txError } = await supabase
@@ -878,14 +844,12 @@ export function POSPage() {
             if (txError) {
               console.error('🔴 Transaction record failed:', txError);
             } else {
-              console.log('🔴 Transaction record created');
             }
           }
         } catch (err) {
           console.error('🔴 Error updating store credit balance:', err);
         }
       } else {
-        console.log('🔴 SKIPPED: capturedStoreCredit?.id:', capturedStoreCredit?.id, 'actualAmountUsed:', actualAmountUsed);
       }
 
       setReceipt({
@@ -916,7 +880,6 @@ export function POSPage() {
       // Process gift card redemption AFTER transaction is confirmed
       if (capturedGiftCard) {
         try {
-          console.log('🎁 Processing gift card redemption after transaction:', {
             cardNumber: capturedGiftCard.cardNumber,
             amount: capturedGiftCard.amount,
             transactionId: result?.data?.[0]?.id,
@@ -934,7 +897,6 @@ export function POSPage() {
           if (updateErr) {
             console.error('⚠️ Gift card redemption warning:', updateErr);
           } else {
-            console.log('✅ Gift card successfully redeemed');
           }
         } catch (err) {
           console.error('❌ Error processing gift card redemption:', err);
@@ -976,7 +938,6 @@ export function POSPage() {
     // The actual redemption happens after transaction is confirmed
     const giftCardData = { cardNumber, amount };
     setSelectedGiftCard(giftCardData);
-    console.log('✅ Gift card selected for payment:', giftCardData);
     return Promise.resolve(); // Explicitly resolve for the async callback
   };
 
@@ -987,10 +948,6 @@ export function POSPage() {
     // For store credit receipts, barcode should show SC card number instead of transaction ID
     const barcodeValue = receipt.storeCreditCardNumber || receipt.invoiceNumber || receipt.transactionId || 'N/A';
 
-    console.log('🖨️ Printing receipt:');
-    console.log('  transactionId:', receipt.transactionId);
-    console.log('  invoiceNumber:', receipt.invoiceNumber);
-    console.log('  barcodeValue:', barcodeValue);
 
     const receiptHtml = generateThermalReceiptHTML({
       transactionId: receipt.transactionId || 'N/A',

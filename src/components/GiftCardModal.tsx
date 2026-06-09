@@ -56,7 +56,6 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
 
     setIsSearching(true);
     try {
-      console.log('🔍 Searching customers for:', query);
       const { data, error } = await supabase
         .from('customers')
         .select('id, first_name, last_name, email, phone')
@@ -64,7 +63,6 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
         .limit(5);
 
       if (error) throw error;
-      console.log('✅ Search results:', data);
       setSearchResults(data || []);
     } catch (e) {
       console.error('❌ Search error:', e);
@@ -116,16 +114,11 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
     setError(null);
 
     try {
-      // Log session for debugging
       const { data: { session } } = await supabase.auth.getSession();
-      console.log('🔐 Current session before insert:', session);
-      console.log('🔐 User:', session?.user?.email);
 
       const nameParts = newCustomerName.trim().split(' ');
       const first_name = nameParts[0];
       const last_name = nameParts.slice(1).join(' ') || '';
-
-      console.log('📝 Creating customer:', { first_name, last_name, phone: newCustomerPhone, email: newCustomerEmail });
 
       const { data, error } = await supabase
         .from('customers')
@@ -138,12 +131,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
         .select()
         .single();
 
-      if (error) {
-        console.error('❌ Insert error details:', error);
-        throw error;
-      }
-
-      console.log('✅ Customer created:', data);
+      if (error) throw error;
       setSelectedCustomer(data);
       setShowCreateMode(false);
       setNewCustomerName('');
@@ -165,10 +153,6 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
   const handleIssue = async () => {
     setError(null);
 
-    console.log('🎁 Starting gift card issue process');
-    console.log('💰 Final amount:', finalAmount);
-    console.log('🔢 Card number (auto-generate:', autoGenerate, '):', cardNumber);
-
     if (finalAmount <= 0) {
       setError('Please select or enter a valid amount');
       console.error('❌ Amount validation failed:', finalAmount);
@@ -185,14 +169,10 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
 
       if (!generatedCardNumber) {
         setError('Please enter a card number or enable auto-generate');
-        console.error('❌ Card number validation failed');
         return;
       }
 
-      console.log('🔢 Using card number:', generatedCardNumber);
-
       // Insert gift card directly to Supabase
-      console.log('💾 Inserting gift card to Supabase');
       const { data: giftCard, error: gcError } = await supabase
         .from('gift_cards')
         .insert({
@@ -206,15 +186,9 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
         .select()
         .single();
 
-      if (gcError) {
-        console.error('❌ Gift card insert error:', gcError);
-        throw new Error(gcError.message || 'Failed to create gift card');
-      }
-
-      console.log('✅ Gift card created:', giftCard);
+      if (gcError) throw new Error(gcError.message || 'Failed to create gift card');
 
       // Insert transaction record
-      console.log('📝 Recording gift card issue transaction');
       const { error: txError } = await supabase
         .from('gift_card_transactions')
         .insert({
@@ -225,13 +199,8 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
         });
 
       if (txError) {
-        console.error('⚠️ Transaction record failed:', txError);
         // Don't fail the whole operation if transaction logging fails
-      } else {
-        console.log('✅ Transaction recorded');
       }
-
-      console.log('✅ Gift card issued successfully');
 
       onIssue({
         id: `gc-${giftCard.id}`,

@@ -116,7 +116,6 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      console.log('Store credits history fetched:', data);
       setStoreCredits(data || []);
     } catch (err) {
       console.error('Error fetching store credits:', err);

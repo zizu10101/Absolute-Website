@@ -31,7 +31,6 @@ export function HomePage() {
   const [, setTick] = useState(0);
 
   useEffect(() => {
-    console.log("HOMEPAGE: sliderImages length is:", sliderImages.length);
     setTick(t => t + 1);
   }, [sliderImages]);
 

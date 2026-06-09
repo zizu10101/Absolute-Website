@@ -73,7 +73,6 @@ export function ReturnTab() {
         ? input
         : 'INV-' + input.padStart(5, '0');
 
-      console.log('Looking up invoice:', normalizedInvoice);
 
       const { data, error: dbError } = await supabase
         .from('transactions')
@@ -81,7 +80,6 @@ export function ReturnTab() {
         .eq('invoice_number', normalizedInvoice)
         .maybeSingle();
 
-      console.log('Result:', data, dbError);
 
       if (!data) {
         setError(`Invoice ${normalizedInvoice} not found`);
