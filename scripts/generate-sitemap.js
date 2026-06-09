@@ -64,9 +64,17 @@ async function generateSitemap() {
     const products = await supabaseRequest('/products?is_online=eq.true&select=id,name,category');
     console.log(`Found ${products.length} online products`);
 
-    // Get unique categories
-    const categories = [...new Set(products.map(p => p.category).filter(Boolean))].sort();
-    console.log(`Found ${categories.length} categories:`, categories);
+    // Get unique category slugs (deduplicate after slug conversion to handle case variations)
+    const rawCategories = products.map(p => p.category).filter(Boolean);
+    const categoryMap = new Map();
+    rawCategories.forEach(cat => {
+      const slug = cat.toLowerCase().replace(/\s+/g, '-');
+      if (!categoryMap.has(slug)) {
+        categoryMap.set(slug, cat);
+      }
+    });
+    const uniqueCategories = Array.from(categoryMap.keys()).sort();
+    console.log(`Found ${uniqueCategories.length} unique categories:`, uniqueCategories);
 
     // Build sitemap XML
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -88,12 +96,11 @@ async function generateSitemap() {
       xml += '  </url>\n';
     });
 
-    // Category pages
+    // Category pages (deduplicated)
     xml += '\n  <!-- Category Pages -->\n';
-    categories.forEach(category => {
-      const categoryUrl = category.toLowerCase().replace(/\s+/g, '-');
+    uniqueCategories.forEach(categorySlug => {
       xml += '  <url>\n';
-      xml += `    <loc>https://torontosoccershop.com/category/${categoryUrl}</loc>\n`;
+      xml += `    <loc>https://torontosoccershop.com/category/${categorySlug}</loc>\n`;
       xml += '    <changefreq>weekly</changefreq>\n';
       xml += '    <priority>0.8</priority>\n';
       xml += '  </url>\n';
@@ -131,9 +138,9 @@ async function generateSitemap() {
 
     console.log(`✅ Sitemap generated successfully: ${sitemapPath}`);
     console.log(`   - ${mainPages.length} main pages`);
-    console.log(`   - ${categories.length} category pages`);
+    console.log(`   - ${uniqueCategories.length} category pages`);
     console.log(`   - ${products.length} product pages`);
-    console.log(`   - Total: ${mainPages.length + categories.length + products.length + 2} URLs`);
+    console.log(`   - Total: ${mainPages.length + uniqueCategories.length + products.length + 2} URLs`);
 
   } catch (error) {
     console.error('Error generating sitemap:', error.message);
