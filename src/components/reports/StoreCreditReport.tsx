@@ -46,20 +46,20 @@ export function StoreCreditReport() {
   const fetchStoreCredits = async () => {
     setIsLoading(true);
     try {
+      // Use UTC date range for timezone-independent filtering
+      const startUTC = `${dateRange.start}T00:00:00.000Z`;
+      const endUTC = `${dateRange.end}T23:59:59.999Z`;
+
       const { data, error } = await supabase
         .from('store_credits')
-        .select('*, customers(first_name, last_name, email, phone), store_credit_transactions(*)');
+        .select('*, customers(first_name, last_name, email, phone), store_credit_transactions(*)')
+        .gte('created_at', startUTC)
+        .lte('created_at', endUTC);
 
       if (error) throw error;
 
-      // Filter by date range client-side
-      const filtered = (data || []).filter((credit: any) => {
-        const creditDate = new Date(credit.created_at).toISOString().split('T')[0];
-        return creditDate >= dateRange.start && creditDate <= dateRange.end;
-      });
-
-      console.log('Store credits fetched for report:', filtered);
-      setStoreCredits(filtered);
+      console.log('Store credits fetched for report:', data?.length || 0);
+      setStoreCredits(data || []);
     } catch (err) {
       console.error('Error fetching store credits:', err);
       setStoreCredits([]);

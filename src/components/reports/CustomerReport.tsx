@@ -31,12 +31,11 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [fromYear, fromMonth, fromDay] = dateFrom.split('-').map(Number);
-      const [toYear, toMonth, toDay] = dateTo.split('-').map(Number);
-      const from = new Date(fromYear, fromMonth - 1, fromDay, 0, 0, 0, 0);
-      const to = new Date(toYear, toMonth - 1, toDay, 23, 59, 59, 999);
+      // Use UTC date range for timezone-independent filtering
+      const startUTC = `${dateFrom}T00:00:00.000Z`;
+      const endUTC = `${dateTo}T23:59:59.999Z`;
 
-      console.log('📊 CUSTOMERS REPORT: Fetching data from', from.toISOString(), 'to', to.toISOString());
+      console.log('📊 CUSTOMERS REPORT: Fetching data from', startUTC, 'to', endUTC);
 
       // Get all customers
       const { data: customersData, error: customersError } = await supabase
@@ -52,8 +51,8 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
         .from('transactions')
         .select('*')
         .neq('status', 'voided')
-        .gte('created_at', from.toISOString())
-        .lte('created_at', to.toISOString());
+        .gte('created_at', startUTC)
+        .lte('created_at', endUTC);
 
       if (transactionsError) throw transactionsError;
       console.log('💳 Transactions found:', transactionsData?.length || 0, 'with customer_id:', transactionsData?.filter(t => t.customer_id).length);

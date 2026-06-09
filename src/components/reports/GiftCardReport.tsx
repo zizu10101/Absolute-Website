@@ -29,16 +29,15 @@ export const GiftCardReport: React.FC<GiftCardReportProps> = ({ logo }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [fromYear, fromMonth, fromDay] = dateFrom.split('-').map(Number);
-      const [toYear, toMonth, toDay] = dateTo.split('-').map(Number);
-      const from = new Date(fromYear, fromMonth - 1, fromDay, 0, 0, 0, 0);
-      const to = new Date(toYear, toMonth - 1, toDay, 23, 59, 59, 999);
+      // Use UTC date range for timezone-independent filtering
+      const startUTC = `${dateFrom}T00:00:00.000Z`;
+      const endUTC = `${dateTo}T23:59:59.999Z`;
 
       const { data, error } = await supabase
         .from('gift_cards')
         .select('*, customers(first_name, last_name)')
-        .gte('created_at', from.toISOString())
-        .lte('created_at', to.toISOString())
+        .gte('created_at', startUTC)
+        .lte('created_at', endUTC)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

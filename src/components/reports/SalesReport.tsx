@@ -36,35 +36,47 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const getDateRange = () => {
-    const now = new Date();
-    now.setHours(23, 59, 59, 999);
-    let from = new Date();
+    // Use UTC date strings for timezone-independent filtering
+    const today = new Date().toISOString().split('T')[0];
+
+    let fromDate: string;
+    let toDate = today;
 
     switch (filterType) {
       case 'daily':
-        from.setHours(0, 0, 0, 0);
+        fromDate = today;
         break;
-      case 'weekly':
-        from.setDate(from.getDate() - 7);
-        from.setHours(0, 0, 0, 0);
+      case 'weekly': {
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        fromDate = d.toISOString().split('T')[0];
         break;
-      case 'monthly':
-        from.setMonth(from.getMonth() - 1);
-        from.setHours(0, 0, 0, 0);
+      }
+      case 'monthly': {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 1);
+        fromDate = d.toISOString().split('T')[0];
         break;
-      case 'yearly':
-        from.setFullYear(from.getFullYear() - 1);
-        from.setHours(0, 0, 0, 0);
+      }
+      case 'yearly': {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() - 1);
+        fromDate = d.toISOString().split('T')[0];
         break;
+      }
       case 'custom':
-        const [fromYear, fromMonth, fromDay] = customFrom.split('-').map(Number);
-        from = new Date(fromYear, fromMonth - 1, fromDay, 0, 0, 0, 0);
-        const [toYear, toMonth, toDay] = customTo.split('-').map(Number);
-        const customEnd = new Date(toYear, toMonth - 1, toDay, 23, 59, 59, 999);
-        return { from: from.toISOString(), to: customEnd.toISOString() };
+        fromDate = customFrom;
+        toDate = customTo;
+        break;
+      default:
+        fromDate = today;
     }
 
-    return { from: from.toISOString(), to: now.toISOString() };
+    // Return UTC date ranges (full day in UTC)
+    return {
+      from: `${fromDate}T00:00:00.000Z`,
+      to: `${toDate}T23:59:59.999Z`
+    };
   };
 
   const fetchData = async () => {

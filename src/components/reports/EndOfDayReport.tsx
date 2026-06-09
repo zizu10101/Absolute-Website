@@ -39,21 +39,20 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Parse date string correctly (YYYY-MM-DD format in local timezone)
-      const [year, month, day] = selectedDate.split('-').map(Number);
-      const startDate = new Date(year, month - 1, day, 0, 0, 0, 0);
-      const endDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+      // Use UTC date range for consistent timezone handling
+      // selectedDate is YYYY-MM-DD format, querying full UTC day
+      const startUTC = `${selectedDate}T00:00:00.000Z`;
+      const endUTC = `${selectedDate}T23:59:59.999Z`;
 
       console.log('📅 EOD Report: Date selected:', selectedDate);
-      console.log('📅 EOD Report: Local times:', startDate.toString(), 'to', endDate.toString());
-      console.log('📅 EOD Report: UTC ISO:', startDate.toISOString(), 'to', endDate.toISOString());
+      console.log('📅 EOD Report: UTC range:', startUTC, 'to', endUTC);
 
-      // Fetch transactions
+      // Fetch transactions in UTC range
       const { data: txData, error: txError } = await supabase
         .from('transactions')
         .select('*')
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString())
+        .gte('created_at', startUTC)
+        .lte('created_at', endUTC)
         .neq('status', 'voided');
 
       if (txError) throw txError;
@@ -70,12 +69,12 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
       }
       setTransactions(txData || []);
 
-      // Fetch gift card data
+      // Fetch gift card data in UTC range
       const { data: gcData, error: gcError } = await supabase
         .from('gift_card_transactions')
         .select('*, gift_cards(*)')
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+        .gte('created_at', startUTC)
+        .lte('created_at', endUTC);
 
       if (!gcError) {
         const sold = gcData?.filter(g => g.transaction_type === 'issue') || [];
