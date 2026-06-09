@@ -125,7 +125,7 @@ export const PosDiscountModal: React.FC<PosDiscountModalProps> = ({
                       e.preventDefault();
                     }}
                     autoFocus={tab === 'percentage'}
-                    className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm font-bold"
+                    className="flex-1 px-3 py-2 border border-zinc-300 rounded-lg text-sm font-bold text-black bg-white"
                   />
                   <span className="text-lg font-black">%</span>
                 </div>
