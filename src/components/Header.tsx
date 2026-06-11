@@ -1,8 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingBag, Search, Menu, User, Heart, X } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+import { useCart } from '../context/CartContext';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useRef, useEffect } from 'react';
+import { CartDrawer } from './CartDrawer';
 
 interface Props {
   onMenuClick: () => void;
@@ -12,9 +14,11 @@ import { DEFAULT_NAV } from '../constants/navigation';
 
 export function Header({ onMenuClick }: Props) {
   const { logo, navigationMenus } = useSettings();
+  const { itemCount } = useCart();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -88,11 +92,22 @@ export function Header({ onMenuClick }: Props) {
             <Heart size={24} strokeWidth={1.5} />
             <span className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">0</span>
           </button>
-          <button 
+          <button
             onClick={() => setIsSearchOpen(true)}
             className="p-1 text-zinc-900 hover:text-[#b90014] transition-colors"
           >
             <Search size={24} strokeWidth={1.5} />
+          </button>
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="p-1 text-zinc-900 hover:text-[#b90014] transition-colors relative"
+          >
+            <ShoppingBag size={24} strokeWidth={1.5} />
+            {itemCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#b90014] text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center">
+                {itemCount}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -198,6 +213,9 @@ export function Header({ onMenuClick }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Cart Drawer */}
+      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </header>
   );
 }

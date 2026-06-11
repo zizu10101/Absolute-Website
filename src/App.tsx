@@ -16,6 +16,7 @@ import { ProductProvider, useProducts } from './context/ProductContext';
 import { CustomerProvider } from './context/CustomerContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
 import { ProductGridPage } from './pages/ProductGridPage';
 import { UniformSubmissionPage } from './pages/UniformSubmissionPage';
 import { CustomizationPage } from './pages/CustomizationPage';
@@ -157,12 +158,14 @@ export default function App() {
     <AuthProvider>
       <ProductProvider>
         <CustomerProvider>
-          <BrowserRouter>
-            <SettingsProvider>
-              <ScrollToTop />
-              <AppContent />
-            </SettingsProvider>
-          </BrowserRouter>
+          <CartProvider>
+            <BrowserRouter>
+              <SettingsProvider>
+                <ScrollToTop />
+                <AppContent />
+              </SettingsProvider>
+            </BrowserRouter>
+          </CartProvider>
         </CustomerProvider>
       </ProductProvider>
     </AuthProvider>
