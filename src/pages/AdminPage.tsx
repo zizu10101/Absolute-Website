@@ -177,6 +177,28 @@ function AdminPageInner() {
 
   useEffect(() => {
     fetchAdminProducts();
+
+    // Fetch all product variants at once and build stock map
+    const fetchAllStock = async () => {
+      try {
+        const { data: variants, error } = await supabase
+          .from('product_variants')
+          .select('product_id, stock_quantity');
+
+        if (!error && variants) {
+          const stockMap = new Map<string, number>();
+          variants.forEach(v => {
+            const currentStock = stockMap.get(v.product_id) || 0;
+            stockMap.set(v.product_id, currentStock + (v.stock_quantity || 0));
+          });
+          setProductStockCache(stockMap);
+        }
+      } catch (err) {
+        console.error('Error fetching stock:', err);
+      }
+    };
+    fetchAllStock();
+
     // Fetch available brands
     const fetchBrands = async () => {
       try {
@@ -378,26 +400,6 @@ function AdminPageInner() {
   useEffect(() => {
     setAdminCurrentPage(1);
   }, [adminSearchTerm, productCategoryFilter]);
-
-  // Get total stock for a product (simple one-time fetch)
-  const getProductStock = async (productId: string): Promise<number> => {
-    // Check cache first
-    if (productStockCache.has(productId)) {
-      return productStockCache.get(productId) || 0;
-    }
-    try {
-      const { data } = await supabase
-        .from('product_variants')
-        .select('stock_quantity')
-        .eq('product_id', productId);
-      const total = data ? data.reduce((sum, v) => sum + (v.stock_quantity || 0), 0) : 0;
-      // Update cache for future lookups
-      setProductStockCache(prev => new Map(prev).set(productId, total));
-      return total;
-    } catch {
-      return 0;
-    }
-  };
 
   const paginatedProducts = useMemo(() => {
     const reversed = filteredProducts.slice().reverse();
@@ -2046,21 +2048,12 @@ function AdminPageInner() {
     }
   }
 
-  // Stock Badge Component - Simple one-time fetch to prevent flickering
-  const StockBadge = ({ productId, productStockCache, getProductStock }: any) => {
-    const [stock, setStock] = useState<number | null>(null);
+  // Stock Badge Component - Instant lookup from pre-loaded cache
+  const StockBadge = ({ productId, productStockCache }: any) => {
+    const stock = productStockCache.get(productId) || 0;
 
-    useEffect(() => {
-      // Fetch stock once on mount
-      const cached = productStockCache.get(productId);
-      if (cached !== undefined) {
-        setStock(cached);
-      } else {
-        getProductStock(productId).then(setStock);
-      }
-    }, [productId]); // Only re-fetch if productId changes
-
-    if (stock === null) return null;
+    // Don't show anything if no stock info available yet
+    if (stock === undefined) return null;
 
     const isLowStock = stock <= 3;
     return (
@@ -3988,7 +3981,7 @@ function AdminPageInner() {
                                 <span className="ml-1">• ${product.price}</span>
                               )}
                             </p>
-                            <StockBadge productId={product.id} productStockCache={productStockCache} getProductStock={getProductStock} />
+                            <StockBadge productId={product.id} productStockCache={productStockCache} />
                             {!product.brand && (
                               <p className="text-[9px] text-amber-600 mt-0.5 font-medium">⚠️ Missing Brand</p>
                             )}

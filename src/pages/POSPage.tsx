@@ -124,6 +124,9 @@ export function POSPage() {
   const [selectedProductForSize, setSelectedProductForSize] = useState<any | null>(null);
   const [productVariants, setProductVariants] = useState<Map<string, any[]>>(new Map());
 
+  // Stock map: productId -> total stock (fetched once on mount)
+  const [productStockMap, setProductStockMap] = useState<Map<string, number>>(new Map());
+
   // Hooks
   const {
     cart,
@@ -200,20 +203,31 @@ export function POSPage() {
           const mappedProducts = data.map(mapProductFromDb);
           setProducts(mappedProducts);
 
-          // Fetch variants for all products
+          // Fetch ALL variants in one query
           const { data: variants } = await supabase
             .from('product_variants')
             .select('*');
 
           if (variants) {
+            // Build two maps: one for variant details, one for stock totals
             const variantMap = new Map<string, any[]>();
+            const stockMap = new Map<string, number>();
+
             variants.forEach(v => {
+              // Map for variant details (for size selector)
               if (!variantMap.has(v.product_id)) {
                 variantMap.set(v.product_id, []);
               }
               variantMap.get(v.product_id)!.push(v);
+
+              // Map for total stock (for quick lookup on card)
+              const currentStock = stockMap.get(v.product_id) || 0;
+              stockMap.set(v.product_id, currentStock + (v.stock_quantity || 0));
             });
+
+            // Set both maps at once to avoid multiple re-renders
             setProductVariants(variantMap);
+            setProductStockMap(stockMap);
           }
         }
       } catch (err) {
@@ -387,10 +401,9 @@ export function POSPage() {
     }
   };
 
-  // Simple one-time stock calculation (no memoization to avoid flickering)
+  // Get stock from pre-built map (instant lookup, no calculations)
   const getTotalStock = (productId: string): number => {
-    const variants = productVariants.get(productId) || [];
-    return variants.reduce((sum, v) => sum + (v.stock_quantity || 0), 0);
+    return productStockMap.get(productId) || 0;
   };
 
   // Get stock status display
