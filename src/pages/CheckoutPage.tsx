@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { supabase } from '../supabase';
-import { AlertCircle, Loader } from 'lucide-react';
+import { sendOrderEmails } from '../utils/sendEmails';
+import { AlertCircle, Loader, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const CANADIAN_PROVINCES = [
@@ -128,6 +129,22 @@ export function CheckoutPage() {
         .single();
 
       if (error) throw error;
+
+      // Send order confirmation emails
+      await sendOrderEmails({
+        orderId: data.id,
+        customerEmail: formData.email,
+        customerName: `${formData.firstName} ${formData.lastName}`,
+        customerPhone: formData.phone,
+        shippingAddress: formData.street,
+        city: formData.city,
+        province: formData.province,
+        postalCode: formData.postalCode,
+        items: items,
+        subtotal: cartTotal,
+        tax: hstAmount,
+        total: cartTotal + hstAmount,
+      });
 
       // Clear cart
       clearCart();
@@ -516,9 +533,14 @@ export function CheckoutPage() {
               {isLoading ? 'Placing Order...' : 'Place Order'}
             </button>
 
-            <p className="text-[10px] text-zinc-500 text-center mt-4 uppercase tracking-widest">
-              We'll contact you shortly to arrange payment and delivery
-            </p>
+            <motion.div
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-[10px] text-zinc-500 text-center mt-4 uppercase tracking-widest flex items-center justify-center gap-1"
+            >
+              <Mail size={12} />
+              Confirmation email will be sent
+            </motion.div>
           </div>
         </div>
       </form>
