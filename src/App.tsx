@@ -25,6 +25,8 @@ import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ContactUsPage } from './pages/ContactUsPage';
 import { BrandPage } from './pages/BrandPage';
 import { BrandsPage } from './pages/BrandsPage';
+import { CheckoutPage } from './pages/CheckoutPage';
+import { OrderConfirmationPage } from './pages/OrderConfirmationPage';
 import { useSEO } from './hooks/useSEO';
 
 function LoadingScreen() {
@@ -142,6 +144,8 @@ function AppRoutes() {
           <Route path="uniform-submission" element={<UniformSubmissionPage />} />
           <Route path="contact-us" element={<ContactUsPage />} />
           <Route path="product/:id" element={<ProductDetailPage />} />
+          <Route path="checkout" element={<CheckoutPage />} />
+          <Route path="order-confirmation" element={<OrderConfirmationPage />} />
         </Route>
 
         {/* Admin, POS, Reports - Only on torontosoccershop.com */}

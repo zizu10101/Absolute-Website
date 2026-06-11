@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Plus, Minus, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 
 interface CartDrawerProps {
@@ -11,6 +12,7 @@ interface CartDrawerProps {
 const HST_RATE = 0.13;
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
   const { items, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
 
   const hstAmount = cartTotal * HST_RATE;
@@ -150,7 +152,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                   >
                     Continue Shopping
                   </button>
-                  <button className="w-full py-3 bg-zinc-900 text-white font-bold uppercase text-sm hover:bg-zinc-800 transition-colors rounded">
+                  <button
+                    onClick={() => {
+                      onClose();
+                      navigate('/checkout');
+                    }}
+                    className="w-full py-3 bg-zinc-900 text-white font-bold uppercase text-sm hover:bg-zinc-800 transition-colors rounded"
+                  >
                     Proceed to Checkout
                   </button>
                   <button
