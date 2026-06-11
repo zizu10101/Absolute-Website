@@ -50,8 +50,41 @@ export const OnlineOrdersAdmin: React.FC = () => {
     }
   };
 
+  // Restore inventory when order is cancelled
+  const restoreInventory = async (order: Order) => {
+    try {
+      for (const item of order.items) {
+        const { data: variant } = await supabase
+          .from('product_variants')
+          .select('stock_quantity, id')
+          .eq('product_id', item.productId)
+          .eq('size', item.size)
+          .single();
+
+        if (variant) {
+          await supabase
+            .from('product_variants')
+            .update({
+              stock_quantity: variant.stock_quantity + item.quantity,
+            })
+            .eq('id', variant.id);
+        }
+      }
+    } catch (err) {
+      console.error('Error restoring inventory:', err);
+    }
+  };
+
   const handleStatusChange = async (orderId: string, newStatus: Order['status']) => {
     try {
+      const order = orders.find((o) => o.id === orderId);
+      if (!order) return;
+
+      // If changing to cancelled, restore inventory
+      if (newStatus === 'cancelled' && order.status !== 'cancelled') {
+        await restoreInventory(order);
+      }
+
       const { error } = await supabase
         .from('online_orders')
         .update({ status: newStatus })
@@ -60,8 +93,8 @@ export const OnlineOrdersAdmin: React.FC = () => {
       if (error) throw error;
 
       setOrders((prev) =>
-        prev.map((order) =>
-          order.id === orderId ? { ...order, status: newStatus } : order
+        prev.map((o) =>
+          o.id === orderId ? { ...o, status: newStatus } : o
         )
       );
 

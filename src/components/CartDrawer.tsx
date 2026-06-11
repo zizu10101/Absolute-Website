@@ -1,12 +1,20 @@
-import React from 'react';
-import { X, Plus, Minus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Plus, Minus, Trash2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { supabase } from '../supabase';
 
 interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface StockWarning {
+  productId: string;
+  size?: string;
+  availableStock: number;
+  cartQuantity: number;
 }
 
 const HST_RATE = 0.13;
@@ -14,6 +22,52 @@ const HST_RATE = 0.13;
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { items, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
+  const [stockWarnings, setStockWarnings] = useState<StockWarning[]>([]);
+
+  // Validate stock when cart drawer opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const validateCartStock = async () => {
+      const warnings: StockWarning[] = [];
+
+      for (const item of items) {
+        const { data: variant } = await supabase
+          .from('product_variants')
+          .select('stock_quantity')
+          .eq('product_id', item.productId)
+          .eq('size', item.size)
+          .single();
+
+        if (!variant) {
+          warnings.push({
+            productId: item.productId,
+            size: item.size,
+            availableStock: 0,
+            cartQuantity: item.quantity,
+          });
+        } else if (variant.stock_quantity < item.quantity) {
+          warnings.push({
+            productId: item.productId,
+            size: item.size,
+            availableStock: variant.stock_quantity,
+            cartQuantity: item.quantity,
+          });
+
+          // Auto-reduce quantity if needed
+          if (variant.stock_quantity > 0) {
+            updateQuantity(item.productId, variant.stock_quantity, item.size);
+          } else {
+            removeFromCart(item.productId, item.size);
+          }
+        }
+      }
+
+      setStockWarnings(warnings);
+    };
+
+    validateCartStock();
+  }, [isOpen, items, removeFromCart, updateQuantity]);
 
   const hstAmount = cartTotal * HST_RATE;
   const totalWithHST = cartTotal + hstAmount;
@@ -53,6 +107,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 <X size={20} />
               </button>
             </div>
+
+            {/* Stock Warnings */}
+            {stockWarnings.length > 0 && (
+              <div className="bg-amber-50 border-l-4 border-amber-400 p-4 space-y-2">
+                {stockWarnings.map((warning, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <AlertCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-800">
+                      {warning.availableStock === 0
+                        ? `${items.find((i) => i.productId === warning.productId)?.name} is no longer available`
+                        : `Only ${warning.availableStock} available for this item`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Items */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">

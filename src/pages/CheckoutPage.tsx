@@ -92,6 +92,47 @@ export function CheckoutPage() {
     }
   };
 
+  // Validate stock before placing order
+  const validateStock = async (): Promise<boolean> => {
+    for (const item of items) {
+      const { data: variant, error } = await supabase
+        .from('product_variants')
+        .select('stock_quantity')
+        .eq('product_id', item.productId)
+        .eq('size', item.size)
+        .single();
+
+      if (error || !variant || variant.stock_quantity < item.quantity) {
+        setErrors({
+          postalCode: `Sorry, ${item.name} (Size ${item.size}) is no longer available in the requested quantity.`,
+        });
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Reduce stock after order is placed
+  const reduceInventory = async () => {
+    for (const item of items) {
+      const { data: variant } = await supabase
+        .from('product_variants')
+        .select('stock_quantity, id')
+        .eq('product_id', item.productId)
+        .eq('size', item.size)
+        .single();
+
+      if (variant) {
+        await supabase
+          .from('product_variants')
+          .update({
+            stock_quantity: Math.max(0, variant.stock_quantity - item.quantity),
+          })
+          .eq('id', variant.id);
+      }
+    }
+  };
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -104,6 +145,13 @@ export function CheckoutPage() {
     setIsLoading(true);
 
     try {
+      // Validate stock before creating order
+      const hasStock = await validateStock();
+      if (!hasStock) {
+        setIsLoading(false);
+        return;
+      }
+
       const hstAmount = cartTotal * HST_RATE;
       const orderData = {
         customer_first_name: formData.firstName,
@@ -129,6 +177,9 @@ export function CheckoutPage() {
         .single();
 
       if (error) throw error;
+
+      // Reduce inventory for all items
+      await reduceInventory();
 
       // Send order confirmation emails
       await sendOrderEmails({

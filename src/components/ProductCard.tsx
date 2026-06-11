@@ -39,6 +39,28 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     if (product.id) {
       fetchVariants();
     }
+
+    // Subscribe to real-time stock updates
+    const subscription = supabase
+      .channel(`product_variants:${product.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'product_variants',
+          filter: `product_id=eq.${product.id}`,
+        },
+        () => {
+          // Re-fetch variants when stock changes
+          fetchVariants();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [product.id]);
   
   if (product.colors && product.colors.length > 0) {
@@ -48,6 +70,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const hasInStockVariants = inStockVariants.length > 0;
   const shouldShowSizes = product.showSizes && variants.length > 0;
   const isOutOfStock = variants.length > 0 && !hasInStockVariants;
+
+  // Get minimum stock across all variants for display
+  const minStock = variants.length > 0
+    ? Math.min(...variants.map(v => v.stock_quantity))
+    : null;
+
+  const getStockStatus = () => {
+    if (isOutOfStock) return 'Out of Stock';
+    if (minStock !== null && minStock > 0 && minStock <= 3) return `Only ${minStock} left!`;
+    return null;
+  };
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -174,6 +207,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </div>
           </div>
         </Link>
+
+        {/* Stock Status */}
+        {getStockStatus() && (
+          <div
+            className={`mt-2 text-xs font-bold uppercase text-center ${
+              isOutOfStock ? 'text-red-600' : 'text-amber-600'
+            }`}
+          >
+            {getStockStatus()}
+          </div>
+        )}
 
         {/* Add to Cart Button */}
         <button
