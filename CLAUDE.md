@@ -4,8 +4,8 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Checkpoint v1.0 + E-Commerce Phase 1)
-POS system complete and live. E-commerce development started on ecommerce-dev branch.
+## CURRENT STATUS (Checkpoint v1.0 + E-Commerce Phases 1-2)
+POS system complete and live. E-commerce features building on ecommerce-dev branch.
 
 **PHASE 1 COMPLETE (June 11, 2026):**
 ✅ Shopping cart with localStorage persistence
@@ -14,6 +14,16 @@ POS system complete and live. E-commerce development started on ecommerce-dev br
 ✅ Product cards with add-to-cart buttons
 ✅ Stock validation (out of stock detection)
 ✅ Cart icon with item count badge in header
+
+**PHASE 2 COMPLETE (June 11, 2026):**
+✅ Checkout page (/checkout) with customer form
+✅ Order summary with HST + total
+✅ Form validation (email, postal code, required fields)
+✅ Order saved to online_orders table
+✅ Order confirmation page (/order-confirmation)
+✅ Admin panel "Online Orders" tab
+✅ Order status management (pending/confirmed/completed/cancelled)
+✅ Delete orders capability
 
 ## COMPLETED FEATURES
 - Standalone /pos route with PIN auth (default PIN: 2024, env: VITE_POS_PIN)
@@ -40,15 +50,15 @@ POS system complete and live. E-commerce development started on ecommerce-dev br
 - ecommerce-dev = e-commerce features in development
 - Tag v1.0-pos-complete = permanent restore point
 
-## NEXT: E-COMMERCE (on ecommerce-dev branch)
-Build order:
+## E-COMMERCE BUILD ORDER (ecommerce-dev branch)
 1. ✅ Shopping cart (add to cart, quantities, remove, localStorage)
-2. → Checkout form (name, email, address, order summary)
-3. Order management (save to Supabase, admin view)
-4. Customer accounts (login, order history)
+2. ✅ Checkout form (customer form, validation, order saving)
+3. → Order management (inventory sync with POS)
+4. Customer accounts (login, view past orders)
 5. Email confirmations (Resend.com)
-6. Inventory sync (online orders reduce POS stock)
-7. Payment - Stripe (LAST - needs paid Vercel plan)
+6. Payment processing - Stripe (requires paid Vercel plan)
+
+**NEXT:** Inventory sync between online orders and POS system
 
 ## KEY ARCHITECTURE RULES
 - NO /api/ fetch calls - all direct Supabase client calls
