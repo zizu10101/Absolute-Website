@@ -1,6 +1,8 @@
 // Email sending via Supabase Edge Function (server-side, secure)
 // The Resend API key is stored server-side and never exposed to the client
 
+import { supabase } from '../supabase';
+
 export interface OrderEmail {
   orderId: string;
   customerEmail: string;
@@ -24,31 +26,20 @@ export interface OrderEmail {
 // Call Supabase Edge Function to send emails
 const callEdgeFunction = async (order: OrderEmail): Promise<{ success: boolean; customer: any; store: any }> => {
   try {
-    // Get the Supabase project URL from environment
-    // It's typically available via import.meta.env.VITE_SUPABASE_URL
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nvyfktdhzhujeltkbgrz.supabase.co';
-    const functionUrl = `${supabaseUrl}/functions/v1/send-order-email`;
-
-    const response = await fetch(functionUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(order),
+    const { data, error } = await supabase.functions.invoke('send-order-email', {
+      body: order,
     });
 
-    if (!response.ok) {
-      const error = await response.text();
+    if (error) {
       console.error('Edge function error:', error);
       return {
         success: false,
-        customer: { error: `HTTP ${response.status}` },
-        store: { error: `HTTP ${response.status}` },
+        customer: { error: error.message },
+        store: { error: error.message },
       };
     }
 
-    const result = await response.json();
-    return result;
+    return data || { success: false, customer: { error: 'No response' }, store: { error: 'No response' } };
   } catch (error) {
     console.error('Error calling edge function:', error);
     return {
