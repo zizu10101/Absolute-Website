@@ -17,6 +17,7 @@ import { CustomerProvider } from './context/CustomerContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { CustomerAuthProvider } from './context/CustomerAuthContext';
 import { ProductGridPage } from './pages/ProductGridPage';
 import { UniformSubmissionPage } from './pages/UniformSubmissionPage';
 import { CustomizationPage } from './pages/CustomizationPage';
@@ -27,6 +28,10 @@ import { BrandPage } from './pages/BrandPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { OrderConfirmationPage } from './pages/OrderConfirmationPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { LoginPage } from './pages/LoginPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { AccountPage } from './pages/AccountPage';
 import { useSEO } from './hooks/useSEO';
 
 function LoadingScreen() {
@@ -96,6 +101,12 @@ function AppRoutes() {
       <Routes>
         <Route path="/custom-lab" element={<CustomLabPage />} />
 
+        {/* Customer Auth Routes */}
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/account" element={<AccountPage />} />
+
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
 
@@ -160,18 +171,20 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <ProductProvider>
-        <CustomerProvider>
-          <CartProvider>
-            <BrowserRouter>
-              <SettingsProvider>
-                <ScrollToTop />
-                <AppContent />
-              </SettingsProvider>
-            </BrowserRouter>
-          </CartProvider>
-        </CustomerProvider>
-      </ProductProvider>
+      <CustomerAuthProvider>
+        <ProductProvider>
+          <CustomerProvider>
+            <CartProvider>
+              <BrowserRouter>
+                <SettingsProvider>
+                  <ScrollToTop />
+                  <AppContent />
+                </SettingsProvider>
+              </BrowserRouter>
+            </CartProvider>
+          </CustomerProvider>
+        </ProductProvider>
+      </CustomerAuthProvider>
     </AuthProvider>
   );
 }

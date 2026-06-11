@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { supabase } from '../supabase';
 import { sendOrderEmails } from '../utils/sendEmails';
 import { AlertCircle, Loader, Mail } from 'lucide-react';
@@ -43,6 +44,7 @@ const HST_RATE = 0.13;
 export function CheckoutPage() {
   const navigate = useNavigate();
   const { items, cartTotal, clearCart } = useCart();
+  const { user } = useCustomerAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
@@ -56,6 +58,19 @@ export function CheckoutPage() {
     notes: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
+
+  // Pre-fill form for logged-in users
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        firstName: user.user_metadata?.first_name || '',
+        lastName: user.user_metadata?.last_name || '',
+        email: user.email || '',
+        phone: user.user_metadata?.phone || '',
+      }));
+    }
+  }, [user]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -153,7 +168,7 @@ export function CheckoutPage() {
       }
 
       const hstAmount = cartTotal * HST_RATE;
-      const orderData = {
+      const orderData: any = {
         customer_first_name: formData.firstName,
         customer_last_name: formData.lastName,
         customer_email: formData.email,
@@ -169,6 +184,11 @@ export function CheckoutPage() {
         total: cartTotal + hstAmount,
         status: 'pending',
       };
+
+      // Link order to logged-in user if available
+      if (user) {
+        orderData.user_id = user.id;
+      }
 
       const { data, error } = await supabase
         .from('online_orders')
