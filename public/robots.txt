@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://torontosoccershop.com/sitemap.xml
+
+# Block admin and POS from search engines
+Disallow: /admin
+Disallow: /pos
