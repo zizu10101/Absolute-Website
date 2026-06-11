@@ -1,10 +1,10 @@
-import React, { useState, ChangeEvent, useEffect, useMemo } from 'react';
+import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts, Product } from '../context/ProductContext';
 import { useSettings, NavMenu, SEO, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3 } from 'lucide-react';
+import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
 import { resizeImage } from '../lib/imageUtils';
@@ -394,6 +394,7 @@ function AdminPageInner() {
   const [newVariantAgeGroup, setNewVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult'>('Adult');
   const [newVariantSize, setNewVariantSize] = useState<string>('');
   const [newVariantBarcode, setNewVariantBarcode] = useState<string>('');
+  const newVariantBarcodeRef = useRef<HTMLInputElement>(null);
   const [newVariantQuantity, setNewVariantQuantity] = useState<number>(30);
   const [editingProductHasNoSizes, setEditingProductHasNoSizes] = useState<boolean>(false);
 
@@ -3899,7 +3900,7 @@ function AdminPageInner() {
                       </div>
                     ) : (
                       paginatedProducts.map(product => (
-                        <div key={product.id} className="p-6 flex items-center gap-6 hover:bg-zinc-50 transition-colors group">
+                        <div key={product.id} className="p-3 sm:p-6 flex items-center gap-3 sm:gap-6 hover:bg-zinc-50 transition-colors group border-b border-zinc-100 last:border-b-0">
                           <input
                             type="checkbox"
                             checked={selectedProductIds.has(product.id)}
@@ -3914,12 +3915,12 @@ function AdminPageInner() {
                             }}
                             className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014] cursor-pointer flex-shrink-0"
                           />
-                          <div className="w-20 h-20 rounded-lg overflow-hidden bg-zinc-100 border border-zinc-200 flex-shrink-0">
+                          <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg overflow-hidden bg-zinc-100 border border-zinc-200 flex-shrink-0">
                             <img src={product.image || `https://picsum.photos/seed/${product.id}/80`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1 col-span-1 flex-wrap">
-                              <h3 className="font-bold text-zinc-900 truncate">{product.name}</h3>
+                            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                              <h3 className="font-bold text-zinc-900 text-sm truncate">{product.name}</h3>
                               {product.is_online ? (
                                 <span className="px-2 py-0.5 bg-zinc-900 text-white text-[8px] font-black uppercase rounded tracking-widest shadow-xs">Online</span>
                               ) : (
@@ -3928,27 +3929,21 @@ function AdminPageInner() {
                               {product.isNewArrival && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-black uppercase rounded tracking-widest">New</span>}
                               {product.isOnSale && <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[8px] font-black uppercase rounded tracking-widest">Sale</span>}
                             </div>
-                            <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest mb-1">
-                              {product.category} {product.submenus && product.submenus.length > 0 ? `• ${product.submenus.join(', ')}` : product.submenu && `• ${product.submenu}`} •
+                            <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">
+                              {product.category}
                               {product.isOnSale && product.salePrice ? (
-                                <span className="ml-1">
-                                  <span className="line-through opacity-50 mr-1">${product.price}</span>
-                                  <span className="text-[#b90014] font-bold">${product.salePrice}</span>
-                                </span>
+                                <span className="ml-1">• <span className="line-through opacity-50">${product.price}</span> <span className="text-[#b90014] font-bold">${product.salePrice}</span></span>
                               ) : (
-                                <span className="ml-1">${product.price}</span>
-                              )}
-                              {product.product_code && (
-                                <span className="ml-2 text-[9px] text-zinc-400 normal-case font-mono">Code: {product.product_code}</span>
+                                <span className="ml-1">• ${product.price}</span>
                               )}
                             </p>
-                            <p className="text-[10px] text-zinc-400 line-clamp-1">{product.description}</p>
                             {!product.brand && (
-                              <p className="text-[9px] text-amber-600 mt-1 font-medium">⚠️ Missing Brand</p>
+                              <p className="text-[9px] text-amber-600 mt-0.5 font-medium">⚠️ Missing Brand</p>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
+                          {/* Buttons: always visible on mobile, hover-only on desktop */}
+                          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                            <button
                               onClick={async () => {
                                 const fullProduct = await fetchProductById(product.id);
                                 if (fullProduct) {
@@ -3956,7 +3951,8 @@ function AdminPageInner() {
                                   setOriginalProduct(fullProduct);
                                 }
                               }}
-                              className="p-2.5 text-zinc-400 hover:text-zinc-900 hover:bg-white rounded-lg border border-transparent hover:border-zinc-200 transition-all shadow-sm"
+                              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-white rounded-lg border border-zinc-200 sm:border-transparent hover:border-zinc-200 transition-all"
+                              title="Edit product"
                             >
                               <Edit2 size={16} />
                             </button>
@@ -3964,21 +3960,22 @@ function AdminPageInner() {
                               <div className="flex items-center gap-1">
                                 <button
                                   onClick={() => { handleDelete(product.id); setConfirmClear(false); }}
-                                  className="px-2 py-1 bg-red-600 text-white text-[8px] font-black uppercase rounded tracking-widest"
+                                  className="px-2 py-1 bg-red-600 text-white text-[8px] font-black uppercase rounded tracking-widest min-h-[44px]"
                                 >
                                   Yes
                                 </button>
                                 <button
                                   onClick={() => setConfirmClear(false)}
-                                  className="px-2 py-1 bg-zinc-200 text-zinc-600 text-[8px] font-black uppercase rounded tracking-widest"
+                                  className="px-2 py-1 bg-zinc-200 text-zinc-600 text-[8px] font-black uppercase rounded tracking-widest min-h-[44px]"
                                 >
                                   No
                                 </button>
                               </div>
                             ) : (
-                              <button 
+                              <button
                                 onClick={() => setConfirmClear(product.id)}
-                                className="p-2.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all shadow-sm"
+                                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-zinc-200 sm:border-transparent hover:border-red-100 transition-all"
+                                title="Delete product"
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -4588,13 +4585,25 @@ function AdminPageInner() {
                         )}
                         <div>
                           <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Barcode</label>
-                          <input
-                            type="text"
-                            value={newVariantBarcode}
-                            onChange={e => setNewVariantBarcode(e.target.value)}
-                            placeholder="Unique barcode"
-                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
-                          />
+                          <div className="flex gap-2">
+                            <input
+                              ref={newVariantBarcodeRef}
+                              type="text"
+                              inputMode="text"
+                              value={newVariantBarcode}
+                              onChange={e => setNewVariantBarcode(e.target.value)}
+                              placeholder="Scan or type barcode"
+                              className="flex-1 p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => newVariantBarcodeRef.current?.focus()}
+                              className="px-3 py-2 bg-zinc-900 text-white rounded-lg flex items-center gap-1 text-[10px] font-black uppercase tracking-widest hover:bg-[#b90014] transition-colors"
+                              title="Focus barcode input to scan"
+                            >
+                              <ScanLine size={14} />
+                            </button>
+                          </div>
                         </div>
                         <div>
                           <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Stock Qty</label>

@@ -90,15 +90,17 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
             <p className={isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}>Enter your PIN to access</p>
           </div>
 
-          {/* Hidden keyboard input */}
+          {/* Hidden keyboard input — inputMode="none" + readOnly suppress mobile keyboard */}
           <input
             ref={inputRef}
             type="text"
+            inputMode="none"
+            readOnly
             value={pin}
-            onChange={() => {}}
             onKeyDown={handleKeyDown}
-            className="sr-only"
+            style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1 }}
             aria-label="PIN entry"
+            aria-hidden="true"
           />
 
           {/* PIN display */}
