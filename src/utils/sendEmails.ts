@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 
 const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY;
-const STORE_EMAIL = 'info@edgedbs.com';
+const STORE_EMAILS = ['nabil@golazo.ca', 'ziad@golazo.ca'];
 const STORE_PHONE = '905-593-3600';
 const STORE_NAME = 'Absolute Soccer Mississauga';
 const STORE_WEBSITE = 'torontosoccershop.com';
@@ -265,8 +265,8 @@ export const sendStoreEmail = async (order: OrderEmail): Promise<boolean> => {
     }
 
     const result = await resend.emails.send({
-      from: 'Absolute Soccer <orders@golazo.ca>',
-      to: STORE_EMAIL,
+      from: 'Absolute Soccer Mississauga <orders@golazo.ca>',
+      to: STORE_EMAILS,
       subject: `New Online Order #${order.orderId.slice(0, 8).toUpperCase()} - ${formatCurrency(order.total)}`,
       html: generateStoreEmailHTML(order),
     });
