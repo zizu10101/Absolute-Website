@@ -11,10 +11,12 @@ interface OrderData {
   customerEmail: string;
   customerName: string;
   customerPhone: string;
-  shippingAddress: string;
-  city: string;
-  province: string;
-  postalCode: string;
+  shippingMethod: 'pickup' | 'ship';
+  shippingCost: number;
+  shippingAddress?: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
   items: Array<{
     name: string;
     quantity: number;
@@ -45,6 +47,31 @@ const generateCustomerEmailHTML = (order: OrderData) => {
   `
     )
     .join('');
+
+  const isPickup = order.shippingMethod === 'pickup';
+  const fulfillmentSection = isPickup
+    ? `
+            <div class="section" style="background: #f0f0f0; border-left: 4px solid #b90014;">
+              <div class="section-title" style="color: #b90014;">📍 PICKUP IN STORE</div>
+              <p><strong>Your order will be ready for pickup at:</strong></p>
+              <p style="margin: 10px 0;">
+                ${STORE_NAME}<br>
+                Mississauga, ON<br>
+                <strong>Phone:</strong> <a href="tel:${STORE_PHONE.replace(/-/g, '')}">${STORE_PHONE}</a>
+              </p>
+              <p style="margin-top: 15px; color: #666;">We will call you at <strong>${order.customerPhone}</strong> when your order is ready for pickup.</p>
+            </div>
+    `
+    : `
+            <div class="section" style="background: #f0f0f0; border-left: 4px solid #b90014;">
+              <div class="section-title" style="color: #b90014;">📦 SHIPPING TO:</div>
+              <p>
+                ${order.shippingAddress || '(Address not provided)'}<br>
+                ${order.city ? order.city + ', ' : ''}${order.province || ''}${order.postalCode ? ' ' + order.postalCode : ''}
+              </p>
+              <p style="margin-top: 15px; color: #666;">Your order will be shipped within 3-5 business days. We'll send you a tracking number once your package ships.</p>
+            </div>
+    `;
 
   return `
     <!DOCTYPE html>
@@ -93,6 +120,12 @@ const generateCustomerEmailHTML = (order: OrderData) => {
                   <td>Subtotal</td>
                   <td style="text-align: right;">${formatCurrency(order.subtotal)}</td>
                 </tr>
+                ${order.shippingCost > 0 ? `
+                <tr>
+                  <td>Shipping</td>
+                  <td style="text-align: right;">${formatCurrency(order.shippingCost)}</td>
+                </tr>
+                ` : ''}
                 <tr>
                   <td>HST (13%)</td>
                   <td style="text-align: right;">${formatCurrency(order.tax)}</td>
@@ -104,18 +137,11 @@ const generateCustomerEmailHTML = (order: OrderData) => {
               </table>
             </div>
 
-            <div class="section">
-              <div class="section-title">Shipping Address</div>
-              <p>
-                ${order.shippingAddress}<br>
-                ${order.city}, ${order.province} ${order.postalCode}
-              </p>
-            </div>
+            ${fulfillmentSection}
 
             <div class="section" style="background: #f0f0f0; border-left: 4px solid #b90014;">
-              <strong>What happens next?</strong>
-              <p>We will contact you within 24 hours to arrange payment and delivery.</p>
-              <p><strong>Call us:</strong> ${STORE_PHONE}</p>
+              <strong>Questions?</strong>
+              <p>Contact us anytime at <a href="tel:${STORE_PHONE.replace(/-/g, '')}">${STORE_PHONE}</a> or <a href="mailto:info@edgedbs.com">info@edgedbs.com</a></p>
             </div>
 
             <div class="footer">
@@ -151,6 +177,25 @@ const generateStoreEmailHTML = (order: OrderData) => {
   `
     )
     .join('');
+
+  const isPickup = order.shippingMethod === 'pickup';
+  const fulfillmentSection = isPickup
+    ? `
+            <div class="section" style="background: #fef3c7; border-left: 4px solid #f59e0b;">
+              <div style="font-weight: bold; color: #b90014;">📍 PICKUP ORDER</div>
+              <p style="margin-top: 10px;">Customer will pick up at store.</p>
+              <p><strong>Customer Phone:</strong> <a href="tel:${order.customerPhone.replace(/\D/g, '')}">${order.customerPhone}</a></p>
+            </div>
+    `
+    : `
+            <div class="section" style="background: #fef3c7; border-left: 4px solid #f59e0b;">
+              <div style="font-weight: bold; color: #b90014;">📦 SHIP TO CUSTOMER</div>
+              <p style="margin-top: 10px;">
+                ${order.shippingAddress || '(No address)'}<br>
+                ${order.city ? order.city + ', ' : ''}${order.province || ''}${order.postalCode ? ' ' + order.postalCode : ''}
+              </p>
+            </div>
+    `;
 
   return `
     <!DOCTYPE html>
@@ -189,13 +234,7 @@ const generateStoreEmailHTML = (order: OrderData) => {
               </p>
             </div>
 
-            <div class="section">
-              <div class="section-title">Shipping Address</div>
-              <p>
-                ${order.shippingAddress}<br>
-                ${order.city}, ${order.province} ${order.postalCode}
-              </p>
-            </div>
+            ${fulfillmentSection}
 
             <div class="section">
               <div class="section-title">Items Ordered</div>
@@ -217,6 +256,7 @@ const generateStoreEmailHTML = (order: OrderData) => {
             <div class="section">
               <div style="text-align: right;">
                 <p>Subtotal: <strong>${formatCurrency(order.subtotal)}</strong></p>
+                ${order.shippingCost > 0 ? `<p>Shipping: <strong>${formatCurrency(order.shippingCost)}</strong></p>` : ''}
                 <p>HST (13%): <strong>${formatCurrency(order.tax)}</strong></p>
                 <p style="font-size: 18px; color: #b90014;">Total: <strong>${formatCurrency(order.total)}</strong></p>
               </div>
