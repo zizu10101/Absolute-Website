@@ -260,23 +260,23 @@ const sendEmailViaResend = async (
   }
 };
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     if (req.method !== 'POST') {
       return new Response(
         JSON.stringify({ error: 'Method not allowed' }),
-        { status: 405, headers: { 'Content-Type': 'application/json' } }
+        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -292,14 +292,14 @@ serve(async (req) => {
     ) {
       return new Response(
         JSON.stringify({ error: 'Invalid order data' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!RESEND_API_KEY) {
       return new Response(
         JSON.stringify({ error: 'RESEND_API_KEY not configured' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -326,8 +326,8 @@ serve(async (req) => {
       }),
       {
         headers: {
+          ...corsHeaders,
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
         },
       }
     );
@@ -335,7 +335,7 @@ serve(async (req) => {
     console.error('Error in send-order-email function:', error);
     return new Response(
       JSON.stringify({ error: `Server error: ${error.message}` }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
