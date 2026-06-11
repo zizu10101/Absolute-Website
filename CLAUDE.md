@@ -4,8 +4,8 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Checkpoint v1.0 + E-Commerce Phases 1-5 Complete)
-POS system live. E-commerce fully functional with customer accounts on ecommerce-dev branch.
+## CURRENT STATUS (Checkpoint v1.0 + E-Commerce Phases 1-5 Complete + Shipping)
+POS system live. E-commerce fully functional with customer accounts and shipping options on ecommerce-dev branch.
 Ready for merge to main or Phase 6 development (payment processing).
 
 ### What's Working (ecommerce-dev)
@@ -72,6 +72,17 @@ Ready for merge to main or Phase 6 development (payment processing).
 ✅ Orders linked to user_id in online_orders table
 ✅ Guest checkout still allowed (no forced login)
 
+**SHIPPING OPTIONS (June 11, 2026):**
+✅ Pickup in Store option - FREE (selected by default)
+✅ Ship to Address option - $15.00
+✅ Shipping address form shows/hides based on selection
+✅ HST applied to shipping cost ($1.95 on $15)
+✅ Real-time order summary updates
+✅ Order data includes shipping_method and shipping_cost
+✅ Customer email shows pickup or shipping section based on method
+✅ Store email shows pickup or shipping alert
+✅ No "undefined" fields in email templates for missing address data
+
 ## COMPLETED FEATURES
 - Standalone /pos route with PIN auth (default PIN: 2024, env: VITE_POS_PIN)
 - Barcode scanner with global keydown listener
@@ -111,8 +122,10 @@ Ready for merge to main or Phase 6 development (payment processing).
 - Option B: Continue Phase 6 (payment processing with Stripe)
 - Option C: Build Phase 6 on separate branch, merge later
 
-**Database Migration Required:**
-Run migrations/add_user_id_to_online_orders.sql to add user_id column to online_orders table
+**Database Migrations Required:**
+Run these in Supabase SQL Editor:
+1. migrations/add_user_id_to_online_orders.sql - adds user_id column + index
+2. migrations/add_shipping_to_online_orders.sql - adds shipping_method and shipping_cost columns
 
 ## KEY ARCHITECTURE RULES
 - NO /api/ fetch calls - all direct Supabase client calls
