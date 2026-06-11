@@ -12,8 +12,9 @@ import { uploadImage, supabase } from '../supabase';
 import { RapidScanIntakeMatrix } from '../components/RapidScanIntakeMatrix';
 import { GiftCardsAdmin } from '../components/GiftCardsAdmin';
 import { ReportsPage } from '../components/ReportsPage';
+import { OnlineOrdersAdmin } from '../components/OnlineOrdersAdmin';
 
-type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports';
+type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports' | 'online-orders';
 
 const CATEGORIES = [
   'Footwear',
@@ -2171,6 +2172,12 @@ function AdminPageInner() {
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'reports' ? 'bg-[#b90014] text-white shadow-md' : 'text-zinc-500 hover:text-[#b90014] hover:bg-red-50'}`}
             >
               <BarChart3 size={14} /> Reports
+            </button>
+            <button
+              onClick={() => setActiveTab('online-orders')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'online-orders' ? 'bg-green-600 text-white shadow-md' : 'text-zinc-500 hover:text-green-600 hover:bg-green-50'}`}
+            >
+              <Package size={14} /> Online Orders
             </button>
           </div>
         </div>
@@ -4805,6 +4812,19 @@ function AdminPageInner() {
               exit={{ opacity: 0, y: -10 }}
             >
               <ReportsPage />
+            </motion.div>
+          )}
+
+          {activeTab === 'online-orders' && (
+            <motion.div
+              key="online-orders"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-8"
+            >
+              <h2 className="text-2xl font-black uppercase mb-6">Online Orders</h2>
+              <OnlineOrdersAdmin />
             </motion.div>
           )}
         </AnimatePresence>
