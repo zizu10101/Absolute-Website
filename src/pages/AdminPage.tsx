@@ -239,6 +239,7 @@ function AdminPageInner() {
   const [bulkBrandAssignBrand, setBulkBrandAssignBrand] = useState<string>('');
   const [isBulkBrandAssigning, setIsBulkBrandAssigning] = useState(false);
   const [bulkBrandStatus, setBulkBrandStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [productStockCache, setProductStockCache] = useState<Map<string, number>>(new Map());
 
   const syncToLocal = async () => {
     setIsSyncingLocal(true);
@@ -377,6 +378,24 @@ function AdminPageInner() {
   useEffect(() => {
     setAdminCurrentPage(1);
   }, [adminSearchTerm, productCategoryFilter]);
+
+  // Helper: Get total stock for a product
+  const getProductStock = async (productId: string): Promise<number> => {
+    if (productStockCache.has(productId)) {
+      return productStockCache.get(productId) || 0;
+    }
+    try {
+      const { data } = await supabase
+        .from('product_variants')
+        .select('stock_quantity')
+        .eq('product_id', productId);
+      const total = data ? data.reduce((sum, v) => sum + (v.stock_quantity || 0), 0) : 0;
+      setProductStockCache(prev => new Map(prev).set(productId, total));
+      return total;
+    } catch {
+      return 0;
+    }
+  };
 
   const paginatedProducts = useMemo(() => {
     const reversed = filteredProducts.slice().reverse();
@@ -2024,6 +2043,35 @@ function AdminPageInner() {
       editingProduct.images = editingProduct.images.filter((i: any) => i !== null && i !== undefined).map((i: any) => String(i));
     }
   }
+
+  // Stock Badge Component
+  const StockBadge = ({ productId, productStockCache, getProductStock }: any) => {
+    const [stock, setStock] = useState<number | null>(null);
+
+    useEffect(() => {
+      const cached = productStockCache.get(productId);
+      if (cached !== undefined) {
+        setStock(cached);
+      } else {
+        getProductStock(productId).then(setStock);
+      }
+    }, [productId, productStockCache, getProductStock]);
+
+    if (stock === null) return null;
+
+    const isLowStock = stock <= 3;
+    return (
+      <p className={`text-[9px] font-bold mt-0.5 uppercase tracking-wider ${
+        isLowStock
+          ? 'text-red-600'
+          : stock <= 10
+          ? 'text-amber-600'
+          : 'text-green-600'
+      }`}>
+        📦 {stock} in stock {isLowStock && '⚠️'}
+      </p>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -3937,6 +3985,7 @@ function AdminPageInner() {
                                 <span className="ml-1">• ${product.price}</span>
                               )}
                             </p>
+                            <StockBadge productId={product.id} productStockCache={productStockCache} getProductStock={getProductStock} />
                             {!product.brand && (
                               <p className="text-[9px] text-amber-600 mt-0.5 font-medium">⚠️ Missing Brand</p>
                             )}

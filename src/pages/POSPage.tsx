@@ -119,6 +119,11 @@ export function POSPage() {
   const [returnsLookupError, setReturnsLookupError] = useState<string | null>(null);
   const returnsInvoiceInputRef = useRef<HTMLInputElement>(null);
 
+  // Size selector modal
+  const [showSizeSelector, setShowSizeSelector] = useState(false);
+  const [selectedProductForSize, setSelectedProductForSize] = useState<any | null>(null);
+  const [productVariants, setProductVariants] = useState<Map<string, any[]>>(new Map());
+
   // Hooks
   const {
     cart,
@@ -181,7 +186,7 @@ export function POSPage() {
     }
   }, [isAuthenticated]);
 
-  // Fetch products
+  // Fetch products with variants
   useEffect(() => {
     const fetchAllProducts = async () => {
       try {
@@ -191,7 +196,26 @@ export function POSPage() {
           .order('name', { ascending: true })
           .limit(1000);
         if (error) throw error;
-        if (data) setProducts(data.map(mapProductFromDb));
+        if (data) {
+          const mappedProducts = data.map(mapProductFromDb);
+          setProducts(mappedProducts);
+
+          // Fetch variants for all products
+          const { data: variants } = await supabase
+            .from('product_variants')
+            .select('*');
+
+          if (variants) {
+            const variantMap = new Map<string, any[]>();
+            variants.forEach(v => {
+              if (!variantMap.has(v.product_id)) {
+                variantMap.set(v.product_id, []);
+              }
+              variantMap.get(v.product_id)!.push(v);
+            });
+            setProductVariants(variantMap);
+          }
+        }
       } catch (err) {
         console.error('Failed to fetch products:', err);
       } finally {
@@ -361,6 +385,27 @@ export function POSPage() {
         setTimeout(() => barcodeInputRef.current?.focus(), 60);
       }
     }
+  };
+
+  // Helper: Calculate total stock for a product
+  const getTotalStock = (productId: string): number => {
+    const variants = productVariants.get(productId) || [];
+    return variants.reduce((sum, v) => sum + (v.stock_quantity || 0), 0);
+  };
+
+  // Helper: Get stock status display
+  const getStockStatus = (productId: string): { text: string; color: string; isDisabled: boolean } => {
+    const stock = getTotalStock(productId);
+    if (stock === 0) {
+      return { text: 'Out of Stock', color: 'text-red-500', isDisabled: true };
+    }
+    if (stock <= 3) {
+      return { text: `Only ${stock} left!`, color: 'text-amber-500', isDisabled: false };
+    }
+    if (stock <= 10) {
+      return { text: `${stock} in stock`, color: 'text-gray-400', isDisabled: false };
+    }
+    return { text: '', color: '', isDisabled: false };
   };
 
   // Category matching
@@ -1204,21 +1249,42 @@ export function POSPage() {
               <div className="text-center py-4 text-gray-500 text-xs">No products found</div>
             ) : (
               <div className="grid grid-cols-3 gap-2">
-                {filteredProducts.map((product) => (
-                  <button
-                    key={product.id}
-                    onClick={() => addItem(product)}
-                    className="bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#b90014] rounded p-2 flex flex-col items-center justify-center gap-1 transition-colors group text-center"
-                  >
-                    {product.image && (
-                      <img src={product.image} alt={product.name} className="h-24 w-auto object-cover rounded bg-[#0f1117]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    )}
-                    <span className="text-xs font-semibold text-gray-300 group-hover:text-white line-clamp-2">
-                      {product.name}
-                    </span>
-                    <span className="text-sm font-bold text-[#b90014]">${product.price?.toFixed(2) || '0.00'}</span>
-                  </button>
-                ))}
+                {filteredProducts.map((product) => {
+                  const stockStatus = getStockStatus(product.id);
+                  const hasVariants = (productVariants.get(product.id) || []).length > 0;
+                  return (
+                    <button
+                      key={product.id}
+                      onClick={() => {
+                        if (hasVariants) {
+                          setSelectedProductForSize(product);
+                          setShowSizeSelector(true);
+                        } else {
+                          addItem(product);
+                        }
+                      }}
+                      disabled={stockStatus.isDisabled}
+                      className={`rounded p-2 flex flex-col items-center justify-center gap-1 transition-colors group text-center ${
+                        stockStatus.isDisabled
+                          ? 'bg-[#0d1117] border border-[#1a1a1a] opacity-50 cursor-not-allowed'
+                          : 'bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#b90014]'
+                      }`}
+                    >
+                      {product.image && (
+                        <img src={product.image} alt={product.name} className="h-24 w-auto object-cover rounded bg-[#0f1117]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      )}
+                      <span className="text-xs font-semibold text-gray-300 group-hover:text-white line-clamp-2">
+                        {product.name}
+                      </span>
+                      <span className="text-sm font-bold text-[#b90014]">${product.price?.toFixed(2) || '0.00'}</span>
+                      {stockStatus.text && (
+                        <span className={`text-xs font-semibold ${stockStatus.color}`}>
+                          {stockStatus.text}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1467,6 +1533,81 @@ export function POSPage() {
           </div>
         </div>
       )}
+
+      {/* Size Selector Modal */}
+      <AnimatePresence>
+        {showSizeSelector && selectedProductForSize && (
+          <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#1a2236] rounded-lg shadow-xl max-w-md w-full mx-4 border border-[#2d3547]"
+            >
+              <div className="p-4 border-b border-[#2d3547] flex items-center justify-between bg-[#0f1117]">
+                <h2 className="text-sm font-bold">
+                  {selectedProductForSize.name} - Select Size
+                </h2>
+                <button
+                  onClick={() => setShowSizeSelector(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
+                {(productVariants.get(selectedProductForSize.id) || [])
+                  .sort((a, b) => {
+                    const aNum = parseInt(a.size) || 0;
+                    const bNum = parseInt(b.size) || 0;
+                    return aNum - bNum;
+                  })
+                  .map((variant) => (
+                    <button
+                      key={variant.id}
+                      onClick={() => {
+                        const variantProduct = {
+                          ...selectedProductForSize,
+                          id: `var-${variant.id}`,
+                          variantId: variant.id,
+                          size: variant.size,
+                          ageGroup: variant.age_group,
+                          stockQuantity: variant.stock_quantity,
+                          barcode: variant.barcode,
+                        };
+                        addItem(variantProduct);
+                        setShowSizeSelector(false);
+                      }}
+                      disabled={variant.stock_quantity <= 0}
+                      className={`w-full p-3 rounded flex items-center justify-between transition-colors ${
+                        variant.stock_quantity <= 0
+                          ? 'bg-[#0d1117] text-gray-500 opacity-50 cursor-not-allowed'
+                          : 'bg-[#2d3547] hover:bg-[#b90014] hover:text-white text-gray-300'
+                      }`}
+                    >
+                      <span className="font-semibold">
+                        Size {variant.size || '(no size)'}
+                        {variant.age_group && ` (${variant.age_group})`}
+                      </span>
+                      <span className={`text-sm ${
+                        variant.stock_quantity > 10
+                          ? 'text-gray-400'
+                          : variant.stock_quantity > 3
+                          ? 'text-amber-400'
+                          : variant.stock_quantity > 0
+                          ? 'text-red-400'
+                          : 'text-gray-500 line-through'
+                      }`}>
+                        {variant.stock_quantity > 0 ? `(${variant.stock_quantity} left)` : '(Out of Stock)'}
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Checkout Modal */}
       <AnimatePresence>
