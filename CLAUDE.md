@@ -4,9 +4,9 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Checkpoint v1.0 + E-Commerce Phases 1-4 Complete)
-POS system live. E-commerce fully functional on ecommerce-dev branch.
-Ready for merge to main or Phase 5 development.
+## CURRENT STATUS (Checkpoint v1.0 + E-Commerce Phases 1-5 Complete)
+POS system live. E-commerce fully functional with customer accounts on ecommerce-dev branch.
+Ready for merge to main or Phase 6 development (payment processing).
 
 ### What's Working (ecommerce-dev)
 ✅ Shopping cart with real-time stock checks
@@ -58,6 +58,20 @@ Ready for merge to main or Phase 5 development.
 ✅ Real-time Supabase subscriptions for stock updates
 ✅ Auto-adjust cart quantities if stock changed
 
+**PHASE 5 COMPLETE (June 11, 2026):**
+✅ Customer authentication (register, login, password reset)
+✅ Register page with email, password, first/last name, phone
+✅ Login page with sign in and forgot password link
+✅ Forgot Password page with reset link email
+✅ Account page (/account) with order history tab
+✅ Order history shows all customer orders with details modal
+✅ Profile tab: view and edit name, phone, email (read-only)
+✅ Header shows "Sign In" when logged out
+✅ Header shows account dropdown when logged in
+✅ Checkout form pre-fills for logged-in customers
+✅ Orders linked to user_id in online_orders table
+✅ Guest checkout still allowed (no forced login)
+
 ## COMPLETED FEATURES
 - Standalone /pos route with PIN auth (default PIN: 2024, env: VITE_POS_PIN)
 - Barcode scanner with global keydown listener
@@ -88,14 +102,17 @@ Ready for merge to main or Phase 5 development.
 2. ✅ Checkout form (customer form, validation, order saving)
 3. ✅ Email confirmations (Resend.com - customer + store)
 4. ✅ Inventory sync (stock validation, reduction, restoration)
-5. → READY: Merge to main OR continue Phase 5
-6. Customer accounts (login, view past orders)
+5. ✅ Customer accounts (login, register, password reset, order history, profile)
+6. → READY: Merge to main OR continue Phase 6
 7. Payment processing - Stripe (requires paid Vercel plan)
 
 **DECISION POINT:** 
-- Option A: Merge ecommerce-dev to main (Phases 1-4 working, no payment yet)
-- Option B: Continue Phase 5 (customer accounts + order history)
-- Option C: Build Phase 5 on separate branch, merge later
+- Option A: Merge ecommerce-dev to main (Phases 1-5 working, no payment yet)
+- Option B: Continue Phase 6 (payment processing with Stripe)
+- Option C: Build Phase 6 on separate branch, merge later
+
+**Database Migration Required:**
+Run migrations/add_user_id_to_online_orders.sql to add user_id column to online_orders table
 
 ## KEY ARCHITECTURE RULES
 - NO /api/ fetch calls - all direct Supabase client calls
@@ -126,11 +143,20 @@ settings: key, value (stores site settings as JSON)
 - src/pages/POSPage.tsx (POS main, 2100+ lines)
 - src/pages/POSPage.backup.tsx (backup before redesign)
 - src/pages/AdminPage.tsx (admin panel, 3500+ lines)
+- src/pages/CheckoutPage.tsx (checkout with customer form, stock validation, pre-fill for logged-in users)
+- src/pages/AccountPage.tsx (customer account: order history + profile tabs)
+- src/pages/LoginPage.tsx (customer login)
+- src/pages/RegisterPage.tsx (customer registration)
+- src/pages/ForgotPasswordPage.tsx (password reset)
+- src/context/CustomerAuthContext.tsx (customer authentication - separate from admin auth)
+- src/components/Header.tsx (updated with account dropdown)
 - src/components/ReturnsModal.tsx
+- src/components/OnlineOrdersAdmin.tsx (admin panel for online orders)
 - src/utils/thermalReceipt.ts
 - src/hooks/useSEO.ts
 - scripts/generate-sitemap.js
 - public/sitemap.xml
+- migrations/add_user_id_to_online_orders.sql (database schema update)
 
 ## RECEIPT INFO
 Store: Absolute Soccer Mississauga
