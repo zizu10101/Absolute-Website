@@ -242,7 +242,7 @@ export const sendCustomerEmail = async (order: OrderEmail): Promise<boolean> => 
     }
 
     const result = await resend.emails.send({
-      from: `${STORE_NAME} <onboarding@resend.dev>`,
+      from: 'Absolute Soccer <orders@golazo.ca>',
       to: order.customerEmail,
       subject: `Order Confirmed - ${STORE_NAME} #${order.orderId.slice(0, 8).toUpperCase()}`,
       html: generateCustomerEmailHTML(order),
@@ -265,7 +265,7 @@ export const sendStoreEmail = async (order: OrderEmail): Promise<boolean> => {
     }
 
     const result = await resend.emails.send({
-      from: `${STORE_NAME} <onboarding@resend.dev>`,
+      from: 'Absolute Soccer <orders@golazo.ca>',
       to: STORE_EMAIL,
       subject: `New Online Order #${order.orderId.slice(0, 8).toUpperCase()} - ${formatCurrency(order.total)}`,
       html: generateStoreEmailHTML(order),
