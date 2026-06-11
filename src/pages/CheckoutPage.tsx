@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { supabase } from '../supabase';
 import { sendOrderEmails } from '../utils/sendEmails';
-import { AlertCircle, Loader, Mail } from 'lucide-react';
+import { AlertCircle, Loader, Mail, Package, Store } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const CANADIAN_PROVINCES = [
@@ -41,11 +41,14 @@ interface FormErrors {
 
 const HST_RATE = 0.13;
 
+const SHIPPING_COST = 15.00;
+
 export function CheckoutPage() {
   const navigate = useNavigate();
   const { items, cartTotal, clearCart } = useCart();
   const { user } = useCustomerAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [shippingMethod, setShippingMethod] = useState<'pickup' | 'ship'>('pickup');
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -82,12 +85,16 @@ export function CheckoutPage() {
       newErrors.email = 'Invalid email format';
 
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    if (!formData.street.trim()) newErrors.street = 'Street address is required';
-    if (!formData.city.trim()) newErrors.city = 'City is required';
-    if (!formData.province) newErrors.province = 'Province is required';
-    if (!formData.postalCode.trim()) newErrors.postalCode = 'Postal code is required';
-    else if (!/^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/.test(formData.postalCode.replace(/\s/g, '')))
-      newErrors.postalCode = 'Invalid postal code format (A1A 1A1)';
+
+    // Address fields only required if shipping
+    if (shippingMethod === 'ship') {
+      if (!formData.street.trim()) newErrors.street = 'Street address is required';
+      if (!formData.city.trim()) newErrors.city = 'City is required';
+      if (!formData.province) newErrors.province = 'Province is required';
+      if (!formData.postalCode.trim()) newErrors.postalCode = 'Postal code is required';
+      else if (!/^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/.test(formData.postalCode.replace(/\s/g, '')))
+        newErrors.postalCode = 'Invalid postal code format (A1A 1A1)';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -167,21 +174,29 @@ export function CheckoutPage() {
         return;
       }
 
-      const hstAmount = cartTotal * HST_RATE;
+      // Calculate shipping cost and tax
+      const shippingCost = shippingMethod === 'pickup' ? 0 : SHIPPING_COST;
+      const subtotalWithShipping = cartTotal + shippingCost;
+      const hstAmount = subtotalWithShipping * HST_RATE;
+      const total = subtotalWithShipping + hstAmount;
+
       const orderData: any = {
         customer_first_name: formData.firstName,
         customer_last_name: formData.lastName,
         customer_email: formData.email,
         customer_phone: formData.phone,
-        shipping_address: formData.street,
-        city: formData.city,
-        province: formData.province,
-        postal_code: formData.postalCode,
+        shipping_method: shippingMethod,
+        shipping_cost: shippingCost,
+        // Only include address if shipping, not pickup
+        shipping_address: shippingMethod === 'ship' ? formData.street : null,
+        city: shippingMethod === 'ship' ? formData.city : null,
+        province: shippingMethod === 'ship' ? formData.province : null,
+        postal_code: shippingMethod === 'ship' ? formData.postalCode : null,
         notes: formData.notes || null,
         items: items,
         subtotal: cartTotal,
         tax: hstAmount,
-        total: cartTotal + hstAmount,
+        total: total,
         status: 'pending',
       };
 
@@ -207,14 +222,16 @@ export function CheckoutPage() {
         customerEmail: formData.email,
         customerName: `${formData.firstName} ${formData.lastName}`,
         customerPhone: formData.phone,
-        shippingAddress: formData.street,
-        city: formData.city,
-        province: formData.province,
-        postalCode: formData.postalCode,
+        shippingMethod: shippingMethod,
+        shippingAddress: shippingMethod === 'ship' ? formData.street : undefined,
+        city: shippingMethod === 'ship' ? formData.city : undefined,
+        province: shippingMethod === 'ship' ? formData.province : undefined,
+        postalCode: shippingMethod === 'ship' ? formData.postalCode : undefined,
         items: items,
         subtotal: cartTotal,
+        shippingCost: shippingCost,
         tax: hstAmount,
-        total: cartTotal + hstAmount,
+        total: total,
       });
 
       // Clear cart
@@ -246,8 +263,10 @@ export function CheckoutPage() {
     );
   }
 
-  const hstAmount = cartTotal * HST_RATE;
-  const total = cartTotal + hstAmount;
+  const shippingCost = shippingMethod === 'pickup' ? 0 : SHIPPING_COST;
+  const subtotalWithShipping = cartTotal + shippingCost;
+  const hstAmount = subtotalWithShipping * HST_RATE;
+  const total = subtotalWithShipping + hstAmount;
 
   return (
     <div className="max-w-[1600px] mx-auto px-8 py-12">
@@ -258,6 +277,67 @@ export function CheckoutPage() {
       <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         {/* LEFT COLUMN - Form */}
         <div className="space-y-8">
+          {/* Shipping Method Selection */}
+          <div>
+            <h2 className="text-lg font-black uppercase mb-6 border-b-2 border-zinc-100 pb-4">
+              Delivery Method
+            </h2>
+            <div className="space-y-3">
+              {/* Pickup Option */}
+              <label
+                className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  shippingMethod === 'pickup'
+                    ? 'border-[#b90014] bg-red-50'
+                    : 'border-zinc-200 bg-white hover:border-zinc-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="shippingMethod"
+                  value="pickup"
+                  checked={shippingMethod === 'pickup'}
+                  onChange={(e) => setShippingMethod(e.target.value as 'pickup' | 'ship')}
+                  className="w-4 h-4 text-[#b90014] cursor-pointer"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Store size={18} className="text-[#b90014]" />
+                    <p className="font-bold text-zinc-900">Pick up in Store</p>
+                    <span className="text-green-600 font-bold text-sm">FREE</span>
+                  </div>
+                  <p className="text-sm text-zinc-600">Absolute Soccer Mississauga</p>
+                  <p className="text-xs text-zinc-500">905-593-3600</p>
+                </div>
+              </label>
+
+              {/* Shipping Option */}
+              <label
+                className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  shippingMethod === 'ship'
+                    ? 'border-[#b90014] bg-red-50'
+                    : 'border-zinc-200 bg-white hover:border-zinc-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="shippingMethod"
+                  value="ship"
+                  checked={shippingMethod === 'ship'}
+                  onChange={(e) => setShippingMethod(e.target.value as 'pickup' | 'ship')}
+                  className="w-4 h-4 text-[#b90014] cursor-pointer"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Package size={18} className="text-[#b90014]" />
+                    <p className="font-bold text-zinc-900">Ship to My Address</p>
+                    <span className="text-zinc-700 font-bold text-sm">+$15.00</span>
+                  </div>
+                  <p className="text-sm text-zinc-600">3-5 business days delivery</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
           {/* Customer Info Section */}
           <div>
             <h2 className="text-lg font-black uppercase mb-6 border-b-2 border-zinc-100 pb-4">
@@ -387,13 +467,19 @@ export function CheckoutPage() {
             </div>
           </div>
 
-          {/* Shipping Address Section */}
-          <div>
-            <h2 className="text-lg font-black uppercase mb-6 border-b-2 border-zinc-100 pb-4">
-              Shipping Address
-            </h2>
+          {/* Shipping Address Section - Only show if shipping method is 'ship' */}
+          <AnimatePresence>
+            {shippingMethod === 'ship' && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <h2 className="text-lg font-black uppercase mb-6 border-b-2 border-zinc-100 pb-4">
+                  Shipping Address
+                </h2>
 
-            <div className="mb-4">
+                <div className="mb-4">
               <label className="block text-xs font-bold uppercase tracking-widest text-zinc-700 mb-2">
                 Street Address *
               </label>
@@ -520,7 +606,9 @@ export function CheckoutPage() {
                 )}
               </AnimatePresence>
             </div>
-          </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Order Notes */}
           <div>
@@ -581,12 +669,22 @@ export function CheckoutPage() {
                 <span className="font-bold">${cartTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-zinc-600">HST (13%)</span>
-                <span className="font-bold">${hstAmount.toFixed(2)}</span>
+                <span className="text-zinc-600">Shipping</span>
+                <span className="font-bold">
+                  {shippingMethod === 'pickup' ? (
+                    <span className="text-green-600">FREE</span>
+                  ) : (
+                    `$${SHIPPING_COST.toFixed(2)}`
+                  )}
+                </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-zinc-600">Shipping</span>
-                <span className="text-zinc-500 text-xs">Calculated at next step</span>
+                <span className="text-zinc-600">Subtotal + Shipping</span>
+                <span className="font-bold">${subtotalWithShipping.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-600">HST (13%)</span>
+                <span className="font-bold">${hstAmount.toFixed(2)}</span>
               </div>
               <div className="border-t border-zinc-200 pt-3 flex justify-between text-lg">
                 <span className="font-bold">Total</span>

@@ -8,10 +8,12 @@ export interface OrderEmail {
   customerEmail: string;
   customerName: string;
   customerPhone: string;
-  shippingAddress: string;
-  city: string;
-  province: string;
-  postalCode: string;
+  shippingMethod: 'pickup' | 'ship';
+  shippingCost: number;
+  shippingAddress?: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
   items: Array<{
     name: string;
     quantity: number;
