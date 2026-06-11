@@ -28,10 +28,12 @@ POS system complete and live. E-commerce features building on ecommerce-dev bran
 **PHASE 3 COMPLETE (June 11, 2026):**
 ✅ Resend.com integration (free tier - 3000 emails/month)
 ✅ Customer confirmation email with order details
-✅ Store notification email (info@edgedbs.com)
+✅ Store notification email (nabil@golazo.ca, ziad@golazo.ca)
 ✅ Professional HTML email templates
 ✅ Email sending on order placement
-✅ Resend API setup guide
+✅ Supabase Edge Function for server-side email (secure)
+✅ API key stored server-side (not in browser)
+✅ CORS-enabled for frontend requests
 
 ## COMPLETED FEATURES
 - Standalone /pos route with PIN auth (default PIN: 2024, env: VITE_POS_PIN)
