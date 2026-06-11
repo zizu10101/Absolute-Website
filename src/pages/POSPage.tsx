@@ -1204,7 +1204,7 @@ export function POSPage() {
               <div className="text-center py-4 text-gray-500 text-xs">No products found</div>
             ) : (
               <div className="grid grid-cols-3 gap-2">
-                {filteredProducts.slice(0, 30).map((product) => (
+                {filteredProducts.map((product) => (
                   <button
                     key={product.id}
                     onClick={() => addItem(product)}
