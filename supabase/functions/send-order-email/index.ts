@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const STORE_EMAILS = ['nabil@golazo.ca', 'ziad@golazo.ca'];
+const STORE_EMAILS = ['ziad@golazo.ca'];
 const STORE_NAME = 'Absolute Soccer Mississauga';
 const STORE_PHONE = '905-593-3600';
 const STORE_WEBSITE = 'torontosoccershop.com';
