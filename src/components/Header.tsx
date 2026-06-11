@@ -137,9 +137,19 @@ export function Header({ onMenuClick }: Props) {
             {user ? (
               <button
                 onClick={() => setIsAccountOpen(!isAccountOpen)}
-                className="p-1 text-zinc-900 hover:text-[#b90014] transition-colors"
+                className="relative group"
               >
-                <User size={24} strokeWidth={1.5} />
+                {user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt={user.user_metadata?.first_name || 'User'}
+                    className="w-6 h-6 rounded-full border-2 border-transparent group-hover:border-[#b90014] transition-all"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-[#b90014] text-white flex items-center justify-center text-xs font-bold">
+                    {user.user_metadata?.first_name?.charAt(0) || user.email?.charAt(0) || 'U'}
+                  </div>
+                )}
               </button>
             ) : (
               <Link to="/login" className="p-1 text-zinc-900 hover:text-[#b90014] transition-colors">

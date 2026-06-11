@@ -20,11 +20,45 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const saveCustomerProfile = async (user: User) => {
+    try {
+      // Extract name from full_name or email
+      const fullName = user.user_metadata?.full_name || user.email?.split('@')[0] || '';
+      const nameParts = fullName.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      const { error } = await supabase
+        .from('customers')
+        .upsert(
+          {
+            email: user.email,
+            first_name: firstName,
+            last_name: lastName,
+            avatar_url: user.user_metadata?.avatar_url,
+          },
+          { onConflict: 'email' }
+        );
+
+      if (error) {
+        console.error('Error saving customer profile:', error);
+      }
+    } catch (err) {
+      console.error('Error upserting customer profile:', err);
+    }
+  };
+
   useEffect(() => {
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
+        if (session?.user) {
+          setUser(session.user);
+          // Save profile for OAuth users (Google, etc.)
+          if (session.user.user_metadata?.full_name) {
+            await saveCustomerProfile(session.user);
+          }
+        }
       } catch (err) {
         console.error('Session check error:', err);
       } finally {
@@ -34,8 +68,14 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      // Save profile when user signs in via OAuth
+      if (currentUser?.user_metadata?.full_name) {
+        await saveCustomerProfile(currentUser);
+      }
     });
 
     return () => subscription.unsubscribe();
