@@ -4,8 +4,16 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Checkpoint v1.0)
-POS system complete and live. Starting e-commerce development on ecommerce-dev branch.
+## CURRENT STATUS (Checkpoint v1.0 + E-Commerce Phase 1)
+POS system complete and live. E-commerce development started on ecommerce-dev branch.
+
+**PHASE 1 COMPLETE (June 11, 2026):**
+✅ Shopping cart with localStorage persistence
+✅ Cart context + drawer UI with HST calculation
+✅ Size selector modal for variants
+✅ Product cards with add-to-cart buttons
+✅ Stock validation (out of stock detection)
+✅ Cart icon with item count badge in header
 
 ## COMPLETED FEATURES
 - Standalone /pos route with PIN auth (default PIN: 2024, env: VITE_POS_PIN)
@@ -34,8 +42,8 @@ POS system complete and live. Starting e-commerce development on ecommerce-dev b
 
 ## NEXT: E-COMMERCE (on ecommerce-dev branch)
 Build order:
-1. Shopping cart (add to cart, quantities, remove)
-2. Checkout form (name, email, address, order summary)
+1. ✅ Shopping cart (add to cart, quantities, remove, localStorage)
+2. → Checkout form (name, email, address, order summary)
 3. Order management (save to Supabase, admin view)
 4. Customer accounts (login, order history)
 5. Email confirmations (Resend.com)
