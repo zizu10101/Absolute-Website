@@ -35,6 +35,18 @@ POS system complete and live. E-commerce features building on ecommerce-dev bran
 ✅ API key stored server-side (not in browser)
 ✅ CORS-enabled for frontend requests
 
+**PHASE 4 COMPLETE (June 11, 2026):**
+✅ Stock validation before checkout
+✅ Automatic stock reduction after order placement
+✅ Stock restoration on order cancellation
+✅ Real-time stock display on product cards
+✅ "Only X left!" warning when stock <= 3
+✅ "Out of Stock" status when stock = 0
+✅ Shared inventory between POS and online store
+✅ Cart validation with stock warnings
+✅ Real-time Supabase subscriptions for stock updates
+✅ Auto-adjust cart quantities if stock changed
+
 ## COMPLETED FEATURES
 - Standalone /pos route with PIN auth (default PIN: 2024, env: VITE_POS_PIN)
 - Barcode scanner with global keydown listener
@@ -64,11 +76,11 @@ POS system complete and live. E-commerce features building on ecommerce-dev bran
 1. ✅ Shopping cart (add to cart, quantities, remove, localStorage)
 2. ✅ Checkout form (customer form, validation, order saving)
 3. ✅ Email confirmations (Resend.com - customer + store)
-4. → Order management (inventory sync with POS)
-5. Customer accounts (login, view past orders)
+4. ✅ Inventory sync (stock validation, reduction, restoration)
+5. → Customer accounts (login, view past orders)
 6. Payment processing - Stripe (requires paid Vercel plan)
 
-**NEXT:** Inventory sync between online orders and POS system
+**NEXT:** Customer accounts & order history
 
 ## KEY ARCHITECTURE RULES
 - NO /api/ fetch calls - all direct Supabase client calls
