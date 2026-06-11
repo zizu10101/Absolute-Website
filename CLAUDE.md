@@ -71,6 +71,10 @@ Ready for merge to main or Phase 6 development (payment processing).
 ✅ Checkout form pre-fills for logged-in customers
 ✅ Orders linked to user_id in online_orders table
 ✅ Guest checkout still allowed (no forced login)
+✅ Google Sign In / Sign Up (OAuth)
+✅ Google profile picture shown in header
+✅ Auto-save Google profile to customers table
+✅ Email/password option as alternative
 
 **SHIPPING OPTIONS (June 11, 2026):**
 ✅ Pickup in Store option - FREE (selected by default)
@@ -133,6 +137,15 @@ Run these in Supabase SQL Editor:
 - Vercel has no server - no serverless functions yet
 - Supabase client imported from shared lib file
 - POS backup at src/pages/POSPage.backup.tsx
+- Google OAuth configured in Supabase dashboard (already done)
+- OAuth redirect URL: [production-url]/account
+
+## GOOGLE OAUTH SETUP (DASHBOARD ONLY)
+✅ Google OAuth provider enabled in Supabase
+✅ Redirect URI set to: https://torontosoccershop.com/account
+✅ Credentials securely stored in Supabase (no client exposure)
+- Customer info auto-synced from Google to customers table
+- Profile picture stored in avatar_url
 
 ## DATABASE TABLES (POS + E-Commerce)
 **POS Tables:**
