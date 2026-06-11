@@ -4,8 +4,18 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Checkpoint v1.0 + E-Commerce Phases 1-2)
-POS system complete and live. E-commerce features building on ecommerce-dev branch.
+## CURRENT STATUS (Checkpoint v1.0 + E-Commerce Phases 1-4 Complete)
+POS system live. E-commerce fully functional on ecommerce-dev branch.
+Ready for merge to main or Phase 5 development.
+
+### What's Working (ecommerce-dev)
+✅ Shopping cart with real-time stock checks
+✅ Checkout with customer form & address validation
+✅ Order confirmation emails (Resend via Supabase Edge Function)
+✅ Shared inventory between POS and online store
+✅ Admin panel for managing online orders
+✅ Real-time stock updates across systems
+✅ No overbooking possible
 
 **PHASE 1 COMPLETE (June 11, 2026):**
 ✅ Shopping cart with localStorage persistence
@@ -28,12 +38,13 @@ POS system complete and live. E-commerce features building on ecommerce-dev bran
 **PHASE 3 COMPLETE (June 11, 2026):**
 ✅ Resend.com integration (free tier - 3000 emails/month)
 ✅ Customer confirmation email with order details
-✅ Store notification email (nabil@golazo.ca, ziad@golazo.ca)
+✅ Store notification email → ziad@golazo.ca
 ✅ Professional HTML email templates
 ✅ Email sending on order placement
 ✅ Supabase Edge Function for server-side email (secure)
-✅ API key stored server-side (not in browser)
-✅ CORS-enabled for frontend requests
+✅ API key stored as Supabase secret (not in browser/code)
+✅ CORS headers configured for authorization
+✅ Edge function deployed with --no-verify-jwt
 
 **PHASE 4 COMPLETE (June 11, 2026):**
 ✅ Stock validation before checkout
@@ -77,10 +88,14 @@ POS system complete and live. E-commerce features building on ecommerce-dev bran
 2. ✅ Checkout form (customer form, validation, order saving)
 3. ✅ Email confirmations (Resend.com - customer + store)
 4. ✅ Inventory sync (stock validation, reduction, restoration)
-5. → Customer accounts (login, view past orders)
-6. Payment processing - Stripe (requires paid Vercel plan)
+5. → READY: Merge to main OR continue Phase 5
+6. Customer accounts (login, view past orders)
+7. Payment processing - Stripe (requires paid Vercel plan)
 
-**NEXT:** Customer accounts & order history
+**DECISION POINT:** 
+- Option A: Merge ecommerce-dev to main (Phases 1-4 working, no payment yet)
+- Option B: Continue Phase 5 (customer accounts + order history)
+- Option C: Build Phase 5 on separate branch, merge later
 
 ## KEY ARCHITECTURE RULES
 - NO /api/ fetch calls - all direct Supabase client calls
@@ -89,14 +104,20 @@ POS system complete and live. E-commerce features building on ecommerce-dev bran
 - Supabase client imported from shared lib file
 - POS backup at src/pages/POSPage.backup.tsx
 
-## DATABASE TABLES
+## DATABASE TABLES (POS + E-Commerce)
+**POS Tables:**
 transactions: id, customer_id, total_amount, method, payment_method, items(jsonb), created_at, status, invoice_number, tendered_amount, change_given
-products: id, name, price, category, image, images, description, isNewArrival, isOnSale, isFeatured, salePrice, submenu, submenus, is_online, show_sizes, brand, product_code
 product_variants: id, product_id, size, barcode, price, stock_quantity, sku
-customers: id, first_name, last_name, email, phone, boot_size, club_affinity
 gift_cards: id, card_number, initial_balance, current_balance, customer_id, is_active
 store_credits: id, card_number, customer_id, amount, remaining_balance, reason, is_active
 returns: id, transaction_id, customer_id, items, refund_method, refund_amount, store_credit_id, status
+
+**E-Commerce Tables:**
+online_orders: id, customer_first_name, last_name, email, phone, shipping_address, city, province, postal_code, notes, items(jsonb), subtotal, tax, total, status, created_at
+
+**Shared Tables:**
+products: id, name, price, category, image, images, description, isNewArrival, isOnSale, isFeatured, salePrice, submenu, submenus, is_online, show_sizes, brand, product_code
+customers: id, first_name, last_name, email, phone, boot_size, club_affinity
 navigation_menus: id, label, path, order_index, is_active
 navigation_items: id, menu_id, label, path, logo_url, order_index, parent_id, is_active
 settings: key, value (stores site settings as JSON)
