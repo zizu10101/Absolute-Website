@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts, Product } from '../context/ProductContext';
 import { useSettings, NavMenu, SEO, forceManualNavigationMigration } from '../context/SettingsContext';
@@ -379,8 +379,9 @@ function AdminPageInner() {
     setAdminCurrentPage(1);
   }, [adminSearchTerm, productCategoryFilter]);
 
-  // Memoized: Get total stock for a product (cached to prevent flickering)
-  const getProductStock = useCallback(async (productId: string): Promise<number> => {
+  // Get total stock for a product (simple one-time fetch)
+  const getProductStock = async (productId: string): Promise<number> => {
+    // Check cache first
     if (productStockCache.has(productId)) {
       return productStockCache.get(productId) || 0;
     }
@@ -390,12 +391,13 @@ function AdminPageInner() {
         .select('stock_quantity')
         .eq('product_id', productId);
       const total = data ? data.reduce((sum, v) => sum + (v.stock_quantity || 0), 0) : 0;
+      // Update cache for future lookups
       setProductStockCache(prev => new Map(prev).set(productId, total));
       return total;
     } catch {
       return 0;
     }
-  }, [productStockCache]);
+  };
 
   const paginatedProducts = useMemo(() => {
     const reversed = filteredProducts.slice().reverse();
@@ -2044,25 +2046,19 @@ function AdminPageInner() {
     }
   }
 
-  // Stock Badge Component - Memoized to prevent flickering
-  const StockBadge = React.memo(({ productId, productStockCache, getProductStock }: any) => {
+  // Stock Badge Component - Simple one-time fetch to prevent flickering
+  const StockBadge = ({ productId, productStockCache, getProductStock }: any) => {
     const [stock, setStock] = useState<number | null>(null);
-    const [hasLoaded, setHasLoaded] = useState(false);
 
     useEffect(() => {
-      if (hasLoaded) return; // Only fetch once
-
+      // Fetch stock once on mount
       const cached = productStockCache.get(productId);
       if (cached !== undefined) {
         setStock(cached);
-        setHasLoaded(true);
       } else {
-        getProductStock(productId).then((s: number) => {
-          setStock(s);
-          setHasLoaded(true);
-        });
+        getProductStock(productId).then(setStock);
       }
-    }, [productId]); // Only depend on productId, not on cache or function
+    }, [productId]); // Only re-fetch if productId changes
 
     if (stock === null) return null;
 
@@ -2078,7 +2074,7 @@ function AdminPageInner() {
         📦 {stock} in stock {isLowStock && '⚠️'}
       </p>
     );
-  });
+  };
 
   return (
     <div className="min-h-screen bg-zinc-50">

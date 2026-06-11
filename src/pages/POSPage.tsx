@@ -387,30 +387,26 @@ export function POSPage() {
     }
   };
 
-  // Memoized stock calculation to prevent flickering
-  const getTotalStock = useMemo(() => {
-    return (productId: string): number => {
-      const variants = productVariants.get(productId) || [];
-      return variants.reduce((sum, v) => sum + (v.stock_quantity || 0), 0);
-    };
-  }, [productVariants]);
+  // Simple one-time stock calculation (no memoization to avoid flickering)
+  const getTotalStock = (productId: string): number => {
+    const variants = productVariants.get(productId) || [];
+    return variants.reduce((sum, v) => sum + (v.stock_quantity || 0), 0);
+  };
 
-  // Memoized stock status to prevent unnecessary recalculations
-  const getStockStatus = useMemo(() => {
-    return (productId: string): { text: string; color: string; isDisabled: boolean } => {
-      const stock = getTotalStock(productId);
-      if (stock === 0) {
-        return { text: 'Out of Stock', color: 'text-red-500', isDisabled: true };
-      }
-      if (stock <= 3) {
-        return { text: `Only ${stock} left!`, color: 'text-amber-500', isDisabled: false };
-      }
-      if (stock <= 10) {
-        return { text: `${stock} in stock`, color: 'text-gray-400', isDisabled: false };
-      }
-      return { text: '', color: '', isDisabled: false };
-    };
-  }, [getTotalStock]);
+  // Get stock status display
+  const getStockStatus = (productId: string): { text: string; color: string; isDisabled: boolean } => {
+    const stock = getTotalStock(productId);
+    if (stock === 0) {
+      return { text: 'Out of Stock', color: 'text-red-500', isDisabled: true };
+    }
+    if (stock <= 3) {
+      return { text: `Only ${stock} left!`, color: 'text-amber-500', isDisabled: false };
+    }
+    if (stock <= 10) {
+      return { text: `${stock} in stock`, color: 'text-gray-400', isDisabled: false };
+    }
+    return { text: '', color: '', isDisabled: false };
+  };
 
   // Category matching
   const matchesCategory = (p: any, tab: CategoryTab): boolean => {
