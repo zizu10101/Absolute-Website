@@ -177,6 +177,28 @@ function AdminPageInner() {
 
   useEffect(() => {
     fetchAdminProducts();
+
+    // Fetch all product variants at once and build stock map
+    const fetchAllStock = async () => {
+      try {
+        const { data: variants, error } = await supabase
+          .from('product_variants')
+          .select('product_id, stock_quantity');
+
+        if (!error && variants) {
+          const stockMap = new Map<string, number>();
+          variants.forEach(v => {
+            const currentStock = stockMap.get(v.product_id) || 0;
+            stockMap.set(v.product_id, currentStock + (v.stock_quantity || 0));
+          });
+          setProductStockCache(stockMap);
+        }
+      } catch (err) {
+        console.error('Error fetching stock:', err);
+      }
+    };
+    fetchAllStock();
+
     // Fetch available brands
     const fetchBrands = async () => {
       try {
@@ -195,35 +217,6 @@ function AdminPageInner() {
     };
     fetchBrands();
   }, []);
-
-  useEffect(() => {
-    const fetchVariantStock = async () => {
-      try {
-        const allVariants: { product_id: string; stock_quantity: number }[] = [];
-        let from = 0;
-        const batchSize = 1000;
-        while (true) {
-          const { data, error } = await supabase
-            .from('product_variants')
-            .select('product_id, stock_quantity')
-            .range(from, from + batchSize - 1);
-          if (error || !data) break;
-          allVariants.push(...data);
-          if (data.length < batchSize) break;
-          from += batchSize;
-        }
-        const map: Record<string, number> = {};
-        allVariants.forEach(v => {
-          map[v.product_id] = (map[v.product_id] || 0) + (v.stock_quantity || 0);
-        });
-        setStockMap(map);
-      } catch (err) {
-        console.error('Failed to fetch variant stock:', err);
-      }
-    };
-    fetchVariantStock();
-  }, []);
-
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [originalProduct, setOriginalProduct] = useState<Product | null>(null);
   const [sliderImages, setSliderImages] = useState<any[]>([]);
@@ -268,7 +261,7 @@ function AdminPageInner() {
   const [bulkBrandAssignBrand, setBulkBrandAssignBrand] = useState<string>('');
   const [isBulkBrandAssigning, setIsBulkBrandAssigning] = useState(false);
   const [bulkBrandStatus, setBulkBrandStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [stockMap, setStockMap] = useState<Record<string, number>>({});
+  const [productStockCache, setProductStockCache] = useState<Map<string, number>>(new Map());
 
   const syncToLocal = async () => {
     setIsSyncingLocal(true);
@@ -2054,6 +2047,27 @@ function AdminPageInner() {
       editingProduct.images = editingProduct.images.filter((i: any) => i !== null && i !== undefined).map((i: any) => String(i));
     }
   }
+
+  // Stock Badge Component - Instant lookup from pre-loaded cache
+  const StockBadge = ({ productId, productStockCache }: any) => {
+    const stock = productStockCache.get(productId) || 0;
+
+    // Don't show anything if no stock info available yet
+    if (stock === undefined) return null;
+
+    const isLowStock = stock <= 3;
+    return (
+      <p className={`text-[9px] font-bold mt-0.5 uppercase tracking-wider ${
+        isLowStock
+          ? 'text-red-600'
+          : stock <= 10
+          ? 'text-amber-600'
+          : 'text-green-600'
+      }`}>
+        📦 {stock} in stock {isLowStock && '⚠️'}
+      </p>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -3967,7 +3981,7 @@ function AdminPageInner() {
                                 <span className="ml-1">• ${product.price}</span>
                               )}
                             </p>
-                            <p className="text-[9px] text-zinc-400 mt-0.5">Stock: {stockMap[product.id] ?? '—'}</p>
+                            <StockBadge productId={product.id} productStockCache={productStockCache} />
                             {!product.brand && (
                               <p className="text-[9px] text-amber-600 mt-0.5 font-medium">⚠️ Missing Brand</p>
                             )}

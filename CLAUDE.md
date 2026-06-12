@@ -1,171 +1,138 @@
-# Absolute Website - Development Context
+# Toronto Soccer Shop - Absolute Soccer Mississauga
+Site: torontosoccershop.com
+Stack: React + Vite + Supabase + Vercel
+GitHub: zizu10101/Absolute-Website
+Admin login: info@edgedbs.com
 
-## Project Overview
-**Toronto Soccer Shop** (Absolute Soccer Mississauga) — React + TypeScript e-commerce with integrated POS, admin panel, and financial reporting.
+## CURRENT STATUS (Main Branch - June 11, 2026)
+POS system live and fully functional. 
+E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged to main.
 
-**Stack:** React 19, TypeScript, Supabase, Vite, Tailwind CSS, Vercel  
-**Server:** `npm run dev` → localhost:3000  
-**Live:** torontosoccershop.com  
-**GitHub:** zizu10101/Absolute-Website  
-**Env:** `.env` has Supabase credentials, `VITE_POS_PIN=2024`
+### Main Branch Features
+✅ POS system production-ready and live
+✅ Stock quantity display in product grid (color-coded warnings)
+✅ Stock quantity display in admin product list
+✅ Size selector modal for products with variants
+✅ Fixed product display flickering (single bulk variant fetch)
+✅ Removed 30-item product limit in POS
+✅ Google Search Console verified, sitemap submitted
+✅ robots.txt configured (blocks /admin, /pos from search)
 
----
-
-## Current Status
-
-### Latest Completion (June 9, 2026)
-✅ POS redesigned with Shopify-style dark theme (two-column layout)  
-✅ All 500+ lines of business logic preserved  
-✅ Timezone handling fixed across 6 report components  
-✅ 100+ console.log statements cleaned from 23 files  
-✅ Navigation fallback fixed for empty relational tables  
-✅ Return receipt barcodes encode invoice numbers (scannable)  
-✅ Dual-receipt printing (return + SC with 1.5s delay)  
-✅ Store credit display shows card numbers not UUIDs  
-
----
-
-## ✅ Production-Ready Features (Complete List)
-
-**E-Commerce:**
-- Product catalog (55+ items) with categories, variants (colors/sizes)
-- Shopping cart & checkout with HST (13%)
-- Dynamic SEO meta tag injection
-- Navigation menu (55+ items with logos)
-- Brand filtering & dedicated brand pages (/brands, /brand/:brandName)
+## COMPLETED FEATURES
 
 **POS System (/pos):**
-- PIN auth (2024), dark/light theme toggle
-- Shopify-style two-column layout (left: search/products, right: customer/cart/checkout)
-- Top header: logo, cashier status, reports icon, theme toggle, logout
-- Bottom navigation: REGISTER | HISTORY | CUSTOMERS | GIFT CARDS | STORE CREDIT
-- Barcode scanning (SC- → store credit, INV- → returns, product codes → cart)
-- 7 payment methods: Cash, Debit, Visa, MC, Amex, Gift Card, Store Credit
-- Thermal receipt printing (CODE128 barcodes, INV numbers)
-- Transaction history with void/refund/return options
-- Discount system (percentage & custom price)
+- PIN auth (2024, env: VITE_POS_PIN)
+- Dark/light theme toggle
+- Shopify-style two-column layout
+- Barcode scanning (SC-, INV-, product codes)
+- 7 payment methods (Cash, Debit, Visa, MC, Amex, GC, SC)
+- Stock quantity display with color-coded warnings
+  * Red "Out of Stock" when stock = 0
+  * Amber "Only X left!" when stock 1-3
+  * Gray "X in stock" when stock 4-10
+- Size selector modal (shows stock per size)
+- Thermal receipt printing (Epson 80mm)
+- Transaction history with void/refund/return
+- Discount system (percentage & custom)
+- Cash change calculator
+- Gift cards: issue/redeem/history
+- Store credits: issue/redeem/scan/balance
+- Returns: 5-step wizard with inventory restoration
+- Reports: EOD, Sales, Products, GC, Void/Refund, Customer, SC (Eastern timezone)
 
 **Admin Panel (/admin):**
-- Product CRUD with brand field, bulk brand assignment
-- Inventory management with variants
-- Customer management, settings, database backup
+- Product CRUD with variants (size, barcode, stock)
+- Brand field with bulk brand assignment
+- Stock quantity display with low-stock warnings
+- Product list pagination (20 items/page)
+- Inventory management
+- Customer management
+- Settings and database backup
+- No flickering (single bulk fetch of all variants)
 
-**Payment Systems:**
-- Gift Cards: issue, redeem, history, reporting
-- Store Credit: issue, redeem, history (card numbers SC-XXXXX)
-- Multi-payment combinations (GC + SC on single transaction)
-- Void/Refund/Return with inventory & payment reversal
+**Database & Infrastructure:**
+- Standalone /pos route with full POS logic
+- Invoice numbering (INV-XXXXX via trigger)
+- Customer profiles with history
+- Navigation menus (navigation_menus, navigation_items tables)
+- Product brand and product_code columns
+- Duplicate product prevention (unique: name+category)
+- SEO meta tags via useSEO hook
+- Sitemap at public/sitemap.xml
+- Google Search Console verified
+- robots.txt blocks /admin and /pos from crawlers
 
-**Returns Processing:**
-- 5-step wizard (invoice lookup → items → refund → confirm → complete)
-- Partial returns with quantity controls
-- Auto inventory restoration
-- Dual-receipt printing (return receipt + SC receipt)
-- Returns audit trail & customer profile integration
+## E-COMMERCE FEATURES (ecommerce-dev branch - NOT merged to main)
+**Built and tested (Phases 1-5 complete):**
+- Shopping cart with localStorage persistence
+- Checkout with customer form & address validation
+- Order confirmation emails via Resend.com
+- Shared inventory between POS and online store
+- Real-time stock validation (no overbooking)
+- Customer authentication (register, login, password reset)
+- Account page with order history
+- Google OAuth sign-in
+- Shipping options (Pickup FREE / Ship $15)
+- Admin panel for online orders
 
-**Financial Reporting (7 tabs):**
-- End of Day, Sales, Product, Gift Card, Void/Refund, Customer, Store Credit
-- Eastern timezone support (auto EDT/EST detection)
-- CSV & PDF export
+**Status:** Ready for merge to main OR Phase 6 development (Stripe payment processing).
+**Decision:** Merge when decided to go live without payment, or after Phase 6 is complete.
 
----
+## BRANCH STRATEGY
+- main = stable POS system (production live)
+- ecommerce-dev = e-commerce phases 1-5 (tested, ready for merge decision)
+- Tag v1.0-pos-complete = permanent restore point
 
-## Key Architecture Rules
-
-**Database:**
-- Supabase with RLS disabled (anon key for direct client calls)
-- NO /api/ backend endpoints (all direct client Supabase)
-- Tables: products, transactions, customers, gift_cards, store_credits, returns, settings, navigation_menus
-- invoice_number auto-generated via trigger (INV-01000 format)
-- store_credit card_number: SC- + 12-char alphanumeric
-
-**Code Patterns:**
+## KEY ARCHITECTURE RULES
+- NO /api/ backend - all direct Supabase client calls
+- RLS disabled on all tables
+- Vercel hosting (automatic deployment from main)
 - React Context: ProductContext, CustomerContext, SettingsContext
 - Custom hooks: usePOSCart, useSEO
-- No Redux — simple prop drilling at current scale
-- Tailwind CSS + TypeScript strict mode
+- No Redux - prop drilling at current scale
+- TypeScript strict mode
 - All console.log removed (kept console.error/warn)
 
-**Routes:**
+## DATABASE TABLES
+**Core POS:**
+- products: id, name, price, category, brand, product_code, image, description, is_online, show_sizes
+- product_variants: id, product_id, size, barcode, stock_quantity, sku, age_group
+- transactions: id, invoice_number, customer_id, total_amount, method, items(jsonb), created_at, status
+- customers: id, first_name, last_name, email, phone, boot_size, club_affinity
+- gift_cards: id, card_number, initial_balance, current_balance, is_active
+- store_credits: id, card_number, customer_id, amount, remaining_balance, is_active
+- returns: id, transaction_id, customer_id, items, refund_amount, status
+- settings: key, value (site settings)
+- navigation_menus: id, label, path, order_index, is_active
+- navigation_items: id, menu_id, label, path, logo_url, order_index, parent_id
+
+**E-Commerce (ecommerce-dev branch):**
+- online_orders: id, customer_id, items(jsonb), subtotal, tax, total, shipping_method, shipping_cost, status, created_at
+
+## KEY FILES
+- src/pages/POSPage.tsx - POS main interface
+- src/pages/AdminPage.tsx - Admin panel (8+ tabs)
+- src/context/ProductContext.tsx - Product CRUD
+- src/components/ReturnsModal.tsx - 5-step returns wizard
+- src/utils/thermalReceipt.ts - Receipt generation
+- src/hooks/usePOSCart.ts - Cart state management
+- public/sitemap.xml - SEO sitemap
+
+## ROUTES
 - `/` — Home/storefront
 - `/admin` — Admin panel
-- `/pos` — Standalone POS (PIN auth)
-- `/reports` — Full reports page
-- `/brands` — All brands hub
-- `/brand/:brandName` — Individual brand page
+- `/pos` — POS system (PIN auth)
+- `/brands` — Brand pages
+- `/reports` — Financial reports
 
----
+## KNOWN ISSUES
+| Issue | Status |
+|-------|--------|
+| Germany product images (7 items) | Low priority |
+| All critical POS features | ✅ Complete |
 
-## Important Files & Paths
-
-**Core Components:**
-- `src/pages/POSPage.tsx` — Main POS interface with Shopify dark theme
-- `src/pages/AdminPage.tsx` — Admin with 8+ tabs
-- `src/pages/ProductGridPage.tsx` — Product listing with filtering
-- `src/pages/ReportsPageFull.tsx` — Reports dashboard
-- `src/components/ReturnsModal.tsx` — 5-step returns wizard
-- `src/components/PosCustomerManager.tsx` — Customer mgmt + returns
-- `src/utils/thermalReceipt.ts` — Receipt generation with barcodes
-- `src/utils/timezoneUtils.ts` — Eastern time conversion (EDT/EST)
-
-**Contexts:**
-- `src/contexts/ProductContext.tsx` — Product CRUD
-- `src/contexts/CustomerContext.tsx` — Customer management
-- `src/contexts/SettingsContext.tsx` — App settings & navigation menus
-
-**Hooks:**
-- `src/hooks/usePOSCart.ts` — Cart state management
-- `src/hooks/useSEO.ts` — SEO meta tag injection
-
----
-
-## Database Schema
-
-**products**
-- id, name, category, brand, product_code (UNIQUE, nullable), price, description, image, colors[], is_online
-- Related: product_variants (size, SKU, stock_quantity)
-
-**transactions**
-- id, invoice_number, customer_id, total_amount, method, status (completed/voided/refunded/returned/partial_return), items[], created_at, tendered_amount, change_given
-
-**customers**
-- id, first_name, last_name, email, phone, created_at
-
-**gift_cards**
-- id, card_number, customer_id, initial_balance, current_balance, is_active, created_at
-
-**store_credits**
-- id, card_number (SC-XXXXX format), customer_id, amount, reason, remaining_balance, is_active, created_at
-
-**returns**
-- id, transaction_id, customer_id, refund_method (store_credit/original_payment), refund_amount, items[], status, created_at
-
-**settings**
-- key, value (navigation, hst_number, store_name, etc.)
-
----
-
-## Known Issues
-
-| Issue | Status | Impact |
-|-------|--------|--------|
-| Germany product images (7 items) | Pending | Low priority — upload via admin |
-| All critical features | ✅ Complete | POS, returns, store credit, reports fully functional |
-
----
-
-## Next Steps (Testing & Verification)
-
-**Critical Testing:**
-- [ ] Test Shopify POS redesign in browser (visual check, dark theme)
-- [ ] Test dual-receipt printing (return + SC) with actual returns
-- [ ] Verify timezone accuracy in reports
-- [ ] Test all barcode scanning flows (SC-, INV-, product codes)
-- [ ] Load test with 100+ transactions in history
-
-**Optional Enhancements (Future):**
-- [ ] SC statement/history email to customers
-- [ ] QR code option alongside barcode
-- [ ] Return reason tracking & analytics
-- [ ] Manager approval workflow for high-value returns
-- [ ] Store credit expiration dates
+## NEXT STEPS
+- Decide on e-commerce merge timeline
+- Phase 6 development (Stripe payment) if needed
+- Mobile app consideration (React Native)
+- Advanced analytics/reporting
