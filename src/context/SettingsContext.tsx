@@ -80,7 +80,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     ogTitle: 'Absolute Soccer',
     ogDescription: 'Elite performance soccer gear and custom uniform engineering.',
     twitterCard: 'summary_large_image',
-    canonicalUrl: 'https://absolutesoccer.ca'
+    canonicalUrl: 'https://torontosoccershop.com'
   });
   const [showSizesOnline, setShowSizesOnlineState] = useState<boolean>(() => {
     const cached = localStorage.getItem('show_sizes_online');
