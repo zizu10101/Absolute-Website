@@ -377,14 +377,19 @@ export function ProductDetailPage() {
           ) : (
             <>
               {!product.showSizes ? (
-                <div className="p-6 bg-[#b90014] rounded-xl text-center my-6 shadow-lg shadow-red-900/20">
-                  <div className="flex items-center justify-center gap-2 mb-1">
-                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                    <p className="text-sm font-black uppercase tracking-widest text-white">
-                      Coming Soon
-                    </p>
-                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                  </div>
+                <div className="my-6 rounded-xl border-2 border-[#b90014] bg-[#0d0d0d] p-6 text-center shadow-lg shadow-red-900/20">
+                  <p className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-3">
+                    Available In Store
+                  </p>
+                  <a
+                    href="tel:9055933600"
+                    className="inline-flex items-center gap-2 bg-[#b90014] hover:bg-[#d4001a] text-white font-black text-lg px-6 py-3 rounded-lg transition-colors shadow-md shadow-red-900/30"
+                  >
+                    📞 905-593-3600
+                  </a>
+                  <p className="text-[11px] text-zinc-500 mt-3 uppercase tracking-widest">
+                    Call to order or visit us in store
+                  </p>
                 </div>
               ) : (
                 <>
