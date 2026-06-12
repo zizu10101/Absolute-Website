@@ -195,6 +195,35 @@ function AdminPageInner() {
     };
     fetchBrands();
   }, []);
+
+  useEffect(() => {
+    const fetchVariantStock = async () => {
+      try {
+        const allVariants: { product_id: string; stock_quantity: number }[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        while (true) {
+          const { data, error } = await supabase
+            .from('product_variants')
+            .select('product_id, stock_quantity')
+            .range(from, from + batchSize - 1);
+          if (error || !data) break;
+          allVariants.push(...data);
+          if (data.length < batchSize) break;
+          from += batchSize;
+        }
+        const map: Record<string, number> = {};
+        allVariants.forEach(v => {
+          map[v.product_id] = (map[v.product_id] || 0) + (v.stock_quantity || 0);
+        });
+        setStockMap(map);
+      } catch (err) {
+        console.error('Failed to fetch variant stock:', err);
+      }
+    };
+    fetchVariantStock();
+  }, []);
+
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [originalProduct, setOriginalProduct] = useState<Product | null>(null);
   const [sliderImages, setSliderImages] = useState<any[]>([]);
@@ -239,6 +268,7 @@ function AdminPageInner() {
   const [bulkBrandAssignBrand, setBulkBrandAssignBrand] = useState<string>('');
   const [isBulkBrandAssigning, setIsBulkBrandAssigning] = useState(false);
   const [bulkBrandStatus, setBulkBrandStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [stockMap, setStockMap] = useState<Record<string, number>>({});
 
   const syncToLocal = async () => {
     setIsSyncingLocal(true);
@@ -3937,6 +3967,7 @@ function AdminPageInner() {
                                 <span className="ml-1">• ${product.price}</span>
                               )}
                             </p>
+                            <p className="text-[9px] text-zinc-400 mt-0.5">Stock: {stockMap[product.id] ?? '—'}</p>
                             {!product.brand && (
                               <p className="text-[9px] text-amber-600 mt-0.5 font-medium">⚠️ Missing Brand</p>
                             )}

@@ -82,6 +82,7 @@ export function POSPage() {
   // Products
   const [products, setProducts] = useState<any[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [stockMap, setStockMap] = useState<Record<string, number>>({});
   const [showOnlineOnly, setShowOnlineOnly] = useState(() => {
     const saved = localStorage.getItem('pos_show_online_only');
     return saved ? JSON.parse(saved) : false;
@@ -199,6 +200,35 @@ export function POSPage() {
       }
     };
     fetchAllProducts();
+  }, []);
+
+  // Fetch and aggregate stock across all variants per product
+  useEffect(() => {
+    const fetchVariantStock = async () => {
+      try {
+        const allVariants: { product_id: string; stock_quantity: number }[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        while (true) {
+          const { data, error } = await supabase
+            .from('product_variants')
+            .select('product_id, stock_quantity')
+            .range(from, from + batchSize - 1);
+          if (error || !data) break;
+          allVariants.push(...data);
+          if (data.length < batchSize) break;
+          from += batchSize;
+        }
+        const map: Record<string, number> = {};
+        allVariants.forEach(v => {
+          map[v.product_id] = (map[v.product_id] || 0) + (v.stock_quantity || 0);
+        });
+        setStockMap(map);
+      } catch (err) {
+        console.error('Failed to fetch variant stock:', err);
+      }
+    };
+    fetchVariantStock();
   }, []);
 
   // Auto-focus barcode input (disabled when modals are open)
@@ -1217,6 +1247,7 @@ export function POSPage() {
                       {product.name}
                     </span>
                     <span className="text-sm font-bold text-[#b90014]">${product.price?.toFixed(2) || '0.00'}</span>
+                    <span className="text-[9px] text-gray-500">QTY: {stockMap[product.id] ?? '—'}</span>
                   </button>
                 ))}
               </div>
