@@ -4,7 +4,7 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 11, 2026)
+## CURRENT STATUS (Main Branch - June 12, 2026)
 POS system live and fully functional. 
 E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged to main.
 
@@ -17,6 +17,10 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Removed 30-item product limit in POS
 ✅ Google Search Console verified, sitemap submitted
 ✅ robots.txt configured (blocks /admin, /pos from search)
+✅ Variant fetch paginated (loop with .range() bypasses Supabase 1000-row cap — 2364+ variants)
+✅ 76 online products set show_sizes=false (no real size variants in DB)
+✅ ProductDetailPage: show_sizes=false shows "Call to Order" CTA (📞 905-593-3600) instead of "Coming Soon"
+✅ Canonical URL fixed: absolutesoccer.ca → torontosoccershop.com (SettingsContext.tsx default)
 
 ## COMPLETED FEATURES
 
@@ -112,11 +116,14 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ## KEY FILES
 - src/pages/POSPage.tsx - POS main interface
 - src/pages/AdminPage.tsx - Admin panel (8+ tabs)
+- src/pages/ProductDetailPage.tsx - Product detail page (Call to Order CTA for no-size products)
 - src/context/ProductContext.tsx - Product CRUD
+- src/context/SettingsContext.tsx - Site settings defaults (canonical URL, SEO)
 - src/components/ReturnsModal.tsx - 5-step returns wizard
 - src/utils/thermalReceipt.ts - Receipt generation
 - src/hooks/usePOSCart.ts - Cart state management
 - public/sitemap.xml - SEO sitemap
+- data/settings_exported.json - Supabase settings seed data
 
 ## ROUTES
 - `/` — Home/storefront
@@ -132,7 +139,13 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 | All critical POS features | ✅ Complete |
 
 ## NEXT STEPS
-- Decide on e-commerce merge timeline
-- Phase 6 development (Stripe payment) if needed
+- Decide on e-commerce merge timeline (Phases 1-5 ready on ecommerce-dev)
+- Phase 6 development (Stripe payment) if going live with payments
 - Mobile app consideration (React Native)
 - Advanced analytics/reporting
+
+## IMPORTANT PATTERNS
+- Supabase row cap is 1000 — ALWAYS paginate large fetches with `.range(from, from+999)` loop
+- product_variants now has 2364+ rows — never use plain `.select()` without pagination
+- show_sizes=false → no size picker, show "Call to Order" CTA in ProductDetailPage
+- Canonical URL default lives in src/context/SettingsContext.tsx (also in Supabase settings table)

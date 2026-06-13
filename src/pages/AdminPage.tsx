@@ -181,18 +181,25 @@ function AdminPageInner() {
     // Fetch all product variants at once and build stock map
     const fetchAllStock = async () => {
       try {
-        const { data: variants, error } = await supabase
-          .from('product_variants')
-          .select('product_id, stock_quantity');
-
-        if (!error && variants) {
-          const stockMap = new Map<string, number>();
-          variants.forEach(v => {
-            const currentStock = stockMap.get(v.product_id) || 0;
-            stockMap.set(v.product_id, currentStock + (v.stock_quantity || 0));
-          });
-          setProductStockCache(stockMap);
+        const allVariants: { product_id: string; stock_quantity: number }[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        while (true) {
+          const { data, error } = await supabase
+            .from('product_variants')
+            .select('product_id, stock_quantity')
+            .range(from, from + batchSize - 1);
+          if (error || !data) break;
+          allVariants.push(...data);
+          if (data.length < batchSize) break;
+          from += batchSize;
         }
+        const stockMap = new Map<string, number>();
+        allVariants.forEach(v => {
+          const currentStock = stockMap.get(v.product_id) || 0;
+          stockMap.set(v.product_id, currentStock + (v.stock_quantity || 0));
+        });
+        setProductStockCache(stockMap);
       } catch (err) {
         console.error('Error fetching stock:', err);
       }

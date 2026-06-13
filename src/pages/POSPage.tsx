@@ -203,10 +203,21 @@ export function POSPage() {
           const mappedProducts = data.map(mapProductFromDb);
           setProducts(mappedProducts);
 
-          // Fetch ALL variants in one query
-          const { data: variants } = await supabase
-            .from('product_variants')
-            .select('*');
+          // Fetch ALL variants with pagination to bypass Supabase 1000-row cap
+          const allVariants: any[] = [];
+          let from = 0;
+          const batchSize = 1000;
+          while (true) {
+            const { data: batch } = await supabase
+              .from('product_variants')
+              .select('*')
+              .range(from, from + batchSize - 1);
+            if (!batch) break;
+            allVariants.push(...batch);
+            if (batch.length < batchSize) break;
+            from += batchSize;
+          }
+          const variants = allVariants;
 
           if (variants) {
             // Build two maps: one for variant details, one for stock totals
