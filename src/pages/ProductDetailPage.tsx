@@ -440,21 +440,18 @@ export function ProductDetailPage() {
                   </div>
 
                   {/* Call to Order CTA */}
-                  <div className="border-t border-b border-zinc-100 py-6 space-y-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">
-                      Ready to order? Call us directly
+                  <div className="my-6 rounded-xl border-2 border-[#b90014] bg-[#0d0d0d] p-6 text-center shadow-lg shadow-red-900/20">
+                    <p className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-3">
+                      Available In Store
                     </p>
                     <a
                       href="tel:9055933600"
-                      className="flex items-center justify-center gap-3 w-full h-14 bg-[#b90014] text-white font-black uppercase tracking-widest text-sm hover:bg-zinc-900 transition-all shadow-xl shadow-red-950/10 rounded-lg"
+                      className="inline-flex items-center gap-2 bg-[#b90014] hover:bg-[#d4001a] text-white font-black text-lg px-6 py-3 rounded-lg transition-colors shadow-md shadow-red-900/30"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-                      </svg>
-                      Call to Order — 905-593-3600
+                      📞 905-593-3600
                     </a>
-                    <p className="text-[10px] text-zinc-400 text-center uppercase tracking-widest">
-                      Online ordering coming soon — visit us or call to purchase
+                    <p className="text-[11px] text-zinc-500 mt-3 uppercase tracking-widest">
+                      Call to order or visit us in store
                     </p>
                   </div>
                 </>
