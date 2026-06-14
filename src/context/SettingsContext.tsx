@@ -478,16 +478,26 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   };
 
   const saveNavigation = async (menus: NavMenu[]) => {
-    const normalizePath = (p: string | null | undefined) => {
+    const normalizePath = (p: string | null | undefined): string | null => {
       if (!p) return null;
-      let normalized = p.trim().toLowerCase();
-      if (!normalized.startsWith('http') && !normalized.startsWith('data:') && !normalized.startsWith('/')) {
-        normalized = '/' + normalized;
-      }
-      return normalized;
+      // Don't normalize external URLs or base64 data URIs — they are case-sensitive
+      if (p.startsWith('http') || p.startsWith('data:')) return p;
+      // Only normalize relative paths
+      const trimmed = p.trim().toLowerCase();
+      return trimmed.startsWith('/') ? trimmed : '/' + trimmed;
     };
 
     try {
+      // Snapshot existing logos before wiping — keyed by label (case-insensitive)
+      const { data: existingLogos } = await supabase
+        .from('navigation_items')
+        .select('label, logo_url')
+        .not('logo_url', 'is', null);
+      const logoByLabel = new Map<string, string>();
+      for (const row of existingLogos || []) {
+        if (row.logo_url) logoByLabel.set(row.label.toUpperCase(), row.logo_url);
+      }
+
       // Delete items before menus (items have FK reference to menus)
       const { error: delItemsErr } = await supabase.from('navigation_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (delItemsErr) throw delItemsErr;
@@ -509,13 +519,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
         for (let s = 0; s < menu.submenus.length; s++) {
           const sub = menu.submenus[s];
+          // Prefer logo from in-memory state; fall back to DB snapshot
+          const subLogo = normalizePath(sub.logo) ?? logoByLabel.get(sub.heading.toUpperCase()) ?? null;
           const { data: insertedSub, error: subErr } = await supabase
             .from('navigation_items')
             .insert({
               menu_id: insertedMenu.id,
               label: sub.heading,
               path: normalizePath(sub.path) || '',
-              logo_url: normalizePath(sub.logo),
+              logo_url: subLogo,
               order_index: s
             })
             .select()
@@ -524,6 +536,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
           for (let i = 0; i < sub.items.length; i++) {
             const item = sub.items[i];
+            // Prefer logo from in-memory state; fall back to DB snapshot
+            const itemLogo = normalizePath(item.logo) ?? logoByLabel.get(item.label.toUpperCase()) ?? null;
+            console.error('Saving item:', item.label, '| in-memory logo:', item.logo?.substring(0, 60) ?? 'null', '| fallback:', logoByLabel.get(item.label.toUpperCase())?.substring(0, 60) ?? 'null', '| saving:', itemLogo?.substring(0, 60) ?? 'null');
             const { error: itemErr } = await supabase
               .from('navigation_items')
               .insert({
@@ -531,7 +546,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 parent_id: insertedSub.id,
                 label: item.label,
                 path: normalizePath(item.path) || '#',
-                logo_url: normalizePath(item.logo),
+                logo_url: itemLogo,
                 order_index: i
               });
             if (itemErr) throw itemErr;

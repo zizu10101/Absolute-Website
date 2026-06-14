@@ -4,7 +4,7 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 12, 2026)
+## CURRENT STATUS (Main Branch - June 14, 2026)
 POS system live and fully functional. 
 E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged to main.
 
@@ -21,6 +21,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ 76 online products set show_sizes=false (no real size variants in DB)
 ✅ ProductDetailPage: show_sizes=false shows "Call to Order" CTA (📞 905-593-3600) instead of "Coming Soon"
 ✅ Canonical URL fixed: absolutesoccer.ca → torontosoccershop.com (SettingsContext.tsx default)
+✅ Navigation logos fixed: normalizePath() no longer lowercases URLs, saveNavigation() preserves DB logos
 
 ## COMPLETED FEATURES
 
@@ -144,8 +145,19 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - Mobile app consideration (React Native)
 - Advanced analytics/reporting
 
+## NAVIGATION LOGOS (Fixed June 14, 2026)
+- `navigation_items.logo_url` stores all logo URLs
+- Logos are in Supabase Storage: `media` bucket → `navigation_navigationMenus_submenus_items_logo/` folder
+- **Bug fixed**: `normalizePath()` was lowercasing all URLs including `https://` Supabase Storage URLs (case-sensitive) — now skips any URL starting with `http` or `data:`
+- **Bug fixed**: `saveNavigation()` now snapshots existing `logo_url` values before delete and restores them via `logoByLabel` map if in-memory state has no logo
+- National team logos at `assets.cdn.filesafe.space` URLs — case-sensitive bucket ID
+  - Correct: `By2ouDwVDtWabLH4FJkE` — if logos break check for lowercase `by2oudwvdtwablh4fjke`
+- Logo restore SQL saved at: `docs/restore-logos.sql`
+- If logos disappear after a save, run `npx tsx scripts/restore_logos.ts`
+
 ## IMPORTANT PATTERNS
 - Supabase row cap is 1000 — ALWAYS paginate large fetches with `.range(from, from+999)` loop
 - product_variants now has 2364+ rows — never use plain `.select()` without pagination
 - show_sizes=false → no size picker, show "Call to Order" CTA in ProductDetailPage
 - Canonical URL default lives in src/context/SettingsContext.tsx (also in Supabase settings table)
+- Navigation URLs are case-sensitive — normalizePath() must NEVER lowercase http/data: URLs
