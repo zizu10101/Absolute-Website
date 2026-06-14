@@ -89,17 +89,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const isSavingRef = useRef(false);
-  const hasInitialFetchRef = useRef(false);
 
   const location = useLocation();
 
   const fetchSettings = async () => {
-      // Skip refetch if we've already fetched once (don't re-fetch on location change)
-      if (hasInitialFetchRef.current) {
-        setIsLoading(false);
-        return;
-      }
-
       setIsLoading(true);
 
       try {
@@ -224,7 +217,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         console.error('Critical context collection fault:', criticalErr);
       } finally {
         setIsLoading(false);
-        hasInitialFetchRef.current = true;
       }
     };
 
