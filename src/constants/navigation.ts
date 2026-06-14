@@ -26,15 +26,6 @@ export const DEFAULT_NAV: NavMenu[] = [
     path: '/footwear',
     submenus: [
       {
-        heading: 'SHOP BY CATEGORY',
-        items: [
-          { label: "Men's Footwear", path: '/footwear/men', logo: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200&h=200' },
-          { label: "Women's Footwear", path: '/footwear/women', logo: 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&q=80&w=200&h=200' },
-          { label: "Kids' Footwear", path: '/footwear/kids', logo: 'https://images.unsplash.com/photo-1514989940723-e8e51635b782?auto=format&fit=crop&q=80&w=200&h=200' },
-          { label: 'New Arrivals', path: '/footwear/new-arrivals', logo: 'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&q=80&w=200&h=200' },
-        ]
-      },
-      {
         heading: 'SHOP BY BRAND',
         items: [
           { label: 'Nike', path: '/footwear/nike', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Logo_NIKE.svg/1200px-Logo_NIKE.svg.png' },
