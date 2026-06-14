@@ -5,7 +5,8 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 14, 2026)
-POS system live and fully functional. 
+POS system live and fully functional.
+Navigation logos working and preserved on save.
 E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged to main.
 
 ### Main Branch Features
