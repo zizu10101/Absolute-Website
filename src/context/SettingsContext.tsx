@@ -488,18 +488,20 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     };
 
     try {
-      // Try to clear and write to relational tables first if they are supported by user's schema
-      await supabase.from('navigation_items').delete().neq('id', '0');
-      await supabase.from('navigation_menus').delete().neq('id', '0');
+      // Delete items before menus (items have FK reference to menus)
+      const { error: delItemsErr } = await supabase.from('navigation_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (delItemsErr) throw delItemsErr;
+      const { error: delMenusErr } = await supabase.from('navigation_menus').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (delMenusErr) throw delMenusErr;
 
       for (let m = 0; m < menus.length; m++) {
         const menu = menus[m];
         const { data: insertedMenu, error: menuErr } = await supabase
           .from('navigation_menus')
-          .insert({ 
-            label: menu.label, 
-            path: normalizePath(menu.path) || '#', 
-            order_index: m 
+          .insert({
+            label: menu.label,
+            path: normalizePath(menu.path) || '#',
+            order_index: m
           })
           .select()
           .single();
