@@ -195,10 +195,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
               const merged = DEFAULT_NAV.map(defaultItem => {
                 const serverItem = nav.navigationMenus.find((s: any) => s.label.toUpperCase() === defaultItem.label.toUpperCase());
                 if (serverItem) {
-                  const submenus = (serverItem.submenus && serverItem.submenus.length > 0) 
-                    ? serverItem.submenus 
+                  // Use server submenus if they exist, otherwise fall back to defaults
+                  const submenus = (serverItem.submenus && serverItem.submenus.length > 0)
+                    ? serverItem.submenus
                     : defaultItem.submenus;
-                  return { ...defaultItem, ...serverItem, submenus };
+                  // Spread serverItem FIRST to prioritize DB data, then add any missing defaults
+                  return { ...serverItem, submenus };
                 }
                 return defaultItem;
               });
