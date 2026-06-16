@@ -19,7 +19,7 @@ import { useCustomers, Customer } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../supabase';
 import { mapProductFromDb } from '../context/ProductContext';
-import { generateThermalReceiptHTML } from '../utils/thermalReceipt';
+import { generateThermalReceiptHTML, generateGiftReceiptHTML } from '../utils/thermalReceipt';
 
 type CategoryTab = 'ALL' | 'FOOTWEAR' | 'KITS' | 'BALLS' | 'EQUIPMENT' | 'TEAMWEAR' | 'GLOVES';
 
@@ -101,6 +101,10 @@ export function POSPage() {
   // Checkout
   const [isConfirming, setIsConfirming] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+
+  // Gift receipt modal
+  const [showGiftReceiptModal, setShowGiftReceiptModal] = useState(false);
+  const [giftReceiptSelected, setGiftReceiptSelected] = useState<Set<number>>(new Set());
 
   // Cash Calculator
   const [showCashCalculator, setShowCashCalculator] = useState(false);
@@ -1001,13 +1005,11 @@ export function POSPage() {
     return Promise.resolve(); // Explicitly resolve for the async callback
   };
 
-  // Print thermal receipt
-  const handlePrintReceipt = () => {
+  // Print thermal receipt (copies: 1 = customer only, 2 = customer + merchant)
+  const handlePrintReceipt = (copies: 1 | 2 = 1) => {
     if (!receipt) return;
 
-    // For store credit receipts, barcode should show SC card number instead of transaction ID
     const barcodeValue = receipt.storeCreditCardNumber || receipt.invoiceNumber || receipt.transactionId || 'N/A';
-
 
     const receiptHtml = generateThermalReceiptHTML({
       transactionId: receipt.transactionId || 'N/A',
@@ -1019,16 +1021,51 @@ export function POSPage() {
       total: receipt.total,
       paymentMethod: receipt.method,
       createdAt: new Date(),
-      logoUrl: logo || '/logo.svg',
+      logoUrl: footerLogo || '/logo.svg',
       barcodeValue: barcodeValue,
+      copies,
     });
 
-    // Open in new window for printing
     const printWindow = window.open('', '', 'width=800,height=600');
     if (printWindow) {
       printWindow.document.write(receiptHtml);
       printWindow.document.close();
     }
+  };
+
+  // Open gift receipt modal (pre-select all items)
+  const handleOpenGiftReceipt = () => {
+    if (!receipt) return;
+    setGiftReceiptSelected(new Set(receipt.items.map((_, i) => i)));
+    setShowGiftReceiptModal(true);
+  };
+
+  // Print gift receipt for selected items
+  const handlePrintGiftReceipt = () => {
+    if (!receipt) return;
+    const selectedItems = receipt.items.filter((_, i) => giftReceiptSelected.has(i));
+    if (selectedItems.length === 0) return;
+
+    const giftHtml = generateGiftReceiptHTML({
+      transactionId: receipt.transactionId || 'N/A',
+      invoiceNumber: receipt.invoiceNumber,
+      customerName: receipt.customer ? `${receipt.customer.first_name} ${receipt.customer.last_name}` : 'Walk-in',
+      items: selectedItems,
+      subtotal: receipt.subtotal,
+      hst: receipt.hst,
+      total: receipt.total,
+      paymentMethod: receipt.method,
+      createdAt: new Date(),
+      logoUrl: footerLogo || '/logo.svg',
+      barcodeValue: receipt.invoiceNumber || receipt.transactionId || 'N/A',
+    });
+
+    const printWindow = window.open('', '', 'width=800,height=600');
+    if (printWindow) {
+      printWindow.document.write(giftHtml);
+      printWindow.document.close();
+    }
+    setShowGiftReceiptModal(false);
   };
 
   // Add customer
@@ -1731,20 +1768,93 @@ export function POSPage() {
                     </div>
                   </div>
 
-                  <div className="p-4 border-t border-zinc-200 flex gap-3">
-                    <button
-                      onClick={handlePrintReceipt}
-                      className="flex-1 flex items-center justify-center gap-2 border border-zinc-200 rounded-lg py-3 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-colors text-black"
-                    >
-                      <Printer size={14} /> Print
-                    </button>
-                    <button
-                      onClick={handleNewTransaction}
-                      className="flex-1 bg-[#b90014] text-white rounded-lg py-3 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
-                    >
-                      New Transaction
-                    </button>
+                  <div className="p-4 border-t border-zinc-200 space-y-2">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handlePrintReceipt(1)}
+                        className="flex-1 flex items-center justify-center gap-1 border border-zinc-200 rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-colors text-black"
+                      >
+                        <Printer size={13} /> 1 Copy
+                      </button>
+                      <button
+                        onClick={() => handlePrintReceipt(2)}
+                        className="flex-1 flex items-center justify-center gap-1 border border-zinc-200 rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-colors text-black"
+                      >
+                        <Printer size={13} /> 2 Copies
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleOpenGiftReceipt}
+                        className="flex-1 flex items-center justify-center gap-1 border border-zinc-200 rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-colors text-black"
+                      >
+                        <Gift size={13} /> Gift Receipt
+                      </button>
+                      <button
+                        onClick={handleNewTransaction}
+                        className="flex-1 bg-[#b90014] text-white rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
+                      >
+                        New Sale
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Gift Receipt Modal */}
+                  {showGiftReceiptModal && receipt && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm text-black">
+                        <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
+                          <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                            <Gift size={16} /> Gift Receipt
+                          </h3>
+                          <button onClick={() => setShowGiftReceiptModal(false)} className="text-zinc-400 hover:text-zinc-700">
+                            <X size={18} />
+                          </button>
+                        </div>
+                        <div className="p-4">
+                          <p className="text-[10px] text-zinc-500 mb-3 uppercase tracking-wide font-bold">Select items to include</p>
+                          <div className="space-y-2 max-h-52 overflow-y-auto">
+                            {receipt.items.map((item, i) => (
+                              <label key={i} className="flex items-start gap-3 cursor-pointer p-2 rounded-lg hover:bg-zinc-50">
+                                <input
+                                  type="checkbox"
+                                  checked={giftReceiptSelected.has(i)}
+                                  onChange={() => {
+                                    const next = new Set(giftReceiptSelected);
+                                    if (next.has(i)) next.delete(i); else next.add(i);
+                                    setGiftReceiptSelected(next);
+                                  }}
+                                  className="mt-0.5 accent-red-600"
+                                />
+                                <div className="flex-1 text-[11px]">
+                                  <p className="font-bold leading-tight">{item.name}</p>
+                                  {(item.size || item.ageGroup) && (
+                                    <p className="text-zinc-500">{item.ageGroup ? `${item.ageGroup} · ` : ''}Size {item.size}</p>
+                                  )}
+                                  <p className="text-zinc-500">Qty {item.quantity}</p>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="p-4 border-t border-zinc-200 flex gap-2">
+                          <button
+                            onClick={() => setShowGiftReceiptModal(false)}
+                            className="flex-1 border border-zinc-200 rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handlePrintGiftReceipt}
+                            disabled={giftReceiptSelected.size === 0}
+                            className="flex-1 bg-[#b90014] disabled:bg-zinc-300 text-white rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
+                          >
+                            <Printer size={13} /> Print Gift
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* Checkout Form */

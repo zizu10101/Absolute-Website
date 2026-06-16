@@ -4,7 +4,7 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 14, 2026)
+## CURRENT STATUS (Main Branch - June 16, 2026)
 POS system live and fully functional.
 Navigation logos working and preserved on save.
 E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged to main.
@@ -23,6 +23,12 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ ProductDetailPage: show_sizes=false shows "Call to Order" CTA (📞 905-593-3600) instead of "Coming Soon"
 ✅ Canonical URL fixed: absolutesoccer.ca → torontosoccershop.com (SettingsContext.tsx default)
 ✅ Navigation logos fixed: normalizePath() no longer lowercases URLs, saveNavigation() preserves DB logos
+✅ Navigation mega-menu rebuilt: all navigation_items now have correct parent_id hierarchy
+✅ NATIONAL TEAMS submenu populated with 5 regional groups (EUROPE, SOUTH AMERICA, AFRICA, NORTH AMERICA, OTHERS)
+✅ Gift receipt: item-selection modal + no-price thermal receipt (POSPage + PosTransactionHistory)
+✅ Print 1 or 2 copies (Customer / Customer+Merchant) — both from checkout receipt and transaction history reprint
+✅ Receipt logo size fix: switched from 180px to 55mm for correct Epson 80mm thermal printing
+✅ Shared SHARED_STYLES constant in thermalReceipt.ts (no duplication across receipt types)
 
 ## COMPLETED FEATURES
 
@@ -122,7 +128,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - src/context/ProductContext.tsx - Product CRUD
 - src/context/SettingsContext.tsx - Site settings defaults (canonical URL, SEO)
 - src/components/ReturnsModal.tsx - 5-step returns wizard
-- src/utils/thermalReceipt.ts - Receipt generation
+- src/utils/thermalReceipt.ts - Receipt generation (thermal, gift, store credit)
 - src/hooks/usePOSCart.ts - Cart state management
 - public/sitemap.xml - SEO sitemap
 - data/settings_exported.json - Supabase settings seed data
@@ -139,6 +145,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 |-------|--------|
 | Germany product images (7 items) | Low priority |
 | All critical POS features | ✅ Complete |
+| Flag logos in National Teams mega-menu | Wikipedia blocks hotlinking — images show as blank boxes; text links work fine |
 
 ## NEXT STEPS
 - Decide on e-commerce merge timeline (Phases 1-5 ready on ecommerce-dev)
@@ -155,6 +162,17 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
   - Correct: `By2ouDwVDtWabLH4FJkE` — if logos break check for lowercase `by2oudwvdtwablh4fjke`
 - Logo restore SQL saved at: `docs/restore-logos.sql`
 - If logos disappear after a save, run `npx tsx scripts/restore_logos.ts`
+
+## NAVIGATION DB STRUCTURE (navigation_menus + navigation_items)
+- `navigation_menus` rows = top-level nav items (FOOTWEAR, CLUBS, NATIONAL TEAMS, etc.)
+- `navigation_items` with `parent_id = null` = submenu headings (SHOP BY CATEGORY, LIGA, EUROPE, etc.)
+- `navigation_items` with `parent_id = <heading_id>` = individual links (Nike, Arsenal, Portugal, etc.)
+- ALL items MUST have the correct parent_id set — if parent_id=null on a child item it will render as a heading (broken mega-menu)
+- When rebuilding navigation: delete per menu_id separately (not with `in.(...)` syntax which can silently miss rows), then insert headings first, capture IDs, then insert children
+- Supabase batch insert requires all JSON objects to have identical keys — always include `"logo_url":null` on items without logos
+- FOOTWEAR: 5 headings (SHOP BY CATEGORY, SHOP BY BRAND, SHOP BY SURFACE, SHOP BY COLLECTION, QUICK LINKS)
+- CLUBS: 6 headings (LIGA, LIGUE 1, PREMIER LEAGUE, SERIE A, BUNDESLIGA, MLS)
+- NATIONAL TEAMS: 5 headings (EUROPE: 7 nations, SOUTH AMERICA: 4, AFRICA: 3, NORTH AMERICA: Canada, OTHERS: Bosnia)
 
 ## IMPORTANT PATTERNS
 - Supabase row cap is 1000 — ALWAYS paginate large fetches with `.range(from, from+999)` loop

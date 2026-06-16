@@ -2,12 +2,12 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Barcode from 'react-barcode';
 import { useCustomers } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
-import { generateThermalReceiptHTML } from '../utils/thermalReceipt';
+import { generateThermalReceiptHTML, generateGiftReceiptHTML } from '../utils/thermalReceipt';
 import { ReturnsModal } from './ReturnsModal';
 import { supabase } from '../supabase';
 import {
   Search, ChevronDown, ChevronUp, Printer,
-  RotateCcw, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Undo2,
+  RotateCcw, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Undo2, Gift, X,
 } from 'lucide-react';
 
 type DateFilter = 'today' | 'week' | 'month' | 'year' | 'all';
@@ -36,6 +36,10 @@ export const PosTransactionHistory: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showReturnsModal, setShowReturnsModal] = useState(false);
   const [returnsTransactionId, setReturnsTransactionId] = useState<string | null>(null);
+
+  // Gift receipt modal
+  const [giftTx, setGiftTx] = useState<Transaction | null>(null);
+  const [giftSelected, setGiftSelected] = useState<Set<number>>(new Set());
 
   // Filters
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
@@ -195,10 +199,9 @@ export const PosTransactionHistory: React.FC = () => {
     win.document.close();
   };
 
-  // Reprint receipt from transaction data
-  const handleReprint = async (txId: string) => {
+  // Reprint receipt from transaction data (copies: 1 = customer only, 2 = customer + merchant)
+  const handleReprint = async (txId: string, copies: 1 | 2 = 1) => {
     try {
-      // Fetch full transaction details from Supabase
       const { data: fullTx, error } = await supabase
         .from('transactions')
         .select('*, customers(first_name, last_name, email, phone)')
@@ -214,7 +217,6 @@ export const PosTransactionHistory: React.FC = () => {
         ? `${fullTx.customers.first_name} ${fullTx.customers.last_name}`
         : 'Walk-in';
 
-      // Calculate totals (assume 13% HST)
       const total = Math.abs(Number(fullTx.total_amount));
       const subtotal = total / 1.13;
       const hst = total - subtotal;
@@ -239,6 +241,7 @@ export const PosTransactionHistory: React.FC = () => {
         status: fullTx.status,
         logoUrl: logo,
         isReprint: true,
+        copies,
       });
 
       const win = window.open('', '_blank');
@@ -249,6 +252,45 @@ export const PosTransactionHistory: React.FC = () => {
       console.error('Reprint error:', e);
       flash('Error reprinting receipt', true);
     }
+  };
+
+  const openGiftReceiptModal = (tx: Transaction) => {
+    setGiftTx(tx);
+    setGiftSelected(new Set((tx.items || []).map((_, i) => i)));
+  };
+
+  const handlePrintGiftReceipt = () => {
+    if (!giftTx) return;
+    const allItems = (giftTx.items || []).map((item: any) => ({
+      name: item.name || 'Item',
+      quantity: item.quantity || 1,
+      price: Number(item.price),
+      size: item.size,
+      ageGroup: item.ageGroup,
+    }));
+    const selectedItems = allItems.filter((_, i) => giftSelected.has(i));
+    if (selectedItems.length === 0) return;
+
+    const total = Math.abs(Number(giftTx.total_amount));
+    const html = generateGiftReceiptHTML({
+      transactionId: giftTx.id,
+      invoiceNumber: giftTx.invoice_number,
+      barcodeValue: giftTx.invoice_number || giftTx.id,
+      customerName: getCustomerName(giftTx),
+      items: selectedItems,
+      subtotal: total / 1.13,
+      hst: total - total / 1.13,
+      total,
+      paymentMethod: giftTx.method,
+      createdAt: new Date(giftTx.created_at),
+      logoUrl: logo,
+    });
+
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    setGiftTx(null);
   };
 
   const statusBadge = (status: string) => {
@@ -410,10 +452,22 @@ export const PosTransactionHistory: React.FC = () => {
                   {/* Action buttons */}
                   <div className="flex gap-2 pt-1 flex-wrap">
                     <button
-                      onClick={() => handlePrint(tx)}
+                      onClick={() => handleReprint(tx.id, 1)}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wide hover:bg-indigo-700 transition-colors"
                     >
-                      <Printer size={12} /> Reprint
+                      <Printer size={12} /> Reprint 1x
+                    </button>
+                    <button
+                      onClick={() => handleReprint(tx.id, 2)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wide hover:bg-indigo-600 transition-colors"
+                    >
+                      <Printer size={12} /> Reprint 2x
+                    </button>
+                    <button
+                      onClick={() => openGiftReceiptModal(tx)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-600 text-white text-[10px] font-black uppercase tracking-wide hover:bg-purple-700 transition-colors"
+                    >
+                      <Gift size={12} /> Gift Receipt
                     </button>
                     {canVoid && (
                       <button
@@ -468,6 +522,66 @@ export const PosTransactionHistory: React.FC = () => {
           prefilledCustomerId={transactions.find(t => t.id === returnsTransactionId)?.customer_id || undefined}
           onComplete={handleReturnsComplete}
         />
+      )}
+
+      {/* Gift Receipt Modal */}
+      {giftTx && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
+            <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                  <Gift size={16} className="text-purple-600" /> Gift Receipt
+                </h3>
+                <p className="text-[10px] text-zinc-400 mt-0.5 font-mono">{giftTx.invoice_number || giftTx.id.slice(0, 8).toUpperCase()}</p>
+              </div>
+              <button onClick={() => setGiftTx(null)} className="text-zinc-400 hover:text-zinc-700">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-4">
+              <p className="text-[10px] text-zinc-500 mb-3 uppercase tracking-wide font-bold">Select items to include</p>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {(giftTx.items || []).map((item: any, i: number) => (
+                  <label key={i} className="flex items-start gap-3 cursor-pointer p-2 rounded-lg hover:bg-zinc-50">
+                    <input
+                      type="checkbox"
+                      checked={giftSelected.has(i)}
+                      onChange={() => {
+                        const next = new Set(giftSelected);
+                        if (next.has(i)) next.delete(i); else next.add(i);
+                        setGiftSelected(next);
+                      }}
+                      className="mt-0.5 accent-purple-600"
+                    />
+                    <div className="flex-1 text-[11px]">
+                      <p className="font-bold text-zinc-900 leading-tight">{item.name || 'Item'}</p>
+                      {(item.size || item.ageGroup) && (
+                        <p className="text-zinc-500">{item.ageGroup ? `${item.ageGroup} · ` : ''}Size {item.size}</p>
+                      )}
+                      <p className="text-zinc-500">Qty {item.quantity || 1}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="p-4 border-t border-zinc-200 flex gap-2">
+              <button
+                onClick={() => setGiftTx(null)}
+                className="flex-1 border border-zinc-200 rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-colors text-zinc-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePrintGiftReceipt}
+                disabled={giftSelected.size === 0}
+                className="flex-1 bg-purple-600 disabled:bg-zinc-300 text-white rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-purple-700 transition-colors flex items-center justify-center gap-1"
+              >
+                <Printer size={13} /> Print Gift
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
