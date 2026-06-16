@@ -29,7 +29,7 @@ interface Transaction {
   isTaxExempt?: boolean;
 }
 
-type Step = 'lookup' | 'select-items' | 'choose-refund' | 'confirm' | 'complete';
+type Step = 'lookup' | 'select-items' | 'choose-refund' | 'choose-payment-type' | 'confirm' | 'complete';
 
 interface ReturnsModalProps {
   isOpen: boolean;
@@ -55,6 +55,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [returnItems, setReturnItems] = useState<ReturnItem[]>([]);
   const [refundMethod, setRefundMethod] = useState<'store-credit' | 'original-payment' | null>(null);
+  const [refundPaymentMethod, setRefundPaymentMethod] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [completionData, setCompletionData] = useState<any>(null);
   const [issuedStoreCreditCardNumber, setIssuedStoreCreditCardNumber] = useState<string | null>(null);
@@ -266,7 +267,12 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       return;
     }
     setRefundMethod(method);
-    setCurrentStep('confirm');
+    if (method === 'original-payment') {
+      setRefundPaymentMethod(null); // clear any prior selection
+      setCurrentStep('choose-payment-type');
+    } else {
+      setCurrentStep('confirm');
+    }
   };
 
   const handleCompleteReturn = async () => {
@@ -302,6 +308,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           transaction_id: transaction.id,
           customer_id: transaction.customer_id,
           refund_method: refundMethod === 'store-credit' ? 'store_credit' : 'original_payment',
+          refund_payment_method: refundMethod === 'original-payment' ? refundPaymentMethod : null,
           items: selectedItems,
           refund_amount: amounts.total,
           status: 'completed',
@@ -431,7 +438,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           type: 'refund',
           returnId: returnRecord.id,
           amount: amounts.total,
-          method: transaction.method,
+          method: refundPaymentMethod || transaction.method,
         });
       }
 
@@ -476,7 +483,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       subtotal: amounts.subtotal,
       hst: amounts.tax,
       total: amounts.total,
-      paymentMethod: refundMethod === 'store-credit' ? 'Store Credit' : `${transaction.method} - RETURN`,
+        paymentMethod: refundMethod === 'store-credit' ? 'Store Credit' : `${refundPaymentMethod || transaction.method} - RETURN`,
       createdAt: new Date(),
       status: 'return',
     };
@@ -524,6 +531,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     setTransaction(null);
     setReturnItems([]);
     setRefundMethod(null);
+    setRefundPaymentMethod(null);
     setError(null);
     setCompletionData(null);
     setIssuedStoreCreditCardNumber(null);
@@ -558,6 +566,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                   {currentStep === 'lookup' && 'Find the original invoice'}
                   {currentStep === 'select-items' && 'Select items to return'}
                   {currentStep === 'choose-refund' && 'Choose refund method'}
+                  {currentStep === 'choose-payment-type' && 'How will refund be given?'}
                   {currentStep === 'confirm' && 'Review and confirm'}
                   {currentStep === 'complete' && 'Return processed'}
                 </p>
@@ -794,6 +803,37 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
               </div>
             )}
 
+            {/* STEP 3b: CHOOSE PAYMENT TYPE (only when Original Payment selected) */}
+            {currentStep === 'choose-payment-type' && transaction && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">How will the refund be given?</h3>
+                  <p className="text-sm text-gray-500 mb-5">
+                    Refunding <span className="font-bold text-gray-800">${amounts.total.toFixed(2)}</span> — select the payment method used to return money to the customer.
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {['Cash', 'Visa', 'Mastercard', 'Debit', 'Amex'].map((method) => (
+                      <button
+                        key={method}
+                        onClick={() => setRefundPaymentMethod(method)}
+                        className={`py-4 px-3 rounded-lg border-2 font-semibold transition text-center text-sm ${
+                          refundPaymentMethod === method
+                            ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
+                            : 'border-gray-200 hover:border-green-400 hover:bg-green-50 text-gray-700'
+                        }`}
+                      >
+                        {refundPaymentMethod === method && <span className="block text-green-500 text-xs mb-1">✓</span>}
+                        {method}
+                      </button>
+                    ))}
+                  </div>
+                  {!refundPaymentMethod && (
+                    <p className="text-xs text-gray-400 mt-3 text-center">Select a payment method to continue</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* STEP 4: CONFIRMATION */}
             {currentStep === 'confirm' && transaction && refundMethod && (
               <div className="space-y-4">
@@ -832,7 +872,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                       <p className="font-semibold text-gray-900 mt-1">
                         {refundMethod === 'store-credit'
                           ? `Store Credit (${transaction.customers?.first_name} ${transaction.customers?.last_name})`
-                          : `Refund to ${transaction.method}`}
+                          : `${refundPaymentMethod} Refund`}
                       </p>
                     </div>
                   </div>
@@ -931,10 +971,28 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
               </button>
             )}
 
-            {currentStep === 'confirm' && (
+            {currentStep === 'choose-payment-type' && (
               <div className="flex gap-2">
                 <button
                   onClick={() => setCurrentStep('choose-refund')}
+                  className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={() => setCurrentStep('confirm')}
+                  disabled={!refundPaymentMethod}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition font-semibold"
+                >
+                  Next: Review Return
+                </button>
+              </div>
+            )}
+
+            {currentStep === 'confirm' && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentStep(refundMethod === 'original-payment' ? 'choose-payment-type' : 'choose-refund')}
                   className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
                 >
                   Back
