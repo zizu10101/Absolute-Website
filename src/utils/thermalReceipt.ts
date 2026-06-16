@@ -88,10 +88,13 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       margin-bottom: 8px;
     }
     .logo {
-      max-width: 180px;
-      height: auto;
-      margin: 0 auto 6px;
       display: block;
+      margin: 0 auto 6px;
+      max-width: 160px;
+      max-height: 60px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
     }
     .store-name {
       font-size: 14px;
@@ -167,6 +170,10 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       * {
         margin: 0 !important;
         padding: 0 !important;
+      }
+      img {
+        max-width: 160px !important;
+        max-height: 60px !important;
       }
       @page {
         size: 80mm auto;
@@ -337,10 +344,13 @@ export const generateGiftReceiptHTML = (data: {
       margin-bottom: 8px;
     }
     .logo {
-      max-width: 180px;
-      height: auto;
-      margin: 0 auto 6px;
       display: block;
+      margin: 0 auto 6px;
+      max-width: 160px;
+      max-height: 60px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
     }
     .store-name {
       font-size: 14px;
@@ -414,6 +424,10 @@ export const generateGiftReceiptHTML = (data: {
       * {
         margin: 0 !important;
         padding: 0 !important;
+      }
+      img {
+        max-width: 160px !important;
+        max-height: 60px !important;
       }
       @page {
         size: 80mm auto;
@@ -540,10 +554,13 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
       margin-bottom: 8px;
     }
     .logo {
-      max-width: 180px;
-      height: auto;
-      margin: 0 auto 6px;
       display: block;
+      margin: 0 auto 6px;
+      max-width: 160px;
+      max-height: 60px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
     }
     .store-name {
       font-size: 14px;
@@ -649,6 +666,10 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
       * {
         margin: 0 !important;
         padding: 0 !important;
+      }
+      img {
+        max-width: 160px !important;
+        max-height: 60px !important;
       }
       @page {
         size: 80mm auto;

@@ -930,7 +930,11 @@ async function startServer() {
 
       console.log("📥 Query params - limit:", limit, "customer_id:", customer_id);
 
-      let query = supabaseAdmin.from('transactions').select('*').order('created_at', { ascending: false });
+      // Fetch transactions with customer and returns data
+      let query = supabaseAdmin
+        .from('transactions')
+        .select('*, customers(id, first_name, last_name, email, phone), returns(id, refund_method, refund_amount, store_credit_id, store_credits(id, card_number, remaining_balance))')
+        .order('created_at', { ascending: false });
 
       // Filter by customer_id if provided
       if (customer_id) {
@@ -950,7 +954,8 @@ async function startServer() {
           id: t.id.slice(0, 8),
           status: t.status,
           created_at: t.created_at,
-          total_amount: t.total_amount
+          total_amount: t.total_amount,
+          hasReturns: Array.isArray(t.returns) && t.returns.length > 0
         })));
       }
 
@@ -1590,12 +1595,18 @@ async function startServer() {
 
       // 3. Issue store credit if needed
       if (storeCreditAmount > 0 && customerId) {
+        // Generate unique card number
+        const cardNumber = 'SC-' + Math.random().toString(36).substring(2, 8).toUpperCase() +
+          Math.random().toString(36).substring(2, 8).toUpperCase();
+        console.log('Generated SC card number:', cardNumber);
+
         const { data: scRecord } = await admin
           .from("store_credits")
           .insert({
             customer_id: customerId,
             amount: storeCreditAmount,
             remaining_balance: storeCreditAmount,
+            card_number: cardNumber,
             reason: "Return",
             is_active: true,
             created_at: new Date().toISOString(),
@@ -1662,12 +1673,18 @@ async function startServer() {
     try {
       console.log(`🔄 Creating store credit: $${amount} for customer ${customerId.slice(0, 8)}`);
 
+      // Generate unique card number
+      const cardNumber = 'SC-' + Math.random().toString(36).substring(2, 8).toUpperCase() +
+        Math.random().toString(36).substring(2, 8).toUpperCase();
+      console.log('Generated SC card number:', cardNumber);
+
       const { data: scRecord, error: scError } = await admin
         .from("store_credits")
         .insert({
           customer_id: customerId,
           amount: amount,
           remaining_balance: amount,
+          card_number: cardNumber,
           reason: reason,
           is_active: true,
         })
@@ -1695,6 +1712,7 @@ async function startServer() {
       return res.status(200).json({
         success: true,
         creditId: scRecord.id,
+        cardNumber: scRecord.card_number,
         amount: amount,
       });
     } catch (err: any) {
