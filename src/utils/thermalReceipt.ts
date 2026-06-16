@@ -18,6 +18,8 @@ export interface ReceiptData {
   logoUrl?: string;
   barcodeValue?: string; // What to encode in barcode (defaults to invoiceNumber or transactionId)
   isReprint?: boolean; // Add "*** REPRINT ***" header
+  copyLabel?: string; // "CUSTOMER COPY", "MERCHANT COPY", or undefined
+  showSignatureLine?: boolean; // Add signature line for merchant copy
   // Store Credit receipt fields
   isStoreCreditReceipt?: boolean; // True if this is a SC issue receipt
   storeCreditCardNumber?: string; // SC card number (SC-XXXX...)
@@ -237,6 +239,13 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       <div class="footer-text">Follow us on Instagram</div>
       <div class="footer-text">@torontosoccershop</div>
       ${statusLine ? `<div class="footer-text" style="font-weight:bold;margin-top:4px;">${statusLine}</div>` : ''}
+      ${data.copyLabel ? `<div class="footer-text" style="font-weight:bold;margin-top:4px;letter-spacing:1px;">-- ${data.copyLabel} --</div>` : ''}
+      ${data.showSignatureLine ? `
+      <div class="footer-text" style="margin-top:8px;border-top:1px solid #000;padding-top:4px;">
+        <div style="margin-bottom:2px;font-size:9px;">Signature:</div>
+        <div style="height:20px;"></div>
+      </div>
+      ` : ''}
     </div>
   </div>
 
