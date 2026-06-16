@@ -4,7 +4,7 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 16, 2026)
+## CURRENT STATUS (Main Branch - June 16, 2026 — updated session 2)
 POS system live and fully functional.
 Navigation logos working and preserved on save.
 E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged to main.
@@ -29,6 +29,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Print 1 or 2 copies (Customer / Customer+Merchant) — both from checkout receipt and transaction history reprint
 ✅ Receipt logo size fix: switched from 180px to 55mm for correct Epson 80mm thermal printing
 ✅ Shared SHARED_STYLES constant in thermalReceipt.ts (no duplication across receipt types)
+✅ Returns: payment method selection step for "Original Payment" refunds (Cash/Visa/MC/Debit/Amex)
 
 ## COMPLETED FEATURES
 
@@ -49,7 +50,10 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - Cash change calculator
 - Gift cards: issue/redeem/history
 - Store credits: issue/redeem/scan/balance
-- Returns: 5-step wizard with inventory restoration
+- Returns: 6-step wizard with inventory restoration and refund payment method tracking
+  * Flow: lookup → select-items → choose-refund → choose-payment-type (Original Payment only) → confirm → complete
+  * "Original Payment" branch shows Cash/Visa/MC/Debit/Amex picker before confirm
+  * Chosen method saved to `refund_payment_method` on returns table
 - Reports: EOD, Sales, Products, GC, Void/Refund, Customer, SC (Eastern timezone)
 
 **Admin Panel (/admin):**
@@ -113,7 +117,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - customers: id, first_name, last_name, email, phone, boot_size, club_affinity
 - gift_cards: id, card_number, initial_balance, current_balance, is_active
 - store_credits: id, card_number, customer_id, amount, remaining_balance, is_active
-- returns: id, transaction_id, customer_id, items, refund_amount, status
+- returns: id, transaction_id, customer_id, items, refund_amount, status, refund_payment_method (TEXT — run migration if missing)
 - settings: key, value (site settings)
 - navigation_menus: id, label, path, order_index, is_active
 - navigation_items: id, menu_id, label, path, logo_url, order_index, parent_id
@@ -127,7 +131,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - src/pages/ProductDetailPage.tsx - Product detail page (Call to Order CTA for no-size products)
 - src/context/ProductContext.tsx - Product CRUD
 - src/context/SettingsContext.tsx - Site settings defaults (canonical URL, SEO)
-- src/components/ReturnsModal.tsx - 5-step returns wizard
+- src/components/ReturnsModal.tsx - 6-step returns wizard (lookup → select → choose-refund → choose-payment-type → confirm → complete)
 - src/utils/thermalReceipt.ts - Receipt generation (thermal, gift, store credit)
 - src/hooks/usePOSCart.ts - Cart state management
 - public/sitemap.xml - SEO sitemap
@@ -139,6 +143,12 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - `/pos` — POS system (PIN auth)
 - `/brands` — Brand pages
 - `/reports` — Financial reports
+
+## PENDING DB MIGRATIONS
+Run these once in Supabase SQL editor if not already done:
+```sql
+ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_payment_method TEXT;
+```
 
 ## KNOWN ISSUES
 | Issue | Status |
