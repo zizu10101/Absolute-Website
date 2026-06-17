@@ -73,12 +73,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [footerLinks, setFooterLinksState] = useState<FooterLink[]>([]);
   const [navigationMenus, setNavigationMenusState] = useState<NavMenu[]>(DEFAULT_NAV);
   const [seoSettings, setSeoSettingsState] = useState<SEO>({
-    title: 'Absolute Soccer | Mississauga\'s Premier Soccer Destination',
-    description: 'Elite soccer footwear, apparel, and equipment. Professional uniform engineering and custom team gear.',
-    keywords: 'soccer, mississauga, soccer shop, custom uniforms, soccer cleats, jerseys',
+    title: 'Absolute Soccer Mississauga | Soccer Store - Cleats, Jerseys & Gear',
+    description: 'Premium soccer cleats, jerseys and gear at Absolute Soccer in Mississauga. Nike, Adidas, Puma and more. Visit us or shop online at torontosoccershop.com',
+    keywords: 'soccer store mississauga, soccer shop mississauga, soccer cleats mississauga, soccer jerseys mississauga, indoor soccer shoes mississauga, turf soccer shoes, firm ground boots, nike soccer cleats, adidas predator cleats toronto, custom soccer uniforms mississauga, team soccer jersey printing, soccer store near me, authentic soccer jerseys toronto, absolute soccer mississauga, toronto soccer shop',
     ogImage: 'https://assets.cdn.filesafe.space/By2ouDwVDtWabLH4FJkE/media/69d71beda7dcb4cff069ed87.png',
-    ogTitle: 'Absolute Soccer',
-    ogDescription: 'Elite performance soccer gear and custom uniform engineering.',
+    ogTitle: 'Absolute Soccer Mississauga | Soccer Store - Cleats, Jerseys & Gear',
+    ogDescription: 'Premium soccer cleats, jerseys and gear at Absolute Soccer in Mississauga. Nike, Adidas, Puma and more. Shop online or visit us.',
     twitterCard: 'summary_large_image',
     canonicalUrl: 'https://torontosoccershop.com'
   });
