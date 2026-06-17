@@ -115,6 +115,45 @@ export function ProductDetailPage() {
   }, [id]);
 
   useEffect(() => {
+    if (!product) return;
+
+    const existing = document.getElementById('product-schema-markup');
+    if (existing) existing.remove();
+
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": product.name,
+      "image": product.image,
+      "description": product.description,
+      "brand": {
+        "@type": "Brand",
+        "name": product.brand || "Absolute Soccer"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": product.price,
+        "priceCurrency": "CAD",
+        "availability": "https://schema.org/InStock",
+        "seller": {
+          "@type": "Organization",
+          "name": "Absolute Soccer Mississauga"
+        }
+      }
+    };
+
+    const script = document.createElement('script');
+    script.id = 'product-schema-markup';
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify(schema);
+    document.head.appendChild(script);
+
+    return () => {
+      document.getElementById('product-schema-markup')?.remove();
+    };
+  }, [product]);
+
+  useEffect(() => {
     if (product && product.images) {
       // Preload images
       product.images.forEach((img: string) => {

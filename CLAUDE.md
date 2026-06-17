@@ -5,6 +5,7 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 17, 2026)
+**Latest:** Color variant support + expanded apparel sizes (session 5)
 POS system live and fully functional.
 Navigation logos working and preserved on save.
 Gift receipts with barcode and print copy options added.
@@ -28,6 +29,21 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Navigation logos fixed: normalizePath() no longer lowercases URLs, saveNavigation() preserves DB logos
 ✅ Color variant support: Admin can assign colors to variants, POS displays "Product - Color - Size" format
 ✅ Expanded apparel sizes: Youth (YXXS, YXS, YS, YM, YL, YXL), Adult (XXS, XS, S, M, L, XL, XXL)
+✅ Navigation mega-menu rebuilt: all navigation_items now have correct parent_id hierarchy
+✅ NATIONAL TEAMS submenu populated with 5 regional groups (EUROPE, SOUTH AMERICA, AFRICA, NORTH AMERICA, OTHERS)
+✅ Gift receipt: item-selection modal + no-price thermal receipt (POSPage + PosTransactionHistory)
+✅ Print 1 or 2 copies (Customer / Customer+Merchant) — both from checkout receipt and transaction history reprint
+✅ Receipt logo size fix: switched from 180px to 55mm for correct Epson 80mm thermal printing
+✅ Shared SHARED_STYLES constant in thermalReceipt.ts (no duplication across receipt types)
+✅ Returns: payment method selection step for "Original Payment" refunds (Cash/Visa/MC/Debit/Amex)
+✅ Returns: left-panel "Returns" action button now opens modal at lookup step (was silently broken — guard changed from returnsFoundTransaction to showReturnsModal)
+✅ Unified Refund/Return flow: both paths use ReturnsModal with choose-refund → SC or Original Payment → confirm
+✅ Refund button in PosTransactionHistory fixed: was calling direct DB update, now opens ReturnsModal(mode=refund)
+✅ Store Credit on returns/refunds: works without a linked customer (walk-ins get card number printed on receipt)
+✅ JSON-LD schema markup: SportingGoodsStore on homepage, Product schema on product detail pages
+✅ SEO: updated title/meta description in index.html with keyword-rich content
+✅ SEO: "formerly Golazo Store" brand attribution added to footer
+✅ Instagram handle updated to @absolutemississauga across all files (schema, receipts)
 
 ## COMPLETED FEATURES
 
@@ -51,7 +67,14 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - Cash change calculator
 - Gift cards: issue/redeem/history
 - Store credits: issue/redeem/scan/balance
-- Returns: 5-step wizard with inventory restoration
+- Returns: 6-step wizard with inventory restoration and refund payment method tracking
+  * Flow: lookup → select-items → choose-refund → choose-payment-type (Original Payment only) → confirm → complete
+  * "Original Payment" branch shows Cash/Visa/MC/Debit/Amex picker before confirm
+  * Chosen method saved to `refund_payment_method` on returns table
+  * Store Credit works without a linked customer (walk-ins) — card number printed on receipt
+- Refunds (from history): same modal as Returns (mode="refund") — skips lookup/item-selection, uses full transaction total, no inventory restore
+  * Entry points: History tab Refund button (PosTransactionHistory) and Void/Refund panel (POSPage)
+  * Both offer: Issue Store Credit OR Refund to Original Payment (Cash/Visa/MC/Debit/Amex)
 - Reports: EOD, Sales, Products, GC, Void/Refund, Customer, SC (Eastern timezone)
 
 **Admin Panel (/admin):**
@@ -74,10 +97,11 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - Navigation menus (navigation_menus, navigation_items tables)
 - Product brand and product_code columns
 - Duplicate product prevention (unique: name+category)
-- SEO meta tags via useSEO hook
+- SEO meta tags via useSEO hook + JSON-LD schema (SportingGoodsStore homepage, Product detail pages)
 - Sitemap at public/sitemap.xml
 - Google Search Console verified
 - robots.txt blocks /admin and /pos from crawlers
+- Footer brand attribution: "formerly Golazo Store" for SEO brand association
 
 ## E-COMMERCE FEATURES (ecommerce-dev branch - NOT merged to main)
 **Built and tested (Phases 1-5 complete):**
@@ -118,7 +142,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - customers: id, first_name, last_name, email, phone, boot_size, club_affinity
 - gift_cards: id, card_number, initial_balance, current_balance, is_active
 - store_credits: id, card_number, customer_id, amount, remaining_balance, is_active
-- returns: id, transaction_id, customer_id, items, refund_amount, status
+- returns: id, transaction_id, customer_id, items, refund_amount, status, refund_payment_method (TEXT — run migration if missing)
 - settings: key, value (site settings)
 - navigation_menus: id, label, path, order_index, is_active
 - navigation_items: id, menu_id, label, path, logo_url, order_index, parent_id
@@ -129,13 +153,15 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ## KEY FILES
 - src/pages/POSPage.tsx - POS main interface
 - src/pages/AdminPage.tsx - Admin panel (8+ tabs)
-- src/pages/ProductDetailPage.tsx - Product detail page (Call to Order CTA for no-size products)
+- src/pages/ProductDetailPage.tsx - Product detail page (Call to Order CTA for no-size products; Product JSON-LD schema)
 - src/context/ProductContext.tsx - Product CRUD
 - src/context/SettingsContext.tsx - Site settings defaults (canonical URL, SEO)
-- src/components/ReturnsModal.tsx - 5-step returns wizard
+- src/components/ReturnsModal.tsx - Returns/Refund modal (mode="return" or mode="refund"); handles both flows with payment method selection
 - src/components/GiftReceiptModal.tsx - Gift receipt generation with barcode
-- src/utils/thermalReceipt.ts - Receipt generation (main + gift receipt)
-- src/hooks/usePOSCart.ts - Cart state management
+- src/components/PosTransactionHistory.tsx - Transaction history tab with Refund/Return/Void/Reprint
+- src/utils/thermalReceipt.ts - Receipt generation (thermal, gift, store credit) with shared SHARED_STYLES
+- src/hooks/useSEO.ts - SEO meta tags + JSON-LD SportingGoodsStore schema (homepage only)
+- src/hooks/usePOSCart.ts - Cart state management with color variant support
 - public/sitemap.xml - SEO sitemap
 - data/settings_exported.json - Supabase settings seed data
 
@@ -146,11 +172,18 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - `/brands` — Brand pages
 - `/reports` — Financial reports
 
+## PENDING DB MIGRATIONS
+Run these once in Supabase SQL editor if not already done:
+```sql
+ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_payment_method TEXT;
+```
+
 ## KNOWN ISSUES
 | Issue | Status |
 |-------|--------|
 | Germany product images (7 items) | Low priority |
 | All critical POS features | ✅ Complete |
+| Flag logos in National Teams mega-menu | Wikipedia blocks hotlinking — images show as blank boxes; text links work fine |
 
 ## NEXT STEPS
 - Decide on e-commerce merge timeline (Phases 1-5 ready on ecommerce-dev)
@@ -189,6 +222,17 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - Color field in product_variants table is optional (nullable)
 - Color selection dropdown populated from product.colors array
 - RapidScanIntakeMatrix component handles size/color intake during variant creation
+
+## NAVIGATION DB STRUCTURE (navigation_menus + navigation_items)
+- `navigation_menus` rows = top-level nav items (FOOTWEAR, CLUBS, NATIONAL TEAMS, etc.)
+- `navigation_items` with `parent_id = null` = submenu headings (SHOP BY CATEGORY, LIGA, EUROPE, etc.)
+- `navigation_items` with `parent_id = <heading_id>` = individual links (Nike, Arsenal, Portugal, etc.)
+- ALL items MUST have the correct parent_id set — if parent_id=null on a child item it will render as a heading (broken mega-menu)
+- When rebuilding navigation: delete per menu_id separately (not with `in.(...)` syntax which can silently miss rows), then insert headings first, capture IDs, then insert children
+- Supabase batch insert requires all JSON objects to have identical keys — always include `"logo_url":null` on items without logos
+- FOOTWEAR: 5 headings (SHOP BY CATEGORY, SHOP BY BRAND, SHOP BY SURFACE, SHOP BY COLLECTION, QUICK LINKS)
+- CLUBS: 6 headings (LIGA, LIGUE 1, PREMIER LEAGUE, SERIE A, BUNDESLIGA, MLS)
+- NATIONAL TEAMS: 5 headings (EUROPE: 7 nations, SOUTH AMERICA: 4, AFRICA: 3, NORTH AMERICA: Canada, OTHERS: Bosnia)
 
 ## IMPORTANT PATTERNS
 - Supabase row cap is 1000 — ALWAYS paginate large fetches with `.range(from, from+999)` loop

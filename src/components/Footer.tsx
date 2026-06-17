@@ -73,6 +73,9 @@ export function Footer() {
           © 2024 ABSOLUTE SOCCER. ALL RIGHTS RESERVED.
         </p>
       </div>
+      <div className="max-w-7xl mx-auto px-8 pt-3 text-center">
+        <p className="text-zinc-700 text-[10px]">Absolute Soccer Mississauga (formerly Golazo Store)</p>
+      </div>
     </footer>
   );
 }
