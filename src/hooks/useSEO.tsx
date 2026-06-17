@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
 import { SEO } from '../context/SettingsContext';
 
 const STORE_SCHEMA = {
@@ -42,10 +41,15 @@ const STORE_SCHEMA = {
   "sameAs": ["https://www.instagram.com/absolutemississauga"]
 };
 
-export function useSEO(seoSettings: SEO) {
+/**
+ * Manages the homepage JSON-LD schema side-effect only.
+ * Static meta tags (title, description, og:*, twitter:*) live in index.html as
+ * the global default — no Helmet re-injection here to avoid runtime duplicates.
+ * Page-specific overrides are done with <Helmet> directly in each page component.
+ */
+export function useSEO(_seoSettings: SEO) {
   const { pathname } = useLocation();
 
-  // Sync schema-markup script — homepage only; index.html provides the static fallback for crawlers
   useEffect(() => {
     const existing = document.getElementById('schema-markup');
     if (existing) existing.remove();
@@ -59,27 +63,4 @@ export function useSEO(seoSettings: SEO) {
 
     return () => { document.getElementById('schema-markup')?.remove(); };
   }, [pathname]);
-
-  const title = seoSettings.title || '';
-  const description = seoSettings.description || '';
-  const ogTitle = seoSettings.ogTitle || title;
-  const ogDescription = seoSettings.ogDescription || description;
-
-  return (
-    <Helmet>
-      {title ? <title>{title}</title> : null}
-      {description ? <meta name="description" content={description} /> : null}
-      {seoSettings.keywords ? <meta name="keywords" content={seoSettings.keywords} /> : null}
-      {seoSettings.canonicalUrl ? <link rel="canonical" href={seoSettings.canonicalUrl} /> : null}
-      <meta property="og:type" content="website" />
-      {ogTitle ? <meta property="og:title" content={ogTitle} /> : null}
-      {ogDescription ? <meta property="og:description" content={ogDescription} /> : null}
-      {seoSettings.ogImage ? <meta property="og:image" content={seoSettings.ogImage} /> : null}
-      {seoSettings.canonicalUrl ? <meta property="og:url" content={seoSettings.canonicalUrl} /> : null}
-      <meta name="twitter:card" content={seoSettings.twitterCard || 'summary_large_image'} />
-      {ogTitle ? <meta name="twitter:title" content={ogTitle} /> : null}
-      {ogDescription ? <meta name="twitter:description" content={ogDescription} /> : null}
-      {seoSettings.ogImage ? <meta name="twitter:image" content={seoSettings.ogImage} /> : null}
-    </Helmet>
-  );
 }

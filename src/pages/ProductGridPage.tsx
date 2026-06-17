@@ -1,6 +1,6 @@
 import { useProducts } from '../context/ProductContext';
 import { useSettings } from '../context/SettingsContext';
-import { useSEO } from '../hooks/useSEO';
+import { Helmet } from 'react-helmet-async';
 import { Search, ChevronDown } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
 import { BrandFilter } from '../components/BrandFilter';
@@ -18,15 +18,7 @@ const ITEMS_PER_PAGE = 4;
 
 export function ProductGridPage({ title, category, submenu }: Props) {
   const { products, fetchProductsByCategory, isLoading } = useProducts();
-  const { navigationMenus, seoSettings } = useSettings();
-
-  const categorySeo = useMemo(() => ({
-    ...seoSettings,
-    title: `${title} | Soccer Store Mississauga | Absolute Soccer`,
-    description: `Shop our wide collection of ${title} at Absolute Soccer in Mississauga. Premium selections from Nike, Adidas, PUMA and more available online or in store.`,
-  }), [title, seoSettings]);
-
-  const seoHelmet = useSEO(categorySeo);
+  const { navigationMenus } = useSettings();
 
   useEffect(() => {
     fetchProductsByCategory(category, submenu);
@@ -197,7 +189,10 @@ export function ProductGridPage({ title, category, submenu }: Props) {
 
   return (
     <>
-    {seoHelmet}
+    <Helmet>
+      <title>{title} | Soccer Store Mississauga | Absolute Soccer</title>
+      <meta name="description" content={`Shop our wide collection of ${title} at Absolute Soccer in Mississauga. Premium selections from Nike, Adidas, PUMA and more available online or in store.`} />
+    </Helmet>
     <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
         <div className="space-y-2">
