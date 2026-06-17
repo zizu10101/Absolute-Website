@@ -68,6 +68,12 @@ export function Footer() {
         </div>
       </div>
       
+      <div className="max-w-7xl mx-auto px-8 pt-8 border-t border-zinc-800 mb-6">
+        <p className="text-zinc-500 text-xs leading-relaxed text-center">
+          Serving soccer players across Mississauga, Brampton, Oakville and the GTA. Located conveniently near major transit and Highway 403. Open Monday to Friday 10am–6pm, Saturday 10am–5pm. Find Nike, Adidas, PUMA soccer cleats, jerseys and gear in store and online.
+        </p>
+      </div>
+
       <div className="max-w-7xl mx-auto px-8 pt-8 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-4">
         <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-[0.3em]">
           © 2024 ABSOLUTE SOCCER. ALL RIGHTS RESERVED.

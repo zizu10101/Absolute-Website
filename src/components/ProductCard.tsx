@@ -40,7 +40,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           {displayImage ? (
             <img 
               src={displayImage} 
-              alt={product.name} 
+              alt={`${product.name} Soccer Cleats & Gear - Absolute Soccer Mississauga`}
               className="w-full h-full object-contain transition-all duration-500 group-hover:scale-105 p-2"
               referrerPolicy="no-referrer"
               loading="lazy"

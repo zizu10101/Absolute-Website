@@ -1,5 +1,6 @@
 import { useProducts } from '../context/ProductContext';
 import { useSettings } from '../context/SettingsContext';
+import { useSEO } from '../hooks/useSEO';
 import { Search, ChevronDown } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
 import { BrandFilter } from '../components/BrandFilter';
@@ -17,8 +18,16 @@ const ITEMS_PER_PAGE = 4;
 
 export function ProductGridPage({ title, category, submenu }: Props) {
   const { products, fetchProductsByCategory, isLoading } = useProducts();
-  const { navigationMenus } = useSettings();
-  
+  const { navigationMenus, seoSettings } = useSettings();
+
+  const categorySeo = useMemo(() => ({
+    ...seoSettings,
+    title: `${title} | Soccer Store Mississauga | Absolute Soccer`,
+    description: `Shop our wide collection of ${title} at Absolute Soccer in Mississauga. Premium selections from Nike, Adidas, PUMA and more available online or in store.`,
+  }), [title, seoSettings]);
+
+  useSEO(categorySeo);
+
   useEffect(() => {
     fetchProductsByCategory(category, submenu);
   }, [category, submenu]);
