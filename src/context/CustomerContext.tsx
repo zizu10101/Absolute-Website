@@ -45,18 +45,43 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
 
   const addCustomer = async (data: Partial<Customer>): Promise<Customer | null> => {
     try {
-      const { data: newData, error } = await supabase
-        .from('customers')
-        .insert([data])
-        .select()
-        .single();
+      // If email is provided, use UPSERT to handle duplicate emails gracefully
+      // This will update existing customer if email already exists
+      if (data.email) {
+        const { data: result, error } = await supabase
+          .from('customers')
+          .upsert([data], { onConflict: 'email' })
+          .select()
+          .single();
 
-      if (error) throw error;
-      if (newData) setCustomers(prev => [...prev, newData].sort((a, b) => a.last_name.localeCompare(b.last_name)));
-      return newData || null;
+        if (error) throw error;
+
+        if (result) {
+          // Refresh customers list to reflect any changes
+          await fetchCustomers();
+        }
+        return result || null;
+      } else {
+        // If no email, use regular INSERT (allows duplicate names)
+        const { data: newData, error } = await supabase
+          .from('customers')
+          .insert([data])
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (newData) setCustomers(prev => [...prev, newData].sort((a, b) => a.last_name.localeCompare(b.last_name)));
+        return newData || null;
+      }
     } catch (e: any) {
-      console.error('Customer add error:', e);
-      console.error('Customer add error details:', e.message || e);
+      // Check for duplicate email error
+      if (e.code === '23505' || e.message?.includes('duplicate') || e.message?.includes('unique')) {
+        console.error('Customer add error: A customer with this email already exists');
+        console.error('Error details:', e);
+      } else {
+        console.error('Customer add error:', e);
+        console.error('Customer add error details:', e.message || e);
+      }
       return null;
     }
   };
