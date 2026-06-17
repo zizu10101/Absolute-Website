@@ -4,7 +4,7 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 16, 2026 — updated session 2)
+## CURRENT STATUS (Main Branch - June 16, 2026 — updated session 3)
 POS system live and fully functional.
 Navigation logos working and preserved on save.
 E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged to main.
@@ -30,6 +30,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Receipt logo size fix: switched from 180px to 55mm for correct Epson 80mm thermal printing
 ✅ Shared SHARED_STYLES constant in thermalReceipt.ts (no duplication across receipt types)
 ✅ Returns: payment method selection step for "Original Payment" refunds (Cash/Visa/MC/Debit/Amex)
+✅ Returns: left-panel "Returns" action button now opens modal at lookup step (was silently broken — guard changed from returnsFoundTransaction to showReturnsModal)
 
 ## COMPLETED FEATURES
 

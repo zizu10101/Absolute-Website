@@ -2409,12 +2409,12 @@ export function POSPage() {
       </AnimatePresence>
 
       {/* Returns Modal */}
-      {returnsFoundTransaction && (
+      {showReturnsModal && (
         <ReturnsModal
           isOpen={showReturnsModal}
           onClose={handleReturnsComplete}
-          prefilledTransactionId={returnsFoundTransaction.id}
-          prefilledCustomerId={returnsFoundTransaction.customer_id || undefined}
+          prefilledTransactionId={returnsFoundTransaction?.id}
+          prefilledCustomerId={returnsFoundTransaction?.customer_id || undefined}
           onComplete={handleReturnsComplete}
         />
       )}
