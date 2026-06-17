@@ -45,9 +45,13 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
 
   const addCustomer = async (data: Partial<Customer>): Promise<Customer | null> => {
     try {
-      // If email is provided, use UPSERT to handle duplicate emails gracefully
-      // This will update existing customer if email already exists
-      if (data.email) {
+      // Email is optional - only use UPSERT if email is provided (non-empty string)
+      // This allows customers to be created with just name and phone
+      // If email is provided, UPSERT will update existing customer with same email
+      const hasEmail = data.email && data.email.trim().length > 0;
+
+      if (hasEmail) {
+        // UPSERT: update existing customer if email matches, otherwise create new
         const { data: result, error } = await supabase
           .from('customers')
           .upsert([data], { onConflict: 'email' })
@@ -62,7 +66,8 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         }
         return result || null;
       } else {
-        // If no email, use regular INSERT (allows duplicate names)
+        // No email provided: use regular INSERT
+        // This allows creating multiple customers with same name (email is optional)
         const { data: newData, error } = await supabase
           .from('customers')
           .insert([data])
@@ -74,7 +79,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         return newData || null;
       }
     } catch (e: any) {
-      // Check for duplicate email error
+      // Check for duplicate email error (when email is provided)
       if (e.code === '23505' || e.message?.includes('duplicate') || e.message?.includes('unique')) {
         console.error('Customer add error: A customer with this email already exists');
         console.error('Error details:', e);

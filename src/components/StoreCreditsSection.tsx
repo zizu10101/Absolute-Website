@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { motion } from 'motion/react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../supabase';
 
 interface StoreCreditData {
   id: string;
@@ -28,11 +28,6 @@ export const StoreCreditsSection: React.FC<StoreCreditionsSectionProps> = ({ cus
   const [storeCredits, setStoreCredits] = useState<StoreCreditData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const supabase = createClient(
-    import.meta.env.VITE_SUPABASE_URL || '',
-    import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-  );
 
   useEffect(() => {
     if (!customerId) return;
