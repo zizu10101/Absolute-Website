@@ -70,9 +70,9 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
       return ['12M', '18M', '24M', '2T', '3T', '4T'];
     }
     if (age === 'Youth') {
-      return ['YXS', 'YS', 'YM', 'YL'];
+      return ['YXXS', 'YXS', 'YS', 'YM', 'YL', 'YXL'];
     }
-    return ['S', 'M', 'L', 'XL', 'XXL'];
+    return ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
   };
 
   // Build full size list

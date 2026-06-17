@@ -12,6 +12,7 @@ export interface CartItem {
   salePrice?: number;
   variantId?: string;
   size?: string;
+  color?: string;
   ageGroup?: string;
   stockQuantity?: number;
   barcode?: string;
@@ -74,6 +75,7 @@ export function usePOSCart() {
         isOnSale: product.isOnSale,
         salePrice: product.salePrice,
         size: product.size,
+        color: product.color,
         ageGroup: product.ageGroup || product.age_group,
         stockQuantity: stockQty,
         barcode: product.barcode,

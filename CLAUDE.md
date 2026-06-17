@@ -4,9 +4,12 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 14, 2026)
+## CURRENT STATUS (Main Branch - June 17, 2026)
 POS system live and fully functional.
 Navigation logos working and preserved on save.
+Gift receipts with barcode and print copy options added.
+Color variant support added (admin can track which color each size variant belongs to).
+Expanded apparel size ranges: Youth (YXXS-YXL), Adult (XXS-XXL).
 E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged to main.
 
 ### Main Branch Features
@@ -23,6 +26,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ ProductDetailPage: show_sizes=false shows "Call to Order" CTA (📞 905-593-3600) instead of "Coming Soon"
 ✅ Canonical URL fixed: absolutesoccer.ca → torontosoccershop.com (SettingsContext.tsx default)
 ✅ Navigation logos fixed: normalizePath() no longer lowercases URLs, saveNavigation() preserves DB logos
+✅ Color variant support: Admin can assign colors to variants, POS displays "Product - Color - Size" format
+✅ Expanded apparel sizes: Youth (YXXS, YXS, YS, YM, YL, YXL), Adult (XXS, XS, S, M, L, XL, XXL)
 
 ## COMPLETED FEATURES
 
@@ -37,7 +42,10 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
   * Amber "Only X left!" when stock 1-3
   * Gray "X in stock" when stock 4-10
 - Size selector modal (shows stock per size)
-- Thermal receipt printing (Epson 80mm)
+- Thermal receipt printing (Epson 80mm) with print 1 or 2 copies option
+- Gift receipt feature with barcode and dedicated modal
+- Color variant display in cart and receipts (format: "Nike Jersey - Red - Size M")
+- Barcode scan success message includes color (e.g., "Added: Product · Red · Sz M")
 - Transaction history with void/refund/return
 - Discount system (percentage & custom)
 - Cash change calculator
@@ -47,7 +55,9 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - Reports: EOD, Sales, Products, GC, Void/Refund, Customer, SC (Eastern timezone)
 
 **Admin Panel (/admin):**
-- Product CRUD with variants (size, barcode, stock)
+- Product CRUD with variants (size, barcode, stock, color)
+- Color variant assignment for products (Red, Blue, Green, etc.)
+- Variant table shows color column (Age Group | Size | **Color** | Barcode | Stock)
 - Brand field with bulk brand assignment
 - Stock quantity display with low-stock warnings
 - Product list pagination (20 items/page)
@@ -55,6 +65,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - Customer management
 - Settings and database backup
 - No flickering (single bulk fetch of all variants)
+- Expanded apparel size ranges for Youth and Adult categories
 
 **Database & Infrastructure:**
 - Standalone /pos route with full POS logic
@@ -101,8 +112,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 
 ## DATABASE TABLES
 **Core POS:**
-- products: id, name, price, category, brand, product_code, image, description, is_online, show_sizes
-- product_variants: id, product_id, size, barcode, stock_quantity, sku, age_group
+- products: id, name, price, category, brand, product_code, image, description, is_online, show_sizes, colors (jsonb)
+- product_variants: id, product_id, size, barcode, stock_quantity, sku, age_group, color (text, nullable)
 - transactions: id, invoice_number, customer_id, total_amount, method, items(jsonb), created_at, status
 - customers: id, first_name, last_name, email, phone, boot_size, club_affinity
 - gift_cards: id, card_number, initial_balance, current_balance, is_active
@@ -122,7 +133,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - src/context/ProductContext.tsx - Product CRUD
 - src/context/SettingsContext.tsx - Site settings defaults (canonical URL, SEO)
 - src/components/ReturnsModal.tsx - 5-step returns wizard
-- src/utils/thermalReceipt.ts - Receipt generation
+- src/components/GiftReceiptModal.tsx - Gift receipt generation with barcode
+- src/utils/thermalReceipt.ts - Receipt generation (main + gift receipt)
 - src/hooks/usePOSCart.ts - Cart state management
 - public/sitemap.xml - SEO sitemap
 - data/settings_exported.json - Supabase settings seed data
@@ -156,9 +168,32 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - Logo restore SQL saved at: `docs/restore-logos.sql`
 - If logos disappear after a save, run `npx tsx scripts/restore_logos.ts`
 
+## APPAREL SIZE RANGES (Updated June 17, 2026)
+**Toddler:** 12M, 18M, 24M, 2T, 3T, 4T
+**Youth:** YXXS, YXS, YS, YM, YL, YXL (6 sizes)
+**Adult:** XXS, XS, S, M, L, XL, XXL (7 sizes)
+
+**Footwear:**
+- Toddler: 4C, 4.5C, 5C... 13C
+- Youth: 1Y, 1.5Y, 2Y... 6.5Y, 7Y
+- Adult: 4, 4.5, 5... 14.5, 15
+
+**Implementation:** Size ranges defined in `getSuggestedSizes()` function in:
+- `src/pages/AdminPage.tsx` (line 578+)
+- `src/components/RapidScanIntakeMatrix.tsx` (line 43+)
+
+## COLOR VARIANTS (Added June 17, 2026)
+- Product can have multiple color variants (e.g., Red, Blue, Green)
+- Each variant can be assigned a color in the admin panel
+- Color displays in cart and receipts with format: "Product - Color - Size"
+- Color field in product_variants table is optional (nullable)
+- Color selection dropdown populated from product.colors array
+- RapidScanIntakeMatrix component handles size/color intake during variant creation
+
 ## IMPORTANT PATTERNS
 - Supabase row cap is 1000 — ALWAYS paginate large fetches with `.range(from, from+999)` loop
 - product_variants now has 2364+ rows — never use plain `.select()` without pagination
 - show_sizes=false → no size picker, show "Call to Order" CTA in ProductDetailPage
 - Canonical URL default lives in src/context/SettingsContext.tsx (also in Supabase settings table)
 - Navigation URLs are case-sensitive — normalizePath() must NEVER lowercase http/data: URLs
+- Size suggestions are generated dynamically in getSuggestedSizes() — both files must be kept in sync

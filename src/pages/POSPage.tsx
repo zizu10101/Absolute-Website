@@ -365,6 +365,7 @@ export function POSPage() {
           salePrice: product.salePrice,
           image: product.image,
           size: variant.size,
+          color: variant.color,
           ageGroup: variant.age_group,
           stockQuantity: stock,
           barcode: variant.barcode,
@@ -396,8 +397,9 @@ export function POSPage() {
         setBarcodeError(addError);
         setTimeout(() => setBarcodeError(null), 4000);
       } else {
+        const colorText = cartItem.color ? ` · ${cartItem.color}` : '';
         const sizeText = cartItem.size ? ` · Sz ${cartItem.size}` : '';
-        setBarcodeSuccess(`Added: ${cartItem.name}${sizeText}`);
+        setBarcodeSuccess(`Added: ${cartItem.name}${colorText}${sizeText}`);
         setTimeout(() => setBarcodeSuccess(null), 2000);
       }
     } catch (err: any) {
@@ -1352,7 +1354,14 @@ export function POSPage() {
                     {item.image && <img src={item.image} alt={item.name} className="w-12 h-12 rounded object-cover bg-[#2d3547]" />}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-1">
-                        <p className="text-sm font-semibold truncate flex-1">{item.name}</p>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold truncate">{item.name}</p>
+                          {(item.color || item.size) && (
+                            <p className="text-xs text-gray-400">
+                              {item.color}{item.color && item.size ? ' · ' : ''}{item.size && `Size ${item.size}`}
+                            </p>
+                          )}
+                        </div>
                         <button onClick={() => removeItem(item.id)} className="text-gray-500 hover:text-red-400 p-1 shrink-0">
                           <X size={14} />
                         </button>
@@ -1680,9 +1689,10 @@ export function POSPage() {
                         <div key={i} className="flex justify-between text-[10px]">
                           <div className="flex-1 pr-3">
                             <p className="font-bold text-black uppercase leading-tight">{item.name}</p>
-                            {(item.size || item.ageGroup) && (
+                            {(item.color || item.size || item.ageGroup) && (
                               <p className="text-zinc-600 font-medium">
-                                {item.ageGroup && `${item.ageGroup} · `}Size {item.size}
+                                {item.color && `${item.color}`}{item.color && (item.size || item.ageGroup) ? ' · ' : ''}{item.ageGroup && `${item.ageGroup} · `}
+                                {item.size && `Size ${item.size}`}
                               </p>
                             )}
                             <p className="text-zinc-600">Qty {item.quantity} × ${Number(item.price).toFixed(2)}</p>

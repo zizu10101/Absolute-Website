@@ -521,6 +521,9 @@ function AdminPageInner() {
     const sizeLabel = editingProductHasNoSizes ? 'One Size' : newVariantSize;
     const barcodeValue = newVariantBarcode.trim() ||
       `${editingProduct.id.slice(0,8)}-${newVariantAgeGroup.slice(0,1)}-${sizeLabel.replace('.','_')}-${Date.now()}`.toUpperCase();
+
+    const colorMatch = newVariantBarcode.includes(' - ') ? newVariantBarcode.split(' - ')[0] : null;
+
     try {
       // Check if barcode already exists for a DIFFERENT product
       const { data: existing } = await supabase
@@ -540,6 +543,7 @@ function AdminPageInner() {
           product_id: editingProduct.id,
           age_group: newVariantAgeGroup,
           size: editingProductHasNoSizes ? null : newVariantSize.trim(),
+          color: colorMatch,
           barcode: barcodeValue,
           stock_quantity: newVariantQuantity
         }], { onConflict: 'barcode' });
@@ -578,7 +582,7 @@ function AdminPageInner() {
   const getSuggestedSizes = (category: string = '', ageGroup: 'Toddler' | 'Youth' | 'Adult') => {
     const cat = category.toLowerCase();
     const isShoes = cat.includes('shoe') || cat.includes('footwear') || cat.includes('cleats');
-    
+
     if (isShoes) {
       if (ageGroup === 'Toddler') {
         const toddlerShoeSizes = [];
@@ -605,9 +609,9 @@ function AdminPageInner() {
       return ['12M', '18M', '24M', '2T', '3T', '4T'];
     }
     if (ageGroup === 'Youth') {
-      return ['YXS', 'YS', 'YM', 'YL'];
+      return ['YXXS', 'YXS', 'YS', 'YM', 'YL', 'YXL'];
     }
-    return ['S', 'M', 'L', 'XL', 'XXL'];
+    return ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
   };
 
   useEffect(() => {
@@ -3600,6 +3604,7 @@ function AdminPageInner() {
                                 <tr className="bg-zinc-50 uppercase tracking-wider text-zinc-500 border-b border-zinc-150">
                                   <th className="p-3 font-bold">Age Group</th>
                                   <th className="p-3 font-bold">Size</th>
+                                  <th className="p-3 font-bold">Color</th>
                                   <th className="p-3 font-bold">Barcode</th>
                                   <th className="p-3 font-bold">Stock</th>
                                   <th className="p-3 font-bold text-right">Actions</th>
@@ -3610,6 +3615,7 @@ function AdminPageInner() {
                                   <tr key={v.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
                                     <td className="p-3 font-bold uppercase text-zinc-900">{v.age_group}</td>
                                     <td className="p-3 font-mono font-bold text-zinc-700 bg-zinc-50">{v.size === null ? '(no size)' : v.size}</td>
+                                    <td className="p-3 font-semibold text-zinc-700">{v.color || '-'}</td>
                                     <td className="p-3 font-mono font-bold text-[#b90014]">{v.barcode}</td>
                                     <td className="p-3 font-semibold text-zinc-650">{v.stock_quantity} units</td>
                                     <td className="p-3 text-right">
@@ -4610,7 +4616,7 @@ function AdminPageInner() {
                           <span>This product has no sizes (one size only)</span>
                         </label>
                       </div>
-                      <div className={`grid gap-3 ${editingProductHasNoSizes ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                      <div className={`grid gap-3 ${editingProductHasNoSizes ? 'grid-cols-1' : 'grid-cols-3'}`}>
                         <div>
                           <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Age Group</label>
                           <select
@@ -4636,6 +4642,24 @@ function AdminPageInner() {
                           </div>
                         )}
                         <div>
+                          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Color</label>
+                          <select
+                            value={newVariantBarcode.split(' - ')[0] || ''}
+                            onChange={(e) => {
+                              const color = e.target.value;
+                              if (color) {
+                                setNewVariantBarcode(`${color} - ${newVariantSize || 'One Size'}`);
+                              }
+                            }}
+                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                          >
+                            <option value="">None</option>
+                            {(editingProduct?.colors || []).map((c: any) => (
+                              <option key={c.name} value={c.name}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-span-full">
                           <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Barcode</label>
                           <div className="flex gap-2">
                             <input
@@ -4728,6 +4752,7 @@ function AdminPageInner() {
                               <tr className="bg-zinc-50 uppercase tracking-wider text-zinc-500 border-b border-zinc-150">
                                 <th className="p-3 font-bold">Age Group</th>
                                 <th className="p-3 font-bold">Size</th>
+                                <th className="p-3 font-bold">Color</th>
                                 <th className="p-3 font-bold">Barcode</th>
                                 <th className="p-3 font-bold">Stock</th>
                                 <th className="p-3 font-bold text-right">Actions</th>
@@ -4738,6 +4763,7 @@ function AdminPageInner() {
                                 <tr key={v.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
                                   <td className="p-3 font-bold uppercase text-zinc-900">{v.age_group}</td>
                                   <td className="p-3 font-mono font-bold text-zinc-700 bg-zinc-50">{v.size === null ? '(no size)' : v.size}</td>
+                                  <td className="p-3 font-semibold text-zinc-700">{v.color || '-'}</td>
                                   <td className="p-3 font-mono font-bold text-[#b90014]">{v.barcode}</td>
                                   <td className="p-3">
                                     <div className="flex items-center gap-2">
