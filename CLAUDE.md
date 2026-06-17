@@ -5,11 +5,13 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 17, 2026)
-**Latest:** POS customer UI fixes + enhanced error logging (session 6)
+**Latest:** Duplicate email handling with UPSERT + customer UI fixes (session 7)
 
-**Recent fixes:**
-- ✅ Fixed customer search input text visibility (white text on white background)
-- ✅ Fixed customer form input text visibility (First Name, Last Name, Email, Phone, etc.)
+**Recent improvements:**
+- ✅ Handle duplicate email gracefully with UPSERT (update existing customer instead of failing)
+- ✅ Enhanced error detection for PostgreSQL duplicate key violations (23505)
+- ✅ Fixed customer search input text visibility (was white on white)
+- ✅ Fixed customer form input text visibility (all inputs now text-zinc-900)
 - ✅ Enhanced error logging for customer creation failures
 
 POS system live and fully functional.
@@ -191,15 +193,28 @@ ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_payment_method TEXT;
 | All critical POS features | ✅ Complete |
 | Flag logos in National Teams mega-menu | Wikipedia blocks hotlinking — images show as blank boxes; text links work fine |
 
-## BUG FIXES (Session 6 - June 17, 2026)
+## BUG FIXES & IMPROVEMENTS (Sessions 6-7 - June 17, 2026)
 ### POS Customer Section
 - ✅ **Customer search input visibility:** Added `text-zinc-900` to search field. Text was white on white background (invisible while typing)
 - ✅ **Customer form input visibility:** Added `text-zinc-900` to all form inputs (First Name, Last Name, Email, Phone, Boot Size, Club Affinity)
 - ✅ **Enhanced error logging:** Changed `addCustomer()` error logging to show full error object + message details for debugging customer creation failures
 
+### Customer Duplicate Email Handling (Session 7)
+- ✅ **UPSERT instead of INSERT:** Changed from INSERT to UPSERT when email is provided
+- ✅ **Graceful duplicate handling:** If customer with same email exists, their info is updated instead of failing
+- ✅ **Better error detection:** Detects PostgreSQL duplicate key error (code 23505) and logs clear message
+- ✅ **Fallback to INSERT:** When no email provided, uses regular INSERT (allows duplicate names without email)
+- ✅ **Auto-refresh:** Automatically refreshes customer list after UPSERT to reflect changes
+
+**Benefits:**
+- No confusing error when re-entering a customer
+- Prevents duplicate customer records
+- Keeps customer data up-to-date if re-entered
+- Better user experience in POS customer management
+
 **Files modified:**
-- `src/components/PosCustomerManager.tsx` - Added text color classes to inputs
-- `src/context/CustomerContext.tsx` - Enhanced error logging in addCustomer function
+- `src/components/PosCustomerManager.tsx` - Added text color classes to inputs (Session 6)
+- `src/context/CustomerContext.tsx` - Enhanced error logging (Session 6) + UPSERT implementation (Session 7)
 
 ## NEXT STEPS
 - Decide on e-commerce merge timeline (Phases 1-5 ready on ecommerce-dev)
