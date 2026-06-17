@@ -4,7 +4,7 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 16, 2026 — updated session 3)
+## CURRENT STATUS (Main Branch - June 17, 2026 — updated session 4)
 POS system live and fully functional.
 Navigation logos working and preserved on save.
 E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged to main.
@@ -31,6 +31,13 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Shared SHARED_STYLES constant in thermalReceipt.ts (no duplication across receipt types)
 ✅ Returns: payment method selection step for "Original Payment" refunds (Cash/Visa/MC/Debit/Amex)
 ✅ Returns: left-panel "Returns" action button now opens modal at lookup step (was silently broken — guard changed from returnsFoundTransaction to showReturnsModal)
+✅ Unified Refund/Return flow: both paths use ReturnsModal with choose-refund → SC or Original Payment → confirm
+✅ Refund button in PosTransactionHistory fixed: was calling direct DB update, now opens ReturnsModal(mode=refund)
+✅ Store Credit on returns/refunds: works without a linked customer (walk-ins get card number printed on receipt)
+✅ JSON-LD schema markup: SportingGoodsStore on homepage, Product schema on product detail pages
+✅ SEO: updated title/meta description in index.html with keyword-rich content
+✅ SEO: "formerly Golazo Store" brand attribution added to footer
+✅ Instagram handle updated to @absolutemississauga across all files (schema, receipts)
 
 ## COMPLETED FEATURES
 
@@ -55,6 +62,10 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
   * Flow: lookup → select-items → choose-refund → choose-payment-type (Original Payment only) → confirm → complete
   * "Original Payment" branch shows Cash/Visa/MC/Debit/Amex picker before confirm
   * Chosen method saved to `refund_payment_method` on returns table
+  * Store Credit works without a linked customer (walk-ins) — card number printed on receipt
+- Refunds (from history): same modal as Returns (mode="refund") — skips lookup/item-selection, uses full transaction total, no inventory restore
+  * Entry points: History tab Refund button (PosTransactionHistory) and Void/Refund panel (POSPage)
+  * Both offer: Issue Store Credit OR Refund to Original Payment (Cash/Visa/MC/Debit/Amex)
 - Reports: EOD, Sales, Products, GC, Void/Refund, Customer, SC (Eastern timezone)
 
 **Admin Panel (/admin):**
@@ -74,10 +85,11 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - Navigation menus (navigation_menus, navigation_items tables)
 - Product brand and product_code columns
 - Duplicate product prevention (unique: name+category)
-- SEO meta tags via useSEO hook
+- SEO meta tags via useSEO hook + JSON-LD schema (SportingGoodsStore homepage, Product detail pages)
 - Sitemap at public/sitemap.xml
 - Google Search Console verified
 - robots.txt blocks /admin and /pos from crawlers
+- Footer brand attribution: "formerly Golazo Store" for SEO brand association
 
 ## E-COMMERCE FEATURES (ecommerce-dev branch - NOT merged to main)
 **Built and tested (Phases 1-5 complete):**
@@ -129,11 +141,13 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ## KEY FILES
 - src/pages/POSPage.tsx - POS main interface
 - src/pages/AdminPage.tsx - Admin panel (8+ tabs)
-- src/pages/ProductDetailPage.tsx - Product detail page (Call to Order CTA for no-size products)
+- src/pages/ProductDetailPage.tsx - Product detail page (Call to Order CTA for no-size products; Product JSON-LD schema)
 - src/context/ProductContext.tsx - Product CRUD
 - src/context/SettingsContext.tsx - Site settings defaults (canonical URL, SEO)
-- src/components/ReturnsModal.tsx - 6-step returns wizard (lookup → select → choose-refund → choose-payment-type → confirm → complete)
+- src/components/ReturnsModal.tsx - Returns/Refund modal (mode="return" or mode="refund"); handles both flows
+- src/components/PosTransactionHistory.tsx - Transaction history tab with Refund/Return/Void/Reprint
 - src/utils/thermalReceipt.ts - Receipt generation (thermal, gift, store credit)
+- src/hooks/useSEO.ts - SEO meta tags + JSON-LD SportingGoodsStore schema (homepage only)
 - src/hooks/usePOSCart.ts - Cart state management
 - public/sitemap.xml - SEO sitemap
 - data/settings_exported.json - Supabase settings seed data
