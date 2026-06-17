@@ -36,6 +36,7 @@ export const PosTransactionHistory: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showReturnsModal, setShowReturnsModal] = useState(false);
   const [returnsTransactionId, setReturnsTransactionId] = useState<string | null>(null);
+  const [refundTx, setRefundTx] = useState<Transaction | null>(null);
 
   // Gift receipt modal
   const [giftTx, setGiftTx] = useState<Transaction | null>(null);
@@ -137,21 +138,9 @@ export const PosTransactionHistory: React.FC = () => {
     }
   };
 
-  const handleRefund = async (tx: Transaction) => {
-    if (!confirm('Issue a refund? Stock will be restored.')) return;
-    try {
-      const { error } = await supabase
-        .from('transactions')
-        .update({ status: 'refunded' })
-        .eq('id', tx.id);
-
-      if (error) throw error;
-      flash('Refund issued & stock restored');
-      await fetchTransactions();
-    } catch (e: any) {
-      console.error("Refund error:", e.message);
-      flash(e.message, true);
-    }
+  const handleRefundComplete = () => {
+    setRefundTx(null);
+    fetchTransactions();
   };
 
   const openReturnsModal = (txId: string) => {
@@ -479,7 +468,7 @@ export const PosTransactionHistory: React.FC = () => {
                     )}
                     {canRefund && (
                       <button
-                        onClick={() => handleRefund(tx)}
+                        onClick={() => setRefundTx(tx)}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500 text-white text-[10px] font-black uppercase tracking-wide hover:bg-amber-600 transition-colors"
                       >
                         <RotateCcw size={12} /> Refund
@@ -521,6 +510,17 @@ export const PosTransactionHistory: React.FC = () => {
           prefilledTransactionId={returnsTransactionId}
           prefilledCustomerId={transactions.find(t => t.id === returnsTransactionId)?.customer_id || undefined}
           onComplete={handleReturnsComplete}
+        />
+      )}
+
+      {/* Refund Modal */}
+      {refundTx && (
+        <ReturnsModal
+          mode="refund"
+          isOpen={!!refundTx}
+          onClose={handleRefundComplete}
+          prefilledTransaction={refundTx as any}
+          onComplete={handleRefundComplete}
         />
       )}
 
