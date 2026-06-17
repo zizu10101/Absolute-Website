@@ -48,7 +48,7 @@ export function useSEO(seoSettings: SEO) {
       "priceRange": "$$",
       "hasMap": "https://maps.google.com/?q=Absolute+Soccer+Mississauga",
       "sameAs": [
-        "https://www.instagram.com/torontosoccershop"
+        "https://www.instagram.com/absolutemississauga"
       ]
     };
 

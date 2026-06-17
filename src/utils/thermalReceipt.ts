@@ -244,7 +244,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     <div class="footer">
       <div class="footer-text"><strong>Thank You For Your Business!</strong></div>
       <div class="footer-text">Follow us on Instagram</div>
-      <div class="footer-text">@torontosoccershop</div>
+      <div class="footer-text">@absolutemississauga</div>
       ${statusLine ? `<div class="footer-text" style="font-weight:bold;margin-top:4px;">${statusLine}</div>` : ''}
       ${data.copyLabel ? `<div class="footer-text" style="font-weight:bold;margin-top:4px;letter-spacing:1px;">-- ${data.copyLabel} --</div>` : ''}
       ${data.showSignatureLine ? `
@@ -484,7 +484,7 @@ export const generateGiftReceiptHTML = (data: {
       <div class="footer-text">30 days with this receipt</div>
       <div class="footer-text" style="margin-top:4px;">Absolute Soccer</div>
       <div class="footer-text">Mississauga, Ontario</div>
-      <div class="footer-text">@torontosoccershop</div>
+      <div class="footer-text">@absolutemississauga</div>
     </div>
   </div>
 
@@ -784,7 +784,7 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
         <div class="footer-text">Mississauga in store only</div>
         <div class="footer-text">Keep this receipt safe!</div>
       `}
-      <div class="footer-text">@torontosoccershop</div>
+      <div class="footer-text">@absolutemississauga</div>
     </div>
   </div>
 
