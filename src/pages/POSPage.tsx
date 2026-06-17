@@ -115,6 +115,7 @@ export function POSPage() {
   const [showVoidRefundModal, setShowVoidRefundModal] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [selectedTransactionForVoid, setSelectedTransactionForVoid] = useState<any | null>(null);
+  const [selectedTransactionForRefund, setSelectedTransactionForRefund] = useState<any | null>(null);
 
   // Returns
   const [showReturnsModal, setShowReturnsModal] = useState(false);
@@ -483,6 +484,16 @@ export function POSPage() {
       console.error(`❌ STEP 8: Caught exception:`, e.message);
       alert(`Error: ${e.message}`);
     }
+  };
+
+  const handleRefundModalClose = async () => {
+    setSelectedTransactionForRefund(null);
+    const { data } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (data) setRecentTransactions(data);
   };
 
   const handleReturnsInvoiceLookup = async (invoiceId: string) => {
@@ -2377,7 +2388,7 @@ export function POSPage() {
                           Void
                         </button>
                         <button
-                          onClick={() => { handleVoidRefundReturn(tx.id, 'refund'); }}
+                          onClick={() => { setSelectedTransactionForRefund(tx); setShowVoidRefundModal(false); }}
                           disabled={tx.status === 'refunded' || tx.status === 'returned'}
                           className="px-3 py-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold uppercase"
                           title={tx.status === 'refunded' ? 'Already refunded' : tx.status === 'returned' ? 'Already returned' : 'Refund this transaction'}
@@ -2416,6 +2427,17 @@ export function POSPage() {
           prefilledTransactionId={returnsFoundTransaction?.id}
           prefilledCustomerId={returnsFoundTransaction?.customer_id || undefined}
           onComplete={handleReturnsComplete}
+        />
+      )}
+
+      {/* Refund Modal (from Void/Refund history) */}
+      {selectedTransactionForRefund && (
+        <ReturnsModal
+          mode="refund"
+          isOpen={!!selectedTransactionForRefund}
+          onClose={handleRefundModalClose}
+          prefilledTransaction={selectedTransactionForRefund}
+          onComplete={handleRefundModalClose}
         />
       )}
 
