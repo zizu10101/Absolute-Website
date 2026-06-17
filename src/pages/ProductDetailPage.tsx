@@ -1,6 +1,7 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { supabase } from '../supabase';
 import { ShoppingBag, ChevronRight, ChevronLeft, ShieldCheck, Truck, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -259,6 +260,10 @@ export function ProductDetailPage() {
 
   return (
     <div className="max-w-[1600px] mx-auto px-8 py-12" id="storefront-product-detail-container">
+      <Helmet>
+        <title>{product.name} | Absolute Soccer Mississauga</title>
+        <meta name="description" content={`Buy the ${product.name} at Absolute Soccer in Mississauga. In stock now. Shop online or visit us. Call 905-593-3600`} />
+      </Helmet>
       {/* Toast Notice */}
       <AnimatePresence>
         {isAdded && (

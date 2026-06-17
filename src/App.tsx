@@ -82,13 +82,14 @@ function AdminAccessDenied() {
 
 function AppRoutes() {
   const { navigationMenus, seoSettings } = useSettings();
-  useSEO(seoSettings);
+  const seoHelmet = useSEO(seoSettings);
 
   // Check if current domain is torontosoccershop.com or localhost for dev
   const isAdminDomain = window.location.hostname === 'torontosoccershop.com' || window.location.hostname === 'www.torontosoccershop.com' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   return (
     <>
+      {seoHelmet}
       <Meta />
       <Routes>
         <Route path="/custom-lab" element={<CustomLabPage />} />

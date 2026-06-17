@@ -26,7 +26,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     description: `Shop our wide collection of ${title} at Absolute Soccer in Mississauga. Premium selections from Nike, Adidas, PUMA and more available online or in store.`,
   }), [title, seoSettings]);
 
-  useSEO(categorySeo);
+  const seoHelmet = useSEO(categorySeo);
 
   useEffect(() => {
     fetchProductsByCategory(category, submenu);
@@ -196,6 +196,8 @@ export function ProductGridPage({ title, category, submenu }: Props) {
   };
 
   return (
+    <>
+    {seoHelmet}
     <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
         <div className="space-y-2">
@@ -375,5 +377,6 @@ export function ProductGridPage({ title, category, submenu }: Props) {
         </>
       )}
     </div>
+    </>
   );
 }
