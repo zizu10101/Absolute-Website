@@ -5,9 +5,11 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 17, 2026)
-**Latest:** Duplicate email handling with UPSERT + customer UI fixes (session 7)
+**Latest:** Email optional + shared Supabase client (session 8)
 
 **Recent improvements:**
+- ✅ Email now optional when adding customers (create walk-in customers without email)
+- ✅ Removed duplicate Supabase client instances (fixes "Multiple GoTrueClient" warning)
 - ✅ Handle duplicate email gracefully with UPSERT (update existing customer instead of failing)
 - ✅ Enhanced error detection for PostgreSQL duplicate key violations (23505)
 - ✅ Fixed customer search input text visibility (was white on white)
@@ -193,7 +195,7 @@ ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_payment_method TEXT;
 | All critical POS features | ✅ Complete |
 | Flag logos in National Teams mega-menu | Wikipedia blocks hotlinking — images show as blank boxes; text links work fine |
 
-## BUG FIXES & IMPROVEMENTS (Sessions 6-7 - June 17, 2026)
+## BUG FIXES & IMPROVEMENTS (Sessions 6-8 - June 17, 2026)
 ### POS Customer Section
 - ✅ **Customer search input visibility:** Added `text-zinc-900` to search field. Text was white on white background (invisible while typing)
 - ✅ **Customer form input visibility:** Added `text-zinc-900` to all form inputs (First Name, Last Name, Email, Phone, Boot Size, Club Affinity)
@@ -212,9 +214,28 @@ ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_payment_method TEXT;
 - Keeps customer data up-to-date if re-entered
 - Better user experience in POS customer management
 
+### Email Optional & Shared Supabase Client (Session 8)
+- ✅ **Email optional:** Customers can now be created with just name and phone (no email required)
+  - UPSERT only used when email is provided and non-empty
+  - Falls back to INSERT when email is blank (allows multiple customers with same name)
+  - Handles both null and empty string email values
+  - Enables walk-in customer creation without email
+
+- ✅ **Remove duplicate Supabase client:** Fixes "Multiple GoTrueClient instances" warning
+  - StoreCreditsSection.tsx now uses shared `supabase` import from `../supabase`
+  - Replaced `createClient()` with shared instance
+  - Verified: no other components creating their own Supabase clients
+  - Single Supabase instance reduces overhead and console warnings
+
+- ⚠️ **Database requirement:** Email column should be nullable
+  ```sql
+  ALTER TABLE customers ALTER COLUMN email DROP NOT NULL;
+  ```
+
 **Files modified:**
 - `src/components/PosCustomerManager.tsx` - Added text color classes to inputs (Session 6)
-- `src/context/CustomerContext.tsx` - Enhanced error logging (Session 6) + UPSERT implementation (Session 7)
+- `src/context/CustomerContext.tsx` - Enhanced error logging (Session 6) + UPSERT implementation (Session 7) + email optional handling (Session 8)
+- `src/components/StoreCreditsSection.tsx` - Use shared Supabase client instead of creating new instance (Session 8)
 
 ## NEXT STEPS
 - Decide on e-commerce merge timeline (Phases 1-5 ready on ecommerce-dev)
