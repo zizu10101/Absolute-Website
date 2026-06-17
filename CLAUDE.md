@@ -5,7 +5,13 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 17, 2026)
-**Latest:** Color variant support + expanded apparel sizes (session 5)
+**Latest:** POS customer UI fixes + enhanced error logging (session 6)
+
+**Recent fixes:**
+- ✅ Fixed customer search input text visibility (white text on white background)
+- ✅ Fixed customer form input text visibility (First Name, Last Name, Email, Phone, etc.)
+- ✅ Enhanced error logging for customer creation failures
+
 POS system live and fully functional.
 Navigation logos working and preserved on save.
 Gift receipts with barcode and print copy options added.
@@ -184,6 +190,16 @@ ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_payment_method TEXT;
 | Germany product images (7 items) | Low priority |
 | All critical POS features | ✅ Complete |
 | Flag logos in National Teams mega-menu | Wikipedia blocks hotlinking — images show as blank boxes; text links work fine |
+
+## BUG FIXES (Session 6 - June 17, 2026)
+### POS Customer Section
+- ✅ **Customer search input visibility:** Added `text-zinc-900` to search field. Text was white on white background (invisible while typing)
+- ✅ **Customer form input visibility:** Added `text-zinc-900` to all form inputs (First Name, Last Name, Email, Phone, Boot Size, Club Affinity)
+- ✅ **Enhanced error logging:** Changed `addCustomer()` error logging to show full error object + message details for debugging customer creation failures
+
+**Files modified:**
+- `src/components/PosCustomerManager.tsx` - Added text color classes to inputs
+- `src/context/CustomerContext.tsx` - Enhanced error logging in addCustomer function
 
 ## NEXT STEPS
 - Decide on e-commerce merge timeline (Phases 1-5 ready on ecommerce-dev)
