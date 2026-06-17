@@ -55,7 +55,8 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
       if (newData) setCustomers(prev => [...prev, newData].sort((a, b) => a.last_name.localeCompare(b.last_name)));
       return newData || null;
     } catch (e: any) {
-      console.error('Failed to add customer:', e.message);
+      console.error('Customer add error:', e);
+      console.error('Customer add error details:', e.message || e);
       return null;
     }
   };
