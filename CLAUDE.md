@@ -5,16 +5,17 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 17, 2026)
-**Latest:** Email optional + shared Supabase client (session 8)
+**Latest:** Editable store info in admin panel + dynamic JSON-LD schema (session 9)
 
 **Recent improvements:**
+- ✅ Store Information section added to Admin → SEO tab (Address, Phone, Email, Mon–Sun hours)
+- ✅ Homepage "Visit Us" section now reads store name, address, phone, email, and per-day hours from DB
+- ✅ JSON-LD schema (SportingGoodsStore) now built dynamically from stored store info and hours
+- ✅ Admin store info uses direct Supabase fetch/upsert (not SettingsContext) for reliability
 - ✅ Email now optional when adding customers (create walk-in customers without email)
 - ✅ Removed duplicate Supabase client instances (fixes "Multiple GoTrueClient" warning)
 - ✅ Handle duplicate email gracefully with UPSERT (update existing customer instead of failing)
-- ✅ Enhanced error detection for PostgreSQL duplicate key violations (23505)
 - ✅ Fixed customer search input text visibility (was white on white)
-- ✅ Fixed customer form input text visibility (all inputs now text-zinc-900)
-- ✅ Enhanced error logging for customer creation failures
 
 POS system live and fully functional.
 Navigation logos working and preserved on save.
@@ -47,6 +48,9 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Shared SHARED_STYLES constant in thermalReceipt.ts (no duplication across receipt types)
 ✅ Returns: payment method selection step for "Original Payment" refunds (Cash/Visa/MC/Debit/Amex)
 ✅ Returns: left-panel "Returns" action button now opens modal at lookup step (was silently broken — guard changed from returnsFoundTransaction to showReturnsModal)
+✅ Store Info: Admin → SEO tab has editable Store Information card (address, phone, email, hours per day)
+✅ Homepage "Visit Us" section: dynamic from DB store_info settings row (name, address, phone, email, hours grid)
+✅ JSON-LD schema: openingHoursSpecification built dynamically from stored hours strings in useSEO.tsx
 ✅ Unified Refund/Return flow: both paths use ReturnsModal with choose-refund → SC or Original Payment → confirm
 ✅ Refund button in PosTransactionHistory fixed: was calling direct DB update, now opens ReturnsModal(mode=refund)
 ✅ Store Credit on returns/refunds: works without a linked customer (walk-ins get card number printed on receipt)
@@ -153,7 +157,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - gift_cards: id, card_number, initial_balance, current_balance, is_active
 - store_credits: id, card_number, customer_id, amount, remaining_balance, is_active
 - returns: id, transaction_id, customer_id, items, refund_amount, status, refund_payment_method (TEXT — run migration if missing)
-- settings: key, value (site settings)
+- settings: key, data (jsonb) — keys: global, slider, homeCategories, navigation, footer, seo, store_info
 - navigation_menus: id, label, path, order_index, is_active
 - navigation_items: id, menu_id, label, path, logo_url, order_index, parent_id
 
@@ -170,7 +174,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - src/components/GiftReceiptModal.tsx - Gift receipt generation with barcode
 - src/components/PosTransactionHistory.tsx - Transaction history tab with Refund/Return/Void/Reprint
 - src/utils/thermalReceipt.ts - Receipt generation (thermal, gift, store credit) with shared SHARED_STYLES
-- src/hooks/useSEO.ts - SEO meta tags + JSON-LD SportingGoodsStore schema (homepage only)
+- src/hooks/useSEO.tsx - JSON-LD SportingGoodsStore schema (homepage only); accepts storeInfo and builds openingHoursSpecification dynamically
 - src/hooks/usePOSCart.ts - Cart state management with color variant support
 - public/sitemap.xml - SEO sitemap
 - data/settings_exported.json - Supabase settings seed data
