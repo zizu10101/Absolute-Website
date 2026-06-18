@@ -70,7 +70,7 @@ export function Footer() {
       
       <div className="max-w-7xl mx-auto px-8 pt-8 border-t border-zinc-800 mb-6">
         <p className="text-zinc-500 text-xs leading-relaxed text-center">
-          Serving soccer players across Mississauga, Brampton, Oakville and the GTA. Located conveniently near major transit and Highway 403. Open Monday to Friday 10am–6pm, Saturday 10am–5pm. Find Nike, Adidas, PUMA soccer cleats, jerseys and gear in store and online.
+          Serving soccer players across Mississauga, Brampton, Oakville and the GTA. Located conveniently near major transit and Highway 403. Find Nike, Adidas, PUMA soccer cleats, jerseys and gear in store and online.
         </p>
       </div>
 
@@ -81,13 +81,6 @@ export function Footer() {
       </div>
       <div className="max-w-7xl mx-auto px-8 pt-3 text-center">
         <p className="text-zinc-700 text-[10px]">Absolute Soccer Mississauga (formerly Golazo Store)</p>
-      </div>
-      <div className="max-w-7xl mx-auto px-8 pt-2 text-center">
-        <p className="text-zinc-800 text-[10px] leading-relaxed">
-          Serving soccer players across Mississauga, Brampton, Oakville and the GTA.{' '}
-          Located conveniently near major transit and Highway 403.{' '}
-          Find Nike, Adidas, PUMA soccer cleats, jerseys and gear in store and online.
-        </p>
       </div>
     </footer>
   );
