@@ -27,7 +27,7 @@ export function ProductDetailPage() {
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(true);
 
   const colorParam = searchParams.get('color');
-  const [selectedColor, setSelectedColor] = useState<number | null>(colorParam !== null ? parseInt(colorParam) : null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
   // Fetch Product
   useEffect(() => {
@@ -97,12 +97,15 @@ export function ProductDetailPage() {
     }
   }, [product?.id]);
 
-  const displayPrice = product ? (selectedColor !== null && product.colors?.[selectedColor]?.price 
-    ? product.colors[selectedColor].price 
+  // Look up the matching product.colors entry for price/images
+  const selectedColorEntry = product?.colors?.find((c: any) => c.name === selectedColor) ?? null;
+
+  const displayPrice = product ? (selectedColorEntry?.price
+    ? selectedColorEntry.price
     : (product.isOnSale && product.salePrice ? product.salePrice : product.price)) : 0;
 
-  const currentVariantImages = product ? (selectedColor !== null && product.colors?.[selectedColor]?.images?.length 
-    ? product.colors[selectedColor].images 
+  const currentVariantImages = product ? (selectedColorEntry?.images?.length
+    ? selectedColorEntry.images
     : [product.image, ...(product.images || [])]) : [];
 
   const allImages = currentVariantImages;
@@ -110,6 +113,15 @@ export function ProductDetailPage() {
   useEffect(() => {
     setSelectedImage(0);
   }, [selectedColor]);
+
+  // Convert legacy numeric colorParam (URL ?color=0) to color name once product loads
+  useEffect(() => {
+    if (colorParam !== null && product?.colors) {
+      const idx = parseInt(colorParam);
+      const colorName = product.colors[idx]?.name;
+      if (colorName) setSelectedColor(colorName);
+    }
+  }, [product?.id]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -193,21 +205,29 @@ export function ProductDetailPage() {
 
   // Grouping sizes
   const uniqueAgeGroups = Array.from(new Set(variants.map(v => v.age_group))) as string[];
-  
+
+  // Derive all available color names: from product.colors JSONB + from variant color field
+  const jsonbColorNames = (product.colors || []).map((c: any) => c.name as string);
+  const variantColorNames = Array.from(new Set(variants.filter((v: any) => v.color).map((v: any) => v.color as string)));
+  const allColorNames = Array.from(new Set([...jsonbColorNames, ...variantColorNames]));
+
   // Sizes list based on active/fallback structures
   const shoeSizes = ['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '12.5', '13'];
   const apparelSizes = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
-  
+
   let displayedSizesList: string[] = [];
 
   if (variants.length > 0) {
-    // Use actual variant sizes from database
+    // Use actual variant sizes from database, filtered by selected color when available
     displayedSizesList = Array.from(new Set(
       variants
-        .filter(v => !selectedAgeGroup || v.age_group === selectedAgeGroup)
+        .filter((v: any) =>
+          (!selectedAgeGroup || v.age_group === selectedAgeGroup) &&
+          (!selectedColor || !v.color || v.color === selectedColor)
+        )
         .map(v => v.size)
     ));
-    
+
     // Sort shoe sizes numerically, apparel sizes by standard order
     if (product.category === 'Footwear') {
       displayedSizesList.sort((a, b) => parseFloat(a) - parseFloat(b));
@@ -217,10 +237,11 @@ export function ProductDetailPage() {
     displayedSizesList = product.category === 'Footwear' ? shoeSizes : apparelSizes;
   }
 
-  // Get stock level for currently selected size and age group
-  const activeVariant = variants.find(v => 
-    (!selectedAgeGroup || v.age_group === selectedAgeGroup) && 
-    (!selectedSize || v.size === selectedSize)
+  // Get stock level for currently selected size, age group, and color
+  const activeVariant = variants.find((v: any) =>
+    (!selectedAgeGroup || v.age_group === selectedAgeGroup) &&
+    (!selectedSize || v.size === selectedSize) &&
+    (!selectedColor || !v.color || v.color === selectedColor)
   );
 
   const isStockDefined = variants.length > 0;
@@ -234,7 +255,11 @@ export function ProductDetailPage() {
       <span className="text-xs text-zinc-500">Please select a size to check live availability</span>
     );
 
-    const variant = variants.find(v => v.size === selectedSize && v.age_group === selectedAgeGroup);
+    const variant = variants.find((v: any) =>
+      v.size === selectedSize &&
+      v.age_group === selectedAgeGroup &&
+      (!selectedColor || !v.color || v.color === selectedColor)
+    );
     const qty = variant?.stock_quantity || 0;
     return (
       <span className={`text-xs font-bold uppercase tracking-widest ${qty === 0 ? 'text-red-500' : qty <= 3 ? 'text-amber-500' : 'text-green-600'}`}>
@@ -347,20 +372,20 @@ export function ProductDetailPage() {
             </h1>
             <div className="flex items-baseline gap-4">
               <span className="text-3xl font-black font-headline text-zinc-900">${displayPrice.toFixed(2)}</span>
-              {product.isOnSale && !product.colors?.[selectedColor ?? -1]?.price && (
+              {product.isOnSale && !selectedColorEntry?.price && (
                 <span className="text-xl text-zinc-400 line-through font-bold">${product.price.toFixed(2)}</span>
               )}
             </div>
           </div>
 
           {/* Color Selection */}
-          {product.colors && product.colors.length > 0 && (
+          {allColorNames.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Select Color</span>
-                {selectedColor !== null && (
+                {selectedColor && (
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#b90014] animate-pulse">
-                    {product.colors[selectedColor].name}
+                    {selectedColor}
                   </span>
                 )}
               </div>
@@ -371,13 +396,13 @@ export function ProductDetailPage() {
                 >
                   Default
                 </button>
-                {product.colors.map((color: any, idx: number) => (
+                {allColorNames.map((colorName: string) => (
                   <button
-                    key={idx}
-                    onClick={() => setSelectedColor(idx)}
-                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === idx ? 'border-[#b90014] bg-[#b90014]/5 text-[#b90014]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}
+                    key={colorName}
+                    onClick={() => setSelectedColor(colorName)}
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === colorName ? 'border-[#b90014] bg-[#b90014]/5 text-[#b90014]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}
                   >
-                    {color.name}
+                    {colorName}
                   </button>
                 ))}
               </div>
@@ -446,15 +471,16 @@ export function ProductDetailPage() {
                     
                     <div className="grid grid-cols-4 gap-3">
                       {displayedSizesList.map((size) => {
-                        const isItemOutOfStock = variants.length > 0 
+                        const isItemOutOfStock = variants.length > 0
                           ? (() => {
-                              const optVariant = variants.find(v => 
-                                (!selectedAgeGroup || v.age_group === selectedAgeGroup) && 
-                                v.size === size
+                              const optVariant = variants.find((v: any) =>
+                                (!selectedAgeGroup || v.age_group === selectedAgeGroup) &&
+                                v.size === size &&
+                                (!selectedColor || !v.color || v.color === selectedColor)
                               );
                               return optVariant ? (optVariant.stock_quantity ?? 0) <= 0 : true;
                             })()
-                          : true; // If variants exist but this size is not in the variants, treat as out of stock
+                          : true;
 
                         const isSelected = selectedSize === size;
 

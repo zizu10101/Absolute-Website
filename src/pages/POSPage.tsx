@@ -1669,6 +1669,7 @@ export function POSPage() {
                     >
                       <span className="font-semibold">
                         Size {variant.size || '(no size)'}
+                        {variant.color && ` · ${variant.color}`}
                         {variant.age_group && ` (${variant.age_group})`}
                       </span>
                       <span className={`text-sm ${

@@ -7,7 +7,8 @@ interface RapidScanIntakeMatrixProps {
   productName: string;
   category: string;
   existingVariants?: any[];
-  onRegisterVariant: (ageGroup: 'Toddler' | 'Youth' | 'Adult', size: string, barcode: string, quantity: number) => Promise<void>;
+  productColors?: string[];
+  onRegisterVariant: (ageGroup: 'Toddler' | 'Youth' | 'Adult', size: string, barcode: string, quantity: number, color?: string) => Promise<void>;
   onSuccessFinished: () => void;
 }
 
@@ -16,11 +17,13 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
   productName,
   category,
   existingVariants = [],
+  productColors = [],
   onRegisterVariant,
   onSuccessFinished
 }) => {
   // Main states
   const [ageGroup, setAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult'>('Adult');
+  const [selectedColor, setSelectedColor] = useState<string>('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [customSizes, setCustomSizes] = useState<string[]>([]);
   const [customSizeInput, setCustomSizeInput] = useState('');
@@ -29,7 +32,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
   const [isScanningActive, setIsScanningActive] = useState(false);
   const [activeQueueIndex, setActiveQueueIndex] = useState(0);
   const [barcodeInput, setBarcodeInput] = useState('');
-  const [scannedResults, setScannedResults] = useState<{ size: string; quantity: number; barcode: string }[]>([]);
+  const [scannedResults, setScannedResults] = useState<{ size: string; quantity: number; barcode: string; color?: string }[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   
   // Feedback and success indicators
@@ -229,7 +232,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
     setIsSaving(true);
     try {
       // Save variant via the callback (Db or local)
-      await onRegisterVariant(ageGroup, activeItem.size, code, activeItem.qty);
+      await onRegisterVariant(ageGroup, activeItem.size, code, activeItem.qty, selectedColor || undefined);
       
       // Successfully registered
       playChime();
@@ -237,7 +240,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
       setTimeout(() => setFlashCard(null), 800);
 
       // Append to results display
-      setScannedResults(prev => [...prev, { size: activeItem.size, quantity: activeItem.qty, barcode: code }]);
+      setScannedResults(prev => [...prev, { size: activeItem.size, quantity: activeItem.qty, barcode: code, color: selectedColor || undefined }]);
       
       // Setup next step
       setBarcodeInput('');
@@ -289,20 +292,40 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest hidden md:inline">
-            Active Age Tier:
-          </label>
-          <select
-            disabled={isScanningActive}
-            value={ageGroup}
-            onChange={(e) => setAgeGroup(e.target.value as any)}
-            className="p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[#b90014] disabled:opacity-50 cursor-pointer"
-          >
-            <option value="Toddler">🧒 Toddler Tier (e.g., 2T, 3T)</option>
-            <option value="Youth">👦 Youth Tier (e.g., YS, YM, 4Y)</option>
-            <option value="Adult">👨 Adult Tier (S, M, L, Standard numeric)</option>
-          </select>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest hidden md:inline">
+              Active Age Tier:
+            </label>
+            <select
+              disabled={isScanningActive}
+              value={ageGroup}
+              onChange={(e) => setAgeGroup(e.target.value as any)}
+              className="p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[#b90014] disabled:opacity-50 cursor-pointer"
+            >
+              <option value="Toddler">🧒 Toddler Tier (e.g., 2T, 3T)</option>
+              <option value="Youth">👦 Youth Tier (e.g., YS, YM, 4Y)</option>
+              <option value="Adult">👨 Adult Tier (S, M, L, Standard numeric)</option>
+            </select>
+          </div>
+          {productColors.length > 0 && (
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest hidden md:inline">
+                Color:
+              </label>
+              <select
+                disabled={isScanningActive}
+                value={selectedColor}
+                onChange={(e) => setSelectedColor(e.target.value)}
+                className="p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[#b90014] disabled:opacity-50 cursor-pointer"
+              >
+                <option value="">— No Color —</option>
+                {productColors.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -533,6 +556,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                     <div key={idx} className="flex items-center gap-1 bg-white border border-green-200 text-zinc-800 px-2 py-1 rounded shadow-3xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                       <span className="font-extrabold uppercase font-sans">Size {res.size}</span>
+                      {res.color && <><span className="text-zinc-400">·</span><span className="font-bold text-[#b90014] text-[9px] uppercase">{res.color}</span></>}
                       <span className="text-zinc-400">|</span>
                       <span className="font-mono text-[9px] font-bold text-[#b90014]">{res.barcode}</span>
                       <span className="text-zinc-400">|</span>

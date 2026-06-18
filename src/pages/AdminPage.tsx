@@ -861,7 +861,8 @@ function AdminPageInner() {
                 age_group: localVar.age_group,
                 size: localVar.size,
                 barcode: localVar.barcode,
-                stock_quantity: localVar.stock_quantity
+                stock_quantity: localVar.stock_quantity,
+                color: localVar.color || null
               }], { onConflict: 'barcode' });
           } catch (vErr) {
             console.error("Failed to record variant for new product:", vErr);
@@ -3680,13 +3681,15 @@ function AdminPageInner() {
                           productName={newProduct.name || 'New Product'}
                           category={newProduct.category}
                           existingVariants={createdProductVariants}
-                          onRegisterVariant={async (ageGroup, size, barcode, quantity) => {
+                          productColors={(newProduct.colors || []).map((c: any) => c.name)}
+                          onRegisterVariant={async (ageGroup, size, barcode, quantity, color) => {
                             const payload = {
                               id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                               age_group: ageGroup,
                               size: size,
                               barcode: barcode,
-                              stock_quantity: quantity
+                              stock_quantity: quantity,
+                              color: color || null
                             };
                             setCreatedProductVariants(prev => [...prev, payload]);
                           }}
@@ -3723,7 +3726,21 @@ function AdminPageInner() {
                                   <tr key={v.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
                                     <td className="p-3 font-bold uppercase text-zinc-900">{v.age_group}</td>
                                     <td className="p-3 font-mono font-bold text-zinc-700 bg-zinc-50">{v.size === null ? '(no size)' : v.size}</td>
-                                    <td className="p-3 font-semibold text-zinc-700">{v.color || '-'}</td>
+                                    <td className="p-3">
+                                      <select
+                                        value={v.color || ''}
+                                        onChange={(e) => {
+                                          const newColor = e.target.value || null;
+                                          setCreatedProductVariants(prev => prev.map(x => x.id === v.id ? { ...x, color: newColor } : x));
+                                        }}
+                                        className="text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#b90014]"
+                                      >
+                                        <option value="">— None —</option>
+                                        {(newProduct.colors || []).map((c: any) => (
+                                          <option key={c.name} value={c.name}>{c.name}</option>
+                                        ))}
+                                      </select>
+                                    </td>
                                     <td className="p-3 font-mono font-bold text-[#b90014]">{v.barcode}</td>
                                     <td className="p-3 font-semibold text-zinc-650">{v.stock_quantity} units</td>
                                     <td className="p-3 text-right">
@@ -4813,7 +4830,8 @@ function AdminPageInner() {
                         productName={editingProduct.name}
                         category={editingProduct.category}
                         existingVariants={editingProductVariants}
-                        onRegisterVariant={async (ageGroup, size, barcode, quantity) => {
+                        productColors={(editingProduct.colors || []).map((c: any) => c.name)}
+                        onRegisterVariant={async (ageGroup, size, barcode, quantity, color) => {
                           const { error } = await supabase
                             .from('product_variants')
                             .upsert([{
@@ -4821,7 +4839,8 @@ function AdminPageInner() {
                               age_group: ageGroup,
                               size: size,
                               barcode: barcode.toUpperCase(),
-                              stock_quantity: quantity
+                              stock_quantity: quantity,
+                              color: color || null
                             }], { onConflict: 'barcode' });
 
                           if (error) throw new Error(error.message);
@@ -4871,7 +4890,22 @@ function AdminPageInner() {
                                 <tr key={v.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
                                   <td className="p-3 font-bold uppercase text-zinc-900">{v.age_group}</td>
                                   <td className="p-3 font-mono font-bold text-zinc-700 bg-zinc-50">{v.size === null ? '(no size)' : v.size}</td>
-                                  <td className="p-3 font-semibold text-zinc-700">{v.color || '-'}</td>
+                                  <td className="p-3">
+                                    <select
+                                      value={v.color || ''}
+                                      onChange={async (e) => {
+                                        const newColor = e.target.value || null;
+                                        await supabase.from('product_variants').update({ color: newColor }).eq('id', v.id);
+                                        setEditingProductVariants(prev => prev.map(x => x.id === v.id ? { ...x, color: newColor } : x));
+                                      }}
+                                      className="text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#b90014]"
+                                    >
+                                      <option value="">— None —</option>
+                                      {(editingProduct.colors || []).map((c: any) => (
+                                        <option key={c.name} value={c.name}>{c.name}</option>
+                                      ))}
+                                    </select>
+                                  </td>
                                   <td className="p-3 font-mono font-bold text-[#b90014]">{v.barcode}</td>
                                   <td className="p-3">
                                     <div className="flex items-center gap-2">
