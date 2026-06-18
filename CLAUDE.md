@@ -4,10 +4,13 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 17, 2026)
-**Latest:** Editable store info in admin panel + dynamic JSON-LD schema (session 9)
+## CURRENT STATUS (Main Branch - June 18, 2026)
+**Latest:** Footer SEO paragraph — removed opening hours line (session 10)
 
 **Recent improvements:**
+- ✅ Footer SEO paragraph updated: removed "Open Monday to Friday 10am–6pm, Saturday 10am–5pm" line (hours now managed via Admin → SEO → Store Information)
+
+**Session 9 improvements:**
 - ✅ Store Information section added to Admin → SEO tab (Address, Phone, Email, Mon–Sun hours)
 - ✅ Homepage "Visit Us" section now reads store name, address, phone, email, and per-day hours from DB
 - ✅ JSON-LD schema (SportingGoodsStore) now built dynamically from stored store info and hours
@@ -58,6 +61,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ SEO: updated title/meta description in index.html with keyword-rich content
 ✅ SEO: "formerly Golazo Store" brand attribution added to footer
 ✅ Instagram handle updated to @absolutemississauga across all files (schema, receipts)
+✅ Footer SEO paragraph: removed hardcoded opening hours (hours managed via Admin → SEO → Store Information)
 
 ## COMPLETED FEATURES
 
