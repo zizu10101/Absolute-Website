@@ -117,7 +117,7 @@ function AdminPageInner() {
     products, addProduct, deleteProduct, updateProduct, resetProducts, markAllProductsOnline,
     fetchAdminProducts, loadMoreAdminProducts, hasMoreProducts, isLoading, fetchProductById
   } = useProducts();
-  const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, setGlobalSettings, resetSettings, showSizesOnline, setShowSizesOnline } = useSettings();
+  const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, storeInfo, setStoreInfo, setGlobalSettings, resetSettings, showSizesOnline, setShowSizesOnline } = useSettings();
   const { logout, user } = useAuth();
 
   const updateDraftNavigationMenu = (index: number, field: string, value: string) => {
@@ -238,6 +238,9 @@ function AdminPageInner() {
   const [draftFooterLinks, setDraftFooterLinks] = useState<any[]>(footerLinks || []);
   const [draftNavigationMenus, setDraftNavigationMenus] = useState<any[]>(navigationMenus || []);
   const [draftSeoSettings, setDraftSeoSettings] = useState<any>(seoSettings || {});
+  const [draftStoreInfo, setDraftStoreInfo] = useState<any>(storeInfo || {});
+  const [isSavingStoreInfo, setIsSavingStoreInfo] = useState(false);
+  const [storeInfoSaveSuccess, setStoreInfoSaveSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -650,6 +653,10 @@ function AdminPageInner() {
   useEffect(() => {
     setDraftSeoSettings(seoSettings || {});
   }, [seoSettings]);
+
+  useEffect(() => {
+    setDraftStoreInfo(storeInfo || {});
+  }, [storeInfo]);
 
   useEffect(() => {
     let menus = [...(navigationMenus || [])];
@@ -1580,6 +1587,20 @@ function AdminPageInner() {
       setSaveErrorMessage(error.message || 'Failed to save footer links.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveStoreInfo = async () => {
+    setIsSavingStoreInfo(true);
+    try {
+      await setStoreInfo(draftStoreInfo);
+      setStoreInfoSaveSuccess(true);
+      setTimeout(() => setStoreInfoSaveSuccess(false), 3000);
+    } catch (error: any) {
+      console.error('AdminPage: Failed to save store info', error);
+      setSaveErrorMessage(error.message || 'Failed to save store information.');
+    } finally {
+      setIsSavingStoreInfo(false);
     }
   };
 
@@ -2993,6 +3014,61 @@ function AdminPageInner() {
                         />
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Store Information */}
+              <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden mt-6">
+                <div className="p-8 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-zinc-900">Store Information</h2>
+                    <p className="text-sm text-zinc-500 mt-1">Displayed in the "Visit Us" section on the homepage and in the schema markup.</p>
+                  </div>
+                  <button
+                    onClick={handleSaveStoreInfo}
+                    disabled={isSavingStoreInfo}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${storeInfoSaveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${isSavingStoreInfo ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {storeInfoSaveSuccess ? <Check size={14} /> : <Save size={14} />}
+                    {isSavingStoreInfo ? 'Saving...' : storeInfoSaveSuccess ? 'Saved!' : 'Save Store Info'}
+                  </button>
+                </div>
+                <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[#b90014]">Contact Details</h3>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Store Name</label>
+                      <input type="text" value={draftStoreInfo.name || ''} onChange={e => setDraftStoreInfo((p: any) => ({ ...p, name: e.target.value }))} className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Address</label>
+                      <input type="text" value={draftStoreInfo.address || ''} onChange={e => setDraftStoreInfo((p: any) => ({ ...p, address: e.target.value }))} className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Phone</label>
+                      <input type="text" value={draftStoreInfo.phone || ''} onChange={e => setDraftStoreInfo((p: any) => ({ ...p, phone: e.target.value }))} className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Email</label>
+                      <input type="text" value={draftStoreInfo.email || ''} onChange={e => setDraftStoreInfo((p: any) => ({ ...p, email: e.target.value }))} className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all" />
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[#b90014]">Store Hours</h3>
+                    <p className="text-[10px] text-zinc-400 uppercase tracking-widest">Use "10:00 AM - 6:00 PM" format or "Closed"</p>
+                    {(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const).map(day => (
+                      <div key={day} className="flex items-center gap-4">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 w-24 shrink-0 capitalize">{day}</span>
+                        <input
+                          type="text"
+                          value={draftStoreInfo.hours?.[day] || ''}
+                          onChange={e => setDraftStoreInfo((p: any) => ({ ...p, hours: { ...p.hours, [day]: e.target.value } }))}
+                          className="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all"
+                          placeholder="10:00 AM - 6:00 PM"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

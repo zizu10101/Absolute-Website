@@ -9,7 +9,7 @@ import { BrandShowcase } from '../components/BrandShowcase';
 
 export function HomePage() {
   const { products, fetchFeaturedProducts } = useProducts();
-  const { sliderImages, homeCategories } = useSettings();
+  const { sliderImages, homeCategories, storeInfo } = useSettings();
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   
   useEffect(() => {
@@ -225,14 +225,25 @@ export function HomePage() {
             <div className="space-y-6 text-center md:text-left">
               <h2 className="text-4xl md:text-5xl font-black font-headline uppercase italic tracking-tighter text-[#b90014]">VISIT US</h2>
               <div className="space-y-2">
-                <p className="text-xl font-bold uppercase tracking-widest">Absolute Soccer</p>
-                <p className="text-zinc-400 font-medium">5600 Rose Cherry Place, Mississauga, Ontario</p>
-                <p className="text-zinc-400 font-medium">Phone: 905-593-3600</p>
+                <p className="text-xl font-bold uppercase tracking-widest">{storeInfo.name}</p>
+                <p className="text-zinc-400 font-medium">{storeInfo.address}</p>
+                <p className="text-zinc-400 font-medium">Phone: {storeInfo.phone}</p>
+                {storeInfo.email && (
+                  <p className="text-zinc-400 font-medium">Email: {storeInfo.email}</p>
+                )}
+              </div>
+              <div className="space-y-1 text-sm">
+                {(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const).map(day => (
+                  <div key={day} className="flex justify-center md:justify-start gap-3">
+                    <span className="text-zinc-500 w-24 text-right capitalize">{day}</span>
+                    <span className="text-zinc-300">{storeInfo.hours[day]}</span>
+                  </div>
+                ))}
               </div>
               <div className="pt-4">
-                <a 
-                  href="https://www.instagram.com/absolutemississauga?igsh=MXNrOW15Mmhna2Q5ZA==" 
-                  target="_blank" 
+                <a
+                  href="https://www.instagram.com/absolutemississauga?igsh=MXNrOW15Mmhna2Q5ZA=="
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="inline-block bg-[#b90014] text-white px-8 py-3.5 font-headline font-bold uppercase tracking-widest hover:bg-white hover:text-zinc-950 transition-colors"
                 >

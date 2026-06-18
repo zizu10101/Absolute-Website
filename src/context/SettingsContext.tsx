@@ -35,6 +35,40 @@ export interface SEO {
   canonicalUrl: string;
 }
 
+export interface StoreHours {
+  monday: string;
+  tuesday: string;
+  wednesday: string;
+  thursday: string;
+  friday: string;
+  saturday: string;
+  sunday: string;
+}
+
+export interface StoreInfo {
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  hours: StoreHours;
+}
+
+const DEFAULT_STORE_INFO: StoreInfo = {
+  name: 'Absolute Soccer',
+  address: '5600 Rose Cherry Place, Mississauga, Ontario',
+  phone: '905-593-3600',
+  email: 'info@absolutesoccer.ca',
+  hours: {
+    monday: '10:00 AM - 6:00 PM',
+    tuesday: '10:00 AM - 6:00 PM',
+    wednesday: '10:00 AM - 6:00 PM',
+    thursday: '10:00 AM - 6:00 PM',
+    friday: '10:00 AM - 6:00 PM',
+    saturday: '10:00 AM - 5:00 PM',
+    sunday: 'Closed',
+  }
+};
+
 interface SettingsContextType {
   sliderImages: SliderImage[];
   setSliderImages: (images: SliderImage[]) => Promise<void>;
@@ -54,6 +88,8 @@ interface SettingsContextType {
   setFooterLinks: (links: FooterLink[]) => Promise<void>;
   seoSettings: SEO;
   setSeoSettings: (seo: SEO) => Promise<void>;
+  storeInfo: StoreInfo;
+  setStoreInfo: (info: StoreInfo) => Promise<void>;
   setGlobalSettings: (settings: { logo?: string; landingLogo?: string; labBackgroundImage?: string; footerLogo?: string; show_sizes_online?: boolean }) => Promise<void>;
   resetSettings: () => Promise<void>;
   isLoading: boolean;
@@ -82,6 +118,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     twitterCard: 'summary_large_image',
     canonicalUrl: 'https://torontosoccershop.com'
   });
+  const [storeInfo, setStoreInfoState] = useState<StoreInfo>(DEFAULT_STORE_INFO);
   const [showSizesOnline, setShowSizesOnlineState] = useState<boolean>(() => {
     const cached = localStorage.getItem('show_sizes_online');
     return cached !== null ? cached === 'true' : false;
@@ -161,6 +198,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           const nav = results.navigation;
           const foot = results.footer;
           const seoData = results.seo;
+          const storeInfoData = results.store_info;
 
           if (global?.logo) {
             setLogoState(global.logo);
@@ -212,6 +250,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           
           if (foot?.footerLinks) setFooterLinksState(foot.footerLinks);
           if (seoData && Object.keys(seoData).length > 0) setSeoSettingsState(prev => ({ ...prev, ...seoData }));
+          if (storeInfoData && Object.keys(storeInfoData).length > 0) setStoreInfoState(prev => ({ ...DEFAULT_STORE_INFO, ...prev, ...storeInfoData, hours: { ...DEFAULT_STORE_INFO.hours, ...(storeInfoData.hours || {}) } }));
         }
       } catch (criticalErr) {
         console.error('Critical context collection fault:', criticalErr);
@@ -375,6 +414,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       if (updates.footerLinks) setFooterLinksState(updates.footerLinks);
     } else if (key === 'seo') {
       setSeoSettingsState(prev => ({ ...prev, ...updates }));
+    } else if (key === 'store_info') {
+      setStoreInfoState(prev => ({ ...prev, ...updates, hours: { ...prev.hours, ...(updates.hours || {}) } }));
     }
   };
 
@@ -570,6 +611,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     await updateSettings('seo', seo);
   };
 
+  const setStoreInfo = async (info: StoreInfo) => {
+    await updateSettings('store_info', info);
+  };
+
   const resetSettings = async () => {
     window.location.reload(); 
   };
@@ -594,12 +639,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     saveNavigation,
     seoSettings,
     setSeoSettings,
+    storeInfo,
+    setStoreInfo,
     resetSettings,
     setGlobalSettings,
     isLoading,
     showSizesOnline,
     setShowSizesOnline
-  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, isLoading, showSizesOnline]);
+  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, storeInfo, isLoading, showSizesOnline]);
 
   return (
     <SettingsContext.Provider value={value}>
