@@ -5,9 +5,19 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 18, 2026)
-**Latest:** Footer SEO paragraph — removed opening hours line (session 10)
+**Latest:** Color variant support — product page multi-color selector + POS barcode color display (session 11)
 
-**Recent improvements:**
+**Session 11 improvements:**
+- ✅ ProductDetailPage: color selector shows ALL colors from both product.colors JSONB and product_variants.color column
+- ✅ ProductDetailPage: selecting a color filters the size grid to only that color's variants (graceful fallback when v.color is null)
+- ✅ ProductDetailPage: URL ?color=0 (legacy numeric index) auto-converts to color name on load
+- ✅ POS barcode scan: success message and cart now show color (e.g. "Added: Portugal KING Anthem · Green · Sz S")
+- ✅ POS size selector modal: shows variant color next to size
+- ✅ Admin variant table: inline color dropdown per row saves to DB immediately on change
+- ✅ RapidScanIntakeMatrix: color dropdown added; selected color passed to onRegisterVariant for batch intake
+- ✅ DB migration run: ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS color TEXT;
+
+**Session 10 improvements:**
 - ✅ Footer SEO paragraph updated: removed "Open Monday to Friday 10am–6pm, Saturday 10am–5pm" line (hours now managed via Admin → SEO → Store Information)
 
 **Session 9 improvements:**
@@ -42,6 +52,9 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Canonical URL fixed: absolutesoccer.ca → torontosoccershop.com (SettingsContext.tsx default)
 ✅ Navigation logos fixed: normalizePath() no longer lowercases URLs, saveNavigation() preserves DB logos
 ✅ Color variant support: Admin can assign colors to variants, POS displays "Product - Color - Size" format
+✅ ProductDetailPage multi-color selector: shows all colors from product.colors JSONB + product_variants.color; sizes filter by selected color
+✅ POS barcode scan: success message and cart show color when variant.color is populated (e.g. "Added: Portugal KING Anthem · Green · Sz S")
+✅ Admin variant inline color dropdown: saves to product_variants.color on change without full page save
 ✅ Expanded apparel sizes: Youth (YXXS, YXS, YS, YM, YL, YXL), Adult (XXS, XS, S, M, L, XL, XXL)
 ✅ Navigation mega-menu rebuilt: all navigation_items now have correct parent_id hierarchy
 ✅ NATIONAL TEAMS submenu populated with 5 regional groups (EUROPE, SOUTH AMERICA, AFRICA, NORTH AMERICA, OTHERS)
@@ -194,6 +207,13 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 Run these once in Supabase SQL editor if not already done:
 ```sql
 ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_payment_method TEXT;
+ALTER TABLE customers ALTER COLUMN email DROP NOT NULL;
+```
+
+Already run (no action needed):
+```sql
+-- ✅ Done (session 11):
+ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS color TEXT;
 ```
 
 ## KNOWN ISSUES
@@ -202,6 +222,7 @@ ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_payment_method TEXT;
 | Germany product images (7 items) | Low priority |
 | All critical POS features | ✅ Complete |
 | Flag logos in National Teams mega-menu | Wikipedia blocks hotlinking — images show as blank boxes; text links work fine |
+| Existing product_variants.color values are NULL | Admin must assign colors via Admin → Edit Product → Registered Master Variants color dropdowns (Portugal KING Anthem, Portugal Quarter-Zip, and any future multi-color products) |
 
 ## BUG FIXES & IMPROVEMENTS (Sessions 6-8 - June 17, 2026)
 ### POS Customer Section
