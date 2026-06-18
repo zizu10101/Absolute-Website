@@ -82,6 +82,13 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-8 pt-3 text-center">
         <p className="text-zinc-700 text-[10px]">Absolute Soccer Mississauga (formerly Golazo Store)</p>
       </div>
+      <div className="max-w-7xl mx-auto px-8 pt-2 text-center">
+        <p className="text-zinc-800 text-[10px] leading-relaxed">
+          Serving soccer players across Mississauga, Brampton, Oakville and the GTA.{' '}
+          Located conveniently near major transit and Highway 403.{' '}
+          Find Nike, Adidas, PUMA soccer cleats, jerseys and gear in store and online.
+        </p>
+      </div>
     </footer>
   );
 }
