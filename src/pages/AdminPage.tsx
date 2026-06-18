@@ -238,7 +238,22 @@ function AdminPageInner() {
   const [draftFooterLinks, setDraftFooterLinks] = useState<any[]>(footerLinks || []);
   const [draftNavigationMenus, setDraftNavigationMenus] = useState<any[]>(navigationMenus || []);
   const [draftSeoSettings, setDraftSeoSettings] = useState<any>(seoSettings || {});
-  const [draftStoreInfo, setDraftStoreInfo] = useState<any>(storeInfo || {});
+  const DEFAULT_STORE_INFO = {
+    name: 'Absolute Soccer',
+    address: '5600 Rose Cherry Place, Mississauga, Ontario',
+    phone: '905-593-3600',
+    email: 'info@absolutesoccer.ca',
+    hours: {
+      monday: '10:00 AM - 6:00 PM',
+      tuesday: '10:00 AM - 6:00 PM',
+      wednesday: '10:00 AM - 6:00 PM',
+      thursday: '10:00 AM - 6:00 PM',
+      friday: '10:00 AM - 6:00 PM',
+      saturday: '10:00 AM - 5:00 PM',
+      sunday: 'Closed',
+    }
+  };
+  const [draftStoreInfo, setDraftStoreInfo] = useState<any>(DEFAULT_STORE_INFO);
   const [isSavingStoreInfo, setIsSavingStoreInfo] = useState(false);
   const [storeInfoSaveSuccess, setStoreInfoSaveSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -655,8 +670,22 @@ function AdminPageInner() {
   }, [seoSettings]);
 
   useEffect(() => {
-    setDraftStoreInfo(storeInfo || {});
-  }, [storeInfo]);
+    const fetchStoreInfo = async () => {
+      const { data } = await supabase
+        .from('settings')
+        .select('data')
+        .eq('key', 'store_info')
+        .single();
+      if (data?.data) {
+        setDraftStoreInfo((prev: any) => ({
+          ...DEFAULT_STORE_INFO,
+          ...data.data,
+          hours: { ...DEFAULT_STORE_INFO.hours, ...(data.data.hours || {}) }
+        }));
+      }
+    };
+    fetchStoreInfo();
+  }, []);
 
   useEffect(() => {
     let menus = [...(navigationMenus || [])];
@@ -1593,7 +1622,10 @@ function AdminPageInner() {
   const handleSaveStoreInfo = async () => {
     setIsSavingStoreInfo(true);
     try {
-      await setStoreInfo(draftStoreInfo);
+      const { error } = await supabase
+        .from('settings')
+        .upsert({ key: 'store_info', data: draftStoreInfo });
+      if (error) throw error;
       setStoreInfoSaveSuccess(true);
       setTimeout(() => setStoreInfoSaveSuccess(false), 3000);
     } catch (error: any) {
