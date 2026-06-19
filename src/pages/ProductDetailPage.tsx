@@ -1,6 +1,6 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '../supabase';
 import { ShoppingBag, ChevronRight, ChevronLeft, ShieldCheck, Truck, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -29,72 +29,107 @@ export function ProductDetailPage() {
   const colorParam = searchParams.get('color');
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
+  // Track last fetched id so StrictMode's second effect run skips the loading flash
+  const lastFetchedIdRef = useRef<string | null>(null);
+
+  // Reset stale variant/color state when navigating to a different product
+  useEffect(() => {
+    if (id && id !== lastFetchedIdRef.current) {
+      setVariants([]);
+      setSelectedAgeGroup(null);
+      setSelectedSize(null);
+      setSelectedColor(null);
+      setSelectedImage(0);
+    }
+  }, [id]);
+
   // Fetch Product
   useEffect(() => {
-    if (id) {
-      setIsPageLoading(true);
-      (async () => {
-        try {
-          const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .eq('id', id)
-            .single();
+    if (!id) return;
+    let cancelled = false;
 
-          if (!error && data) {
-            setProduct({
-              ...data,
-              showSizes: data.show_sizes === true || data.show_sizes === 'true',
-              is_online: data.is_online !== false
-            });
-          } else {
-            // Fallback to context
-            const existingProduct = products.find(p => p.id === id);
-            if (existingProduct) {
-              setProduct(existingProduct);
-            } else {
-              const res = await fetchProductById(id);
-              if (res) setProduct(res);
-            }
-          }
-        } catch (err) {
-          console.error("Error fetching product:", err);
-        } finally {
-          setIsPageLoading(false);
-        }
-      })();
+    // Only show the loading spinner when this is genuinely a new product (not a
+    // StrictMode re-run for the same id, which would cause a brief spinner flash).
+    const isNewProduct = lastFetchedIdRef.current !== id;
+    if (isNewProduct) {
+      setIsPageLoading(true);
     }
+    lastFetchedIdRef.current = id;
+
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (cancelled) return;
+
+        if (!error && data) {
+          setProduct({
+            ...data,
+            showSizes: data.show_sizes === true || data.show_sizes === 'true',
+            is_online: data.is_online !== false
+          });
+        } else {
+          // Fallback to context
+          const existingProduct = products.find(p => p.id === id);
+          if (existingProduct) {
+            setProduct(existingProduct);
+          } else {
+            const res = await fetchProductById(id);
+            if (!cancelled && res) setProduct(res);
+          }
+        }
+      } catch (err) {
+        if (!cancelled) console.error("Error fetching product:", err);
+      } finally {
+        if (!cancelled) setIsPageLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   // Fetch Variants for Single Product Item
   useEffect(() => {
-    if (product?.id) {
-      setVariantsLoading(true);
-      (async () => {
-        try {
-          const { data, error } = await supabase
-            .from('product_variants')
-            .select('*')
-            .eq('product_id', product.id)
-            .order('age_group')
-            .order('size');
-            
-          if (!error && Array.isArray(data)) {
-            setVariants(data);
-            const ageGroups = Array.from(new Set(data.map((v: any) => v.age_group)));
-            if (ageGroups.length > 0) {
-              setSelectedAgeGroup(ageGroups[0] as string);
-            }
-          } else if (error) {
-            console.error("Error loading product variants:", error);
+    if (!product?.id) return;
+    let cancelled = false;
+    setVariantsLoading(true);
+
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('product_variants')
+          .select('*')
+          .eq('product_id', product.id)
+          .order('age_group')
+          .order('size');
+
+        if (cancelled) return;
+
+        if (!error && Array.isArray(data) && data.length > 0) {
+          setVariants(data);
+          const ageGroups = Array.from(new Set(data.map((v: any) => v.age_group)));
+          if (ageGroups.length > 0) {
+            setSelectedAgeGroup(ageGroups[0] as string);
           }
-        } catch (err) {
-          console.error("Error loading product variants:", err);
-        } finally {
-          setVariantsLoading(false);
+        } else if (error) {
+          console.error("Error loading product variants:", error);
         }
-      })();
-    }
+      } catch (err) {
+        if (!cancelled) console.error("Error loading product variants:", err);
+      } finally {
+        if (!cancelled) setVariantsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [product?.id]);
 
   // Look up the matching product.colors entry for price/images

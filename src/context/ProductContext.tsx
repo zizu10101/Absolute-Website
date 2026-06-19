@@ -113,8 +113,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const mergeProducts = (newProducts: Product[]) => {
     const mapped = newProducts.map(mapProductFromDb);
     setProducts(prev => {
-      const productMap = new Map(prev.map(p => [p.id, p]));
-      mapped.forEach(p => productMap.set(p.id, p));
+      const productMap = new Map<string, Product>(prev.map(p => [p.id, p] as [string, Product]));
+      mapped.forEach(p => {
+        const existing = productMap.get(p.id);
+        // Preserve cached colors if fresh data has none (prevents race-condition wipe)
+        if (existing?.colors && existing.colors.length > 0 && !p.colors) {
+          productMap.set(p.id, { ...p, colors: existing.colors });
+        } else {
+          productMap.set(p.id, p);
+        }
+      });
       return Array.from(productMap.values());
     });
   };
@@ -172,7 +180,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             
       const { data, error } = await supabase
         .from('products')
-        .select('id,name,price,category,submenu,submenus,isNewArrival,isOnSale,isFeatured,salePrice,description,image,is_online,show_sizes')
+        .select('id,name,price,category,submenu,submenus,isNewArrival,isOnSale,isFeatured,salePrice,description,image,is_online,show_sizes,colors')
         .order('name', { ascending: true })
         .limit(1000);
 
@@ -261,8 +269,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
         const freshMapped = filtered.map(mapProductFromDb);
         setProducts(prev => {
-          const productMap = new Map(prev.map(p => [p.id, p]));
-          freshMapped.forEach(p => productMap.set(p.id, p));
+          const productMap = new Map<string, Product>(prev.map(p => [p.id, p] as [string, Product]));
+          freshMapped.forEach(p => {
+            const existing = productMap.get(p.id);
+            // Preserve cached colors if fresh data has none (prevents race-condition wipe)
+            if (existing?.colors && existing.colors.length > 0 && !p.colors) {
+              productMap.set(p.id, { ...p, colors: existing.colors });
+            } else {
+              productMap.set(p.id, p);
+            }
+          });
           return Array.from(productMap.values());
         });
       } else {
@@ -448,7 +464,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           submenu: payload.submenu,
           submenus: payload.submenus,
           show_sizes: payload.show_sizes,
-          release_date: payload.release_date
+          release_date: payload.release_date,
+          colors: payload.colors
         })
         .eq('id', id)
         .select();
