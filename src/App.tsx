@@ -22,6 +22,7 @@ import { CustomizationPage } from './pages/CustomizationPage';
 import { CustomLabPage } from './pages/CustomLabPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ContactUsPage } from './pages/ContactUsPage';
+import { CustomApparelPage } from './pages/CustomApparelPage';
 import { BrandPage } from './pages/BrandPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { useSEO } from './hooks/useSEO';
@@ -140,6 +141,7 @@ function AppRoutes() {
           <Route path="customization" element={<CustomizationPage />} />
           <Route path="uniform-submission" element={<UniformSubmissionPage />} />
           <Route path="contact-us" element={<ContactUsPage />} />
+          <Route path="custom-apparel" element={<CustomApparelPage />} />
           <Route path="product/:id" element={<ProductDetailPage />} />
         </Route>
 

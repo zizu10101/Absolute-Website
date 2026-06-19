@@ -60,6 +60,14 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                   Home
                 </Link>
 
+                <Link
+                  to="/custom-apparel"
+                  onClick={onClose}
+                  className="flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[#b90014] hover:text-[#b90014]"
+                >
+                  Custom Apparel
+                </Link>
+
                 {/* Brand Navigation Section */}
                 <BrandNavigation onNavigate={onClose} />
 

@@ -66,19 +66,27 @@ export function Header({ onMenuClick }: Props) {
         <div className="hidden lg:flex items-center justify-center flex-[3]">
           <nav className="flex items-center gap-8">
             {navigationMenus.map((menu) => (
-              <div 
-                key={menu.label} 
+              <div
+                key={menu.label}
                 className="relative h-full flex items-center"
                 onMouseEnter={() => setActiveMenu(menu.label)}
               >
-                <Link 
-                  to={menu.path} 
+                <Link
+                  to={menu.path}
                   className={`text-[11px] font-black uppercase tracking-tight transition-all py-2 border-b-2 ${activeMenu === menu.label ? 'text-[#b90014] border-[#b90014]' : 'text-zinc-900 border-transparent hover:text-[#b90014]'}`}
                 >
                   {menu.label}
                 </Link>
               </div>
             ))}
+            <div className="relative h-full flex items-center" onMouseEnter={() => setActiveMenu(null)}>
+              <Link
+                to="/custom-apparel"
+                className="text-[11px] font-black uppercase tracking-tight transition-all py-2 border-b-2 text-zinc-900 border-transparent hover:text-[#b90014]"
+              >
+                Custom Apparel
+              </Link>
+            </div>
           </nav>
         </div>
 
