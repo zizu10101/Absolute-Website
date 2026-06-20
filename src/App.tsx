@@ -139,6 +139,7 @@ function AppRoutes() {
           <Route path="brands" element={<BrandsPage />} />
           <Route path="brand/:brandName" element={<BrandPage />} />
           <Route path="customization" element={<CustomizationPage />} />
+          <Route path="kit-orders" element={<UniformSubmissionPage />} />
           <Route path="uniform-submission" element={<UniformSubmissionPage />} />
           <Route path="contact-us" element={<ContactUsPage />} />
           <Route path="custom-apparel" element={<CustomApparelPage />} />

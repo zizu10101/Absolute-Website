@@ -32,7 +32,7 @@ const CATEGORIES = [
 
 const getCategoryPath = (name: string) => {
   if (name === 'Custom Lab') return '/customization';
-  if (name === 'Uniform Submission') return '/uniform-submission';
+  if (name === 'Kit Orders') return '/kit-orders';
   return `/${name.toLowerCase().replace(/\s+/g, '-')}`;
 };
 
@@ -4000,7 +4000,7 @@ function AdminPageInner() {
                         All
                       </button>
                       {availableCategories
-                        .filter(cat => !['CUSTOM KITS', 'UNIFORM SUBMISSION'].includes(cat.toUpperCase()))
+                        .filter(cat => !['CUSTOM KITS', 'KIT ORDERS'].includes(cat.toUpperCase()))
                         .map(cat => (
                         <button
                           key={cat}

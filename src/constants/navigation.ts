@@ -174,6 +174,6 @@ export const DEFAULT_NAV: NavMenu[] = [
   { label: 'TRAINING APPAREL', path: '/apparel', submenus: [] },
   { label: 'EQUIPMENT', path: '/equipment', submenus: [] },
   { label: 'CUSTOM LAB', path: '/custom-lab', submenus: [] },
-  { label: 'UNIFORM SUBMISSION', path: '/uniform-submission', submenus: [] },
+  { label: 'KIT ORDERS', path: '/kit-orders', submenus: [] },
   { label: 'SALE', path: '/sale', submenus: [] },
 ];

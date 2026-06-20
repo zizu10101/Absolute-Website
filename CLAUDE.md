@@ -4,8 +4,15 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 19, 2026)
-**Latest:** Color swatch fix — product card thumbnails and detail page color buttons no longer disappear after admin navigation (session 12)
+## CURRENT STATUS (Main Branch - June 20, 2026)
+**Latest:** Nav rename + SALE fix + nav layout overhaul (session 13)
+
+**Session 13 improvements:**
+- ✅ SALE page bug fixed: `fetchProductsByCategory` skips category filter for "sale" and "new arrivals" (special collections not tagged in DB) — all products now load into state so `isOnSale` filter in ProductGridPage works correctly
+- ✅ "UNIFORM SUBMISSION" renamed to "KIT ORDERS" everywhere: DB (`navigation_menus`), `DEFAULT_NAV`, route (`/kit-orders`), `Footer.tsx`, `AdminPage.tsx` (`getCategoryPath` + category filter). Old `/uniform-submission` route kept as backward-compat alias
+- ✅ Header nav layout: center section now `flex-1` (fills all space between logo and icons) with `justify-center gap-5` — 9 items on one line at `text-[11px]`, `whitespace-nowrap`, `tracking-normal`
+- ✅ Header left section: `flex-1` → `shrink-0` (logo stays compact); right section: `flex-1` → `shrink-0` (icons stay compact)
+- ✅ Mega menu inner container: added `px-4 md:px-8` to match header padding — dropdown left edge now aligns with header content boundary
 
 **Session 12 improvements:**
 - ✅ `fetchAdminProducts` now includes `colors` in SELECT — admin navigation no longer wipes color data from context
@@ -85,6 +92,10 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ SEO: "formerly Golazo Store" brand attribution added to footer
 ✅ Instagram handle updated to @absolutemississauga across all files (schema, receipts)
 ✅ Footer SEO paragraph: removed hardcoded opening hours (hours managed via Admin → SEO → Store Information)
+✅ SALE page: shows products with isOnSale=true — fetchProductsByCategory skips category filter for special collections (sale/new arrivals)
+✅ "UNIFORM SUBMISSION" renamed to "KIT ORDERS" in nav (DB + DEFAULT_NAV + routes + footer + admin); /uniform-submission kept as alias
+✅ Header nav: flex-1 center fills all space between logo and icons; 9 items at text-[11px] whitespace-nowrap tracking-normal on one line
+✅ Mega menu inner container: px-4 md:px-8 padding matches header — dropdown left edge aligns with nav items
 
 ## COMPLETED FEATURES
 
@@ -212,6 +223,9 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - `/pos` — POS system (PIN auth)
 - `/brands` — Brand pages
 - `/reports` — Financial reports
+- `/kit-orders` — Kit Orders / Uniform Submission page (also aliased at `/uniform-submission` for backward compat)
+- `/sale` — Sale page (filters products where isOnSale=true)
+- `/custom-apparel` — Custom Apparel landing page
 
 ## PENDING DB MIGRATIONS
 Run these once in Supabase SQL editor if not already done:

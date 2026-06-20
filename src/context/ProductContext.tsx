@@ -244,19 +244,23 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       if (data) {
         let filtered = data;
 
+        // "sale" and "new arrivals" are special collections — not DB categories.
+        // The dynamic nav route passes category="SALE" but products aren't tagged with that
+        // category; the filteredProducts memo in ProductGridPage handles the isOnSale/isNewArrival
+        // filter instead. Skip the category filter here so all products load into state.
+        const SPECIAL_COLLECTIONS = ['sale', 'new arrivals'];
+        const isSpecialCollection = SPECIAL_COLLECTIONS.includes(normalizedCategory || '');
+
         // Apply category filter client-side with proper normalization
-        if (normalizedCategory && normalizedCategory !== 'all') {
-          const beforeCategory = filtered.length;
+        if (normalizedCategory && normalizedCategory !== 'all' && !isSpecialCollection) {
           filtered = filtered.filter(p => {
             const productCat = (p.category || '').trim().toLowerCase().replace(/-/g, ' ');
-            const matches = productCat === normalizedCategory;
-            return matches;
+            return productCat === normalizedCategory;
           });
         }
 
         // Apply submenu filter client-side with proper normalization
         if (normalizedSubmenu) {
-          const beforeSubmenu = filtered.length;
           filtered = filtered.filter(p => {
             const productSubmenu = p.submenu ? normalize(p.submenu) : null;
             const hasLegacyMatch = productSubmenu === normalizedSubmenu;

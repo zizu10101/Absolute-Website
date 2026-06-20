@@ -10,6 +10,7 @@ interface Props {
 
 import { DEFAULT_NAV } from '../constants/navigation';
 
+
 export function Header({ onMenuClick }: Props) {
   const { logo, navigationMenus } = useSettings();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -48,10 +49,10 @@ export function Header({ onMenuClick }: Props) {
 
   return (
     <header className="bg-white border-b border-zinc-100 fixed top-0 w-full z-50" onMouseLeave={() => setActiveMenu(null)}>
-      <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-4 md:py-6 flex justify-between items-center">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-4 md:py-6 flex items-center">
         {/* Left Section: Logo & Mobile Menu */}
-        <div className="flex items-center flex-1 gap-4">
-          <button 
+        <div className="flex items-center shrink-0 gap-4">
+          <button
             onClick={onMenuClick}
             className="lg:hidden p-1 text-zinc-900 hover:text-[#b90014] transition-colors"
           >
@@ -62,27 +63,27 @@ export function Header({ onMenuClick }: Props) {
           </Link>
         </div>
 
-        {/* Center Section: Nav */}
-        <div className="hidden lg:flex items-center justify-center flex-[3]">
-          <nav className="flex items-center gap-8">
+        {/* Center Section: Nav — fills all space between logo and icons */}
+        <div className="hidden lg:flex flex-1 items-center px-6">
+          <nav className="flex w-full items-center justify-center gap-5">
             {navigationMenus.map((menu) => (
               <div
                 key={menu.label}
-                className="relative h-full flex items-center"
+                className="relative flex items-center"
                 onMouseEnter={() => setActiveMenu(menu.label)}
               >
                 <Link
                   to={menu.path}
-                  className={`text-[11px] font-black uppercase tracking-tight transition-all py-2 border-b-2 ${activeMenu === menu.label ? 'text-[#b90014] border-[#b90014]' : 'text-zinc-900 border-transparent hover:text-[#b90014]'}`}
+                  className={`text-[11px] font-black uppercase tracking-normal whitespace-nowrap transition-all py-2 border-b-2 ${activeMenu === menu.label ? 'text-[#b90014] border-[#b90014]' : 'text-zinc-900 border-transparent hover:text-[#b90014]'}`}
                 >
                   {menu.label}
                 </Link>
               </div>
             ))}
-            <div className="relative h-full flex items-center" onMouseEnter={() => setActiveMenu(null)}>
+            <div className="relative flex items-center" onMouseEnter={() => setActiveMenu(null)}>
               <Link
                 to="/custom-apparel"
-                className="text-[11px] font-black uppercase tracking-tight transition-all py-2 border-b-2 text-zinc-900 border-transparent hover:text-[#b90014]"
+                className="text-[11px] font-black uppercase tracking-normal whitespace-nowrap transition-all py-2 border-b-2 text-zinc-900 border-transparent hover:text-[#b90014]"
               >
                 Custom Apparel
               </Link>
@@ -91,7 +92,7 @@ export function Header({ onMenuClick }: Props) {
         </div>
 
         {/* Right Section: Icons */}
-        <div className="flex items-center justify-end gap-6 flex-1">
+        <div className="flex items-center gap-6 shrink-0">
           <button className="p-1 text-zinc-900 hover:text-[#b90014] transition-colors relative">
             <Heart size={24} strokeWidth={1.5} />
             <span className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">0</span>
@@ -153,7 +154,7 @@ export function Header({ onMenuClick }: Props) {
               if (!menu || menu.submenus.length === 0) return null;
 
               return (
-                <div className="max-w-[1600px] mx-auto flex min-h-[400px]">
+                <div className="max-w-[1600px] mx-auto px-4 md:px-8 flex min-h-[400px]">
                   {/* Left Column: Submenu Headings */}
                   <div className="w-80 border-r border-zinc-100 py-8">
                     {menu.submenus.map((submenu, idx) => (

@@ -7,7 +7,7 @@ export function Footer() {
 
   // Group links into categories for the footer columns
   const shopLabels = ['FOOTWEAR', 'APPAREL', 'EQUIPMENT', 'TEAMS'];
-  const customLabels = ['CUSTOM LAB', 'UNIFORM SUBMISSION', 'CLUB REGISTRY'];
+  const customLabels = ['CUSTOM LAB', 'KIT ORDERS', 'CLUB REGISTRY'];
   const adminPaths = ['/admin', '/pos', '/reports'];
 
   // Filter out admin routes
