@@ -5,7 +5,7 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 21, 2026)
-**Latest:** Slider timer fix + drag-to-reorder admin + custom apparel page (session 14)
+**Latest:** Slider indicator pins + timer fix + drag-to-reorder + custom apparel page (session 14)
 
 **Session 14 improvements:**
 - ✅ `/custom-apparel` route added to sitemap generator (`scripts/generate-sitemap.js` `mainPages` array) — sitemap now 171 URLs (4 main pages)
@@ -13,6 +13,7 @@ Admin login: info@edgedbs.com
 - ✅ `public/hero-apparel.png` added to main branch (1.45 MB) — was only on `custom-apparel` branch, causing missing image on live site
 - ✅ `public/custom-apparel-banner.jpg` also in public folder (2.1 MB) — not currently used in hero but available
 - ✅ `HomePage.tsx` slider: clicking prev/next arrow now resets the 5s auto-advance timer via `intervalRef` + `resetTimer()` — slide no longer jumps immediately after a manual click
+- ✅ `HomePage.tsx` slider: indicator pins centered at bottom — active = wide red rectangle (`w-6 h-2 bg-[#b90014]`), inactive = small gray square (`w-2 h-2 bg-white/50`); clicking a pin jumps to slide and resets timer
 - ✅ `AdminPage.tsx` slider: drag-to-reorder using `@dnd-kit/core` + `@dnd-kit/sortable`; `SortableSlideCard` component with grip handle (top-left); new order saved to DB on drop via `setContextSliderImages`
 - ✅ Packages added: `@dnd-kit/core@6.3.1`, `@dnd-kit/sortable@10.0.0`, `@dnd-kit/utilities@3.2.2`
 
@@ -108,6 +109,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ `/custom-apparel` landing page: hero image (`/hero-apparel.png`), Who We Serve, What We Offer, How It Works, Why Choose Us, quote form (mailto), footer contact bar
 ✅ Sitemap: `/custom-apparel` added to `scripts/generate-sitemap.js` — now 171 URLs (4 main pages)
 ✅ Homepage slider: prev/next clicks reset auto-advance timer (`intervalRef` + `resetTimer()`) — no more immediate jump after manual navigation
+✅ Homepage slider: indicator pins at bottom — active wide red rectangle, inactive small gray square; click to jump + reset timer
 ✅ Admin slider: drag-to-reorder slides with `@dnd-kit` — grip handle top-left of each card, order saved to DB on drop
 
 ## COMPLETED FEATURES
