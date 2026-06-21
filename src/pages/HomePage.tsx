@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { useSettings } from '../context/SettingsContext';
@@ -28,11 +28,7 @@ export function HomePage() {
   }, [products]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [, setTick] = useState(0);
-
-  useEffect(() => {
-    setTick(t => t + 1);
-  }, [sliderImages]);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (currentIndex >= sliderImages.length) {
@@ -40,15 +36,26 @@ export function HomePage() {
     }
   }, [sliderImages, currentIndex]);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
+  const resetTimer = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % (sliderImages.length || 1));
     }, 5000);
-    return () => clearInterval(timer);
+  };
+
+  useEffect(() => {
+    resetTimer();
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [sliderImages]);
 
-  const nextSlide = () => setCurrentIndex((prev) => (prev + 1) % sliderImages.length);
-  const prevSlide = () => setCurrentIndex((prev) => (prev - 1 + sliderImages.length) % sliderImages.length);
+  const nextSlide = () => {
+    setCurrentIndex((prev) => (prev + 1) % sliderImages.length);
+    resetTimer();
+  };
+  const prevSlide = () => {
+    setCurrentIndex((prev) => (prev - 1 + sliderImages.length) % sliderImages.length);
+    resetTimer();
+  };
   const currentSlide = sliderImages[currentIndex];
 
   // Resolve link destination configurations safely to support same-window absolute/relative clicks
@@ -145,6 +152,19 @@ export function HomePage() {
                 <button onClick={nextSlide} className="absolute right-4 z-20 text-white p-2 bg-black/30 rounded-full hover:bg-black/50 transition-colors">
                   <ChevronRight size={32} />
                 </button>
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-1.5 z-20">
+                  {sliderImages.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setCurrentIndex(i); resetTimer(); }}
+                      className={`rounded-sm transition-all duration-300 ${
+                        i === currentIndex
+                          ? 'w-6 h-2 bg-[#b90014]'
+                          : 'w-2 h-2 bg-white/50 hover:bg-white/80'
+                      }`}
+                    />
+                  ))}
+                </div>
               </>
             )}
 
