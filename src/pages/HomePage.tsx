@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { useSettings } from '../context/SettingsContext';
@@ -28,11 +28,7 @@ export function HomePage() {
   }, [products]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [, setTick] = useState(0);
-
-  useEffect(() => {
-    setTick(t => t + 1);
-  }, [sliderImages]);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (currentIndex >= sliderImages.length) {
@@ -40,15 +36,26 @@ export function HomePage() {
     }
   }, [sliderImages, currentIndex]);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
+  const resetTimer = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % (sliderImages.length || 1));
     }, 5000);
-    return () => clearInterval(timer);
+  };
+
+  useEffect(() => {
+    resetTimer();
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [sliderImages]);
 
-  const nextSlide = () => setCurrentIndex((prev) => (prev + 1) % sliderImages.length);
-  const prevSlide = () => setCurrentIndex((prev) => (prev - 1 + sliderImages.length) % sliderImages.length);
+  const nextSlide = () => {
+    setCurrentIndex((prev) => (prev + 1) % sliderImages.length);
+    resetTimer();
+  };
+  const prevSlide = () => {
+    setCurrentIndex((prev) => (prev - 1 + sliderImages.length) % sliderImages.length);
+    resetTimer();
+  };
   const currentSlide = sliderImages[currentIndex];
 
   // Resolve link destination configurations safely to support same-window absolute/relative clicks

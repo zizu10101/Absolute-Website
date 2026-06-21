@@ -4,7 +4,10 @@ import { useProducts, Product } from '../context/ProductContext';
 import { useSettings, NavMenu, SEO, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine } from 'lucide-react';
+import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical } from 'lucide-react';
+import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
 import { resizeImage } from '../lib/imageUtils';
@@ -102,6 +105,73 @@ class AdminPageErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBo
 
     return this.props.children;
   }
+}
+
+interface SortableSlideCardProps {
+  id: string;
+  img: any;
+  index: number;
+  onDelete: (index: number) => void;
+  onUpdate: (index: number, field: 'title' | 'link' | 'url', value: string) => void;
+}
+
+function SortableSlideCard({ id, img, index, onDelete, onUpdate }: SortableSlideCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="group relative rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200 shadow-sm flex flex-col">
+      <div className="relative aspect-video">
+        <div
+          {...attributes}
+          {...listeners}
+          className="absolute top-2 left-2 z-30 bg-black/60 text-white p-1.5 rounded cursor-grab active:cursor-grabbing"
+          title="Drag to reorder"
+        >
+          <GripVertical size={16} />
+        </div>
+        <img src={img.url} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <button
+            onClick={() => onDelete(index)}
+            className="bg-red-500 text-white p-3 rounded-full hover:bg-red-600 hover:scale-110 transition-all shadow-lg"
+            title="Remove image"
+          >
+            <Trash2 size={20} />
+          </button>
+        </div>
+        <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-widest">
+          Slide {index + 1}
+        </div>
+      </div>
+      <div className="p-4 space-y-3 bg-white border-t border-zinc-100">
+        <div>
+          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Slide Title (Optional)</label>
+          <input
+            type="text"
+            value={img.title || ''}
+            onChange={(e) => onUpdate(index, 'title', e.target.value)}
+            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[#b90014] outline-none"
+            placeholder="e.g. New Season Arrivals"
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Click Link (URL)</label>
+          <input
+            type="text"
+            value={img.link || ''}
+            onChange={(e) => onUpdate(index, 'link', e.target.value)}
+            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[#b90014] outline-none"
+            placeholder="e.g. /footwear"
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function AdminPage() {
@@ -1245,6 +1315,22 @@ function AdminPageInner() {
 
   // Disabled auto-sync of slider to allow deletions of images. Database is the absolute single source of truth.
   // Manual sync can be triggered from the "Sync Slider with Bucket" panel or Button by the admin.
+
+  const handleSliderDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sliderImages.findIndex((img: any) => img.url === active.id);
+    const newIndex = sliderImages.findIndex((img: any) => img.url === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(sliderImages, oldIndex, newIndex);
+    setSliderImages(reordered);
+    try {
+      await setContextSliderImages(reordered);
+    } catch (err) {
+      console.error('Failed to save slider order:', err);
+      setSliderImages(sliderImages);
+    }
+  };
 
   const handleDeleteSlide = async (targetIndex: number) => {
     
@@ -2425,54 +2511,22 @@ function AdminPageInner() {
                       <p className="text-zinc-500 font-medium">No images in slider. Upload some to get started.</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {sliderImages.map((img, index) => (
-                        <motion.div 
-                          layout
-                          key={index} 
-                          className="group relative rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200 shadow-sm flex flex-col"
-                        >
-                          <div className="relative aspect-video">
-                            <img src={img.url} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <button 
-                                onClick={() => handleDeleteSlide(index)}
-                                className="bg-red-500 text-white p-3 rounded-full hover:bg-red-600 hover:scale-110 transition-all shadow-lg"
-                                title="Remove image"
-                              >
-                                <Trash2 size={20} />
-                              </button>
-                            </div>
-                            <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-widest">
-                              Slide {index + 1}
-                            </div>
-                          </div>
-                          
-                          <div className="p-4 space-y-3 bg-white border-t border-zinc-100">
-                            <div>
-                              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Slide Title (Optional)</label>
-                              <input 
-                                type="text" 
-                                value={img.title || ''} 
-                                onChange={(e) => updateSliderImage(index, 'title', e.target.value)}
-                                className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[#b90014] outline-none"
-                                placeholder="e.g. New Season Arrivals"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Click Link (URL)</label>
-                              <input 
-                                type="text" 
-                                value={img.link || ''} 
-                                onChange={(e) => updateSliderImage(index, 'link', e.target.value)}
-                                className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[#b90014] outline-none"
-                                placeholder="e.g. /footwear"
-                              />
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
+                    <DndContext collisionDetection={closestCenter} onDragEnd={handleSliderDragEnd}>
+                      <SortableContext items={sliderImages.map((img: any) => img.url)} strategy={rectSortingStrategy}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {sliderImages.map((img: any, index: number) => (
+                            <SortableSlideCard
+                              key={img.url}
+                              id={img.url}
+                              img={img}
+                              index={index}
+                              onDelete={handleDeleteSlide}
+                              onUpdate={updateSliderImage}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
                   )}
                 </div>
               </div>
