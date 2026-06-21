@@ -160,9 +160,11 @@ export function CustomApparelPage() {
 
           <div className="relative">
             <div className="overflow-hidden rounded-2xl border border-zinc-200 shadow-xl">
-              <div className="aspect-[4/3] w-full bg-zinc-100 flex items-center justify-center">
-                <p className="text-zinc-400 text-sm">Custom Apparel Image</p>
-              </div>
+              <img
+                src="/hero-apparel.png"
+                alt="Custom business apparel and uniforms in Mississauga"
+                className="aspect-[4/3] w-full object-cover"
+              />
             </div>
             <div className="absolute -bottom-5 -left-5 hidden rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-lg sm:block">
               <p className="text-3xl font-bold text-[#b90014]">10+</p>
