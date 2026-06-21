@@ -152,6 +152,19 @@ export function HomePage() {
                 <button onClick={nextSlide} className="absolute right-4 z-20 text-white p-2 bg-black/30 rounded-full hover:bg-black/50 transition-colors">
                   <ChevronRight size={32} />
                 </button>
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-1.5 z-20">
+                  {sliderImages.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setCurrentIndex(i); resetTimer(); }}
+                      className={`rounded-sm transition-all duration-300 ${
+                        i === currentIndex
+                          ? 'w-6 h-2 bg-[#b90014]'
+                          : 'w-2 h-2 bg-white/50 hover:bg-white/80'
+                      }`}
+                    />
+                  ))}
+                </div>
               </>
             )}
 
