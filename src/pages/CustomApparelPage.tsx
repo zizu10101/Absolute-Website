@@ -161,7 +161,7 @@ export function CustomApparelPage() {
           <div className="relative">
             <div className="overflow-hidden rounded-2xl border border-zinc-200 shadow-xl">
               <img
-                src="/custom-apparel-banner.jpg"
+                src="/hero-apparel.png"
                 alt="Custom business apparel and uniforms in Mississauga"
                 className="aspect-[4/3] w-full object-cover"
               />
