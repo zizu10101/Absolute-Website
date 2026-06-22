@@ -4,8 +4,21 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 21, 2026)
-**Latest:** Slider timer fix + drag-to-reorder admin + custom apparel page (session 14)
+## CURRENT STATUS (Main Branch - June 22, 2026)
+**Latest:** Left slide-out filter sidebar on product grid pages (session 15)
+
+**Session 15 improvements:**
+- ✅ `ProductGridPage.tsx`: Replaced top filter bar + mobile bottom-sheet drawer with left slide-out sidebar
+- ✅ "Filters" button (all screen sizes) with red badge count of active filters — replaces separate desktop sort dropdown and mobile "Filter & Sort" button
+- ✅ Sidebar slides in from LEFT: `initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ duration: 0.3 }}` — 280px on desktop, full-screen on mobile
+- ✅ Dark overlay (`bg-black/50`) behind sidebar; click overlay to close; X button top-right
+- ✅ Sidebar sections: Sort By (radio buttons), Brand (checkboxes + product count per brand), Price Range (toggle buttons), Size (toggle grid, footwear only), On Sale (toggle switch)
+- ✅ Sidebar footer: "Clear All" (text left) + "Apply Filters" (red `#b90014`, full width) — Apply just closes sidebar (filters apply live)
+- ✅ Sort now included in `activeFilterCount` badge; "Clear All" resets sort back to Newest First
+- ✅ Brand product counts computed via `brandProductCounts` useMemo (category-filtered, brand-filter excluded so counts show full totals)
+- ✅ Active filter tags above product grid now include sort tag (dark gray chip) when non-default sort is selected
+- ✅ Removed `BrandFilter` component import from `ProductGridPage` (brand now inlined as checkboxes in sidebar); `BrandFilter.tsx` file preserved but unused
+- ✅ Removed `ChevronDown` icon import (no longer needed without sort dropdown)
 
 **Session 14 improvements:**
 - ✅ `/custom-apparel` route added to sitemap generator (`scripts/generate-sitemap.js` `mainPages` array) — sitemap now 171 URLs (4 main pages)
@@ -109,6 +122,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Sitemap: `/custom-apparel` added to `scripts/generate-sitemap.js` — now 171 URLs (4 main pages)
 ✅ Homepage slider: prev/next clicks reset auto-advance timer (`intervalRef` + `resetTimer()`) — no more immediate jump after manual navigation
 ✅ Admin slider: drag-to-reorder slides with `@dnd-kit` — grip handle top-left of each card, order saved to DB on drop
+✅ Product grid filter sidebar: left slide-out panel (280px desktop / full-screen mobile) with Sort (radio), Brand (checkboxes + counts), Price (toggles), Size (footwear only), On Sale (toggle switch); "Filters" button with red badge; active filter tags row above grid
 
 ## COMPLETED FEATURES
 
