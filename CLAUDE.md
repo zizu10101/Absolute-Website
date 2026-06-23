@@ -5,19 +5,28 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 23, 2026)
-**Latest:** Navigation mega menu submenu headings now clickable with tab-like behavior (session 16); filter sidebar (session 15); ball sizes (session 13)
+**Latest:** Mega menu left column click fix + collapsible admin nav editor + equipment submenu links (session 16)
 
-**Session 16 improvements (Navigation Submenu Fix):**
-- ✅ **Mega menu submenu headings now clickable** — left column items (EUROPE, AFRICA, BALLS, etc.) work like tabs
-- ✅ Added `onClick={() => setActiveSubmenu(submenu.heading)}` to left column heading divs for click support
-- ✅ Added 150ms delay to menu close: `setTimeout(() => setActiveMenu(null), 150)` — prevents premature closure
-- ✅ Menu timeout cleared on hover to keep menu open during interaction
-- ✅ `e.stopPropagation()` added to prevent event bubbling issues
-- ✅ Explicit `pointerEvents: 'auto'` style added to submenu heading divs for guaranteed clickability
-- ✅ Works on both hover and click (mobile/touch device friendly)
-- ✅ `src/components/Header.tsx`: Lines 51-63 (menu close/enter handlers), 88 (nav item enter), 165-171 (mega menu handlers), 185-191 (left column onClick)
-- ⚠️ **Note:** "Balls" submenu shows 0 items because no child products are linked in DB — needs population via Admin panel or SQL
-- ✅ Right column items (Portugal, Egypt, etc.) navigate correctly when clicked
+**Session 16 improvements:**
+- ✅ `Header.tsx` mega menu: `handleMenuMouseLeave()` with 150ms timeout + `handleMenuMouseEnter()` clearing it — prevents menu closing when cursor moves between nav bar and dropdown
+- ✅ `Header.tsx` mega menu left column: changed submenu heading `<div>` → `<button>` to fix click events not firing on mobile/touch
+- ✅ `Header.tsx` mega menu layout: left column `relative z-50`, right column `relative z-10` — fixes right column (flex-1 + Framer Motion stacking context) overlapping and blocking left column clicks
+- ✅ `Header.tsx` mega menu animation: removed `x: ±10` from `motion.div` exit/enter (opacity fade only) — was shifting right column leftward over left column during transition
+- ✅ `Header.tsx` left column headings: render as `<Link to={submenu.path}>` when `submenu.path` exists, otherwise render as tab `<button>` — enables EQUIPMENT submenus (BALLS, GOALKEEPER etc.) to be clickable navigation links
+- ✅ `AdminPage.tsx` navigation editor: collapsible menu sections — all menus collapsed by default with ▶/▼ chevrons; click header to expand/collapse
+- ✅ `AdminPage.tsx` navigation editor: collapsible submenu columns — each submenu heading also collapsible with ▶/▼; shows item count when collapsed
+- ✅ `AdminPage.tsx` navigation editor: search box at top — auto-expands matching menus/submenus, highlights matching text in yellow, shows "No results found" when nothing matches, collapses back on clear
+- ✅ `ChevronRight` added to lucide-react imports in `AdminPage.tsx`
+- ✅ New state: `expandedMenus`, `expandedSubmenus`, `navSearchQuery` in AdminPage
+- ✅ New helpers: `toggleMenu()`, `toggleSubmenu()`, `highlightText()` in AdminPage
+
+**To activate EQUIPMENT submenu links in the live site:**
+Go to Admin → Navigation → expand EQUIPMENT → expand each submenu → set Column Page Path:
+- BALLS → `/category/equipment?type=balls`
+- GOALKEEPER → `/category/equipment?type=goalkeeper`
+- ACCESSORIES → `/category/equipment?type=accessories`
+- TRAINING → `/category/equipment?type=training`
+Then click Save Changes. The Header will automatically render those headings as `<Link>` components.
 
 **Session 15 improvements:**
 - ✅ `ProductGridPage.tsx`: Replaced top filter bar + mobile bottom-sheet drawer with left slide-out sidebar
@@ -147,7 +156,9 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Homepage slider: indicator pins at bottom — active wide red rectangle, inactive small gray square; click to jump + reset timer
 ✅ Admin slider: drag-to-reorder slides with `@dnd-kit` — grip handle top-left of each card, order saved to DB on drop
 ✅ Product grid filter sidebar: left slide-out panel (280px desktop / full-screen mobile) with Sort (radio), Brand (checkboxes + counts), Price (toggles), Size (footwear only), On Sale (toggle switch); "Filters" button with red badge; active filter tags row above grid
-✅ Navigation mega menu submenu headings clickable: left column items work like tabs — click EUROPE/AFRICA/BALLS switches right column items; works on hover and click (mobile-friendly)
+✅ Mega menu left column click fix: 150ms close delay; heading div→button; left column z-50 / right column z-10 prevents Framer Motion stacking context overlap; removed x-axis animation from transition
+✅ Mega menu left column links: headings with `submenu.path` render as `<Link>` (navigate on click); headings without path render as tabs (hover behavior) — enables per-menu-type behavior
+✅ Admin nav editor: collapsible menus + submenus (▶/▼, all collapsed by default, item counts shown); search box with yellow highlight + auto-expand matching sections
 
 ## COMPLETED FEATURES
 

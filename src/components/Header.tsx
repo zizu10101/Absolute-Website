@@ -177,34 +177,43 @@ export function Header({ onMenuClick }: Props) {
               return (
                 <div className="max-w-[1600px] mx-auto px-4 md:px-8 flex min-h-[400px]">
                   {/* Left Column: Submenu Headings */}
-                  <div className="w-80 border-r border-zinc-100 py-8">
-                    {menu.submenus.map((submenu, idx) => (
-                      <div
-                        key={idx}
-                        onMouseEnter={() => setActiveSubmenu(submenu.heading)}
-                        onClick={(e) => {
-                          console.log('CLICK EVENT:', e.type, 'Target:', e.target.tagName, 'Heading:', submenu.heading);
-                          e.stopPropagation();
-                          setActiveSubmenu(submenu.heading);
-                        }}
-                        className={`px-12 py-4 cursor-pointer transition-all border-l-4 ${activeSubmenu === submenu.heading ? 'bg-zinc-50 border-[#b90014] text-[#b90014]' : 'border-transparent text-zinc-500 hover:text-zinc-900'}`}
-                        style={{ pointerEvents: 'auto', userSelect: 'none' }}
-                      >
-                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
-                          {submenu.heading}
-                        </h3>
-                      </div>
-                    ))}
+                  <div className="w-80 border-r border-zinc-100 py-8 relative z-50">
+                    {menu.submenus.map((submenu, idx) => {
+                      const headingClass = `w-full text-left px-12 py-4 cursor-pointer transition-all border-l-4 ${activeSubmenu === submenu.heading ? 'bg-zinc-50 border-[#b90014] text-[#b90014]' : 'border-transparent text-zinc-500 hover:text-zinc-900'}`;
+                      const h3 = <h3 className="text-[11px] font-black uppercase tracking-[0.2em] whitespace-nowrap">{submenu.heading}</h3>;
+                      return submenu.path ? (
+                        <Link
+                          key={idx}
+                          to={submenu.path}
+                          onMouseEnter={() => setActiveSubmenu(submenu.heading)}
+                          onClick={() => setActiveMenu(null)}
+                          className={`block ${headingClass}`}
+                        >
+                          {h3}
+                        </Link>
+                      ) : (
+                        <button
+                          key={idx}
+                          type="button"
+                          onMouseEnter={() => setActiveSubmenu(submenu.heading)}
+                          onClick={() => setActiveSubmenu(submenu.heading)}
+                          className={headingClass}
+                        >
+                          {h3}
+                        </button>
+                      );
+                    })}
+
                   </div>
 
                   {/* Right Column: Submenu Items */}
-                  <div className="flex-1 p-12 bg-zinc-50/30">
+                  <div className="flex-1 p-12 bg-zinc-50/30 relative z-10">
                     <AnimatePresence mode="wait">
                       <motion.div
                         key={activeSubmenu}
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -10 }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                         transition={{ duration: 0.15 }}
                         className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-12 gap-y-4"
                       >

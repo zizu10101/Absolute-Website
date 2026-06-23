@@ -4,7 +4,7 @@ import { useProducts, Product } from '../context/ProductContext';
 import { useSettings, NavMenu, SEO, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical } from 'lucide-react';
+import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, ChevronRight, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical } from 'lucide-react';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -307,6 +307,9 @@ function AdminPageInner() {
   const [draftHomeCategories, setDraftHomeCategories] = useState<any[]>(homeCategories || []);
   const [draftFooterLinks, setDraftFooterLinks] = useState<any[]>(footerLinks || []);
   const [draftNavigationMenus, setDraftNavigationMenus] = useState<any[]>(navigationMenus || []);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [expandedSubmenus, setExpandedSubmenus] = useState<string[]>([]);
+  const [navSearchQuery, setNavSearchQuery] = useState('');
   const [draftSeoSettings, setDraftSeoSettings] = useState<any>(seoSettings || {});
   const DEFAULT_STORE_INFO = {
     name: 'Absolute Soccer',
@@ -1864,6 +1867,31 @@ function AdminPageInner() {
     }
   };
 
+  const highlightText = (text: string, query: string): React.ReactNode => {
+    if (!query) return text;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <mark className="bg-yellow-200 rounded px-0.5">{text.slice(idx, idx + query.length)}</mark>
+        {text.slice(idx + query.length)}
+      </>
+    );
+  };
+
+  const toggleMenu = (label: string) => {
+    setExpandedMenus(prev =>
+      prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+    );
+  };
+
+  const toggleSubmenu = (key: string) => {
+    setExpandedSubmenus(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
   const addNavigationMenu = () => {
     setDraftNavigationMenus([...draftNavigationMenus, { label: 'NEW MENU', path: '/', submenus: [] }]);
   };
@@ -2761,197 +2789,274 @@ function AdminPageInner() {
                   </div>
                 </div>
 
-                <div className="p-8 space-y-12">
-                  {draftNavigationMenus.map((menu, menuIndex) => (
-                    <div key={menuIndex} className="bg-zinc-50 rounded-xl border border-zinc-200 overflow-hidden">
-                      <div className="p-4 bg-white border-b border-zinc-200 flex items-center justify-between gap-4">
-                        <div className="flex-1 flex items-center gap-4">
-                          <div className="flex-1">
-                            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Menu Label</label>
-                            <input 
-                              type="text" 
-                              value={menu.label}
-                              onChange={(e) => updateDraftNavigationMenu(menuIndex, 'label', e.target.value)}
-                              className="w-full bg-zinc-50 border-none focus:ring-2 focus:ring-zinc-900 rounded-lg px-3 py-2 text-sm font-bold"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Path</label>
-                            <input 
-                              type="text" 
-                              value={menu.path}
-                              onChange={(e) => updateDraftNavigationMenu(menuIndex, 'path', e.target.value)}
-                              className="w-full bg-zinc-50 border-none focus:ring-2 focus:ring-zinc-900 rounded-lg px-3 py-2 text-sm"
-                            />
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => removeNavigationMenu(menuIndex)}
-                          className="p-2 text-zinc-400 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
+                <div className="p-8">
+                  <input
+                    type="text"
+                    placeholder="Search menu items..."
+                    value={navSearchQuery}
+                    onChange={(e) => setNavSearchQuery(e.target.value)}
+                    className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  />
 
-                      <div className="p-6">
-                        <div className="flex items-center justify-between mb-6">
-                          <h3 className="text-xs font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
-                            <ChevronDown size={14} /> Submenu Columns
-                          </h3>
-                          <button 
-                            onClick={() => addSubmenu(menuIndex)}
-                            className="text-[10px] font-black text-zinc-500 hover:text-zinc-900 uppercase tracking-widest flex items-center gap-1 transition-colors"
-                          >
-                            <Plus size={12} /> Add Column
-                          </button>
-                        </div>
+                  <div className="space-y-3">
+                    {draftNavigationMenus.map((menu, menuIndex) => {
+                      if (navSearchQuery) {
+                        const q = navSearchQuery.toLowerCase();
+                        const matches = menu.label.toLowerCase().includes(q) ||
+                          menu.submenus.some((sub: any) =>
+                            sub.heading.toLowerCase().includes(q) ||
+                            sub.items.some((item: any) => item.label.toLowerCase().includes(q))
+                          );
+                        if (!matches) return null;
+                      }
+                      const isExpanded = navSearchQuery ? true : expandedMenus.includes(menu.label);
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {menu.submenus.map((submenu, submenuIndex) => (
-                            <div key={submenuIndex} className="bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
-                              <div className="flex items-center justify-between mb-4 gap-2">
-                                <div className="flex-1 space-y-2">
-                                  <div>
-                                    <label className="block text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Column Heading</label>
-                                    <input 
-                                      type="text" 
-                                      value={submenu.heading}
-                                      onChange={(e) => updateSubmenuHeading(menuIndex, submenuIndex, e.target.value)}
-                                      className="w-full text-[10px] font-black text-zinc-900 uppercase tracking-widest bg-zinc-50 border-none focus:ring-2 focus:ring-zinc-900 rounded px-2 py-1"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Column Page Path (Optional)</label>
-                                    <input 
-                                      type="text" 
-                                      placeholder="/path"
-                                      value={submenu.path || ''}
-                                      onChange={(e) => updateSubmenuPath(menuIndex, submenuIndex, e.target.value)}
-                                      className="w-full text-[10px] text-zinc-500 bg-zinc-50 border-none focus:ring-1 focus:ring-zinc-900 rounded px-2 py-1"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Column Logo (Optional)</label>
-                                    <div className="flex gap-2 items-start">
-                                      <div className="w-10 h-10 bg-zinc-50 border border-zinc-200 rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
-                                        {submenu.logo ? (
-                                          <img src={submenu.logo} alt="" className="w-full h-full object-contain" />
-                                        ) : (
-                                          <ImageIcon size={14} className="text-zinc-300" />
-                                        )}
-                                      </div>
-                                      <div className="flex-1 space-y-1">
-                                        <div className="relative">
-                                          <input 
-                                            type="file" 
-                                            accept="image/*"
-                                            onChange={(e) => handleSubmenuLogoUpload(menuIndex, submenuIndex, e)}
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
-                                          />
-                                          <button className="w-full p-1 bg-zinc-200 text-zinc-700 rounded text-[8px] font-bold uppercase tracking-widest">
-                                            Upload Logo
-                                          </button>
-                                        </div>
-                                        <input 
-                                          type="text" 
-                                          placeholder="Or Logo URL"
-                                          value={submenu.logo || ''}
-                                          onChange={(e) => updateSubmenuLogo(menuIndex, submenuIndex, e.target.value)}
-                                          className="w-full text-[10px] text-zinc-500 bg-zinc-50 border-none focus:ring-1 focus:ring-zinc-900 rounded px-2 py-1"
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
+                      return (
+                        <div key={menuIndex} className="bg-zinc-50 rounded-xl border border-zinc-200 overflow-hidden">
+                          <div className="p-4 bg-white border-b border-zinc-200 flex items-center gap-3">
+                            <button
+                              onClick={() => toggleMenu(menu.label)}
+                              className="text-zinc-400 hover:text-zinc-900 transition-colors flex-shrink-0"
+                            >
+                              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </button>
+
+                            {isExpanded ? (
+                              <div className="flex-1 flex items-center gap-4">
+                                <div className="flex-1">
+                                  <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Menu Label</label>
+                                  <input
+                                    type="text"
+                                    value={menu.label}
+                                    onChange={(e) => updateDraftNavigationMenu(menuIndex, 'label', e.target.value)}
+                                    className="w-full bg-zinc-50 border-none focus:ring-2 focus:ring-zinc-900 rounded-lg px-3 py-2 text-sm font-bold"
+                                  />
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <button 
-                                    onClick={() => moveSubmenu(menuIndex, submenuIndex, 'up')}
-                                    className="text-zinc-400 hover:text-zinc-900 transition-colors"
-                                  >
-                                    <ChevronUp size={14} />
-                                  </button>
-                                  <button 
-                                    onClick={() => moveSubmenu(menuIndex, submenuIndex, 'down')}
-                                    className="text-zinc-400 hover:text-zinc-900 transition-colors"
-                                  >
-                                    <ChevronDown size={14} />
-                                  </button>
-                                  <button 
-                                    onClick={() => removeSubmenu(menuIndex, submenuIndex)}
-                                    className="text-zinc-400 hover:text-red-600 transition-colors"
-                                  >
-                                    <X size={14} />
-                                  </button>
+                                <div className="flex-1">
+                                  <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Path</label>
+                                  <input
+                                    type="text"
+                                    value={menu.path}
+                                    onChange={(e) => updateDraftNavigationMenu(menuIndex, 'path', e.target.value)}
+                                    className="w-full bg-zinc-50 border-none focus:ring-2 focus:ring-zinc-900 rounded-lg px-3 py-2 text-sm"
+                                  />
                                 </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => toggleMenu(menu.label)}
+                                className="flex-1 text-left font-black text-sm uppercase tracking-widest text-zinc-900 hover:text-[#b90014] transition-colors"
+                              >
+                                {highlightText(menu.label, navSearchQuery)}
+                                <span className="ml-2 text-xs text-zinc-400 font-normal normal-case tracking-normal">{menu.submenus.length} columns</span>
+                              </button>
+                            )}
+
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {!isExpanded && (
+                                <button
+                                  onClick={() => toggleMenu(menu.label)}
+                                  className="px-2 py-1 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 border border-zinc-200 rounded transition-colors"
+                                >
+                                  Edit
+                                </button>
+                              )}
+                              <button
+                                onClick={() => removeNavigationMenu(menuIndex)}
+                                className="p-2 text-zinc-400 hover:text-red-600 transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="p-6">
+                              <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-xs font-black text-zinc-900 uppercase tracking-widest">Submenu Columns</h3>
+                                <button
+                                  onClick={() => addSubmenu(menuIndex)}
+                                  className="text-[10px] font-black text-zinc-500 hover:text-zinc-900 uppercase tracking-widest flex items-center gap-1 transition-colors"
+                                >
+                                  <Plus size={12} /> Add Column
+                                </button>
                               </div>
 
                               <div className="space-y-3">
-                                {submenu.items.map((item, itemIndex) => (
-                                  <div key={itemIndex} className="flex items-center gap-2 group">
-                                    <div className="flex-1 space-y-1">
-                                      <input 
-                                        type="text" 
-                                        placeholder="Label"
-                                        value={item.label}
-                                        onChange={(e) => updateSubmenuItem(menuIndex, submenuIndex, itemIndex, 'label', e.target.value)}
-                                        className="w-full text-xs bg-zinc-50 border-none focus:ring-1 focus:ring-zinc-900 rounded px-2 py-1"
-                                      />
-                                      <input 
-                                        type="text" 
-                                        placeholder="Path"
-                                        value={item.path}
-                                        onChange={(e) => updateSubmenuItem(menuIndex, submenuIndex, itemIndex, 'path', e.target.value)}
-                                        className="w-full text-[10px] text-zinc-500 bg-zinc-50 border-none focus:ring-1 focus:ring-zinc-900 rounded px-2 py-1"
-                                      />
-                                      <div className="flex gap-2 items-center">
-                                        <div className="w-6 h-6 bg-zinc-50 border border-zinc-200 rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
-                                          {item.logo ? (
-                                            <img src={item.logo} alt="" className="w-full h-full object-contain" />
-                                          ) : (
-                                            <ImageIcon size={10} className="text-zinc-300" />
-                                          )}
+                                {menu.submenus.map((submenu: any, submenuIndex: number) => {
+                                  if (navSearchQuery) {
+                                    const q = navSearchQuery.toLowerCase();
+                                    const matches = submenu.heading.toLowerCase().includes(q) ||
+                                      submenu.items.some((item: any) => item.label.toLowerCase().includes(q));
+                                    if (!matches) return null;
+                                  }
+                                  const subKey = `${menuIndex}-${submenuIndex}`;
+                                  const isSubExpanded = navSearchQuery ? true : expandedSubmenus.includes(subKey);
+
+                                  return (
+                                    <div key={submenuIndex} className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">
+                                      <div className="px-4 py-3 flex items-center gap-3 bg-zinc-50/50 border-b border-zinc-100">
+                                        <button
+                                          onClick={() => toggleSubmenu(subKey)}
+                                          className="text-zinc-400 hover:text-zinc-900 transition-colors flex-shrink-0"
+                                        >
+                                          {isSubExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                        </button>
+                                        <span className="flex-1 text-[11px] font-black text-zinc-700 uppercase tracking-widest">
+                                          {highlightText(submenu.heading, navSearchQuery)}
+                                          <span className="ml-2 text-zinc-400 font-normal normal-case tracking-normal text-[10px]">{submenu.items.length} items</span>
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                          <button onClick={() => moveSubmenu(menuIndex, submenuIndex, 'up')} className="text-zinc-400 hover:text-zinc-900 transition-colors"><ChevronUp size={14} /></button>
+                                          <button onClick={() => moveSubmenu(menuIndex, submenuIndex, 'down')} className="text-zinc-400 hover:text-zinc-900 transition-colors"><ChevronDown size={14} /></button>
+                                          <button onClick={() => removeSubmenu(menuIndex, submenuIndex)} className="text-zinc-400 hover:text-red-600 transition-colors"><X size={14} /></button>
                                         </div>
-                                        <div className="flex-1 relative">
-                                          <input 
-                                            type="file" 
-                                            accept="image/*"
-                                            onChange={(e) => handleSubmenuItemLogoUpload(menuIndex, submenuIndex, itemIndex, e)}
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
-                                          />
-                                          <button className="w-full p-1 bg-zinc-200 text-zinc-700 rounded text-[8px] font-bold uppercase tracking-widest">
-                                            Upload
-                                          </button>
-                                        </div>
-                                        <input 
-                                          type="text" 
-                                          placeholder="URL"
-                                          value={item.logo || ''}
-                                          onChange={(e) => updateSubmenuItem(menuIndex, submenuIndex, itemIndex, 'logo', e.target.value)}
-                                          className="flex-[2] text-[10px] text-zinc-500 bg-zinc-50 border-none focus:ring-1 focus:ring-zinc-900 rounded px-2 py-1"
-                                        />
                                       </div>
+
+                                      {isSubExpanded && (
+                                        <div className="p-4">
+                                          <div className="space-y-2 mb-4">
+                                            <div>
+                                              <label className="block text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Column Heading</label>
+                                              <input
+                                                type="text"
+                                                value={submenu.heading}
+                                                onChange={(e) => updateSubmenuHeading(menuIndex, submenuIndex, e.target.value)}
+                                                className="w-full text-[10px] font-black text-zinc-900 uppercase tracking-widest bg-zinc-50 border-none focus:ring-2 focus:ring-zinc-900 rounded px-2 py-1"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Column Page Path (Optional)</label>
+                                              <input
+                                                type="text"
+                                                placeholder="/path"
+                                                value={submenu.path || ''}
+                                                onChange={(e) => updateSubmenuPath(menuIndex, submenuIndex, e.target.value)}
+                                                className="w-full text-[10px] text-zinc-500 bg-zinc-50 border-none focus:ring-1 focus:ring-zinc-900 rounded px-2 py-1"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Column Logo (Optional)</label>
+                                              <div className="flex gap-2 items-start">
+                                                <div className="w-10 h-10 bg-zinc-50 border border-zinc-200 rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
+                                                  {submenu.logo ? (
+                                                    <img src={submenu.logo} alt="" className="w-full h-full object-contain" />
+                                                  ) : (
+                                                    <ImageIcon size={14} className="text-zinc-300" />
+                                                  )}
+                                                </div>
+                                                <div className="flex-1 space-y-1">
+                                                  <div className="relative">
+                                                    <input
+                                                      type="file"
+                                                      accept="image/*"
+                                                      onChange={(e) => handleSubmenuLogoUpload(menuIndex, submenuIndex, e)}
+                                                      className="absolute inset-0 opacity-0 cursor-pointer"
+                                                    />
+                                                    <button className="w-full p-1 bg-zinc-200 text-zinc-700 rounded text-[8px] font-bold uppercase tracking-widest">
+                                                      Upload Logo
+                                                    </button>
+                                                  </div>
+                                                  <input
+                                                    type="text"
+                                                    placeholder="Or Logo URL"
+                                                    value={submenu.logo || ''}
+                                                    onChange={(e) => updateSubmenuLogo(menuIndex, submenuIndex, e.target.value)}
+                                                    className="w-full text-[10px] text-zinc-500 bg-zinc-50 border-none focus:ring-1 focus:ring-zinc-900 rounded px-2 py-1"
+                                                  />
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          <div className="space-y-3">
+                                            {submenu.items.map((item: any, itemIndex: number) => (
+                                              <div key={itemIndex} className="flex items-center gap-2 group">
+                                                <div className="flex-1 space-y-1">
+                                                  <input
+                                                    type="text"
+                                                    placeholder="Label"
+                                                    value={item.label}
+                                                    onChange={(e) => updateSubmenuItem(menuIndex, submenuIndex, itemIndex, 'label', e.target.value)}
+                                                    className="w-full text-xs bg-zinc-50 border-none focus:ring-1 focus:ring-zinc-900 rounded px-2 py-1"
+                                                  />
+                                                  <input
+                                                    type="text"
+                                                    placeholder="Path"
+                                                    value={item.path}
+                                                    onChange={(e) => updateSubmenuItem(menuIndex, submenuIndex, itemIndex, 'path', e.target.value)}
+                                                    className="w-full text-[10px] text-zinc-500 bg-zinc-50 border-none focus:ring-1 focus:ring-zinc-900 rounded px-2 py-1"
+                                                  />
+                                                  <div className="flex gap-2 items-center">
+                                                    <div className="w-6 h-6 bg-zinc-50 border border-zinc-200 rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
+                                                      {item.logo ? (
+                                                        <img src={item.logo} alt="" className="w-full h-full object-contain" />
+                                                      ) : (
+                                                        <ImageIcon size={10} className="text-zinc-300" />
+                                                      )}
+                                                    </div>
+                                                    <div className="flex-1 relative">
+                                                      <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => handleSubmenuItemLogoUpload(menuIndex, submenuIndex, itemIndex, e)}
+                                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                                      />
+                                                      <button className="w-full p-1 bg-zinc-200 text-zinc-700 rounded text-[8px] font-bold uppercase tracking-widest">
+                                                        Upload
+                                                      </button>
+                                                    </div>
+                                                    <input
+                                                      type="text"
+                                                      placeholder="URL"
+                                                      value={item.logo || ''}
+                                                      onChange={(e) => updateSubmenuItem(menuIndex, submenuIndex, itemIndex, 'logo', e.target.value)}
+                                                      className="flex-[2] text-[10px] text-zinc-500 bg-zinc-50 border-none focus:ring-1 focus:ring-zinc-900 rounded px-2 py-1"
+                                                    />
+                                                  </div>
+                                                </div>
+                                                <button
+                                                  onClick={() => removeSubmenuItem(menuIndex, submenuIndex, itemIndex)}
+                                                  className="p-1 text-zinc-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all"
+                                                >
+                                                  <Trash2 size={12} />
+                                                </button>
+                                              </div>
+                                            ))}
+                                            <button
+                                              onClick={() => addSubmenuItem(menuIndex, submenuIndex)}
+                                              className="w-full py-2 border border-dashed border-zinc-200 rounded text-[10px] font-bold text-zinc-400 hover:text-zinc-900 hover:border-zinc-900 transition-all uppercase tracking-widest"
+                                            >
+                                              + Add Link
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
-                                    <button 
-                                      onClick={() => removeSubmenuItem(menuIndex, submenuIndex, itemIndex)}
-                                      className="p-1 text-zinc-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all"
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
-                                  </div>
-                                ))}
-                                <button 
-                                  onClick={() => addSubmenuItem(menuIndex, submenuIndex)}
-                                  className="w-full py-2 border border-dashed border-zinc-200 rounded text-[10px] font-bold text-zinc-400 hover:text-zinc-900 hover:border-zinc-900 transition-all uppercase tracking-widest"
-                                >
-                                  + Add Link
-                                </button>
+                                  );
+                                })}
+
+                                {menu.submenus.length === 0 && (
+                                  <p className="text-sm text-zinc-400 text-center py-4">No submenu columns yet.</p>
+                                )}
                               </div>
                             </div>
-                          ))}
+                          )}
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
+
+                    {navSearchQuery && !draftNavigationMenus.some(menu => {
+                      const q = navSearchQuery.toLowerCase();
+                      return menu.label.toLowerCase().includes(q) ||
+                        menu.submenus.some((sub: any) =>
+                          sub.heading.toLowerCase().includes(q) ||
+                          sub.items.some((item: any) => item.label.toLowerCase().includes(q))
+                        );
+                    }) && (
+                      <div className="text-center py-8 text-zinc-400 text-sm">No results found for "{navSearchQuery}"</div>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>
