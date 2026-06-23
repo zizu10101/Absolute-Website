@@ -8,7 +8,7 @@ interface RapidScanIntakeMatrixProps {
   category: string;
   existingVariants?: any[];
   productColors?: string[];
-  onRegisterVariant: (ageGroup: 'Toddler' | 'Youth' | 'Adult', size: string, barcode: string, quantity: number, color?: string) => Promise<void>;
+  onRegisterVariant: (ageGroup: 'Toddler' | 'Youth' | 'Adult' | 'One Size', size: string, barcode: string, quantity: number, color?: string) => Promise<void>;
   onSuccessFinished: () => void;
 }
 
@@ -22,7 +22,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
   onSuccessFinished
 }) => {
   // Main states
-  const [ageGroup, setAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult'>('Adult');
+  const [ageGroup, setAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'One Size'>('Adult');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [customSizes, setCustomSizes] = useState<string[]>([]);
@@ -43,10 +43,23 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   // Suggested sizes mapping
-  const getSuggestedSizes = (catName: string = '', age: 'Toddler' | 'Youth' | 'Adult') => {
+  const getSuggestedSizes = (catName: string = '', productName: string = '', age: 'Toddler' | 'Youth' | 'Adult' | 'One Size') => {
     const cat = catName.toLowerCase();
+    const name = productName.toLowerCase();
+    const isBall = cat.includes('ball') || cat.includes('soccer ball') || name.includes('ball');
+    const isAccessory = cat.includes('accessory') || cat.includes('accessories');
+    const isEquipment = cat.includes('equipment');
+
+    if (isBall || (isEquipment && name.includes('ball'))) {
+      return ['Size 1', 'Size 2', 'Size 3', 'Size 4', 'Size 5'];
+    }
+
+    if (isAccessory && age === 'One Size') {
+      return ['One Size'];
+    }
+
     const isShoes = cat.includes('shoe') || cat.includes('footwear') || cat.includes('cleats');
-    
+
     if (isShoes) {
       if (age === 'Toddler') {
         const toddlerShoeSizes = [];
@@ -75,14 +88,17 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
     if (age === 'Youth') {
       return ['YXXS', 'YXS', 'YS', 'YM', 'YL', 'YXL'];
     }
-    return ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    if (age === 'One Size') {
+      return ['One Size'];
+    }
+    return ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
   };
 
   // Build full size list
   const suggestedSizesList = useMemo(() => {
-    const base = getSuggestedSizes(category, ageGroup);
+    const base = getSuggestedSizes(category, productName, ageGroup);
     return [...base, ...customSizes];
-  }, [category, ageGroup, customSizes]);
+  }, [category, productName, ageGroup, customSizes]);
 
   // Clean quantities on age group shift
   useEffect(() => {
@@ -306,6 +322,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
               <option value="Toddler">🧒 Toddler Tier (e.g., 2T, 3T)</option>
               <option value="Youth">👦 Youth Tier (e.g., YS, YM, 4Y)</option>
               <option value="Adult">👨 Adult Tier (S, M, L, Standard numeric)</option>
+              <option value="One Size">📦 One Size (e.g., Accessories, Balls)</option>
             </select>
           </div>
           {productColors.length > 0 && (
