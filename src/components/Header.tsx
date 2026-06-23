@@ -19,6 +19,7 @@ export function Header({ onMenuClick }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const menuCloseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Reset active submenu when main menu changes
   useEffect(() => {
@@ -47,8 +48,22 @@ export function Header({ onMenuClick }: Props) {
     }
   };
 
+  const handleMenuMouseLeave = () => {
+    menuCloseTimeoutRef.current = setTimeout(() => {
+      setActiveMenu(null);
+    }, 150);
+  };
+
+  const handleMenuMouseEnter = (menuLabel: string) => {
+    if (menuCloseTimeoutRef.current) {
+      clearTimeout(menuCloseTimeoutRef.current);
+      menuCloseTimeoutRef.current = null;
+    }
+    setActiveMenu(menuLabel);
+  };
+
   return (
-    <header className="bg-white border-b border-zinc-100 fixed top-0 w-full z-50" onMouseLeave={() => setActiveMenu(null)}>
+    <header className="bg-white border-b border-zinc-100 fixed top-0 w-full z-50" onMouseLeave={handleMenuMouseLeave}>
       <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-4 md:py-6 flex items-center">
         {/* Left Section: Logo & Mobile Menu */}
         <div className="flex items-center shrink-0 gap-4">
@@ -70,7 +85,7 @@ export function Header({ onMenuClick }: Props) {
               <div
                 key={menu.label}
                 className="relative flex items-center"
-                onMouseEnter={() => setActiveMenu(menu.label)}
+                onMouseEnter={() => handleMenuMouseEnter(menu.label)}
               >
                 <Link
                   to={menu.path}
@@ -147,7 +162,13 @@ export function Header({ onMenuClick }: Props) {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
             className="absolute top-full left-0 w-full bg-white border-b border-zinc-200 shadow-xl z-40 overflow-hidden"
-            onMouseEnter={() => setActiveMenu(activeMenu)}
+            onMouseEnter={() => {
+              if (menuCloseTimeoutRef.current) {
+                clearTimeout(menuCloseTimeoutRef.current);
+                menuCloseTimeoutRef.current = null;
+              }
+            }}
+            onMouseLeave={handleMenuMouseLeave}
           >
             {(() => {
               const menu = navigationMenus.find(m => m.label === activeMenu);
@@ -158,9 +179,10 @@ export function Header({ onMenuClick }: Props) {
                   {/* Left Column: Submenu Headings */}
                   <div className="w-80 border-r border-zinc-100 py-8">
                     {menu.submenus.map((submenu, idx) => (
-                      <div 
+                      <div
                         key={idx}
                         onMouseEnter={() => setActiveSubmenu(submenu.heading)}
+                        onClick={() => setActiveSubmenu(submenu.heading)}
                         className={`px-12 py-4 cursor-pointer transition-all border-l-4 ${activeSubmenu === submenu.heading ? 'bg-zinc-50 border-[#b90014] text-[#b90014]' : 'border-transparent text-zinc-500 hover:text-zinc-900'}`}
                       >
                         <h3 className="text-[11px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
