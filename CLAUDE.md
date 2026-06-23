@@ -4,8 +4,8 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 22, 2026)
-**Latest:** Left slide-out filter sidebar on product grid pages (session 15)
+## CURRENT STATUS (Main Branch - June 23, 2026)
+**Latest:** Ball sizes added as explicit age group option; apparel sizes expanded with XXXL (session 13); product grid filter sidebar (session 15)
 
 **Session 15 improvements:**
 - ✅ `ProductGridPage.tsx`: Replaced top filter bar + mobile bottom-sheet drawer with left slide-out sidebar
@@ -30,7 +30,16 @@ Admin login: info@edgedbs.com
 - ✅ `AdminPage.tsx` slider: drag-to-reorder using `@dnd-kit/core` + `@dnd-kit/sortable`; `SortableSlideCard` component with grip handle (top-left); new order saved to DB on drop via `setContextSliderImages`
 - ✅ Packages added: `@dnd-kit/core@6.3.1`, `@dnd-kit/sortable@10.0.0`, `@dnd-kit/utilities@3.2.2`
 
-**Session 13 improvements:**
+**Session 13 improvements (Ball Sizes):**
+- ✅ Ball sizes (Size 1-5) added as explicit "Balls" age group option in getSuggestedSizes()
+- ✅ Adult apparel expanded from 7 to 8 sizes: XXS, XS, S, M, L, XL, XXL, **XXXL**
+- ✅ "Balls" age group added to AdminPage.tsx variant dropdowns (2 locations)
+- ✅ "Balls" age group added to RapidScanIntakeMatrix.tsx with ⚽ emoji label
+- ✅ When "Balls" is selected as age group, size dropdown shows: Size 1, Size 2, Size 3, Size 4, Size 5
+- ✅ Type definitions updated to include 'Balls' as valid age group in both files
+- ✅ Updated getSuggestedSizes() logic: prioritizes explicit age group selection over auto-detection
+
+**Session 13 improvements (Kit Orders & Header):**
 - ✅ SALE page bug fixed: `fetchProductsByCategory` skips category filter for "sale" and "new arrivals" (special collections not tagged in DB) — all products now load into state so `isOnSale` filter in ProductGridPage works correctly
 - ✅ "UNIFORM SUBMISSION" renamed to "KIT ORDERS" everywhere: DB (`navigation_menus`), `DEFAULT_NAV`, route (`/kit-orders`), `Footer.tsx`, `AdminPage.tsx` (`getCategoryPath` + category filter). Old `/uniform-submission` route kept as backward-compat alias
 - ✅ Header nav layout: center section now `flex-1` (fills all space between logo and icons) with `justify-center gap-5` — 9 items on one line at `text-[11px]`, `whitespace-nowrap`, `tracking-normal`
@@ -95,7 +104,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Admin variant inline color dropdown: saves to product_variants.color on change without full page save
 ✅ Color swatch thumbnails on product cards: persistent — fetchAdminProducts now fetches colors, updateProduct now saves colors to DB
 ✅ ProductDetailPage color buttons: no flash/disappear — StrictMode guard (lastFetchedIdRef) + cancelled cleanup flags + reset-on-navigate effect
-✅ Expanded apparel sizes: Youth (YXXS, YXS, YS, YM, YL, YXL), Adult (XXS, XS, S, M, L, XL, XXL)
+✅ Expanded apparel sizes: Youth (YXXS, YXS, YS, YM, YL, YXL), Adult (XXS, XS, S, M, L, XL, XXL, XXXL)
+✅ Ball sizes added: "Balls" age group with sizes 1-5; One Size option for accessories
 ✅ Navigation mega-menu rebuilt: all navigation_items now have correct parent_id hierarchy
 ✅ NATIONAL TEAMS submenu populated with 5 regional groups (EUROPE, SOUTH AMERICA, AFRICA, NORTH AMERICA, OTHERS)
 ✅ Gift receipt: item-selection modal + no-price thermal receipt (POSPage + PosTransactionHistory)
@@ -335,19 +345,27 @@ ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS color TEXT;
 - Logo restore SQL saved at: `docs/restore-logos.sql`
 - If logos disappear after a save, run `npx tsx scripts/restore_logos.ts`
 
-## APPAREL SIZE RANGES (Updated June 17, 2026)
-**Toddler:** 12M, 18M, 24M, 2T, 3T, 4T
-**Youth:** YXXS, YXS, YS, YM, YL, YXL (6 sizes)
-**Adult:** XXS, XS, S, M, L, XL, XXL (7 sizes)
+## APPAREL SIZE RANGES (Updated June 23, 2026)
+**Toddler Apparel:** 12M, 18M, 24M, 2T, 3T, 4T (6 sizes)
+**Youth Apparel:** YXXS, YXS, YS, YM, YL, YXL (6 sizes)
+**Adult Apparel:** XXS, XS, S, M, L, XL, XXL, **XXXL** (8 sizes)
 
 **Footwear:**
-- Toddler: 4C, 4.5C, 5C... 13C
-- Youth: 1Y, 1.5Y, 2Y... 6.5Y, 7Y
-- Adult: 4, 4.5, 5... 14.5, 15
+- Toddler: 4C, 4.5C, 5C... 13C (19 sizes)
+- Youth: 1Y, 1.5Y, 2Y... 6Y, 6.5Y (13 sizes)
+- Adult: 4, 4.5, 5... 14.5, 15 (23 sizes)
+
+**Balls:** Size 1, Size 2, Size 3, Size 4, Size 5 (5 sizes)
+- New "Balls" age group option added to admin variant dropdowns
+- Automatically returns ball sizes when "Balls" age group is selected
+- Available in AdminPage.tsx and RapidScanIntakeMatrix.tsx
+
+**One Size:** One Size option for accessories and one-size items
+- Select "One Size" age group to show single "One Size" option
 
 **Implementation:** Size ranges defined in `getSuggestedSizes()` function in:
-- `src/pages/AdminPage.tsx` (line 578+)
-- `src/components/RapidScanIntakeMatrix.tsx` (line 43+)
+- `src/pages/AdminPage.tsx` (lines 600-637)
+- `src/components/RapidScanIntakeMatrix.tsx` (lines 46-93)
 
 ## COLOR VARIANTS (Added June 17, 2026)
 - Product can have multiple color variants (e.g., Red, Blue, Green)

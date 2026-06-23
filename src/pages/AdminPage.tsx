@@ -509,7 +509,7 @@ function AdminPageInner() {
   // --- Sizing Variant States & Handlers ---
   const [editingProductVariants, setEditingProductVariants] = useState<any[]>([]);
   const [variantsLoading, setVariantsLoading] = useState(false);
-  const [newVariantAgeGroup, setNewVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult'>('Adult');
+  const [newVariantAgeGroup, setNewVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'One Size'>('Adult');
   const [newVariantSize, setNewVariantSize] = useState<string>('');
   const [newVariantBarcode, setNewVariantBarcode] = useState<string>('');
   const newVariantBarcodeRef = useRef<HTMLInputElement>(null);
@@ -518,7 +518,7 @@ function AdminPageInner() {
 
   // --- States for newly created product pending size variants ---
   const [createdProductVariants, setCreatedProductVariants] = useState<any[]>([]);
-  const [newProductVariantAgeGroup, setNewProductVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult'>('Adult');
+  const [newProductVariantAgeGroup, setNewProductVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'One Size'>('Adult');
   const [newProductVariantSize, setNewProductVariantSize] = useState<string>('');
   const [newProductVariantBarcode, setNewProductVariantBarcode] = useState<string>('');
   const [newProductVariantQuantity, setNewProductVariantQuantity] = useState<number>(30);
@@ -667,7 +667,15 @@ function AdminPageInner() {
     }
   };
 
-  const getSuggestedSizes = (category: string = '', ageGroup: 'Toddler' | 'Youth' | 'Adult') => {
+  const getSuggestedSizes = (category: string = '', productName: string = '', ageGroup: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'One Size') => {
+    if (ageGroup === 'Balls') {
+      return ['Size 1', 'Size 2', 'Size 3', 'Size 4', 'Size 5'];
+    }
+
+    if (ageGroup === 'One Size') {
+      return ['One Size'];
+    }
+
     const cat = category.toLowerCase();
     const isShoes = cat.includes('shoe') || cat.includes('footwear') || cat.includes('cleats');
 
@@ -699,7 +707,7 @@ function AdminPageInner() {
     if (ageGroup === 'Youth') {
       return ['YXXS', 'YXS', 'YS', 'YM', 'YL', 'YXL'];
     }
-    return ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    return ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
   };
 
   useEffect(() => {
@@ -3698,6 +3706,8 @@ function AdminPageInner() {
                                 <option value="Adult">Adult</option>
                                 <option value="Youth">Youth</option>
                                 <option value="Toddler">Toddler</option>
+                                <option value="Balls">Balls</option>
+                                <option value="One Size">One Size</option>
                               </select>
                             </div>
                             <div>
@@ -4806,6 +4816,8 @@ function AdminPageInner() {
                             <option value="Adult">Adult</option>
                             <option value="Youth">Youth</option>
                             <option value="Toddler">Toddler</option>
+                            <option value="Balls">Balls</option>
+                            <option value="One Size">One Size</option>
                           </select>
                         </div>
                         {!editingProductHasNoSizes && (
