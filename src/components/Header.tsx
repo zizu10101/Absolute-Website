@@ -182,8 +182,13 @@ export function Header({ onMenuClick }: Props) {
                       <div
                         key={idx}
                         onMouseEnter={() => setActiveSubmenu(submenu.heading)}
-                        onClick={() => setActiveSubmenu(submenu.heading)}
+                        onClick={(e) => {
+                          console.log('CLICK EVENT:', e.type, 'Target:', e.target.tagName, 'Heading:', submenu.heading);
+                          e.stopPropagation();
+                          setActiveSubmenu(submenu.heading);
+                        }}
                         className={`px-12 py-4 cursor-pointer transition-all border-l-4 ${activeSubmenu === submenu.heading ? 'bg-zinc-50 border-[#b90014] text-[#b90014]' : 'border-transparent text-zinc-500 hover:text-zinc-900'}`}
+                        style={{ pointerEvents: 'auto', userSelect: 'none' }}
                       >
                         <h3 className="text-[11px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
                           {submenu.heading}

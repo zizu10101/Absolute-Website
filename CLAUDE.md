@@ -5,7 +5,19 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 23, 2026)
-**Latest:** Ball sizes added as explicit age group option; apparel sizes expanded with XXXL (session 13); product grid filter sidebar (session 15)
+**Latest:** Navigation mega menu submenu headings now clickable with tab-like behavior (session 16); filter sidebar (session 15); ball sizes (session 13)
+
+**Session 16 improvements (Navigation Submenu Fix):**
+- ✅ **Mega menu submenu headings now clickable** — left column items (EUROPE, AFRICA, BALLS, etc.) work like tabs
+- ✅ Added `onClick={() => setActiveSubmenu(submenu.heading)}` to left column heading divs for click support
+- ✅ Added 150ms delay to menu close: `setTimeout(() => setActiveMenu(null), 150)` — prevents premature closure
+- ✅ Menu timeout cleared on hover to keep menu open during interaction
+- ✅ `e.stopPropagation()` added to prevent event bubbling issues
+- ✅ Explicit `pointerEvents: 'auto'` style added to submenu heading divs for guaranteed clickability
+- ✅ Works on both hover and click (mobile/touch device friendly)
+- ✅ `src/components/Header.tsx`: Lines 51-63 (menu close/enter handlers), 88 (nav item enter), 165-171 (mega menu handlers), 185-191 (left column onClick)
+- ⚠️ **Note:** "Balls" submenu shows 0 items because no child products are linked in DB — needs population via Admin panel or SQL
+- ✅ Right column items (Portugal, Egypt, etc.) navigate correctly when clicked
 
 **Session 15 improvements:**
 - ✅ `ProductGridPage.tsx`: Replaced top filter bar + mobile bottom-sheet drawer with left slide-out sidebar
@@ -135,6 +147,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Homepage slider: indicator pins at bottom — active wide red rectangle, inactive small gray square; click to jump + reset timer
 ✅ Admin slider: drag-to-reorder slides with `@dnd-kit` — grip handle top-left of each card, order saved to DB on drop
 ✅ Product grid filter sidebar: left slide-out panel (280px desktop / full-screen mobile) with Sort (radio), Brand (checkboxes + counts), Price (toggles), Size (footwear only), On Sale (toggle switch); "Filters" button with red badge; active filter tags row above grid
+✅ Navigation mega menu submenu headings clickable: left column items work like tabs — click EUROPE/AFRICA/BALLS switches right column items; works on hover and click (mobile-friendly)
 
 ## COMPLETED FEATURES
 
