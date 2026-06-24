@@ -8,7 +8,7 @@ interface RapidScanIntakeMatrixProps {
   category: string;
   existingVariants?: any[];
   productColors?: string[];
-  onRegisterVariant: (ageGroup: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'One Size', size: string, barcode: string, quantity: number, color?: string) => Promise<void>;
+  onRegisterVariant: (ageGroup: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size', size: string, barcode: string, quantity: number, color?: string) => Promise<void>;
   onSuccessFinished: () => void;
 }
 
@@ -22,7 +22,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
   onSuccessFinished
 }) => {
   // Main states
-  const [ageGroup, setAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'One Size'>('Adult');
+  const [ageGroup, setAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [customSizes, setCustomSizes] = useState<string[]>([]);
@@ -43,13 +43,33 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   // Suggested sizes mapping
-  const getSuggestedSizes = (catName: string = '', productName: string = '', age: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'One Size') => {
+  const getSuggestedSizes = (catName: string = '', productName: string = '', age: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size') => {
     if (age === 'Balls') {
       return ['Size 1', 'Size 2', 'Size 3', 'Size 4', 'Size 5'];
     }
 
+    if (age === 'Gloves') {
+      return ['3', '4', '5', '6', '7', '8', '9', '10', '11'];
+    }
+
     if (age === 'One Size') {
       return ['One Size'];
+    }
+
+    if (age === 'Adult Footwear') {
+      const sizes = [];
+      for (let s = 3; s <= 13; s += 0.5) {
+        sizes.push(s % 1 === 0 ? s.toString() : s.toFixed(1));
+      }
+      return sizes;
+    }
+
+    if (age === 'Youth Footwear') {
+      const sizes = [];
+      for (let s = 1; s <= 6; s += 0.5) {
+        sizes.push(s % 1 === 0 ? `${s}Y` : `${s.toFixed(1)}Y`);
+      }
+      return sizes;
     }
 
     const cat = catName.toLowerCase();
@@ -311,11 +331,14 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
               onChange={(e) => setAgeGroup(e.target.value as any)}
               className="p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[#b90014] disabled:opacity-50 cursor-pointer"
             >
-              <option value="Toddler">🧒 Toddler Tier (e.g., 2T, 3T)</option>
-              <option value="Youth">👦 Youth Tier (e.g., YS, YM, 4Y)</option>
-              <option value="Adult">👨 Adult Tier (S, M, L, Standard numeric)</option>
-              <option value="Balls">⚽ Balls (Size 1-5)</option>
-              <option value="One Size">📦 One Size (e.g., Accessories)</option>
+              <option value="Adult">👨 Adult (S, M, L, XXS–XXXL)</option>
+              <option value="Youth">👦 Youth (YXXS–YXL)</option>
+              <option value="Balls">⚽ Balls (Size 1–5)</option>
+              <option value="Gloves">🧤 Gloves (3–11)</option>
+              <option value="One Size">📦 One Size (Accessories)</option>
+              <option value="Adult Footwear">👟 Adult Footwear (3–13)</option>
+              <option value="Youth Footwear">👟 Youth Footwear (1Y–6Y)</option>
+              <option value="Toddler">🧒 Toddler (2T, 3T, 4T)</option>
             </select>
           </div>
           {productColors.length > 0 && (

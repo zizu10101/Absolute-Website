@@ -512,7 +512,7 @@ function AdminPageInner() {
   // --- Sizing Variant States & Handlers ---
   const [editingProductVariants, setEditingProductVariants] = useState<any[]>([]);
   const [variantsLoading, setVariantsLoading] = useState(false);
-  const [newVariantAgeGroup, setNewVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'One Size'>('Adult');
+  const [newVariantAgeGroup, setNewVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
   const [newVariantSize, setNewVariantSize] = useState<string>('');
   const [newVariantBarcode, setNewVariantBarcode] = useState<string>('');
   const newVariantBarcodeRef = useRef<HTMLInputElement>(null);
@@ -521,7 +521,7 @@ function AdminPageInner() {
 
   // --- States for newly created product pending size variants ---
   const [createdProductVariants, setCreatedProductVariants] = useState<any[]>([]);
-  const [newProductVariantAgeGroup, setNewProductVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'One Size'>('Adult');
+  const [newProductVariantAgeGroup, setNewProductVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
   const [newProductVariantSize, setNewProductVariantSize] = useState<string>('');
   const [newProductVariantBarcode, setNewProductVariantBarcode] = useState<string>('');
   const [newProductVariantQuantity, setNewProductVariantQuantity] = useState<number>(30);
@@ -670,13 +670,33 @@ function AdminPageInner() {
     }
   };
 
-  const getSuggestedSizes = (category: string = '', productName: string = '', ageGroup: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'One Size') => {
+  const getSuggestedSizes = (category: string = '', productName: string = '', ageGroup: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size') => {
     if (ageGroup === 'Balls') {
       return ['Size 1', 'Size 2', 'Size 3', 'Size 4', 'Size 5'];
     }
 
+    if (ageGroup === 'Gloves') {
+      return ['3', '4', '5', '6', '7', '8', '9', '10', '11'];
+    }
+
     if (ageGroup === 'One Size') {
       return ['One Size'];
+    }
+
+    if (ageGroup === 'Adult Footwear') {
+      const sizes = [];
+      for (let s = 3; s <= 13; s += 0.5) {
+        sizes.push(s % 1 === 0 ? s.toString() : s.toFixed(1));
+      }
+      return sizes;
+    }
+
+    if (ageGroup === 'Youth Footwear') {
+      const sizes = [];
+      for (let s = 1; s <= 6; s += 0.5) {
+        sizes.push(s % 1 === 0 ? `${s}Y` : `${s.toFixed(1)}Y`);
+      }
+      return sizes;
     }
 
     const cat = category.toLowerCase();
@@ -3810,9 +3830,12 @@ function AdminPageInner() {
                               >
                                 <option value="Adult">Adult</option>
                                 <option value="Youth">Youth</option>
-                                <option value="Toddler">Toddler</option>
                                 <option value="Balls">Balls</option>
+                                <option value="Gloves">Gloves</option>
                                 <option value="One Size">One Size</option>
+                                <option value="Adult Footwear">Adult Footwear</option>
+                                <option value="Youth Footwear">Youth Footwear</option>
+                                <option value="Toddler">Toddler</option>
                               </select>
                             </div>
                             <div>
@@ -4920,9 +4943,12 @@ function AdminPageInner() {
                           >
                             <option value="Adult">Adult</option>
                             <option value="Youth">Youth</option>
-                            <option value="Toddler">Toddler</option>
                             <option value="Balls">Balls</option>
+                            <option value="Gloves">Gloves</option>
                             <option value="One Size">One Size</option>
+                            <option value="Adult Footwear">Adult Footwear</option>
+                            <option value="Youth Footwear">Youth Footwear</option>
+                            <option value="Toddler">Toddler</option>
                           </select>
                         </div>
                         {!editingProductHasNoSizes && (

@@ -5,7 +5,16 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 24, 2026)
-**Latest:** Navigation landing pages — region/league/brand logo grids + category slug routing (session 17)
+**Latest:** Goalkeeper glove sizes + explicit footwear age groups added to admin variant dropdowns (session 18)
+
+**Session 18 improvements:**
+- ✅ `AdminPage.tsx` + `RapidScanIntakeMatrix.tsx`: Added "Gloves" age group with sizes 3–11 (goalkeeper glove sizes)
+- ✅ `AdminPage.tsx` + `RapidScanIntakeMatrix.tsx`: Added "Adult Footwear" age group with sizes 3–13 (0.5 increments) — explicit alternative to the category-detection path
+- ✅ `AdminPage.tsx` + `RapidScanIntakeMatrix.tsx`: Added "Youth Footwear" age group with sizes 1Y–6Y (0.5 increments)
+- ✅ Both age group dropdowns in AdminPage (new product form + edit product form) updated: Adult, Youth, Balls, Gloves, One Size, Adult Footwear, Youth Footwear, Toddler
+- ✅ RapidScanIntakeMatrix dropdown relabeled with consistent emoji labels: 👨 Adult, 👦 Youth, ⚽ Balls, 🧤 Gloves, 📦 One Size, 👟 Adult Footwear, 👟 Youth Footwear, 🧒 Toddler
+- ✅ `getSuggestedSizes()` type unions updated in both files to include `'Gloves' | 'Adult Footwear' | 'Youth Footwear'`
+- ✅ Toddler kept in dropdown (at end) for backward compat with existing Toddler-labeled variants
 
 **Session 17 improvements:**
 - ✅ `App.tsx`: Added `CategorySlugRoute` component — handles `/category/:slug` → finds matching nav menu → renders `ProductGridPage` (fixes `/category/national-teams?region=europe` blank page)
@@ -139,6 +148,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ ProductDetailPage color buttons: no flash/disappear — StrictMode guard (lastFetchedIdRef) + cancelled cleanup flags + reset-on-navigate effect
 ✅ Expanded apparel sizes: Youth (YXXS, YXS, YS, YM, YL, YXL), Adult (XXS, XS, S, M, L, XL, XXL, XXXL)
 ✅ Ball sizes added: "Balls" age group with sizes 1-5; One Size option for accessories
+✅ Gloves age group added: goalkeeper sizes 3–11 in both AdminPage and RapidScanIntakeMatrix
+✅ Adult Footwear / Youth Footwear explicit age groups: sizes 3–13 and 1Y–6Y (0.5 increments); replaces category-detection for footwear products
 ✅ Navigation mega-menu rebuilt: all navigation_items now have correct parent_id hierarchy
 ✅ NATIONAL TEAMS submenu populated with 5 regional groups (EUROPE, SOUTH AMERICA, AFRICA, NORTH AMERICA, OTHERS)
 ✅ Gift receipt: item-selection modal + no-price thermal receipt (POSPage + PosTransactionHistory)
@@ -404,27 +415,27 @@ ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS color TEXT;
 - Logo restore SQL saved at: `docs/restore-logos.sql`
 - If logos disappear after a save, run `npx tsx scripts/restore_logos.ts`
 
-## APPAREL SIZE RANGES (Updated June 23, 2026)
+## APPAREL SIZE RANGES (Updated June 24, 2026)
 **Toddler Apparel:** 12M, 18M, 24M, 2T, 3T, 4T (6 sizes)
 **Youth Apparel:** YXXS, YXS, YS, YM, YL, YXL (6 sizes)
 **Adult Apparel:** XXS, XS, S, M, L, XL, XXL, **XXXL** (8 sizes)
 
 **Footwear:**
-- Toddler: 4C, 4.5C, 5C... 13C (19 sizes)
-- Youth: 1Y, 1.5Y, 2Y... 6Y, 6.5Y (13 sizes)
-- Adult: 4, 4.5, 5... 14.5, 15 (23 sizes)
+- Toddler (via category detection): 4C, 4.5C, 5C... 13C (19 sizes)
+- Youth Footwear (explicit age group): 1Y, 1.5Y, 2Y... 6Y (11 sizes)
+- Adult Footwear (explicit age group): 3, 3.5, 4... 13 (21 sizes)
 
 **Balls:** Size 1, Size 2, Size 3, Size 4, Size 5 (5 sizes)
-- New "Balls" age group option added to admin variant dropdowns
-- Automatically returns ball sizes when "Balls" age group is selected
-- Available in AdminPage.tsx and RapidScanIntakeMatrix.tsx
+
+**Gloves (Goalkeeper):** 3, 4, 5, 6, 7, 8, 9, 10, 11 (9 sizes)
 
 **One Size:** One Size option for accessories and one-size items
-- Select "One Size" age group to show single "One Size" option
+
+**Age group dropdown order:** Adult → Youth → Balls → Gloves → One Size → Adult Footwear → Youth Footwear → Toddler
 
 **Implementation:** Size ranges defined in `getSuggestedSizes()` function in:
-- `src/pages/AdminPage.tsx` (lines 600-637)
-- `src/components/RapidScanIntakeMatrix.tsx` (lines 46-93)
+- `src/pages/AdminPage.tsx`
+- `src/components/RapidScanIntakeMatrix.tsx` (both files must stay in sync)
 
 ## COLOR VARIANTS (Added June 17, 2026)
 - Product can have multiple color variants (e.g., Red, Blue, Green)
