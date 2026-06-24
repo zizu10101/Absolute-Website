@@ -4,8 +4,28 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 23, 2026)
-**Latest:** Mega menu left column click fix + collapsible admin nav editor + equipment submenu links (session 16)
+## CURRENT STATUS (Main Branch - June 24, 2026)
+**Latest:** Navigation landing pages — region/league/brand logo grids + category slug routing (session 17)
+
+**Session 17 improvements:**
+- ✅ `App.tsx`: Added `CategorySlugRoute` component — handles `/category/:slug` → finds matching nav menu → renders `ProductGridPage` (fixes `/category/national-teams?region=europe` blank page)
+- ✅ `App.tsx`: Added 14 static landing-page routes: 3 FOOTWEAR submenu headings, 5 NATIONAL TEAMS regions, 6 CLUBS leagues (see ROUTES section below)
+- ✅ `ProductGridPage.tsx`: Added `useSearchParams` + `region` query param — `/category/national-teams?region=europe` now filters products by that region's nav items instead of showing blank
+- ✅ `ProductGridPage.tsx`: Added `isHeadingLandingPage` flag (`!!submenu && groupedSubmenuItems.length > 0`) — true when `submenu` prop matches a heading that has logo items; false for item-level pages
+- ✅ `ProductGridPage.tsx`: Updated `shouldShowGrid` — returns `false` when `isHeadingLandingPage` is true (shows logo grid only, no product grid underneath)
+- ✅ `ProductGridPage.tsx`: Logo grid condition: added `&& !region` — hides country/brand selector when navigating via `?region=` param
+- ✅ `ProductGridPage.tsx`: Subtitle shows "N Teams — Select one to browse products" on heading landing pages
+- ✅ `ProductGridPage.tsx`: "View All Products" button and "All Products" divider hidden on heading landing pages
+- ✅ Supabase `navigation_items` updated: 14 heading rows now have correct landing page paths:
+  - NATIONAL TEAMS: EUROPE→`/national-teams/europe`, AFRICA→`/national-teams/africa`, SOUTH AMERICA→`/national-teams/south-america`, NORTH AMERICA→`/national-teams/north-america`, OTHERS→`/national-teams/others`
+  - CLUBS: LIGA→`/clubs/la-liga`, PREMIER LEAGUE→`/clubs/premier-league`, LIGUE 1→`/clubs/ligue-1`, SERIE A→`/clubs/serie-a`, BUNDESLIGA→`/clubs/bundesliga`, MLS→`/clubs/mls`, liga portugal→`/clubs/liga-portugal`
+  - FOOTWEAR: SHOP BY BRAND→`/footwear/brands`, SHOP BY SURFACE→`/footwear/surface`, SHOP BY COLLECTION→`/footwear/collections`
+
+**How the landing page system works:**
+- `groupedSubmenuItems` (useMemo in ProductGridPage): when `submenu` prop matches a **heading** label in `navigationMenus`, returns that heading's logo items — when it matches an **item** label (e.g. PORTUGAL), returns `[]`
+- `isHeadingLandingPage = !!submenu && groupedSubmenuItems.length > 0` — distinguishes heading landing pages from product pages
+- `shouldShowGrid` is false on heading landing pages → only the logo grid renders (no product grid beneath)
+- QUICK LINKS (footwear) intentionally has no landing page — its items have no logos
 
 **Session 16 improvements:**
 - ✅ `Header.tsx` mega menu: `handleMenuMouseLeave()` with 150ms timeout + `handleMenuMouseEnter()` clearing it — prevents menu closing when cursor moves between nav bar and dropdown
@@ -19,14 +39,6 @@ Admin login: info@edgedbs.com
 - ✅ `ChevronRight` added to lucide-react imports in `AdminPage.tsx`
 - ✅ New state: `expandedMenus`, `expandedSubmenus`, `navSearchQuery` in AdminPage
 - ✅ New helpers: `toggleMenu()`, `toggleSubmenu()`, `highlightText()` in AdminPage
-
-**To activate EQUIPMENT submenu links in the live site:**
-Go to Admin → Navigation → expand EQUIPMENT → expand each submenu → set Column Page Path:
-- BALLS → `/category/equipment?type=balls`
-- GOALKEEPER → `/category/equipment?type=goalkeeper`
-- ACCESSORIES → `/category/equipment?type=accessories`
-- TRAINING → `/category/equipment?type=training`
-Then click Save Changes. The Header will automatically render those headings as `<Link>` components.
 
 **Session 15 improvements:**
 - ✅ `ProductGridPage.tsx`: Replaced top filter bar + mobile bottom-sheet drawer with left slide-out sidebar
@@ -159,6 +171,11 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Mega menu left column click fix: 150ms close delay; heading div→button; left column z-50 / right column z-10 prevents Framer Motion stacking context overlap; removed x-axis animation from transition
 ✅ Mega menu left column links: headings with `submenu.path` render as `<Link>` (navigate on click); headings without path render as tabs (hover behavior) — enables per-menu-type behavior
 ✅ Admin nav editor: collapsible menus + submenus (▶/▼, all collapsed by default, item counts shown); search box with yellow highlight + auto-expand matching sections
+✅ Navigation landing pages: clicking a mega menu heading (EUROPE, LA LIGA, SHOP BY BRAND, etc.) shows a logo grid page — click a logo to see products; powered by `isHeadingLandingPage` flag in `ProductGridPage`
+✅ `CategorySlugRoute` in `App.tsx`: handles `/category/:slug` → maps to matching nav menu → renders `ProductGridPage` (fixes blank page on query-param URLs like `/category/national-teams?region=europe`)
+✅ Region filter in `ProductGridPage`: `?region=` query param filters products by that nav submenu's items — used as fallback for old URLs; logo grid hidden when `?region=` present
+✅ 14 new landing page routes in `App.tsx`: FOOTWEAR (brands/surface/collections), NATIONAL TEAMS (europe/africa/south-america/north-america/others), CLUBS (la-liga/premier-league/ligue-1/serie-a/bundesliga/mls/liga-portugal)
+✅ Supabase `navigation_items` paths updated for all 14 heading rows — clicks in mega menu now navigate to landing pages instead of going straight to products or going nowhere
 
 ## COMPLETED FEATURES
 
@@ -289,6 +306,24 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - `/kit-orders` — Kit Orders / Uniform Submission page (also aliased at `/uniform-submission` for backward compat)
 - `/sale` — Sale page (filters products where isOnSale=true)
 - `/custom-apparel` — Custom Apparel landing page
+- `/category/:slug` — Alias for any nav menu path slug (e.g. `/category/national-teams`) — handled by `CategorySlugRoute`
+
+**Navigation landing pages (logo grid → click to see products):**
+- `/footwear/brands` — SHOP BY BRAND logo grid
+- `/footwear/surface` — SHOP BY SURFACE logo grid
+- `/footwear/collections` — SHOP BY COLLECTION logo grid
+- `/national-teams/europe` — European countries logo grid
+- `/national-teams/africa` — African countries logo grid
+- `/national-teams/south-america` — South American countries logo grid
+- `/national-teams/north-america` — North American countries logo grid
+- `/national-teams/others` — Others logo grid
+- `/clubs/la-liga` — La Liga clubs logo grid
+- `/clubs/premier-league` — Premier League clubs logo grid
+- `/clubs/ligue-1` — Ligue 1 clubs logo grid
+- `/clubs/serie-a` — Serie A clubs logo grid
+- `/clubs/bundesliga` — Bundesliga clubs logo grid
+- `/clubs/mls` — MLS clubs logo grid
+- `/clubs/liga-portugal` — Liga Portugal clubs logo grid
 
 ## PENDING DB MIGRATIONS
 Run these once in Supabase SQL editor if not already done:

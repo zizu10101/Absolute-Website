@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useParams, Navigate } from 'react-router-dom';
 import { Fragment, useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Meta } from './components/Meta';
@@ -81,6 +81,14 @@ function AdminAccessDenied() {
   );
 }
 
+function CategorySlugRoute() {
+  const { slug } = useParams<{ slug: string }>();
+  const { navigationMenus } = useSettings();
+  const menu = navigationMenus.find(m => m.path.replace(/^\//, '') === slug);
+  if (!menu) return <Navigate to="/" replace />;
+  return <ProductGridPage title={menu.label} category={menu.label} />;
+}
+
 function AppRoutes() {
   const { navigationMenus, seoSettings, storeInfo } = useSettings();
   useSEO(seoSettings, storeInfo);
@@ -130,6 +138,30 @@ function AppRoutes() {
               ))
             )
           )}
+
+          {/* Footwear — submenu heading landing pages */}
+          <Route path="footwear/brands"      element={<ProductGridPage title="SHOP BY BRAND"      category="FOOTWEAR" submenu="SHOP BY BRAND" />} />
+          <Route path="footwear/surface"     element={<ProductGridPage title="SHOP BY SURFACE"    category="FOOTWEAR" submenu="SHOP BY SURFACE" />} />
+          <Route path="footwear/collections" element={<ProductGridPage title="SHOP BY COLLECTION" category="FOOTWEAR" submenu="SHOP BY COLLECTION" />} />
+
+          {/* National Teams — region landing pages */}
+          <Route path="national-teams/europe" element={<ProductGridPage title="EUROPE" category="NATIONAL TEAMS" submenu="EUROPE" />} />
+          <Route path="national-teams/africa" element={<ProductGridPage title="AFRICA" category="NATIONAL TEAMS" submenu="AFRICA" />} />
+          <Route path="national-teams/south-america" element={<ProductGridPage title="SOUTH AMERICA" category="NATIONAL TEAMS" submenu="SOUTH AMERICA" />} />
+          <Route path="national-teams/north-america" element={<ProductGridPage title="NORTH AMERICA" category="NATIONAL TEAMS" submenu="NORTH AMERICA" />} />
+          <Route path="national-teams/others" element={<ProductGridPage title="OTHERS" category="NATIONAL TEAMS" submenu="OTHERS" />} />
+
+          {/* Clubs — league landing pages (submenu heading names match DB: LIGA, LIGUE 1, etc.) */}
+          <Route path="clubs/la-liga" element={<ProductGridPage title="LA LIGA" category="CLUBS" submenu="LIGA" />} />
+          <Route path="clubs/premier-league" element={<ProductGridPage title="PREMIER LEAGUE" category="CLUBS" submenu="PREMIER LEAGUE" />} />
+          <Route path="clubs/ligue-1" element={<ProductGridPage title="LIGUE 1" category="CLUBS" submenu="LIGUE 1" />} />
+          <Route path="clubs/serie-a" element={<ProductGridPage title="SERIE A" category="CLUBS" submenu="SERIE A" />} />
+          <Route path="clubs/bundesliga" element={<ProductGridPage title="BUNDESLIGA" category="CLUBS" submenu="BUNDESLIGA" />} />
+          <Route path="clubs/mls" element={<ProductGridPage title="MLS" category="CLUBS" submenu="MLS" />} />
+          <Route path="clubs/liga-portugal" element={<ProductGridPage title="LIGA PORTUGAL" category="CLUBS" submenu="liga portugal" />} />
+
+          {/* Category alias — handles /category/:slug URLs e.g. /category/national-teams?region=europe */}
+          <Route path="category/:slug" element={<CategorySlugRoute />} />
 
           {/* Static Routes */}
           <Route path="best-sellers" element={<ProductGridPage title="Best Sellers" />} />

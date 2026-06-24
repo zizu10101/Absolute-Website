@@ -53,6 +53,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
 
   const [searchParams] = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
+  const region = searchParams.get('region') || '';
 
   // Filter + sort state — lazy initializers read URL params synchronously on first render
   const [localSearch, setLocalSearch] = useState('');
@@ -114,6 +115,14 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     const qs = params.toString();
     window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
   }, [selectedBrands, sortBy, priceRange, selectedSizes, onSaleOnly]);
+
+  // Reset pagination when region changes
+  const prevRegionRef = useRef(region);
+  useEffect(() => {
+    if (prevRegionRef.current === region) return;
+    prevRegionRef.current = region;
+    setVisibleCount(ITEMS_PER_PAGE);
+  }, [region]);
 
   // Reset all filters only when category/submenu actually changes (not on initial mount or StrictMode re-run)
   const prevCategoryRef = useRef({ category, submenu });
@@ -247,6 +256,22 @@ export function ProductGridPage({ title, category, submenu }: Props) {
       });
     }
 
+    // Region filter — e.g. /category/national-teams?region=europe
+    if (region) {
+      const norm = (s: string) => s.trim().toLowerCase().replace(/-/g, ' ');
+      const regionNorm = norm(region);
+      const catMenu = navigationMenus.find(m => norm(m.label) === norm(category || title || ''));
+      const matchingSub = catMenu?.submenus.find(s => norm(s.heading) === regionNorm);
+      if (matchingSub) {
+        const teamNames = new Set(matchingSub.items.map(item => norm(item.label)));
+        filtered = filtered.filter(p => {
+          const legacyMatch = p.submenu && teamNames.has(norm(p.submenu));
+          const arrayMatch = p.submenus?.some(s => teamNames.has(norm(s)));
+          return legacyMatch || arrayMatch;
+        });
+      }
+    }
+
     const searchTerm = localSearch.toLowerCase().trim();
     if (searchTerm) {
       filtered = filtered.filter(p =>
@@ -305,7 +330,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     }
 
     return filtered;
-  }, [products, title, category, submenu, localSearch, sortBy, selectedBrands, priceRange, onSaleOnly, selectedSizes, sizeToProductIds, urlQuery]);
+  }, [products, title, category, submenu, region, localSearch, sortBy, selectedBrands, priceRange, onSaleOnly, selectedSizes, sizeToProductIds, urlQuery, navigationMenus]);
 
   // Brand product counts (excluding brand filter so user sees totals per brand in current category)
   const brandProductCounts = useMemo(() => {
@@ -361,13 +386,18 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     return [];
   }, [currentMenu, submenu]);
 
+  // When submenu matches a heading (EUROPE, LIGA…), groupedSubmenuItems has logo items → show ONLY the logo grid.
+  // When submenu matches an item (PORTUGAL, ARSENAL…), groupedSubmenuItems is empty → show product grid.
+  const isHeadingLandingPage = !!submenu && groupedSubmenuItems.length > 0;
+
   const shouldShowGrid = useMemo(() => {
     if (localSearch || urlQuery) return true;
-    if (submenu) return true;
+    if (submenu && groupedSubmenuItems.length === 0) return true;
+    if (region) return true;
     if (showAllProducts) return true;
     if (groupedSubmenuItems.length === 0) return true;
     return false;
-  }, [localSearch, urlQuery, submenu, showAllProducts, groupedSubmenuItems]);
+  }, [localSearch, urlQuery, submenu, region, showAllProducts, groupedSubmenuItems]);
 
   const handleLoadMore = () => setVisibleCount(prev => prev + ITEMS_PER_PAGE);
 
@@ -413,7 +443,9 @@ export function ProductGridPage({ title, category, submenu }: Props) {
           <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs">
             {shouldShowGrid
               ? `Showing ${Math.min(visibleCount, filteredProducts.length)} of ${filteredProducts.length} Products`
-              : `${groupedSubmenuItems.reduce((acc, g) => acc + g.items.length, 0)} Categories Available`
+              : isHeadingLandingPage
+                ? `${groupedSubmenuItems.reduce((acc, g) => acc + g.items.length, 0)} Teams — Select one to browse products`
+                : `${groupedSubmenuItems.reduce((acc, g) => acc + g.items.length, 0)} Categories Available`
             }
           </p>
         </div>
@@ -517,7 +549,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
       )}
 
       {/* Submenu logo grid */}
-      {groupedSubmenuItems.length > 0 && !urlQuery && (
+      {groupedSubmenuItems.length > 0 && !urlQuery && !region && (
         <div className="mb-24 space-y-16">
           {groupedSubmenuItems.map((group, groupIdx) => (
             <div key={groupIdx} className="space-y-8">
@@ -558,7 +590,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
             </div>
           ))}
 
-          {!shouldShowGrid && (
+          {!shouldShowGrid && !isHeadingLandingPage && (
             <div className="mt-24 text-center">
               <button
                 onClick={() => setShowAllProducts(true)}
@@ -569,7 +601,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
             </div>
           )}
 
-          {shouldShowGrid && (
+          {shouldShowGrid && !isHeadingLandingPage && (
             <div className="mt-16 flex items-center gap-4">
               <div className="h-px flex-1 bg-zinc-100" />
               <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-300">
