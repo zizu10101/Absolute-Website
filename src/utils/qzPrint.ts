@@ -14,18 +14,22 @@ export const connectQZ = async (): Promise<void> => {
 
   // Set up null certificate for local development
   // This bypasses certificate requirement for localhost use
-  qz.security.setCertificatePromise((resolve: any, reject: any) => {
+  qz.security.setCertificatePromise((resolve: any) => {
     resolve(); // Allow unsigned connections for local use
   });
 
   qz.security.setSignatureAlgorithm('SHA512');
-  qz.security.setSignaturePromise(() => {
-    return (resolve: any, reject: any) => {
+  qz.security.setSignaturePromise((toSign: any) => {
+    return (resolve: any) => {
       resolve(); // No signature for local development
     };
   });
 
   await qz.websocket.connect();
+
+  // Wait for connection to stabilize before sending print jobs
+  // Fixes race condition where print jobs sent too quickly fail
+  await new Promise(resolve => setTimeout(resolve, 1000));
 };
 
 /**
