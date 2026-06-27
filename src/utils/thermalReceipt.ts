@@ -27,6 +27,7 @@ export interface ReceiptData {
   storeCreditReason?: string; // Why SC was issued
   storeCreditRemainingBalance?: number; // For redemption receipts
   storeCreditUsedAmount?: number; // For redemption receipts
+  copies?: 1 | 2; // Number of copies: 1 = customer only, 2 = customer + merchant
 }
 
 export const generateThermalReceiptHTML = (data: ReceiptData): string => {
@@ -41,6 +42,9 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     hour12: true,
   });
 
+  const truncateName = (name: string, maxLength = 24): string =>
+    name.length <= maxLength ? name : name.substring(0, maxLength - 3) + '...';
+
   const itemsHtml = data.items
     .map((item) => {
       const lineTotal = item.price * item.quantity;
@@ -50,9 +54,9 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
 
       return `
         <div style="margin-bottom:8px;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:2px;word-wrap:break-word;">
-            <span style="flex:1;">${item.name}</span>
-            <span style="margin-left:8px;white-space:nowrap;">$${lineTotal.toFixed(2)}</span>
+          <div class="item-row" style="margin-bottom:2px;word-wrap:break-word;">
+            <span class="item-name">${truncateName(item.name)}</span>
+            <span class="item-price">$${lineTotal.toFixed(2)}</span>
           </div>
           ${detailText ? `<div style="font-size:10px;color:#333;margin-bottom:2px;">  ${detailText}</div>` : ''}
           <div style="font-size:10px;color:#333;">  Qty: ${item.quantity} @ $${item.price.toFixed(2)}</div>
@@ -62,128 +66,10 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     .join('');
 
   const statusLine = data.status && data.status.toUpperCase() !== 'COMPLETED' ? `[${data.status.toUpperCase()}]` : '';
+  const copies = data.copies || 1;
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Receipt - ${data.transactionId}</title>
-  <style>
-    * { margin: 0; padding: 0; }
-    body {
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-      line-height: 1.3;
-      width: 80mm;
-      color: #000;
-    }
-    .receipt {
-      width: 80mm;
-      padding: 4mm;
-      margin: 0 auto;
-    }
-    .header {
-      text-align: center;
-      margin-bottom: 8px;
-    }
-    .logo {
-      display: block;
-      margin: 0 auto 6px;
-      max-width: 160px;
-      max-height: 60px;
-      width: auto;
-      height: auto;
-      object-fit: contain;
-    }
-    .store-name {
-      font-size: 14px;
-      font-weight: bold;
-      letter-spacing: 1px;
-      margin-bottom: 2px;
-    }
-    .store-info {
-      font-size: 10px;
-      line-height: 1.4;
-    }
-    .divider {
-      border: none;
-      text-align: center;
-      margin: 4px 0;
-      color: #000;
-    }
-    .divider::before {
-      content: "- - - - - - - - - - - - - - - -";
-    }
-    .transaction-info {
-      font-size: 10px;
-      line-height: 1.5;
-      margin: 4px 0;
-    }
-    .transaction-info div {
-      margin: 2px 0;
-    }
-    .barcode-container {
-      text-align: center;
-      margin: 6px 0;
-    }
-    .barcode-container svg {
-      max-width: 100%;
-      height: auto;
-    }
-    .items-section {
-      margin: 6px 0;
-    }
-    .totals {
-      margin: 4px 0;
-    }
-    .total-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 2px;
-      font-size: 11px;
-    }
-    .total-row.grand-total {
-      font-size: 13px;
-      font-weight: bold;
-      margin-top: 4px;
-      padding: 3px 0;
-      border-top: 1px dashed #000;
-      border-bottom: 1px dashed #000;
-    }
-    .footer {
-      text-align: center;
-      font-size: 10px;
-      margin-top: 6px;
-      line-height: 1.5;
-    }
-    .footer-text {
-      margin: 2px 0;
-    }
-
-    @media print {
-      body, .receipt {
-        width: 80mm;
-        margin: 0;
-        padding: 0;
-      }
-      * {
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-      img {
-        max-width: 160px !important;
-        max-height: 60px !important;
-      }
-      @page {
-        size: 80mm auto;
-        margin: 0;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="receipt">
+  // Receipt body extracted so it can be duplicated for 2-copy printing
+  const receiptContent = `
     <!-- Header -->
     <div class="header">
       ${data.logoUrl ? `<img src="${data.logoUrl}" alt="Logo" class="logo">` : ''}
@@ -198,9 +84,9 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
 
     ${data.isReprint ? '<div style="text-align:center;font-weight:bold;font-size:11px;margin:4px 0;letter-spacing:1px;">*** REPRINT ***</div><div class="divider"></div>' : ''}
 
-    <!-- Barcode -->
+    <!-- Barcode (class-based so both copies get rendered) -->
     <div class="barcode-container">
-      <svg id="barcode"></svg>
+      <svg class="receipt-barcode"></svg>
     </div>
 
     <div class="divider"></div>
@@ -254,27 +140,183 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       </div>
       ` : ''}
     </div>
-  </div>
+  `;
+
+  const bodyHTML = copies === 2
+    ? `<div class="receipt">${receiptContent}</div>
+       <div style="page-break-before: always;"></div>
+       <div class="receipt">${receiptContent}</div>`
+    : `<div class="receipt">${receiptContent}</div>`;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Receipt - ${data.transactionId}</title>
+  <style>
+    * { margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      font-weight: bold;
+      line-height: 1.3;
+      width: 72mm;
+      color: #000;
+    }
+    .receipt {
+      width: 72mm;
+      padding: 2mm 4mm;
+      margin: 0 auto;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .logo {
+      display: block;
+      margin: 0 auto 4mm auto;
+      max-width: 55mm;
+      max-height: 15mm;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
+    .store-name {
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      margin-bottom: 2px;
+    }
+    .store-info {
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .divider {
+      border: none;
+      text-align: center;
+      margin: 4px 0;
+      color: #000;
+    }
+    .divider::before {
+      content: "- - - - - - - - - - - - - - - -";
+    }
+    .transaction-info {
+      font-size: 11px;
+      line-height: 1.5;
+      margin: 4px 0;
+    }
+    .transaction-info div {
+      margin: 2px 0;
+    }
+    .barcode-container {
+      text-align: center;
+      margin: 6px 0;
+    }
+    .barcode-container svg {
+      max-width: 100%;
+      height: auto;
+    }
+    .items-section {
+      margin: 6px 0;
+    }
+    .item-row {
+      display: table;
+      width: 100%;
+      word-wrap: break-word;
+    }
+    .item-name {
+      display: table-cell;
+      width: 65%;
+      font-weight: bold;
+    }
+    .item-price {
+      display: table-cell;
+      width: 35%;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .totals {
+      margin: 4px 0;
+    }
+    .total-row {
+      display: table;
+      width: 100%;
+      margin-bottom: 2px;
+      font-size: 12px;
+    }
+    .total-row span:first-child {
+      display: table-cell;
+      width: 65%;
+    }
+    .total-row span:last-child {
+      display: table-cell;
+      width: 35%;
+      text-align: right;
+    }
+    .total-row.grand-total {
+      font-size: 15px;
+      font-weight: bold;
+      margin-top: 4px;
+      padding: 3px 0;
+      border-top: 1px dashed #000;
+      border-bottom: 1px dashed #000;
+    }
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+    .footer-text {
+      margin: 2px 0;
+    }
+
+    @media print {
+      @page {
+        size: 80mm auto;
+        margin: 0;
+      }
+      body {
+        width: 72mm;
+        margin: 0;
+        padding: 0;
+      }
+      .receipt {
+        width: 72mm;
+        padding: 2mm 4mm;
+      }
+      img {
+        max-width: 55mm !important;
+        max-height: 15mm !important;
+        display: block !important;
+        margin: 0 auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  ${bodyHTML}
 
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <script>
-    window.addEventListener('load', () => {
+    window.addEventListener('load', function() {
       try {
-        // Generate barcode: use barcodeValue first, fallback to invoiceNumber, then transactionId
-        const barcodeValue = "${data.barcodeValue || data.invoiceNumber || data.transactionId}";
+        var barcodeValue = "${data.barcodeValue || data.invoiceNumber || data.transactionId}";
         if (typeof JsBarcode !== 'undefined') {
-          JsBarcode("#barcode", barcodeValue, {
-            format: "CODE128",
-            width: 1.5,
-            height: 40,
-            displayValue: false,
-            margin: 0
+          document.querySelectorAll('.receipt-barcode').forEach(function(svg) {
+            JsBarcode(svg, barcodeValue, {
+              format: "CODE128",
+              width: 1.5,
+              height: 40,
+              displayValue: false,
+              margin: 0
+            });
           });
         }
       } catch (e) {
         console.error('Barcode generation failed:', e);
       }
-      setTimeout(() => window.print(), 100);
     });
   </script>
 </body>
@@ -329,14 +371,15 @@ export const generateGiftReceiptHTML = (data: {
     * { margin: 0; padding: 0; }
     body {
       font-family: 'Courier New', monospace;
-      font-size: 12px;
+      font-size: 13px;
+      font-weight: bold;
       line-height: 1.3;
-      width: 80mm;
+      width: 72mm;
       color: #000;
     }
     .receipt {
-      width: 80mm;
-      padding: 4mm;
+      width: 72mm;
+      padding: 2mm 4mm;
       margin: 0 auto;
     }
     .header {
@@ -345,21 +388,21 @@ export const generateGiftReceiptHTML = (data: {
     }
     .logo {
       display: block;
-      margin: 0 auto 6px;
-      max-width: 160px;
-      max-height: 60px;
+      margin: 0 auto 4mm auto;
+      max-width: 55mm;
+      max-height: 15mm;
       width: auto;
       height: auto;
       object-fit: contain;
     }
     .store-name {
-      font-size: 14px;
+      font-size: 16px;
       font-weight: bold;
-      letter-spacing: 1px;
+      letter-spacing: 2px;
       margin-bottom: 2px;
     }
     .store-info {
-      font-size: 10px;
+      font-size: 11px;
       line-height: 1.4;
     }
     .gift-header {
@@ -396,7 +439,7 @@ export const generateGiftReceiptHTML = (data: {
       content: "- - - - - - - - - - - - - - - -";
     }
     .transaction-info {
-      font-size: 10px;
+      font-size: 11px;
       line-height: 1.5;
       margin: 4px 0;
     }
@@ -408,7 +451,7 @@ export const generateGiftReceiptHTML = (data: {
     }
     .footer {
       text-align: center;
-      font-size: 9px;
+      font-size: 11px;
       margin-top: 6px;
       line-height: 1.5;
     }
@@ -416,22 +459,24 @@ export const generateGiftReceiptHTML = (data: {
       margin: 2px 0;
     }
     @media print {
-      body, .receipt {
-        width: 80mm;
-        margin: 0;
-        padding: 0;
-      }
-      * {
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-      img {
-        max-width: 160px !important;
-        max-height: 60px !important;
-      }
       @page {
         size: 80mm auto;
         margin: 0;
+      }
+      body {
+        width: 72mm;
+        margin: 0;
+        padding: 0;
+      }
+      .receipt {
+        width: 72mm;
+        padding: 2mm 4mm;
+      }
+      img {
+        max-width: 55mm !important;
+        max-height: 15mm !important;
+        display: block !important;
+        margin: 0 auto !important;
       }
     }
   </style>
@@ -539,14 +584,15 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
     * { margin: 0; padding: 0; }
     body {
       font-family: 'Courier New', monospace;
-      font-size: 12px;
+      font-size: 13px;
+      font-weight: bold;
       line-height: 1.3;
-      width: 80mm;
+      width: 72mm;
       color: #000;
     }
     .receipt {
-      width: 80mm;
-      padding: 4mm;
+      width: 72mm;
+      padding: 2mm 4mm;
       margin: 0 auto;
     }
     .header {
@@ -555,21 +601,21 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
     }
     .logo {
       display: block;
-      margin: 0 auto 6px;
-      max-width: 160px;
-      max-height: 60px;
+      margin: 0 auto 4mm auto;
+      max-width: 55mm;
+      max-height: 15mm;
       width: auto;
       height: auto;
       object-fit: contain;
     }
     .store-name {
-      font-size: 14px;
+      font-size: 16px;
       font-weight: bold;
-      letter-spacing: 1px;
+      letter-spacing: 2px;
       margin-bottom: 2px;
     }
     .store-info {
-      font-size: 10px;
+      font-size: 11px;
       line-height: 1.4;
     }
     .divider::before {
@@ -607,7 +653,7 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
       height: auto;
     }
     .transaction-info {
-      font-size: 10px;
+      font-size: 11px;
       line-height: 1.5;
       margin: 4px 0;
     }
@@ -619,9 +665,18 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
       margin: 6px 0;
     }
     .sc-details-row {
-      display: flex;
-      justify-content: space-between;
+      display: table;
+      width: 100%;
       margin: 3px 0;
+    }
+    .sc-details-row span:first-child {
+      display: table-cell;
+      width: 55%;
+    }
+    .sc-details-row span:last-child {
+      display: table-cell;
+      width: 45%;
+      text-align: right;
     }
     .sc-amount {
       font-size: 16px;
@@ -636,9 +691,18 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
       font-size: 10px;
     }
     .redemption-row {
-      display: flex;
-      justify-content: space-between;
+      display: table;
+      width: 100%;
       margin: 3px 0;
+    }
+    .redemption-row span:first-child {
+      display: table-cell;
+      width: 60%;
+    }
+    .redemption-row span:last-child {
+      display: table-cell;
+      width: 40%;
+      text-align: right;
     }
     .remaining-balance {
       font-size: 14px;
@@ -650,7 +714,7 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
     }
     .footer {
       text-align: center;
-      font-size: 9px;
+      font-size: 11px;
       margin-top: 6px;
       line-height: 1.5;
     }
@@ -658,22 +722,24 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
       margin: 2px 0;
     }
     @media print {
-      body, .receipt {
-        width: 80mm;
-        margin: 0;
-        padding: 0;
-      }
-      * {
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-      img {
-        max-width: 160px !important;
-        max-height: 60px !important;
-      }
       @page {
         size: 80mm auto;
         margin: 0;
+      }
+      body {
+        width: 72mm;
+        margin: 0;
+        padding: 0;
+      }
+      .receipt {
+        width: 72mm;
+        padding: 2mm 4mm;
+      }
+      img {
+        max-width: 55mm !important;
+        max-height: 15mm !important;
+        display: block !important;
+        margin: 0 auto !important;
       }
     }
   </style>

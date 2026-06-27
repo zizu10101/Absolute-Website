@@ -4,8 +4,23 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 24, 2026)
-**Latest:** Goalkeeper glove sizes + explicit footwear age groups added to admin variant dropdowns (session 18)
+## CURRENT STATUS (Main Branch - June 27, 2026)
+**Latest:** SOLD OUT display, Epson receipt fixes, 2-copy printing, product name truncation (session 19)
+
+**Session 19 improvements:**
+- ✅ `ProductCard.tsx`: Added `isSoldOut?: boolean` prop — greyscale image + `opacity-70` + dark "SOLD OUT" banner at bottom of image when true
+- ✅ `ProductGridPage.tsx`: Added `soldOutProductIds` state + fetch effect — queries `product_variants` for `stock_quantity > 0` per product; passes `isSoldOut` to each `ProductCard`
+- ✅ `ProductDetailPage.tsx`: Added `isSoldOut` flag (`!variantsLoading && product.showSizes && all variants at 0`); replaces size grid with red "SOLD OUT" badge when true; Call to Order CTA still shows
+- ✅ `POSPage.tsx` (`getStockStatus`): Changed "Out of Stock" → "SOLD OUT" with `font-black tracking-widest` styling
+- ✅ `thermalReceipt.ts`: Fixed Epson TM-T88IV CSS — body/receipt width 72mm, padding `2mm 4mm`, logo `55mm × 15mm`, replaced `* { padding: 0 !important }` media-print reset with targeted rules only
+- ✅ `thermalReceipt.ts`: Replaced `display:flex` on item/total rows with `display:table` layout for reliable thermal printer rendering
+- ✅ `thermalReceipt.ts`: Bolder text throughout — body `13px font-weight:bold`, store name `16px`, transaction-info/store-info/footer `11px`, total-row `12px`, grand-total `15px`, item-name `font-weight:bold`
+- ✅ `thermalReceipt.ts`: Added `copies?: 1 | 2` to `ReceiptData` interface — when `copies === 2`, both copies in ONE HTML document separated by `page-break-before: always`
+- ✅ `thermalReceipt.ts`: Barcodes changed from `id="barcode"` → `class="receipt-barcode"`; JsBarcode uses `querySelectorAll` so both copies render correctly
+- ✅ `thermalReceipt.ts`: Added `truncateName(name, maxLength=24)` — product names over 24 chars truncated to fit 72mm paper
+- ✅ `thermalReceipt.ts`: Removed inline `setTimeout(() => window.print(), 100)` from generated HTML — print now triggered by caller via `onload`
+- ✅ `POSPage.tsx` + `PosTransactionHistory.tsx`: All `generateThermalReceiptHTML` callers updated with `printWindow.onload` → 500ms → `focus()` + `print()` + `onafterprint` closes window
+- ✅ Applied to all three receipt functions: `generateThermalReceiptHTML`, `generateGiftReceiptHTML`, `generateStoreCreditReceiptHTML`
 
 **Session 18 improvements:**
 - ✅ `AdminPage.tsx` + `RapidScanIntakeMatrix.tsx`: Added "Gloves" age group with sizes 3–11 (goalkeeper glove sizes)
@@ -187,6 +202,12 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Region filter in `ProductGridPage`: `?region=` query param filters products by that nav submenu's items — used as fallback for old URLs; logo grid hidden when `?region=` present
 ✅ 14 new landing page routes in `App.tsx`: FOOTWEAR (brands/surface/collections), NATIONAL TEAMS (europe/africa/south-america/north-america/others), CLUBS (la-liga/premier-league/ligue-1/serie-a/bundesliga/mls/liga-portugal)
 ✅ Supabase `navigation_items` paths updated for all 14 heading rows — clicks in mega menu now navigate to landing pages instead of going straight to products or going nowhere
+✅ SOLD OUT display: product cards show greyscale + "SOLD OUT" banner; product detail page shows red "SOLD OUT" badge instead of size grid; POS cards show "SOLD OUT" label — all driven by zero-stock variant query
+✅ Epson TM-T88IV receipt CSS: 72mm printable width, `2mm 4mm` padding, logo `55mm × 15mm`, table-layout columns for item/total rows, removed destructive `* { padding: 0 !important }` from @media print
+✅ Receipt typography: body `13px bold`, store name `16px`, transaction-info `11px`, grand-total `15px`, item names bold
+✅ 2-copy thermal receipt: both copies in ONE print window with `page-break-before: always`; class-based barcodes (`.receipt-barcode`) so JsBarcode renders both via `querySelectorAll`
+✅ Product name truncation on receipts: `truncateName(name, 24)` — names over 24 chars get `...` suffix to fit 72mm paper
+✅ Auto-print via `printWindow.onload` (500ms delay + `onafterprint` closes window) — replaced unreliable inline `setTimeout` script
 
 ## COMPLETED FEATURES
 

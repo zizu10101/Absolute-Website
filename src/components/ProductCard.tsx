@@ -4,9 +4,10 @@ import { Product } from '../context/ProductContext';
 
 interface ProductCardProps {
   product: Product;
+  isSoldOut?: boolean;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = false }) => {
   const [isHovered, setIsHovered] = React.useState(false);
   const [activeImage, setActiveImage] = React.useState<string | null>(null);
   const [activeColorIdx, setActiveColorIdx] = React.useState<number | null>(null);
@@ -19,7 +20,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const displayImage = activeImage || (isHovered && hoverImage ? hoverImage : product.image);
 
   return (
-    <div className="bg-white group cursor-pointer border border-zinc-100 relative block">
+    <div className={`bg-white group cursor-pointer border border-zinc-100 relative block${isSoldOut ? ' opacity-70' : ''}`}>
       <Link 
         to={`/product/${product.id}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} 
         className="block"
@@ -38,15 +39,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         )}
         <div className="aspect-[4/5] overflow-hidden bg-white relative flex items-center justify-center">
           {displayImage ? (
-            <img 
-              src={displayImage} 
+            <img
+              src={displayImage}
               alt={`${product.name} Soccer Cleats & Gear - Absolute Soccer Mississauga`}
-              className="w-full h-full object-contain transition-all duration-500 group-hover:scale-105 p-2"
+              className={`w-full h-full object-contain transition-all duration-500 group-hover:scale-105 p-2${isSoldOut ? ' grayscale' : ''}`}
               referrerPolicy="no-referrer"
               loading="lazy"
             />
           ) : (
             <div className="w-full h-full bg-zinc-200" />
+          )}
+          {isSoldOut && (
+            <div className="absolute inset-0 flex items-end justify-center pb-4 pointer-events-none z-10">
+              <span className="bg-zinc-900 text-white px-4 py-1.5 text-[11px] font-black uppercase tracking-widest">
+                SOLD OUT
+              </span>
+            </div>
           )}
         </div>
       </Link>

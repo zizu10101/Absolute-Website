@@ -82,6 +82,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
   const [brands, setBrands] = useState<string[]>([]);
   const [availableSizes, setAvailableSizes] = useState<string[]>([]);
   const [sizeToProductIds, setSizeToProductIds] = useState<Map<string, string[]>>(new Map());
+  const [soldOutProductIds, setSoldOutProductIds] = useState<Set<string>>(new Set());
 
   // Sync local search with URL query on search page
   useEffect(() => {
@@ -222,6 +223,49 @@ export function ProductGridPage({ title, category, submenu }: Props) {
 
     fetchSizes();
   }, [category, products.length, isLoading]);
+
+  // Fetch which show_sizes products have zero stock
+  useEffect(() => {
+    if (isLoading || products.length === 0) return;
+
+    const showSizesIds = products
+      .filter(p => p.showSizes && p.is_online !== false)
+      .map(p => p.id);
+
+    if (showSizesIds.length === 0) {
+      setSoldOutProductIds(new Set());
+      return;
+    }
+
+    const fetchSoldOut = async () => {
+      const inStockIds = new Set<string>();
+      const CHUNK = 200;
+
+      for (let i = 0; i < showSizesIds.length; i += CHUNK) {
+        const chunk = showSizesIds.slice(i, i + CHUNK);
+        let from = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data } = await supabase
+            .from('product_variants')
+            .select('product_id')
+            .in('product_id', chunk)
+            .gt('stock_quantity', 0)
+            .range(from, from + 999);
+
+          if (!data || data.length === 0) { hasMore = false; break; }
+          for (const { product_id } of data) inStockIds.add(product_id);
+          hasMore = data.length === 1000;
+          from += 1000;
+        }
+      }
+
+      setSoldOutProductIds(new Set(showSizesIds.filter(id => !inStockIds.has(id))));
+    };
+
+    fetchSoldOut();
+  }, [products.length, isLoading]);
 
   const filteredProducts = useMemo(() => {
     let filtered = [...products];
@@ -631,7 +675,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: (idx % ITEMS_PER_PAGE) * 0.05 }}
                   >
-                    <ProductCard product={product} />
+                    <ProductCard product={product} isSoldOut={soldOutProductIds.has(product.id)} />
                   </motion.div>
                 ))}
               </AnimatePresence>

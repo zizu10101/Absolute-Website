@@ -428,7 +428,7 @@ export function POSPage() {
   const getStockStatus = (productId: string): { text: string; color: string; isDisabled: boolean } => {
     const stock = getTotalStock(productId);
     if (stock === 0) {
-      return { text: 'Out of Stock', color: 'text-red-500', isDisabled: true };
+      return { text: 'SOLD OUT', color: 'text-red-500 font-black tracking-widest', isDisabled: true };
     }
     if (stock <= 3) {
       return { text: `Only ${stock} left!`, color: 'text-amber-500', isDisabled: false };
@@ -1043,6 +1043,15 @@ export function POSPage() {
     if (printWindow) {
       printWindow.document.write(receiptHtml);
       printWindow.document.close();
+      printWindow.onload = function() {
+        setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+          printWindow.onafterprint = function() {
+            printWindow.close();
+          };
+        }, 500);
+      };
     }
   };
 

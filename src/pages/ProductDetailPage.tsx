@@ -282,6 +282,8 @@ export function ProductDetailPage() {
   const isStockDefined = variants.length > 0;
   const currentStock = activeVariant ? (activeVariant.stock_quantity ?? 0) : null;
   const isOutOfStock = currentStock !== null && currentStock <= 0;
+  const isSoldOut = !variantsLoading && product.showSizes &&
+    (variants.length === 0 || variants.every((v: any) => (v.stock_quantity ?? 0) === 0));
 
   // Render stock alert
   const renderStockStatus = () => {
@@ -497,52 +499,63 @@ export function ProductDetailPage() {
                 </div>
               ) : (
                 <>
-                  {/* Dynamic Size Picker Grid (Disables SOLD OUT size variants) */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Select Size</span>
-                      {renderStockStatus()}
+                  {isSoldOut ? (
+                    <div className="my-6 space-y-3">
+                      <div className="inline-flex items-center bg-red-600 text-white px-5 py-3 font-black uppercase tracking-widest text-base">
+                        SOLD OUT
+                      </div>
+                      <p className="text-xs text-zinc-500 uppercase tracking-widest">
+                        This product is currently out of stock
+                      </p>
                     </div>
-                    
-                    <div className="grid grid-cols-4 gap-3">
-                      {displayedSizesList.map((size) => {
-                        const isItemOutOfStock = variants.length > 0
-                          ? (() => {
-                              const optVariant = variants.find((v: any) =>
-                                (!selectedAgeGroup || v.age_group === selectedAgeGroup) &&
-                                v.size === size &&
-                                (!selectedColor || !v.color || v.color === selectedColor)
-                              );
-                              return optVariant ? (optVariant.stock_quantity ?? 0) <= 0 : true;
-                            })()
-                          : true;
+                  ) : (
+                    /* Dynamic Size Picker Grid (Disables SOLD OUT size variants) */
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Select Size</span>
+                        {renderStockStatus()}
+                      </div>
 
-                        const isSelected = selectedSize === size;
+                      <div className="grid grid-cols-4 gap-3">
+                        {displayedSizesList.map((size) => {
+                          const isItemOutOfStock = variants.length > 0
+                            ? (() => {
+                                const optVariant = variants.find((v: any) =>
+                                  (!selectedAgeGroup || v.age_group === selectedAgeGroup) &&
+                                  v.size === size &&
+                                  (!selectedColor || !v.color || v.color === selectedColor)
+                                );
+                                return optVariant ? (optVariant.stock_quantity ?? 0) <= 0 : true;
+                              })()
+                            : true;
 
-                        return (
-                          <button
-                            key={size}
-                            disabled={isItemOutOfStock}
-                            onClick={() => setSelectedSize(isSelected ? null : size)}
-                            className={`h-12 flex flex-col justify-center items-center border transition-all relative rounded-lg ${
-                              isItemOutOfStock
-                                ? 'border-zinc-200 text-zinc-400 cursor-not-allowed bg-zinc-50'
-                                : isSelected
-                                  ? 'border-2 border-zinc-900 bg-zinc-900 text-white font-extrabold shadow-sm'
-                                  : 'border-zinc-300 text-zinc-900 hover:border-zinc-900 font-bold bg-white'
-                            }`}
-                          >
-                            <span className={`text-xs tracking-wider ${isItemOutOfStock ? 'font-medium line-through decoration-zinc-400' : 'font-black'}`}>{size}</span>
-                            {isItemOutOfStock && (
-                              <svg className="absolute inset-0 w-full h-full text-zinc-300 pointer-events-none" preserveAspectRatio="none">
-                                <line x1="0" y1="100%" x2="100%" y2="0" stroke="currentColor" strokeWidth="1.5" />
-                              </svg>
-                            )}
-                          </button>
-                        );
-                      })}
+                          const isSelected = selectedSize === size;
+
+                          return (
+                            <button
+                              key={size}
+                              disabled={isItemOutOfStock}
+                              onClick={() => setSelectedSize(isSelected ? null : size)}
+                              className={`h-12 flex flex-col justify-center items-center border transition-all relative rounded-lg ${
+                                isItemOutOfStock
+                                  ? 'border-zinc-200 text-zinc-400 cursor-not-allowed bg-zinc-50'
+                                  : isSelected
+                                    ? 'border-2 border-zinc-900 bg-zinc-900 text-white font-extrabold shadow-sm'
+                                    : 'border-zinc-300 text-zinc-900 hover:border-zinc-900 font-bold bg-white'
+                              }`}
+                            >
+                              <span className={`text-xs tracking-wider ${isItemOutOfStock ? 'font-medium line-through decoration-zinc-400' : 'font-black'}`}>{size}</span>
+                              {isItemOutOfStock && (
+                                <svg className="absolute inset-0 w-full h-full text-zinc-300 pointer-events-none" preserveAspectRatio="none">
+                                  <line x1="0" y1="100%" x2="100%" y2="0" stroke="currentColor" strokeWidth="1.5" />
+                                </svg>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Call to Order CTA */}
                   <div className="my-6 rounded-xl border-2 border-[#b90014] bg-[#0d0d0d] p-6 text-center shadow-lg shadow-red-900/20">

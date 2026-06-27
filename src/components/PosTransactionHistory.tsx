@@ -186,6 +186,13 @@ export const PosTransactionHistory: React.FC = () => {
     if (!win) return;
     win.document.write(html);
     win.document.close();
+    win.onload = function() {
+      setTimeout(() => {
+        win.focus();
+        win.print();
+        win.onafterprint = function() { win.close(); };
+      }, 500);
+    };
   };
 
   // Reprint receipt from transaction data (copies: 1 = customer only, 2 = customer + merchant)
@@ -237,6 +244,13 @@ export const PosTransactionHistory: React.FC = () => {
       if (!win) return;
       win.document.write(html);
       win.document.close();
+      win.onload = function() {
+        setTimeout(() => {
+          win.focus();
+          win.print();
+          win.onafterprint = function() { win.close(); };
+        }, 500);
+      };
     } catch (e: any) {
       console.error('Reprint error:', e);
       flash('Error reprinting receipt', true);
