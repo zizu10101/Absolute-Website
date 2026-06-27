@@ -20,7 +20,7 @@ import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../supabase';
 import { mapProductFromDb } from '../context/ProductContext';
 import { generateThermalReceiptHTML, generateGiftReceiptHTML } from '../utils/thermalReceipt';
-import { printReceiptQZ } from '../utils/qzPrint';
+import { printReceiptQZ, testQZConnection } from '../utils/qzPrint';
 
 type CategoryTab = 'ALL' | 'FOOTWEAR' | 'KITS' | 'BALLS' | 'EQUIPMENT' | 'TEAMWEAR' | 'GLOVES';
 
@@ -162,6 +162,12 @@ export function POSPage() {
     if (stored === 'true') {
       setIsAuthenticated(true);
     }
+  }, []);
+
+  // Test QZ Tray connection on mount
+  useEffect(() => {
+    console.log('🔍 Testing QZ Tray connection on POS page load...');
+    testQZConnection();
   }, []);
 
   // Save preferences
