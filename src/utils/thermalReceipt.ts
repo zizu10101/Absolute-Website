@@ -143,8 +143,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
   `;
 
   const bodyHTML = copies === 2
-    ? `<div class="receipt">${receiptContent}</div>
-       <div style="page-break-before: always;"></div>
+    ? `<div class="receipt" style="page-break-after: always;">${receiptContent}</div>
        <div class="receipt">${receiptContent}</div>`
     : `<div class="receipt">${receiptContent}</div>`;
 
@@ -285,6 +284,12 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       .receipt {
         width: 72mm;
         padding: 2mm 4mm;
+        page-break-inside: avoid;
+      }
+      .receipt[style*="page-break-after"] {
+        page-break-after: always;
+        -webkit-page-break-after: always;
+        break-after: page;
       }
       img {
         max-width: 55mm !important;

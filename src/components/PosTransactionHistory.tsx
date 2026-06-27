@@ -182,7 +182,7 @@ export const PosTransactionHistory: React.FC = () => {
       logoUrl: logo,
     });
 
-    const win = window.open('', '_blank');
+    const win = window.open('', '_blank', 'width=1,height=1,left=-1000,top=-1000');
     if (!win) return;
     win.document.write(html);
     win.document.close();
@@ -240,7 +240,7 @@ export const PosTransactionHistory: React.FC = () => {
         copies,
       });
 
-      const win = window.open('', '_blank');
+      const win = window.open('', '_blank', 'width=1,height=1,left=-1000,top=-1000');
       if (!win) return;
       win.document.write(html);
       win.document.close();
@@ -289,10 +289,17 @@ export const PosTransactionHistory: React.FC = () => {
       logoUrl: logo,
     });
 
-    const win = window.open('', '_blank');
+    const win = window.open('', '_blank', 'width=1,height=1,left=-1000,top=-1000');
     if (!win) return;
     win.document.write(html);
     win.document.close();
+    win.onload = function() {
+      setTimeout(() => {
+        win.focus();
+        win.print();
+        win.onafterprint = function() { win.close(); };
+      }, 500);
+    };
     setGiftTx(null);
   };
 

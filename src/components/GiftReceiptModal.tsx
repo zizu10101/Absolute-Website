@@ -73,10 +73,19 @@ export const GiftReceiptModal: React.FC<GiftReceiptModalProps> = ({
       logoUrl,
     });
 
-    const printWindow = window.open('', '', 'width=800,height=600');
+    const printWindow = window.open('', '_blank', 'width=1,height=1,left=-1000,top=-1000');
     if (printWindow) {
       printWindow.document.write(receiptHtml);
       printWindow.document.close();
+      printWindow.onload = function() {
+        setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+          printWindow.onafterprint = function() {
+            printWindow.close();
+          };
+        }, 500);
+      };
     }
 
     onClose();
