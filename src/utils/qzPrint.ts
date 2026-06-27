@@ -27,9 +27,10 @@ export const connectQZ = async (): Promise<void> => {
 
   await qz.websocket.connect();
 
-  // Wait for connection to stabilize before sending print jobs
-  // Fixes race condition where print jobs sent too quickly fail
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  // Wait for connection to fully stabilize
+  // Increases timeout to ensure sendData is available
+  // and websocket is truly ready for print jobs
+  await new Promise(resolve => setTimeout(resolve, 2500));
 };
 
 /**
