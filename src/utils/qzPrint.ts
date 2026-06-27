@@ -59,7 +59,7 @@ export const printReceiptQZ = async (
 ): Promise<void> => {
   await connectQZ();
 
-  const config = qz.configs.create('EPSON TM-T88V Receipt(1)', {
+  const config = qz.configs.create('EPSON TM-T88V Receipt (1)', {
     scaleContent: false,
     colorType: 'blackwhite',
     margins: { top: 0, right: 0, bottom: 0, left: 0 },
