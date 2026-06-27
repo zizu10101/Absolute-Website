@@ -20,6 +20,7 @@ import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../supabase';
 import { mapProductFromDb } from '../context/ProductContext';
 import { generateThermalReceiptHTML, generateGiftReceiptHTML } from '../utils/thermalReceipt';
+import { printReceiptQZ } from '../utils/qzPrint';
 
 type CategoryTab = 'ALL' | 'FOOTWEAR' | 'KITS' | 'BALLS' | 'EQUIPMENT' | 'TEAMWEAR' | 'GLOVES';
 
@@ -1019,7 +1020,7 @@ export function POSPage() {
   };
 
   // Print thermal receipt (copies: 1 = customer only, 2 = customer + merchant)
-  const handlePrintReceipt = (copies: 1 | 2 = 1) => {
+  const handlePrintReceipt = async (copies: 1 | 2 = 1) => {
     if (!receipt) return;
 
     const barcodeValue = receipt.storeCreditCardNumber || receipt.invoiceNumber || receipt.transactionId || 'N/A';
@@ -1039,19 +1040,26 @@ export function POSPage() {
       copies,
     });
 
-    const printWindow = window.open('', '_blank', 'width=300,height=600');
-    if (printWindow) {
-      printWindow.document.write(receiptHtml);
-      printWindow.document.close();
-      printWindow.onload = function() {
-        setTimeout(() => {
-          printWindow.focus();
-          printWindow.print();
-          printWindow.onafterprint = function() {
-            printWindow.close();
-          };
-        }, 500);
-      };
+    try {
+      // Try QZ Tray first (silent printing)
+      await printReceiptQZ(receiptHtml, copies);
+    } catch (err) {
+      console.error('QZ Tray error - falling back to browser print:', err);
+      // Fallback to browser print if QZ Tray not running
+      const printWindow = window.open('', '_blank', 'width=300,height=600');
+      if (printWindow) {
+        printWindow.document.write(receiptHtml);
+        printWindow.document.close();
+        printWindow.onload = function() {
+          setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+            printWindow.onafterprint = function() {
+              printWindow.close();
+            };
+          }, 500);
+        };
+      }
     }
   };
 
