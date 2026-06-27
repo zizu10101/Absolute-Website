@@ -5,7 +5,26 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 27, 2026)
-**Latest:** SOLD OUT display, Epson receipt fixes, 2-copy printing, product name truncation (session 19)
+**Latest:** QZ Tray silent printing integration, improved page breaks, certificate bypass for local development (session 20)
+
+**Session 20 improvements (QZ Tray Silent Printing):**
+- ✅ `npm install qz-tray` — QZ Tray v2.2.4 library installed for direct thermal printer communication
+- ✅ `index.html`: Added QZ Tray CDN script `<script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>` before `</body>`
+- ✅ `src/utils/qzPrint.ts`: Created new utility file with QZ Tray functions:
+  - `connectQZ()` — Connects to QZ Tray websocket on localhost:8182 with 2.5s stabilization delay
+  - `setCertificatePromise()` + `setSignatureAlgorithm()` + `setSignaturePromise()` — Bypasses certificate requirement for local development
+  - `printReceiptQZ(html, copies)` — Sends print jobs to `EPSON TM-T88V Receipt (1)` with ESC/POS auto-cut commands
+  - `testQZConnection()` — Tests connection and lists available printers for debugging
+- ✅ `src/pages/POSPage.tsx`: Updated `handlePrintReceipt()` to use QZ Tray with fallback to browser print
+  - Tries `printReceiptQZ()` first for silent printing
+  - Catches error and falls back to `window.open()` browser print if QZ Tray unavailable
+  - Supports 1-copy and 2-copy printing with auto-cut
+- ✅ `src/pages/POSPage.tsx`: Added `useEffect` on mount to test QZ Tray connection and log available printers
+- ✅ Printer name: `'EPSON TM-T88V Receipt (1)'` — exact Windows format with space before parenthesis
+- ✅ ESC/POS cut command: `\x1B\x69` — triggers auto-cut after each receipt copy
+- ✅ Connection stabilization: 2.5 second delay after `websocket.connect()` ensures `sendData()` is available
+- ⚠️ **Status:** QZ Tray connects successfully on second attempt; first print still falls back to browser dialog (timing/config issue under investigation)
+- 🔍 **Next:** Debug why `qz.print()` is throwing error and falling back to browser print despite successful connection
 
 **Session 19 improvements:**
 - ✅ `ProductCard.tsx`: Added `isSoldOut?: boolean` prop — greyscale image + `opacity-70` + dark "SOLD OUT" banner at bottom of image when true
