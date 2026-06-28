@@ -4,27 +4,24 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 27, 2026)
-**Latest:** QZ Tray silent printing integration, improved page breaks, certificate bypass for local development (session 20)
+## CURRENT STATUS (Main Branch - June 28, 2026)
+**Latest:** QZ Tray uninstalled, cash drawer button added with browser print ESC/POS (session 21)
 
-**Session 20 improvements (QZ Tray Silent Printing):**
-- ✅ `npm install qz-tray` — QZ Tray v2.2.4 library installed for direct thermal printer communication
-- ✅ `index.html`: Added QZ Tray CDN script `<script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>` before `</body>`
-- ✅ `src/utils/qzPrint.ts`: Created new utility file with QZ Tray functions:
-  - `connectQZ()` — Connects to QZ Tray websocket on localhost:8182 with 2.5s stabilization delay
-  - `setCertificatePromise()` + `setSignatureAlgorithm()` + `setSignaturePromise()` — Bypasses certificate requirement for local development
-  - `printReceiptQZ(html, copies)` — Sends print jobs to `EPSON TM-T88V Receipt (1)` with ESC/POS auto-cut commands
-  - `testQZConnection()` — Tests connection and lists available printers for debugging
-- ✅ `src/pages/POSPage.tsx`: Updated `handlePrintReceipt()` to use QZ Tray with fallback to browser print
-  - Tries `printReceiptQZ()` first for silent printing
-  - Catches error and falls back to `window.open()` browser print if QZ Tray unavailable
-  - Supports 1-copy and 2-copy printing with auto-cut
-- ✅ `src/pages/POSPage.tsx`: Added `useEffect` on mount to test QZ Tray connection and log available printers
-- ✅ Printer name: `'EPSON TM-T88V Receipt (1)'` — exact Windows format with space before parenthesis
-- ✅ ESC/POS cut command: `\x1B\x69` — triggers auto-cut after each receipt copy
-- ✅ Connection stabilization: 2.5 second delay after `websocket.connect()` ensures `sendData()` is available
-- ⚠️ **Status:** QZ Tray connects successfully on second attempt; first print still falls back to browser dialog (timing/config issue under investigation)
-- 🔍 **Next:** Debug why `qz.print()` is throwing error and falling back to browser print despite successful connection
+**Session 21 improvements (Cash Drawer & QZ Tray Removal):**
+- ✅ Removed QZ Tray implementation entirely (uninstalled npm package, deleted integration files)
+- ✅ Deleted `src/utils/qzPrint.ts` (QZ Tray utility functions)
+- ✅ Removed QZ Tray CDN script from `index.html`
+- ✅ Removed `testQZConnection()` call from POS mount effect
+- ✅ Reverted thermal receipt printing to browser `window.open()` fallback only
+- ✅ Added "Open Drawer" button to POS home page action button row (after Returns button)
+- ✅ `openCashDrawer()` function uses browser print with ESC/POS drawer command
+  - Creates invisible 80mm print window (matches Epson thermal printer width)
+  - Sends drawer open command via print dialog
+  - Auto-closes after print dialog closes
+  - Button positioned in Register tab action buttons (beside History/Returns)
+- ✅ Cash drawer button styling: DollarSign icon (yellow), "Open Drawer" label
+- ✅ No external dependencies needed (pure browser printing)
+- ✅ **Status:** All thermal receipt printing now uses browser print dialog; cash drawer opens via printer's built-in print handler
 
 **Session 19 improvements:**
 - ✅ `ProductCard.tsx`: Added `isSoldOut?: boolean` prop — greyscale image + `opacity-70` + dark "SOLD OUT" banner at bottom of image when true
@@ -259,6 +256,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
   * Entry points: History tab Refund button (PosTransactionHistory) and Void/Refund panel (POSPage)
   * Both offer: Issue Store Credit OR Refund to Original Payment (Cash/Visa/MC/Debit/Amex)
 - Reports: EOD, Sales, Products, GC, Void/Refund, Customer, SC (Eastern timezone)
+- Cash drawer open button: "Open Drawer" button in action button row; sends ESC/POS command via browser print dialog
 
 **Admin Panel (/admin):**
 - Product CRUD with variants (size, barcode, stock, color)
