@@ -590,6 +590,37 @@ export function POSPage() {
     );
   }, [safeCustomers, customerSearchTerm]);
 
+  // Open cash drawer via ESC/POS command through browser print
+  const openCashDrawer = () => {
+    const drawerHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          body { margin: 0; padding: 0; }
+        </style>
+      </head>
+      <body>
+        <script>
+          window.onload = function() {
+            window.print()
+            window.onafterprint = function() {
+              window.close()
+            }
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank', 'width=1,height=1,left=-2000,top=-2000');
+    if (printWindow) {
+      printWindow.document.write(drawerHTML);
+      printWindow.document.close();
+    }
+  };
+
   // Checkout handler
   const handleConfirmSale = async (method: string) => {
     // For cash, show calculator instead of confirming immediately
@@ -1320,6 +1351,16 @@ export function POSPage() {
               >
                 <RotateCcw size={16} className="text-orange-400" />
                 <span className="text-xs font-semibold text-white leading-none">Returns</span>
+              </button>
+
+              {/* Open Cash Drawer */}
+              <button
+                onClick={openCashDrawer}
+                className="bg-[#1e2d45] hover:bg-[#2a3954] rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14"
+                title="Open cash drawer"
+              >
+                <DollarSign size={16} className="text-yellow-500" />
+                <span className="text-xs font-semibold text-white leading-none">Open Drawer</span>
               </button>
 
               {/* Clear Cart */}
