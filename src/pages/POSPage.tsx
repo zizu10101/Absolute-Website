@@ -20,7 +20,6 @@ import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../supabase';
 import { mapProductFromDb } from '../context/ProductContext';
 import { generateThermalReceiptHTML, generateGiftReceiptHTML } from '../utils/thermalReceipt';
-import { printReceiptQZ, testQZConnection } from '../utils/qzPrint';
 
 type CategoryTab = 'ALL' | 'FOOTWEAR' | 'KITS' | 'BALLS' | 'EQUIPMENT' | 'TEAMWEAR' | 'GLOVES';
 
@@ -162,12 +161,6 @@ export function POSPage() {
     if (stored === 'true') {
       setIsAuthenticated(true);
     }
-  }, []);
-
-  // Test QZ Tray connection on mount
-  useEffect(() => {
-    console.log('🔍 Testing QZ Tray connection on POS page load...');
-    testQZConnection();
   }, []);
 
   // Save preferences
@@ -1046,26 +1039,20 @@ export function POSPage() {
       copies,
     });
 
-    try {
-      // Try QZ Tray first (silent printing)
-      await printReceiptQZ(receiptHtml, copies);
-    } catch (err) {
-      console.error('QZ Tray error - falling back to browser print:', err);
-      // Fallback to browser print if QZ Tray not running
-      const printWindow = window.open('', '_blank', 'width=300,height=600');
-      if (printWindow) {
-        printWindow.document.write(receiptHtml);
-        printWindow.document.close();
-        printWindow.onload = function() {
-          setTimeout(() => {
-            printWindow.focus();
-            printWindow.print();
-            printWindow.onafterprint = function() {
-              printWindow.close();
-            };
-          }, 500);
-        };
-      }
+    // Browser print dialog
+    const printWindow = window.open('', '_blank', 'width=300,height=600');
+    if (printWindow) {
+      printWindow.document.write(receiptHtml);
+      printWindow.document.close();
+      printWindow.onload = function() {
+        setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+          printWindow.onafterprint = function() {
+            printWindow.close();
+          };
+        }, 500);
+      };
     }
   };
 
