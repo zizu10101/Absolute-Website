@@ -143,7 +143,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
   `;
 
   const bodyHTML = copies === 2
-    ? `<div class="receipt" style="page-break-after: always;">${receiptContent}</div>
+    ? `<div class="receipt" style="page-break-after: always; break-after: page;">${receiptContent}</div>
        <div class="receipt">${receiptContent}</div>`
     : `<div class="receipt">${receiptContent}</div>`;
 

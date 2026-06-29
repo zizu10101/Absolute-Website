@@ -590,34 +590,49 @@ export function POSPage() {
     );
   }, [safeCustomers, customerSearchTerm]);
 
-  // Open cash drawer via ESC/POS command through browser print
+  // Open cash drawer via zero-space ghost canvas
   const openCashDrawer = () => {
-    const drawerHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          @page { size: 80mm auto; margin: 0; }
-          body { margin: 0; padding: 0; }
-        </style>
-      </head>
-      <body>
-        <script>
-          window.onload = function() {
-            window.print()
-            window.onafterprint = function() {
-              window.close()
-            }
-          }
-        </script>
-      </body>
-      </html>
-    `;
+    const drawerHTML = `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    @page {
+      size: 80mm auto;
+      margin: 0mm !important;
+    }
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      height: 0px !important;
+      line-height: 0 !important;
+      font-size: 0px !important;
+      overflow: hidden;
+      background-color: transparent;
+    }
+    .zero-space {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 0px;
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="zero-space"></div>
+</body>
+</html>`;
 
-    const printWindow = window.open('', '_blank', 'width=1,height=1,left=-2000,top=-2000');
-    if (printWindow) {
-      printWindow.document.write(drawerHTML);
-      printWindow.document.close();
+    const win = window.open('', '_blank', 'width=1,height=1,left=-2000,top=-2000');
+    if (win) {
+      win.document.write(drawerHTML);
+      win.document.close();
+      win.onload = function() {
+        win.print();
+        win.onafterprint = function() { win.close(); };
+      };
     }
   };
 

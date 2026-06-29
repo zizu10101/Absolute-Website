@@ -4,8 +4,30 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 28, 2026)
-**Latest:** QZ Tray uninstalled, cash drawer button added with browser print ESC/POS (session 21)
+## CURRENT STATUS (Main Branch - June 29, 2026)
+**Latest:** Zero-space ghost canvas cash drawer solution, page-break fixes for 2-copy receipts (session 22)
+
+**Session 22 improvements (Cash Drawer Zero-Space & Receipt Printing Fixes):**
+- ✅ `POSPage.tsx` `openCashDrawer()`: Updated to zero-space ghost canvas solution
+  - Sends completely invisible print document (zero height, zero font-size, transparent)
+  - Uses printer's built-in "Start of Document" drawer kick (no special characters needed)
+  - Works with any Epson printer supporting ESC/POS
+  - Zero paper feed (document completely invisible)
+  - More reliable than Control font character approach
+- ✅ `thermalReceipt.ts`: Fixed auto-cut between 2-copy receipts
+  - Added `break-after: page;` CSS rule to force cuts on Epson TM-T88V
+  - Page-break structure: first receipt has `page-break-after: always; break-after: page;`
+  - @page rule set to `size: 80mm auto; margin: 0;` for proper thermal printer formatting
+  - Both legacy (`page-break-after`) and modern (`break-after`) CSS properties included
+- ✅ Created `PRINTER_SETUP.md`: Comprehensive guide for Epson driver configuration
+  - Settings required: "Start of Document" = "OPEN"
+  - Step-by-step instructions for Windows Settings, Epson Utility, Control Panel approaches
+  - Troubleshooting section for common issues
+- ✅ Created `ZERO_SPACE_SOLUTION.md`: Technical documentation for zero-space ghost canvas method
+  - How it works: invisible document triggers printer's native drawer kick
+  - Advantages over previous Control font approach
+  - Configuration checklist and deployment status
+- ✅ **Status:** Cash drawer now uses universal zero-space solution; 2-copy receipts have proper page-break cuts
 
 **Session 21 improvements (Cash Drawer & QZ Tray Removal):**
 - ✅ Removed QZ Tray implementation entirely (uninstalled npm package, deleted integration files)
@@ -256,7 +278,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
   * Entry points: History tab Refund button (PosTransactionHistory) and Void/Refund panel (POSPage)
   * Both offer: Issue Store Credit OR Refund to Original Payment (Cash/Visa/MC/Debit/Amex)
 - Reports: EOD, Sales, Products, GC, Void/Refund, Customer, SC (Eastern timezone)
-- Cash drawer open button: "Open Drawer" button in action button row; sends ESC/POS command via browser print dialog
+- Cash drawer open button: "Open Drawer" button in action button row; uses zero-space ghost canvas (invisible print document) to trigger printer's "Start of Document" drawer kick
 
 **Admin Panel (/admin):**
 - Product CRUD with variants (size, barcode, stock, color)
