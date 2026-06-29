@@ -590,7 +590,7 @@ export function POSPage() {
     );
   }, [safeCustomers, customerSearchTerm]);
 
-  // Open cash drawer via zero-space ghost canvas
+  // Open cash drawer via EpsonControl font
   const openCashDrawer = () => {
     const drawerHTML = `<!DOCTYPE html>
 <html>
@@ -598,30 +598,32 @@ export function POSPage() {
   <style>
     @page {
       size: 80mm auto;
-      margin: 0mm !important;
+      margin: 0 !important;
     }
     html, body {
-      margin: 0 !important;
-      padding: 0 !important;
-      height: 0px !important;
-      line-height: 0 !important;
-      font-size: 0px !important;
-      overflow: hidden;
-      background-color: transparent;
-    }
-    .zero-space {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 0px;
       margin: 0;
       padding: 0;
+      height: 0px;
+      overflow: hidden;
+    }
+    @font-face {
+      font-family: 'EpsonControl';
+      src: local('Control');
+    }
+    .drawer-kick-container {
+      display: block !important;
+      font-family: 'EpsonControl', 'Control', monospace !important;
+      font-size: 10pt !important;
+      line-height: 0px !important;
+      height: 0px !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      visibility: visible !important;
     }
   </style>
 </head>
 <body>
-  <div class="zero-space"></div>
+  <div class="drawer-kick-container">A</div>
 </body>
 </html>`;
 
