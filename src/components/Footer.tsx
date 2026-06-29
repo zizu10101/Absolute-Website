@@ -81,6 +81,9 @@ export function Footer() {
       </div>
       <div className="max-w-7xl mx-auto px-8 pt-3 text-center">
         <p className="text-zinc-700 text-[10px]">Absolute Soccer Mississauga (formerly Golazo Store)</p>
+        <p className="text-zinc-500 text-xs leading-relaxed max-w-2xl mx-auto text-center mt-3">
+          Absolute Soccer is the premier destination for elite performance footwear, official jerseys, and professional team uniform engineering across the Greater Toronto Area. Whether you are training with a club in Brampton, looking for premium firm-ground boots in Oakville, ordering custom-printed squad kits in Milton, or hitting an indoor turf league in Etobicoke, we provide rapid local shipping and expert team gear sizing directly to your doorstep. Visit our flagship showroom in Mississauga.
+        </p>
       </div>
     </footer>
   );

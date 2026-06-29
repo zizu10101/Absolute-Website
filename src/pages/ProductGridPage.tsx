@@ -525,6 +525,18 @@ export function ProductGridPage({ title, category, submenu }: Props) {
         </div>
       </div>
 
+      {/* Local SEO description — Footwear and National Teams category pages only */}
+      {category?.toUpperCase() === 'FOOTWEAR' && !submenu && (
+        <p className="text-zinc-500 text-xs leading-relaxed mb-6">
+          Shop the latest Nike, Adidas and Puma soccer cleats at Absolute Soccer in Mississauga. Serving players across Brampton, Oakville, Toronto, Etobicoke and the GTA.
+        </p>
+      )}
+      {category?.toUpperCase() === 'NATIONAL TEAMS' && !submenu && (
+        <p className="text-zinc-500 text-xs leading-relaxed mb-6">
+          Official licensed national team jerseys at Absolute Soccer Mississauga. Shop Canada, Portugal, France, Argentina and more. Serving the GTA including Brampton, Oakville and Toronto.
+        </p>
+      )}
+
       {/* Active filter tags */}
       {shouldShowGrid && hasActiveFilters && (
         <div className="flex flex-wrap gap-2 mb-6">
