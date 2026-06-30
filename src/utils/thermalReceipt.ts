@@ -174,6 +174,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       line-height: 1.5;
       width: 72mm;
       color: #000;
+      font-weight: 600;
     }
     .receipt {
       width: 72mm;
@@ -197,13 +198,13 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     }
     .store-name {
       font-size: 17px;
-      font-weight: bold;
+      font-weight: 700;
       letter-spacing: 1.5px;
       margin: 2px 0 4px 0;
     }
     .store-info {
       font-size: 10px;
-      font-weight: normal;
+      font-weight: 600;
       color: #1a1a1a;
       line-height: 1.3;
       margin-bottom: 4px;
@@ -216,7 +217,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     /* Reprint Header */
     .reprint-header {
       text-align: center;
-      font-weight: bold;
+      font-weight: 700;
       font-size: 11px;
       margin: 4px 0;
       letter-spacing: 1px;
@@ -233,7 +234,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     .transaction-info {
       font-size: 10px;
       margin: 6px 0;
-      font-weight: normal;
+      font-weight: 600;
     }
     .tx-row {
       display: flex;
@@ -242,10 +243,11 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       line-height: 1.3;
     }
     .tx-label {
-      font-weight: bold;
+      font-weight: 700;
     }
     .tx-value {
       text-align: right;
+      font-weight: 600;
     }
 
     /* Barcode */
@@ -261,7 +263,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     /* Section Header */
     .section-header {
       font-size: 11px;
-      font-weight: bold;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1px;
       margin: 6px 0 4px 0;
@@ -270,7 +272,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     /* Items Section */
     .items-section {
       margin: 4px 0;
-      font-weight: normal;
+      font-weight: 600;
     }
     .item {
       margin-bottom: 8px;
@@ -281,12 +283,12 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       margin-bottom: 1px;
     }
     .item-name {
-      font-weight: bold;
+      font-weight: 600;
       font-size: 12px;
       flex: 1;
     }
     .item-price {
-      font-weight: bold;
+      font-weight: 700;
       font-size: 12px;
       text-align: right;
       white-space: nowrap;
@@ -294,13 +296,13 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     }
     .item-details {
       font-size: 10px;
-      font-weight: normal;
+      font-weight: 500;
       color: #1a1a1a;
       margin: 1px 0 1px 2px;
     }
     .item-qty {
       font-size: 10px;
-      font-weight: normal;
+      font-weight: 500;
       color: #1a1a1a;
       margin: 1px 0 0 2px;
     }
@@ -308,7 +310,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     /* Totals */
     .totals {
       margin: 6px 0;
-      font-weight: normal;
+      font-weight: 600;
       font-size: 11px;
     }
     .total-row {
@@ -319,15 +321,16 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     }
     .total-label {
       flex: 1;
+      font-weight: 600;
     }
     .total-value {
       text-align: right;
-      font-weight: bold;
+      font-weight: 700;
       min-width: 45px;
     }
     .total-row.grand-total {
       font-size: 14px;
-      font-weight: bold;
+      font-weight: 700;
       margin: 4px 0 0 0;
       padding: 4px 0;
       border-top: 2px double #000;
@@ -336,6 +339,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     .grand-total .total-label {
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      font-weight: 700;
     }
 
     /* Footer */
@@ -343,17 +347,18 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       text-align: center;
       font-size: 10px;
       margin-top: 6px;
-      font-weight: normal;
+      font-weight: 600;
     }
     .footer-message {
-      font-style: italic;
       margin-bottom: 3px;
       letter-spacing: 0.5px;
+      font-weight: 600;
     }
     .footer-social {
       font-size: 9px;
       color: #1a1a1a;
       margin: 1px 0;
+      font-weight: 500;
     }
     .footer-status {
       font-weight: bold;
@@ -481,6 +486,7 @@ export const generateGiftReceiptHTML = (data: {
       line-height: 1.5;
       width: 72mm;
       color: #000;
+      font-weight: 600;
     }
     .receipt {
       width: 72mm;
@@ -504,13 +510,13 @@ export const generateGiftReceiptHTML = (data: {
     }
     .store-name {
       font-size: 17px;
-      font-weight: bold;
+      font-weight: 700;
       letter-spacing: 1.5px;
       margin: 2px 0 3px 0;
     }
     .store-info {
       font-size: 10px;
-      font-weight: normal;
+      font-weight: 600;
       color: #1a1a1a;
       line-height: 1.3;
     }
@@ -530,7 +536,7 @@ export const generateGiftReceiptHTML = (data: {
     .gift-header {
       text-align: center;
       font-size: 13px;
-      font-weight: bold;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1.5px;
       margin: 6px 0;
@@ -551,7 +557,7 @@ export const generateGiftReceiptHTML = (data: {
     .invoice-number {
       text-align: center;
       font-size: 10px;
-      font-weight: bold;
+      font-weight: 700;
       font-family: monospace;
       margin: 2px 0 0 0;
       letter-spacing: 0.5px;
@@ -561,7 +567,7 @@ export const generateGiftReceiptHTML = (data: {
     .transaction-info {
       font-size: 10px;
       margin: 6px 0;
-      font-weight: normal;
+      font-weight: 600;
     }
     .tx-row {
       display: flex;
@@ -570,16 +576,17 @@ export const generateGiftReceiptHTML = (data: {
       line-height: 1.3;
     }
     .tx-label {
-      font-weight: bold;
+      font-weight: 700;
     }
     .tx-value {
       text-align: right;
+      font-weight: 600;
     }
 
     /* Section Header */
     .section-header {
       font-size: 11px;
-      font-weight: bold;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1px;
       margin: 6px 0 4px 0;
@@ -588,25 +595,25 @@ export const generateGiftReceiptHTML = (data: {
     /* Items */
     .items-section {
       margin: 4px 0;
-      font-weight: normal;
+      font-weight: 600;
     }
     .item {
       margin-bottom: 6px;
     }
     .item-name-gift {
-      font-weight: bold;
+      font-weight: 600;
       font-size: 12px;
       margin-bottom: 1px;
     }
     .item-details {
       font-size: 10px;
-      font-weight: normal;
+      font-weight: 500;
       color: #1a1a1a;
       margin: 1px 0;
     }
     .item-qty {
       font-size: 10px;
-      font-weight: normal;
+      font-weight: 500;
       color: #1a1a1a;
     }
 
@@ -615,21 +622,24 @@ export const generateGiftReceiptHTML = (data: {
       text-align: center;
       font-size: 10px;
       margin-top: 6px;
-      font-weight: normal;
+      font-weight: 600;
       line-height: 1.4;
     }
     .footer-text {
       margin: 2px 0;
+      font-weight: 600;
     }
     .footer-policy {
       font-size: 9px;
       color: #1a1a1a;
       margin-top: 4px;
+      font-weight: 500;
     }
     .footer-social {
       font-size: 9px;
       color: #1a1a1a;
       margin: 2px 0;
+      font-weight: 500;
     }
 
     @media print {
@@ -774,6 +784,7 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
       line-height: 1.5;
       width: 72mm;
       color: #000;
+      font-weight: 600;
     }
     .receipt {
       width: 72mm;
@@ -797,13 +808,13 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
     }
     .store-name {
       font-size: 17px;
-      font-weight: bold;
+      font-weight: 700;
       letter-spacing: 1.5px;
       margin: 2px 0 3px 0;
     }
     .store-info {
       font-size: 10px;
-      font-weight: normal;
+      font-weight: 600;
       color: #1a1a1a;
       line-height: 1.3;
       margin-bottom: 4px;
@@ -816,7 +827,7 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
     /* Reprint Header */
     .reprint-header {
       text-align: center;
-      font-weight: bold;
+      font-weight: 700;
       font-size: 11px;
       margin: 4px 0;
       letter-spacing: 1px;
@@ -838,7 +849,7 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
     .receipt-type {
       text-align: center;
       font-size: 13px;
-      font-weight: bold;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1.5px;
       margin: 6px 0;
@@ -856,14 +867,14 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
     }
     .card-box-label {
       font-size: 9px;
-      font-weight: bold;
+      font-weight: 700;
       margin-bottom: 2px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
     .card-box-number {
       font-size: 13px;
-      font-weight: bold;
+      font-weight: 700;
       font-family: monospace;
       letter-spacing: 1px;
     }
@@ -882,7 +893,7 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
     .transaction-info {
       font-size: 10px;
       margin: 6px 0;
-      font-weight: normal;
+      font-weight: 600;
     }
     .tx-row {
       display: flex;
@@ -891,16 +902,17 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
       line-height: 1.3;
     }
     .tx-label {
-      font-weight: bold;
+      font-weight: 700;
     }
     .tx-value {
       text-align: right;
+      font-weight: 600;
     }
 
     /* Section Header */
     .section-header {
       font-size: 11px;
-      font-weight: bold;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1px;
       margin: 6px 0 4px 0;
@@ -911,7 +923,7 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
     .details-section {
       margin: 6px 0;
       font-size: 10px;
-      font-weight: normal;
+      font-weight: 600;
     }
     .details-row {
       display: flex;
@@ -921,17 +933,18 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
     }
     .details-row span:first-child {
       flex: 1;
+      font-weight: 600;
     }
     .details-row span:last-child {
       text-align: right;
-      font-weight: bold;
+      font-weight: 700;
       min-width: 45px;
     }
 
     /* Amount Highlight */
     .amount-box {
       font-size: 16px;
-      font-weight: bold;
+      font-weight: 700;
       text-align: center;
       margin: 6px 0;
       padding: 6px;
@@ -943,20 +956,22 @@ export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
       text-align: center;
       font-size: 10px;
       margin-top: 6px;
-      font-weight: normal;
+      font-weight: 600;
       line-height: 1.4;
     }
     .footer-text {
       margin: 2px 0;
+      font-weight: 600;
     }
     .footer-message {
-      font-style: italic;
       letter-spacing: 0.5px;
+      font-weight: 600;
     }
     .footer-social {
       font-size: 9px;
       color: #1a1a1a;
       margin: 1px 0;
+      font-weight: 500;
     }
 
     @media print {
