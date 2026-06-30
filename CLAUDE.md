@@ -4,8 +4,36 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 29, 2026)
-**Latest:** Local SEO text, BOM fix, Open Drawer button moved to right panel (session 24)
+## CURRENT STATUS (Main Branch - June 30, 2026)
+**Latest:** Professional thermal receipt redesign with bold fonts and larger logo (session 25)
+
+**Session 25 improvements (Thermal Receipt Redesign):**
+- ✅ `thermalReceipt.ts`: Professional redesign with elegant typography and layout for Epson TM-T88V
+  - Typography hierarchy: Store name 17px, section headers 12px, items 12px, details 10px, footer 11px
+  - Elegant dividers: Replaced dashed with solid 1px lines; double borders for grand total emphasis
+  - Refined spacing: Padding 3mm × 4mm, consistent 8px margins between sections
+  - Header polish: Logo increased 50mm → 62.5mm width, 18mm → 22.5mm height (25% larger)
+  - Transaction info: Clean flex two-column layout with labels left, values right-aligned
+  - Items section: Regular weight names with smaller detail/qty text, subtle indentation
+  - Totals enhancement: Double-line borders, 15px grand total, better visual hierarchy
+  - Footer elegance: Refined typography, no italic (doesn't print clearly on thermal)
+- ✅ Uniform bold font weights throughout ALL text (font-weight: 700)
+  - Universal selector: `* { font-weight: 700 !important; }`
+  - Removed mixed weights (500, 600, 700) that caused inconsistent thermal print clarity
+  - Hierarchy maintained purely through SIZE variation, not weight
+  - All text now prints bold and clear on thermal paper
+- ✅ Logo size increase by 25%: 50mm × 18mm → 62.5mm × 22.5mm
+  - Improved visual prominence and brand recognition
+  - Updated in both inline CSS and @media print
+- ✅ Applied to all three receipt types:
+  - generateThermalReceiptHTML: Transaction receipts with items, totals, signatures
+  - generateGiftReceiptHTML: Gift receipts without prices
+  - generateStoreCreditReceiptHTML: Store credit issuance and redemption receipts
+- ✅ Tested and verified
+  - TypeScript compiles without errors
+  - Server running and responsive
+  - All three receipt functions updated consistently
+- ✅ **Status:** Professional thermal receipts ready for deployment; all text bold and clear on Epson TM-T88V
 
 **Session 24 improvements:**
 - ✅ `Footer.tsx`: Added GTA local SEO paragraph below "formerly Golazo Store" line — covers Brampton, Oakville, Milton, Etobicoke, Mississauga service; `text-xs text-zinc-500 max-w-2xl mx-auto text-center`
