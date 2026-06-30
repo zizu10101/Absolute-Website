@@ -5,7 +5,19 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - June 29, 2026)
-**Latest:** EpsonControl font cash drawer solution, tested and verified (session 23)
+**Latest:** Local SEO text, BOM fix, Open Drawer button moved to right panel (session 24)
+
+**Session 24 improvements:**
+- ✅ `Footer.tsx`: Added GTA local SEO paragraph below "formerly Golazo Store" line — covers Brampton, Oakville, Milton, Etobicoke, Mississauga service; `text-xs text-zinc-500 max-w-2xl mx-auto text-center`
+- ✅ `ProductGridPage.tsx`: Category-specific SEO blurb below page title on top-level FOOTWEAR and NATIONAL TEAMS pages only (hidden on subpages like Europe, Shop By Brand, etc.)
+  - Footwear: "Shop the latest Nike, Adidas and Puma soccer cleats at Absolute Soccer in Mississauga..."
+  - National Teams: "Official licensed national team jerseys at Absolute Soccer Mississauga. Shop Canada, Portugal, France, Argentina..."
+- ✅ **BOM/invalid code point fix**: Deleted two malformed temp files from project root (`CUsersziadAppDataLocal...test-nav.js` and `CUsersUserabsolute-websiteRETURNS_VERIFICATION.md`) — Tailwind v4 was scanning the `.js` file and hitting bytes that decoded to invalid Unicode code point 9,794,992 (0x9575B0), crashing the dev server
+- ✅ `POSPage.tsx`: Moved "Open Cash Drawer" button from left icon toolbar (between Returns and Clear Cart) to right panel action row next to Void/Refund / Return / History
+  - Grid expanded from `grid-cols-3` → `grid-cols-4`
+  - Icon changed from `DollarSign` → `Archive` (drawer-shaped, amber color)
+  - Label shortened to "Drawer" to fit 4-column layout
+  - Style matches other action buttons: `border border-[#2d3547] text-amber-400 hover:text-amber-300`
 
 **Session 23 improvements (EpsonControl Font Cash Drawer):**
 - ✅ `POSPage.tsx` `openCashDrawer()`: Updated to EpsonControl font solution
@@ -304,7 +316,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
   * Entry points: History tab Refund button (PosTransactionHistory) and Void/Refund panel (POSPage)
   * Both offer: Issue Store Credit OR Refund to Original Payment (Cash/Visa/MC/Debit/Amex)
 - Reports: EOD, Sales, Products, GC, Void/Refund, Customer, SC (Eastern timezone)
-- Cash drawer open button: "Open Drawer" button in action button row; uses EpsonControl font character "A" to send ESC/POS drawer kick command via browser print dialog
+- Cash drawer open button: "Drawer" button in right-panel action row (Void/Refund | Return | History | **Drawer**); Archive icon (amber); uses EpsonControl font character "A" to send ESC/POS drawer kick command via browser print dialog
 
 **Admin Panel (/admin):**
 - Product CRUD with variants (size, barcode, stock, color)

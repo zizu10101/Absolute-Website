@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Moon, Sun, LogOut, Search, Users, Percent, FileText, Trash2,
-  Barcode as BarcodeIcon, DollarSign, Home, AlertCircle, X, Check,
+  Barcode as BarcodeIcon, Archive, Home, AlertCircle, X, Check,
   Receipt, RotateCcw, RefreshCw, Plus, Printer, ScanLine, CheckCircle2, BarChart3, Undo2,
   UserPlus, Gift, Tag, CreditCard
 } from 'lucide-react';
@@ -1370,16 +1370,6 @@ export function POSPage() {
                 <span className="text-xs font-semibold text-white leading-none">Returns</span>
               </button>
 
-              {/* Open Cash Drawer */}
-              <button
-                onClick={openCashDrawer}
-                className="bg-[#1e2d45] hover:bg-[#2a3954] rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14"
-                title="Open cash drawer"
-              >
-                <DollarSign size={16} className="text-yellow-500" />
-                <span className="text-xs font-semibold text-white leading-none">Open Drawer</span>
-              </button>
-
               {/* Clear Cart */}
               <button
                 onClick={() => clearCart()}
@@ -1561,7 +1551,7 @@ export function POSPage() {
               Checkout ({totalCartItems})
             </button>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               <button onClick={() => setShowVoidRefundModal(true)} className="py-2 bg-[#b90014] hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase">
                 Void/Refund
               </button>
@@ -1570,6 +1560,9 @@ export function POSPage() {
               </button>
               <button onClick={() => setPosTab('history')} className="py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
                 History
+              </button>
+              <button onClick={openCashDrawer} className="py-2 border border-[#2d3547] text-amber-400 hover:text-amber-300 hover:border-amber-500 rounded text-[10px] font-bold uppercase flex items-center justify-center gap-1">
+                <Archive size={12} /> Drawer
               </button>
             </div>
 
