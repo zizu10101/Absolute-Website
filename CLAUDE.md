@@ -23,9 +23,6 @@ Admin login: info@edgedbs.com
   - Verified: clicking Nike tile from homepage → `/brand/Nike` → 59 Nike products render correctly
 
 **Session 26 improvements (SEO & Search):**
-**Latest:** Product JSON-LD schema enhancements + product_code search + sitemap update (session 26)
-
-**Session 26 improvements (SEO & Search):**
 - ✅ `ProductDetailPage.tsx`: Enhanced Product JSON-LD schema (`product-schema-markup` script)
   - Added `sku` and `mpn` fields (populated from `product.product_code`)
   - `image` now an array (`product.images[]` with fallback to `[product.image]`)
@@ -37,9 +34,6 @@ Admin login: info@edgedbs.com
   - Customers can search by manufacturer SKU (e.g. "HQ2314" finds Nike Phantom 6 Haaland boot)
   - Brand field explicitly checked (previously only matched via submenu text)
 - ✅ Sitemap regenerated: 181 URLs (4 main + 7 category + 168 product pages); was 171
-
-**Session 25 improvements (Thermal Receipt Redesign):**
-**Latest:** Professional thermal receipt redesign with bold fonts and larger logo (session 25)
 
 **Session 25 improvements (Thermal Receipt Redesign):**
 - ✅ `thermalReceipt.ts`: Professional redesign with elegant typography and layout for Epson TM-T88V
@@ -319,6 +313,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Store Credit on returns/refunds: works without a linked customer (walk-ins get card number printed on receipt)
 ✅ JSON-LD schema markup: SportingGoodsStore on homepage, Product schema on product detail pages (sku, mpn, image array, sale price, canonical URL, priceValidUntil)
 ✅ Search by product_code and brand: `ProductGridPage` client-side filter includes `product_code` and `brand` fields — customers can find products by manufacturer SKU
+✅ Brand tiles on homepage: `BrandShowcase` links to `/brand/:brandName` (was broken `/products?brand=Nike`); `BrandPage` now calls `fetchProductsByCategory()` on mount so direct URL navigation shows products instead of "No products found"
+✅ Sitemap: 181 URLs (4 main + 7 category + 168 product pages) — regenerated July 3, 2026
 ✅ SEO: updated title/meta description in index.html with keyword-rich content
 ✅ SEO: "formerly Golazo Store" brand attribution added to footer
 ✅ Instagram handle updated to @absolutemississauga across all files (schema, receipts)
@@ -328,7 +324,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Header nav: flex-1 center fills all space between logo and icons; 9 items at text-[11px] whitespace-nowrap tracking-normal on one line
 ✅ Mega menu inner container: px-4 md:px-8 padding matches header — dropdown left edge aligns with nav items
 ✅ `/custom-apparel` landing page: hero image (`/hero-apparel.png`), Who We Serve, What We Offer, How It Works, Why Choose Us, quote form (mailto), footer contact bar
-✅ Sitemap: `/custom-apparel` added to `scripts/generate-sitemap.js` — now 171 URLs (4 main pages)
+✅ Sitemap: `scripts/generate-sitemap.js` — 181 URLs (4 main + 7 category + 168 product pages); regenerated July 3, 2026
 ✅ Homepage slider: prev/next clicks reset auto-advance timer (`intervalRef` + `resetTimer()`) — no more immediate jump after manual navigation
 ✅ Homepage slider: indicator pins at bottom — active wide red rectangle, inactive small gray square; click to jump + reset timer
 ✅ Admin slider: drag-to-reorder slides with `@dnd-kit` — grip handle top-left of each card, order saved to DB on drop
