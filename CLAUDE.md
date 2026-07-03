@@ -4,7 +4,23 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 30, 2026)
+## CURRENT STATUS (Main Branch - July 3, 2026)
+**Latest:** Product JSON-LD schema enhancements + product_code search + sitemap update (session 26)
+
+**Session 26 improvements (SEO & Search):**
+- ✅ `ProductDetailPage.tsx`: Enhanced Product JSON-LD schema (`product-schema-markup` script)
+  - Added `sku` and `mpn` fields (populated from `product.product_code`)
+  - `image` now an array (`product.images[]` with fallback to `[product.image]`)
+  - `offers.url`: canonical product URL `https://torontosoccershop.com/product/${product.id}`
+  - `offers.price`: sale-price-aware (`product.salePrice || product.price`)
+  - `offers.priceValidUntil`: `"2026-12-31"`
+  - `description` and `sku`/`mpn` default to `''` when null (valid schema output)
+- ✅ `ProductGridPage.tsx`: Search filter now includes `product_code` and `brand` fields
+  - Customers can search by manufacturer SKU (e.g. "HQ2314" finds Nike Phantom 6 Haaland boot)
+  - Brand field explicitly checked (previously only matched via submenu text)
+- ✅ Sitemap regenerated: 181 URLs (4 main + 7 category + 168 product pages); was 171
+
+**Session 25 improvements (Thermal Receipt Redesign):**
 **Latest:** Professional thermal receipt redesign with bold fonts and larger logo (session 25)
 
 **Session 25 improvements (Thermal Receipt Redesign):**
@@ -182,7 +198,7 @@ Admin login: info@edgedbs.com
 - ✅ Removed `ChevronDown` icon import (no longer needed without sort dropdown)
 
 **Session 14 improvements:**
-- ✅ `/custom-apparel` route added to sitemap generator (`scripts/generate-sitemap.js` `mainPages` array) — sitemap now 171 URLs (4 main pages)
+- ✅ `/custom-apparel` route added to sitemap generator (`scripts/generate-sitemap.js` `mainPages` array) — sitemap now 181 URLs (4 main + 7 category + 168 product pages)
 - ✅ `CustomApparelPage.tsx` hero image: replaced placeholder `<div>` with `<img src="/hero-apparel.png" alt="Custom business apparel and uniforms in Mississauga" className="aspect-[4/3] w-full object-cover" />`
 - ✅ `public/hero-apparel.png` added to main branch (1.45 MB) — was only on `custom-apparel` branch, causing missing image on live site
 - ✅ `public/custom-apparel-banner.jpg` also in public folder (2.1 MB) — not currently used in hero but available
@@ -283,7 +299,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Unified Refund/Return flow: both paths use ReturnsModal with choose-refund → SC or Original Payment → confirm
 ✅ Refund button in PosTransactionHistory fixed: was calling direct DB update, now opens ReturnsModal(mode=refund)
 ✅ Store Credit on returns/refunds: works without a linked customer (walk-ins get card number printed on receipt)
-✅ JSON-LD schema markup: SportingGoodsStore on homepage, Product schema on product detail pages
+✅ JSON-LD schema markup: SportingGoodsStore on homepage, Product schema on product detail pages (sku, mpn, image array, sale price, canonical URL, priceValidUntil)
+✅ Search by product_code and brand: `ProductGridPage` client-side filter includes `product_code` and `brand` fields — customers can find products by manufacturer SKU
 ✅ SEO: updated title/meta description in index.html with keyword-rich content
 ✅ SEO: "formerly Golazo Store" brand attribution added to footer
 ✅ Instagram handle updated to @absolutemississauga across all files (schema, receipts)
