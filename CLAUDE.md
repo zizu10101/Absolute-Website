@@ -5,6 +5,16 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - July 3, 2026)
+**Latest:** Brand tile blank page fix (session 27)
+
+**Session 27 improvements (Brand Tile Fix):**
+- ✅ `BrandShowcase.tsx`: Fixed brand tiles linking to broken `/products?brand=Nike` — no such route existed
+  - Changed to `/brand/${encodeURIComponent(brand.name)}` which routes to existing `BrandPage` component
+  - `BrandPage` at `/brand/:brandName` was already implemented with category filter, search, sort
+  - "View All Brands" link to `/brands` was already correct — only the individual tile links were broken
+  - Verified: clicking Nike tile from homepage → `/brand/Nike` → 59 Nike products render correctly
+
+**Session 26 improvements (SEO & Search):**
 **Latest:** Product JSON-LD schema enhancements + product_code search + sitemap update (session 26)
 
 **Session 26 improvements (SEO & Search):**
@@ -455,7 +465,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - `/` — Home/storefront
 - `/admin` — Admin panel
 - `/pos` — POS system (PIN auth)
-- `/brands` — Brand pages
+- `/brands` — All brands listing page (BrandsPage)
+- `/brand/:brandName` — Individual brand page (BrandPage) — filters products by brand, with category sub-filter + search + sort
 - `/reports` — Financial reports
 - `/kit-orders` — Kit Orders / Uniform Submission page (also aliased at `/uniform-submission` for backward compat)
 - `/sale` — Sale page (filters products where isOnSale=true)
