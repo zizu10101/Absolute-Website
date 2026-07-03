@@ -5,7 +5,15 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - July 3, 2026)
-**Latest:** Brand tile blank page fix (session 27)
+**Latest:** Brand page "No products found" fix on direct navigation (session 28)
+
+**Session 28 improvements (Brand Page "No Products" Fix):**
+- ✅ `BrandPage.tsx`: Fixed "No products found" on direct navigation to `/brand/Adidas`
+  - Root cause: `ProductContext` only pre-loads 8 featured products on app init (`fetchFeaturedProducts`)
+  - `BrandPage` was filtering those 8 products client-side — finding 0 Adidas products → "No products found"
+  - Fix: added `useEffect(() => { fetchProductsByCategory(); }, [brandName])` — fetches all 168+ products into context on mount
+  - Also added a spinner (`isLoading` check) instead of flashing "No products found" while fetching
+  - Works on direct URL navigation now (verified cold-start: `/brand/Adidas` → 30 products, `/brand/Nike` → 59 products)
 
 **Session 27 improvements (Brand Tile Fix):**
 - ✅ `BrandShowcase.tsx`: Fixed brand tiles linking to broken `/products?brand=Nike` — no such route existed
