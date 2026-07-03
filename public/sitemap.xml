@@ -34,6 +34,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://torontosoccershop.com/category/equipment</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://torontosoccershop.com/category/footwear</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -61,17 +66,22 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/3ba9380f-5509-40fa-8d57-c2aca469e0dd</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://torontosoccershop.com/product/17756630-9631-8000-0000-000000000000</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://torontosoccershop.com/product/3ba9380f-5509-40fa-8d57-c2aca469e0dd</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://torontosoccershop.com/product/b4d23e67-5f7b-4774-a948-aac213dfe8b1</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/17765200-2504-4000-0000-000000000000</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -87,6 +97,11 @@
   </url>
   <url>
     <loc>https://torontosoccershop.com/product/4d0c4a1f-6763-45ed-9ac2-e7a46dd97e11</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/17769659-0949-3000-0000-000000000000</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -111,6 +126,11 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://torontosoccershop.com/product/17764438-2630-1000-0000-000000000000</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://torontosoccershop.com/product/d2bb350d-6507-40c9-89a7-852374519bad</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -126,12 +146,12 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/33398309-8809-403f-bd47-1e02ad24fa5a</loc>
+    <loc>https://torontosoccershop.com/product/49604d2d-2de9-4656-85d3-d11de20e249c</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/49604d2d-2de9-4656-85d3-d11de20e249c</loc>
+    <loc>https://torontosoccershop.com/product/33398309-8809-403f-bd47-1e02ad24fa5a</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -166,7 +186,7 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/5e991566-ea4f-4a3c-99e1-5ae29e5594d5</loc>
+    <loc>https://torontosoccershop.com/product/65f11f2c-af56-4597-b3ee-098e7f4d6256</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -176,7 +196,12 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/65f11f2c-af56-4597-b3ee-098e7f4d6256</loc>
+    <loc>https://torontosoccershop.com/product/020225d5-07c5-4cfe-8e31-4753ecd6523c</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/597bf07f-8c2a-45a6-b497-1cc5ffe37ca2</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -196,22 +221,17 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/597bf07f-8c2a-45a6-b497-1cc5ffe37ca2</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://torontosoccershop.com/product/f94af8ef-8b17-42f1-854c-0440c01d801a</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/2485aa32-eccd-47b3-840d-c326e2a11af2</loc>
+    <loc>https://torontosoccershop.com/product/5e991566-ea4f-4a3c-99e1-5ae29e5594d5</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/62272c98-c61f-4631-911f-b3969de81828</loc>
+    <loc>https://torontosoccershop.com/product/2485aa32-eccd-47b3-840d-c326e2a11af2</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -222,6 +242,11 @@
   </url>
   <url>
     <loc>https://torontosoccershop.com/product/891f03b0-2a40-46b6-9d82-2d7482a73bd4</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/62272c98-c61f-4631-911f-b3969de81828</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -246,12 +271,12 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/efdc4d03-8cbb-48b1-9898-6fb267ab1a68</loc>
+    <loc>https://torontosoccershop.com/product/ae2e8b8f-3206-423e-9961-80d37e98dcda</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/8aedf7b7-5d29-47f1-a877-2fee7c39b91d</loc>
+    <loc>https://torontosoccershop.com/product/efdc4d03-8cbb-48b1-9898-6fb267ab1a68</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -286,12 +311,12 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/bf54110e-1986-47d9-8e37-94444cf9c02a</loc>
+    <loc>https://torontosoccershop.com/product/3330b837-fbf7-473d-a56b-fbd741cd9fff</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/3330b837-fbf7-473d-a56b-fbd741cd9fff</loc>
+    <loc>https://torontosoccershop.com/product/bf54110e-1986-47d9-8e37-94444cf9c02a</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -341,22 +366,17 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/17755934-1027-1000-0000-000000000000</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://torontosoccershop.com/product/ca99ec24-24f0-4700-9f3d-cc0f2720f7b1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/17765194-3679-1000-0000-000000000000</loc>
+    <loc>https://torontosoccershop.com/product/17755934-1027-1000-0000-000000000000</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/17769659-0949-3000-0000-000000000000</loc>
+    <loc>https://torontosoccershop.com/product/17765194-3679-1000-0000-000000000000</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -372,6 +392,11 @@
   </url>
   <url>
     <loc>https://torontosoccershop.com/product/8aa3122a-1c2d-4d59-aa29-46fe601c169d</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/17755875-7050-4000-0000-000000000000</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -401,16 +426,6 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/17755875-7050-4000-0000-000000000000</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://torontosoccershop.com/product/17765200-2504-4000-0000-000000000000</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://torontosoccershop.com/product/b01c3596-486c-46da-a346-76e8e4eeba1b</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -421,7 +436,7 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/17764481-4408-8000-0000-000000000000</loc>
+    <loc>https://torontosoccershop.com/product/bef91261-caef-4b1e-a339-383b155aa9d5</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -431,7 +446,7 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/bef91261-caef-4b1e-a339-383b155aa9d5</loc>
+    <loc>https://torontosoccershop.com/product/17764481-4408-8000-0000-000000000000</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -526,6 +541,11 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://torontosoccershop.com/product/d5c28600-6c51-46be-811a-8a7561a760d9</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://torontosoccershop.com/product/9bedc655-0909-421b-9eb6-c7c437301a88</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -552,6 +572,11 @@
   </url>
   <url>
     <loc>https://torontosoccershop.com/product/f54a228f-45d7-435f-b1c6-b0575a8edab2</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/c0fc824b-9f3d-4d6c-bd6c-8cc469e853f2</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -716,7 +741,17 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://torontosoccershop.com/product/3cc00666-9df5-4b26-856f-cbd5818115e2</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://torontosoccershop.com/product/079909ee-2577-45f0-826f-537c7b474576</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/227be742-7816-4b09-a34e-84c047a10165</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -746,12 +781,12 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/37a07ab6-d677-451f-ab30-c3b5b0701304</loc>
+    <loc>https://torontosoccershop.com/product/b42da70f-1dc4-48f9-9381-80c1d0d9de2a</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/17764438-2630-1000-0000-000000000000</loc>
+    <loc>https://torontosoccershop.com/product/37a07ab6-d677-451f-ab30-c3b5b0701304</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -766,6 +801,16 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://torontosoccershop.com/product/ce39a4bd-c1db-4453-b7e1-91b321a806c7</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/456a3268-4fc6-4290-b7af-b9ec26d6a221</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://torontosoccershop.com/product/f5908689-ad5b-49d0-96fc-be1dea7b5bf5</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -776,7 +821,7 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/020225d5-07c5-4cfe-8e31-4753ecd6523c</loc>
+    <loc>https://torontosoccershop.com/product/8aedf7b7-5d29-47f1-a877-2fee7c39b91d</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -792,6 +837,11 @@
   </url>
   <url>
     <loc>https://torontosoccershop.com/product/095bc398-7981-40f2-8e4e-06174e626e86</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/4c38debd-a997-45fb-b67d-aee33d21e545</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -831,17 +881,17 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/567a7424-d61b-46c0-9784-87cb2ffd6b10</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://torontosoccershop.com/product/7dcada33-59a4-49f0-9582-48fc31456c0c</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://torontosoccershop.com/product/ed03734c-6ed2-4e33-b3b4-6183f3f935d0</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/567a7424-d61b-46c0-9784-87cb2ffd6b10</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
