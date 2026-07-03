@@ -11,8 +11,14 @@ const ITEMS_PER_PAGE = 4;
 
 export function BrandPage() {
   const { brandName } = useParams<{ brandName: string }>();
-  const { products, isLoading } = useProducts();
+  const { products, isLoading, fetchProductsByCategory } = useProducts();
   const { navigationMenus } = useSettings();
+
+  // On direct navigation, context may only have featured products (8).
+  // Fetch all products so the brand filter has the full catalogue.
+  useEffect(() => {
+    fetchProductsByCategory();
+  }, [brandName]);
 
   const [localSearch, setLocalSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
@@ -200,6 +206,11 @@ export function BrandPage() {
             </div>
           )}
         </>
+      ) : isLoading ? (
+        <div className="flex flex-col items-center justify-center py-24">
+          <div className="w-10 h-10 border-4 border-[#b90014] border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs">Loading products...</p>
+        </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-24 bg-zinc-50 rounded-xl">
           <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mb-2">No products found</p>
