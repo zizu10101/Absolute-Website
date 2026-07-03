@@ -168,20 +168,27 @@ export function ProductDetailPage() {
     const existing = document.getElementById('product-schema-markup');
     if (existing) existing.remove();
 
+    const images = product.images?.length ? product.images : [product.image].filter(Boolean);
+    const price = product.isOnSale && product.salePrice ? product.salePrice : product.price;
+
     const schema = {
-      "@context": "https://schema.org",
+      "@context": "https://schema.org/",
       "@type": "Product",
       "name": product.name,
-      "image": product.image,
-      "description": product.description,
+      "image": images,
+      "description": product.description || '',
+      "sku": product.product_code || '',
+      "mpn": product.product_code || '',
       "brand": {
         "@type": "Brand",
         "name": product.brand || "Absolute Soccer"
       },
       "offers": {
         "@type": "Offer",
-        "price": product.price,
+        "url": `https://torontosoccershop.com/product/${product.id}`,
         "priceCurrency": "CAD",
+        "price": price,
+        "priceValidUntil": "2026-12-31",
         "availability": "https://schema.org/InStock",
         "seller": {
           "@type": "Organization",

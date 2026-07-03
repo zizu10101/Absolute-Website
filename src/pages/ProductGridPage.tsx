@@ -322,6 +322,8 @@ export function ProductGridPage({ title, category, submenu }: Props) {
         (p.name || '').toLowerCase().includes(searchTerm) ||
         (p.category || '').toLowerCase().includes(searchTerm) ||
         (p.description || '').toLowerCase().includes(searchTerm) ||
+        (p.product_code || '').toLowerCase().includes(searchTerm) ||
+        (p.brand || '').toLowerCase().includes(searchTerm) ||
         p.submenu?.toLowerCase().includes(searchTerm) ||
         p.submenus?.some(s => s.toLowerCase().includes(searchTerm))
       );
