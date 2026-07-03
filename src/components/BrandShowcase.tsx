@@ -80,7 +80,7 @@ export function BrandShowcase() {
             viewport={{ once: true }}
           >
             <Link
-              to={`/products?brand=${encodeURIComponent(brand.name)}`}
+              to={`/brand/${encodeURIComponent(brand.name)}`}
               className="group block bg-white border border-zinc-100 rounded-lg p-4 text-center transition-all hover:border-[#b90014] hover:shadow-lg hover:shadow-red-900/5 hover:-translate-y-1 h-full flex flex-col items-center justify-center"
             >
               <h3 className="text-sm font-bold uppercase tracking-tight text-zinc-900 group-hover:text-[#b90014] transition-colors mb-2">
