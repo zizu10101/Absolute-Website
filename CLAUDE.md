@@ -4,8 +4,18 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - July 3, 2026)
-**Latest:** Brand page "No products found" fix on direct navigation (session 28)
+## CURRENT STATUS (Main Branch - July 6, 2026)
+**Latest:** Bidirectional SKU/product-code search (session 29)
+
+**Session 29 improvements (Bidirectional SKU Search):**
+- ✅ `ProductGridPage.tsx`: Fixed search so hyphens in SKU codes are ignored in both directions
+  - Root cause: Many products have `product_code = null`; Nike-style style codes (e.g. `IB5300-480`) live inside the `description` field as `"Style: IB5300-480"`
+  - Previous fix only stripped hyphens from `product_code` — didn't help when code was in description
+  - Fix: strip hyphens from `name`, `description`, AND `product_code` before comparing against the hyphen-stripped query
+  - Searching `"IB5300-480"` → finds product whose description contains `"Style: IB5300-480"` ✓
+  - Searching `"IB5300480"` → `desc.replace(/-/g,'').includes("ib5300480")` matches same product ✓
+  - Works for all three fields: `name`, `description`, `product_code`
+  - Verified on localhost: both queries return "SHOWING 1 OF 1 PRODUCTS" (FFF 2026 Stadium Home Jersey)
 
 **Session 28 improvements (Brand Page "No Products" Fix):**
 - ✅ `BrandPage.tsx`: Fixed "No products found" on direct navigation to `/brand/Adidas`
@@ -313,6 +323,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Store Credit on returns/refunds: works without a linked customer (walk-ins get card number printed on receipt)
 ✅ JSON-LD schema markup: SportingGoodsStore on homepage, Product schema on product detail pages (sku, mpn, image array, sale price, canonical URL, priceValidUntil)
 ✅ Search by product_code and brand: `ProductGridPage` client-side filter includes `product_code` and `brand` fields — customers can find products by manufacturer SKU
+✅ Bidirectional SKU search: hyphens stripped from `name`, `description`, and `product_code` before comparing — `"IB5300480"` finds product with `"IB5300-480"` in description, and vice versa
 ✅ Brand tiles on homepage: `BrandShowcase` links to `/brand/:brandName` (was broken `/products?brand=Nike`); `BrandPage` now calls `fetchProductsByCategory()` on mount so direct URL navigation shows products instead of "No products found"
 ✅ Sitemap: 181 URLs (4 main + 7 category + 168 product pages) — regenerated July 3, 2026
 ✅ SEO: updated title/meta description in index.html with keyword-rich content

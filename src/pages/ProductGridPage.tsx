@@ -318,15 +318,26 @@ export function ProductGridPage({ title, category, submenu }: Props) {
 
     const searchTerm = localSearch.toLowerCase().trim();
     if (searchTerm) {
-      filtered = filtered.filter(p =>
-        (p.name || '').toLowerCase().includes(searchTerm) ||
-        (p.category || '').toLowerCase().includes(searchTerm) ||
-        (p.description || '').toLowerCase().includes(searchTerm) ||
-        (p.product_code || '').toLowerCase().includes(searchTerm) ||
-        (p.brand || '').toLowerCase().includes(searchTerm) ||
-        p.submenu?.toLowerCase().includes(searchTerm) ||
-        p.submenus?.some(s => s.toLowerCase().includes(searchTerm))
-      );
+      // Strip hyphens from BOTH query and all text fields so "IB5300480" finds "IB5300-480"
+      // and vice versa. Codes appear in description ("Style: IB5300-480") not just product_code.
+      const searchTermNoHyphens = searchTerm.replace(/-/g, '');
+      filtered = filtered.filter(p => {
+        const name = (p.name || '').toLowerCase();
+        const desc = (p.description || '').toLowerCase();
+        const code = (p.product_code || '').toLowerCase();
+        return (
+          name.includes(searchTerm) ||
+          name.replace(/-/g, '').includes(searchTermNoHyphens) ||
+          (p.category || '').toLowerCase().includes(searchTerm) ||
+          desc.includes(searchTerm) ||
+          desc.replace(/-/g, '').includes(searchTermNoHyphens) ||
+          code.includes(searchTerm) ||
+          code.replace(/-/g, '').includes(searchTermNoHyphens) ||
+          (p.brand || '').toLowerCase().includes(searchTerm) ||
+          p.submenu?.toLowerCase().includes(searchTerm) ||
+          p.submenus?.some(s => s.toLowerCase().includes(searchTerm))
+        );
+      });
     }
 
     // Brand filter (multi-select)
