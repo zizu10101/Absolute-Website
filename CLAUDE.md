@@ -18,6 +18,7 @@ Admin login: info@edgedbs.com
   - Helmet: title "Custom Soccer Uniforms & Jersey Printing Brampton | Absolute Soccer"; description "The premier team uniform destination for Brampton soccer clubs..."
 - ✅ `src/App.tsx`: Added import + `<Route path="brampton-soccer-uniforms">` route
 - ✅ Tested on localhost — all 5 sections render, both CTA buttons present, phone number shown
+- ✅ `scripts/generate-sitemap.js`: Added `/brampton-soccer-uniforms` to `mainPages` array — sitemap now 184 URLs (5 main + 7 category + 170 product + 2 static)
 
 **Session 29 improvements (Bidirectional SKU Search):**
 - ✅ `ProductGridPage.tsx`: Fixed search so hyphens in SKU codes are ignored in both directions
@@ -337,6 +338,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Search by product_code and brand: `ProductGridPage` client-side filter includes `product_code` and `brand` fields — customers can find products by manufacturer SKU
 ✅ Bidirectional SKU search: hyphens stripped from `name`, `description`, and `product_code` before comparing — `"IB5300480"` finds product with `"IB5300-480"` in description, and vice versa
 ✅ `/brampton-soccer-uniforms`: City SEO landing page for Brampton soccer clubs — hero, why-us, how-it-works, visit-us, quote form; Helmet title/description set
+✅ Sitemap: 184 URLs (5 main + 7 category + 170 product pages); `/brampton-soccer-uniforms` added to `scripts/generate-sitemap.js` mainPages array
 ✅ Brand tiles on homepage: `BrandShowcase` links to `/brand/:brandName` (was broken `/products?brand=Nike`); `BrandPage` now calls `fetchProductsByCategory()` on mount so direct URL navigation shows products instead of "No products found"
 ✅ Sitemap: 181 URLs (4 main + 7 category + 168 product pages) — regenerated July 3, 2026
 ✅ SEO: updated title/meta description in index.html with keyword-rich content
