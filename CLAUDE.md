@@ -5,7 +5,19 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - July 6, 2026)
-**Latest:** Bidirectional SKU/product-code search (session 29)
+**Latest:** Brampton city landing page (session 30)
+
+**Session 30 improvements (Brampton City Landing Page):**
+- ✅ `src/pages/BramptonSoccerPage.tsx`: New city SEO landing page at `/brampton-soccer-uniforms`
+  - Hero with H1 "Custom Soccer Uniforms & Team Printing in Brampton", two CTAs (Get a Fast Squad Quote → `#quote`, Browse Custom Apparel → `/custom-apparel`)
+  - "Why Brampton Clubs Choose Us" section with 3-column cards (visit, brands, roster customization)
+  - "How It Works" 3-step dark section (Submit Roster → Approve Proof → Pick Up/Deliver)
+  - "Visit Our Mississauga Showroom" section with phone, address, service checklist
+  - Quote form (mailto: info@edgedbs.com) with squad-specific fields (kit type, squad size/quantity, club name)
+  - Footer contact bar with phone, address, website
+  - Helmet: title "Custom Soccer Uniforms & Jersey Printing Brampton | Absolute Soccer"; description "The premier team uniform destination for Brampton soccer clubs..."
+- ✅ `src/App.tsx`: Added import + `<Route path="brampton-soccer-uniforms">` route
+- ✅ Tested on localhost — all 5 sections render, both CTA buttons present, phone number shown
 
 **Session 29 improvements (Bidirectional SKU Search):**
 - ✅ `ProductGridPage.tsx`: Fixed search so hyphens in SKU codes are ignored in both directions
@@ -324,6 +336,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ JSON-LD schema markup: SportingGoodsStore on homepage, Product schema on product detail pages (sku, mpn, image array, sale price, canonical URL, priceValidUntil)
 ✅ Search by product_code and brand: `ProductGridPage` client-side filter includes `product_code` and `brand` fields — customers can find products by manufacturer SKU
 ✅ Bidirectional SKU search: hyphens stripped from `name`, `description`, and `product_code` before comparing — `"IB5300480"` finds product with `"IB5300-480"` in description, and vice versa
+✅ `/brampton-soccer-uniforms`: City SEO landing page for Brampton soccer clubs — hero, why-us, how-it-works, visit-us, quote form; Helmet title/description set
 ✅ Brand tiles on homepage: `BrandShowcase` links to `/brand/:brandName` (was broken `/products?brand=Nike`); `BrandPage` now calls `fetchProductsByCategory()` on mount so direct URL navigation shows products instead of "No products found"
 ✅ Sitemap: 181 URLs (4 main + 7 category + 168 product pages) — regenerated July 3, 2026
 ✅ SEO: updated title/meta description in index.html with keyword-rich content
@@ -486,6 +499,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - `/kit-orders` — Kit Orders / Uniform Submission page (also aliased at `/uniform-submission` for backward compat)
 - `/sale` — Sale page (filters products where isOnSale=true)
 - `/custom-apparel` — Custom Apparel landing page
+- `/brampton-soccer-uniforms` — City SEO landing page for Brampton soccer clubs (BramptonSoccerPage)
 - `/category/:slug` — Alias for any nav menu path slug (e.g. `/category/national-teams`) — handled by `CategorySlugRoute`
 
 **Navigation landing pages (logo grid → click to see products):**
