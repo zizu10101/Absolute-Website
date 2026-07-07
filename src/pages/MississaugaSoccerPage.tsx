@@ -138,7 +138,7 @@ export function MississaugaSoccerPage() {
                   Visit Our Store
                 </a>
                 <Link
-                  to="/products"
+                  to="/category/footwear"
                   className="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-zinc-900 border border-zinc-300 rounded-md hover:bg-zinc-50 transition-colors"
                 >
                   Browse In-Stock Gear
