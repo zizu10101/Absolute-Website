@@ -168,14 +168,24 @@ export function ProductDetailPage() {
     const existing = document.getElementById('product-schema-markup');
     if (existing) existing.remove();
 
-    const images = product.images?.length ? product.images : [product.image].filter(Boolean);
+    const getAbsoluteUrl = (url: string) => {
+      if (!url) return '';
+      if (url.startsWith('http')) return url;
+      if (url.startsWith('//')) return `https:${url}`;
+      return `https://torontosoccershop.com${url}`;
+    };
+
+    const productImages = (product.images && product.images.length > 0)
+      ? product.images.map((img: string) => getAbsoluteUrl(img))
+      : [getAbsoluteUrl(product.image)];
+
     const price = product.isOnSale && product.salePrice ? product.salePrice : product.price;
 
     const schema = {
       "@context": "https://schema.org/",
       "@type": "Product",
       "name": product.name,
-      "image": images,
+      "image": productImages.filter(Boolean),
       "description": product.description || '',
       "sku": product.product_code || '',
       "mpn": product.product_code || '',

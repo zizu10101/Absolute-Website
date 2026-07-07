@@ -4,8 +4,18 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - July 6, 2026)
-**Latest:** Brampton city landing page (session 30)
+## CURRENT STATUS (Main Branch - July 7, 2026)
+**Latest:** Product schema image URL fix (session 31)
+
+**Session 31 improvements (Structured Data Image URL Fix):**
+- ✅ `src/pages/ProductDetailPage.tsx`: Fixed "Invalid URL in field image" Google Search Console error in Merchant Listings
+  - Added `getAbsoluteUrl()` helper inside the schema `useEffect` — handles `http(s)://` (pass-through), `//` (prepend `https:`), and relative paths (prepend `https://torontosoccershop.com`)
+  - `productImages` array built from `product.images[]` or fallback to `product.image`, all passed through `getAbsoluteUrl()`
+  - `"image"` field now uses `productImages.filter(Boolean)` — removes any empty strings when both image fields are null
+  - Verified on localhost via Playwright: both array-images and null-images-fallback paths output full `https://` Supabase Storage URLs
+
+**Session 30 improvements (Brampton City Landing Page):**
+**Latest (previous):** Brampton city landing page (session 30)
 
 **Session 30 improvements (Brampton City Landing Page):**
 - ✅ `src/pages/BramptonSoccerPage.tsx`: New city SEO landing page at `/brampton-soccer-uniforms`
@@ -335,6 +345,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Refund button in PosTransactionHistory fixed: was calling direct DB update, now opens ReturnsModal(mode=refund)
 ✅ Store Credit on returns/refunds: works without a linked customer (walk-ins get card number printed on receipt)
 ✅ JSON-LD schema markup: SportingGoodsStore on homepage, Product schema on product detail pages (sku, mpn, image array, sale price, canonical URL, priceValidUntil)
+✅ Product schema image URLs: `getAbsoluteUrl()` ensures all image URLs in JSON-LD are absolute `https://` — fixes Google Search Console "Invalid URL in field image" Merchant Listings error
 ✅ Search by product_code and brand: `ProductGridPage` client-side filter includes `product_code` and `brand` fields — customers can find products by manufacturer SKU
 ✅ Bidirectional SKU search: hyphens stripped from `name`, `description`, and `product_code` before comparing — `"IB5300480"` finds product with `"IB5300-480"` in description, and vice versa
 ✅ `/brampton-soccer-uniforms`: City SEO landing page for Brampton soccer clubs — hero, why-us, how-it-works, visit-us, quote form; Helmet title/description set
