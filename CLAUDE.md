@@ -5,7 +5,21 @@ GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
 ## CURRENT STATUS (Main Branch - July 7, 2026)
-**Latest:** Product schema image URL fix (session 31)
+**Latest:** Mississauga city landing page (session 32)
+
+**Session 32 improvements (Mississauga City Landing Page):**
+- ✅ `src/pages/MississaugaSoccerPage.tsx`: New city SEO landing page at `/mississauga-soccer-store`
+  - Hero with H1 "Your Go-To Local Soccer Store in Mississauga", two CTAs (Visit Our Store → Google Maps, Browse In-Stock Gear → `/products`)
+  - "Serving the Community" section with H2 "The Ultimate Headquarters for Local Clubs and Players" + body text about Mississauga Soccer League
+  - Three-column cards: Fast In-Store Pickup & Fitting, Official Club Kits & Lettering, Trusted by Mississauga Teams
+  - "How It Works" 3-step dark section (Submit Roster → Approve Proof → Pick Up/Deliver) — same as Brampton
+  - "Stop By and Gear Up Today" section with phone, address, hours (Mon–Fri 1–7 PM, Sat–Sun 11 AM–4 PM), 6-point checklist
+  - Quote form (mailto: info@edgedbs.com) with squad-specific fields (identical to BramptonSoccerPage)
+  - Footer contact bar with phone, address, website
+  - Helmet: title "Soccer Store in Mississauga | Elite Gear & Custom Kits | Absolute Soccer"; description "Mississauga's premier local soccer shop..."; canonical `https://torontosoccershop.com/mississauga-soccer-store`
+- ✅ `src/App.tsx`: Added import + `<Route path="mississauga-soccer-store">` route
+- ✅ `scripts/generate-sitemap.js`: Added `/mississauga-soccer-store` to `mainPages` array (priority 0.9) — sitemap now 185 URLs (6 main + 7 category + 170 product + 2 static)
+- ✅ Tested on localhost via Playwright — all sections render, both CTA buttons present, hero image loads, quote form functional
 
 **Session 31 improvements (Structured Data Image URL Fix):**
 - ✅ `src/pages/ProductDetailPage.tsx`: Fixed "Invalid URL in field image" Google Search Console error in Merchant Listings
@@ -349,7 +363,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Search by product_code and brand: `ProductGridPage` client-side filter includes `product_code` and `brand` fields — customers can find products by manufacturer SKU
 ✅ Bidirectional SKU search: hyphens stripped from `name`, `description`, and `product_code` before comparing — `"IB5300480"` finds product with `"IB5300-480"` in description, and vice versa
 ✅ `/brampton-soccer-uniforms`: City SEO landing page for Brampton soccer clubs — hero, why-us, how-it-works, visit-us, quote form; Helmet title/description set
-✅ Sitemap: 184 URLs (5 main + 7 category + 170 product pages); `/brampton-soccer-uniforms` added to `scripts/generate-sitemap.js` mainPages array
+✅ `/mississauga-soccer-store`: City SEO landing page for Mississauga — hero, community section, 3-column cards, how-it-works, visit-us (with hours), quote form; canonical URL set
+✅ Sitemap: 185 URLs (6 main + 7 category + 170 product pages); `/mississauga-soccer-store` added to `scripts/generate-sitemap.js` mainPages array (priority 0.9)
 ✅ Brand tiles on homepage: `BrandShowcase` links to `/brand/:brandName` (was broken `/products?brand=Nike`); `BrandPage` now calls `fetchProductsByCategory()` on mount so direct URL navigation shows products instead of "No products found"
 ✅ Sitemap: 181 URLs (4 main + 7 category + 168 product pages) — regenerated July 3, 2026
 ✅ SEO: updated title/meta description in index.html with keyword-rich content
@@ -513,6 +528,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - `/sale` — Sale page (filters products where isOnSale=true)
 - `/custom-apparel` — Custom Apparel landing page
 - `/brampton-soccer-uniforms` — City SEO landing page for Brampton soccer clubs (BramptonSoccerPage)
+- `/mississauga-soccer-store` — City SEO landing page for Mississauga soccer store (MississaugaSoccerPage)
 - `/category/:slug` — Alias for any nav menu path slug (e.g. `/category/national-teams`) — handled by `CategorySlugRoute`
 
 **Navigation landing pages (logo grid → click to see products):**

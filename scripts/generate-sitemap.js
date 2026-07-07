@@ -87,6 +87,7 @@ async function generateSitemap() {
       { url: 'https://torontosoccershop.com/brands', changefreq: 'weekly', priority: 0.8 },
       { url: 'https://torontosoccershop.com/custom-apparel', changefreq: 'monthly', priority: 0.8 },
       { url: 'https://torontosoccershop.com/brampton-soccer-uniforms', changefreq: 'monthly', priority: 0.8 },
+      { url: 'https://torontosoccershop.com/mississauga-soccer-store', changefreq: 'monthly', priority: 0.9 },
     ];
 
     xml += '  <!-- Main Pages -->\n';
