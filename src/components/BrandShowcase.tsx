@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { motion } from 'motion/react';
@@ -64,7 +64,7 @@ export function BrandShowcase() {
         </div>
         <Link
           to="/brands"
-          className="text-zinc-900 font-bold uppercase tracking-widest text-[10px] hover:text-[#b90014] transition-colors border-b-2 border-zinc-900 hover:border-[#b90014] pb-1"
+          className="text-zinc-900 font-bold uppercase tracking-widest text-[10px] hover:text-[var(--primary-color)] transition-colors border-b-2 border-zinc-900 hover:border-[var(--primary-color)] pb-1"
         >
           View All Brands
         </Link>
@@ -81,9 +81,9 @@ export function BrandShowcase() {
           >
             <Link
               to={`/brand/${encodeURIComponent(brand.name)}`}
-              className="group block bg-white border border-zinc-100 rounded-lg p-4 text-center transition-all hover:border-[#b90014] hover:shadow-lg hover:shadow-red-900/5 hover:-translate-y-1 h-full flex flex-col items-center justify-center"
+              className="group block bg-white border border-zinc-100 rounded-lg p-4 text-center transition-all hover:border-[var(--primary-color)] hover:shadow-lg hover:shadow-red-900/5 hover:-translate-y-1 h-full flex flex-col items-center justify-center"
             >
-              <h3 className="text-sm font-bold uppercase tracking-tight text-zinc-900 group-hover:text-[#b90014] transition-colors mb-2">
+              <h3 className="text-sm font-bold uppercase tracking-tight text-zinc-900 group-hover:text-[var(--primary-color)] transition-colors mb-2">
                 {brand.name}
               </h3>
               <p className="text-[10px] text-zinc-400 group-hover:text-zinc-600 transition-colors">

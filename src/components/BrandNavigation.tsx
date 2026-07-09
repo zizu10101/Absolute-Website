@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -47,13 +47,13 @@ export function BrandNavigation({ onNavigate }: Props) {
         <Link
           to="/brands"
           onClick={onNavigate}
-          className="flex-1 flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[#b90014] hover:text-[#b90014]"
+          className="flex-1 flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
         >
           Shop by Brand
         </Link>
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="p-2 text-zinc-400 hover:text-[#b90014]"
+          className="p-2 text-zinc-400 hover:text-[var(--primary-color)]"
         >
           <ChevronDown size={18} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
         </button>
@@ -73,7 +73,7 @@ export function BrandNavigation({ onNavigate }: Props) {
                   key={brand}
                   to={`/brand/${brand.toLowerCase()}`}
                   onClick={onNavigate}
-                  className="flex items-center justify-between px-8 py-2.5 text-xs font-bold text-zinc-600 uppercase tracking-widest hover:text-[#b90014] transition-colors"
+                  className="flex items-center justify-between px-8 py-2.5 text-xs font-bold text-zinc-600 uppercase tracking-widest hover:text-[var(--primary-color)] transition-colors"
                 >
                   <span>{brand}</span>
                   <ChevronRight size={14} />

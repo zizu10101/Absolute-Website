@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -18,18 +18,18 @@ export function CustomLabPage() {
           </Link>
 
           <div className="flex md:hidden items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
-            <CheckCircle2 size={10} className="text-[#b90014]" />
+            <CheckCircle2 size={10} className="text-[var(--primary-color)]" />
             <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Ready</span>
           </div>
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-[#b90014] animate-pulse" />
+          <div className="w-2 h-2 rounded-full bg-[var(--primary-color)] animate-pulse" />
           <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.4em] text-white">3D Lab Active</span>
         </div>
 
         <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
-          <CheckCircle2 size={12} className="text-[#b90014]" />
+          <CheckCircle2 size={12} className="text-[var(--primary-color)]" />
           <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Onboarding Complete</span>
         </div>
       </nav>

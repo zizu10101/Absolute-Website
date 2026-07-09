@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Barcode, CheckCircle2, QrCode, Sparkles, Volume2, AlertTriangle, Play, HelpCircle, Lock, RefreshCcw } from 'lucide-react';
 
@@ -246,13 +246,13 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
     const isDuplicateInDb = existingVariants.some(v => v.barcode?.toUpperCase() === code);
 
     if (isDuplicateInSession) {
-      alert(`⚠️ Barcode "${code}" was already scanned in this session for another size. Please scan a different barcode.`);
+      alert(`âš ï¸ Barcode "${code}" was already scanned in this session for another size. Please scan a different barcode.`);
       setBarcodeInput('');
       return;
     }
 
     if (isDuplicateInDb) {
-      alert(`⚠️ Barcode "${code}" already exists in the database for this product. Please scan a different barcode.`);
+      alert(`âš ï¸ Barcode "${code}" already exists in the database for this product. Please scan a different barcode.`);
       setBarcodeInput('');
       return;
     }
@@ -309,11 +309,11 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
       {/* Title Header */}
       <div className="bg-zinc-900 p-5 text-white flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-805">
         <div>
-          <span className="bg-[#b90014] text-[9px] text-white px-2 py-0.5 rounded font-black uppercase tracking-widest inline-block mb-1.5 animate-pulse">
+          <span className="bg-[var(--primary-color)] text-[9px] text-white px-2 py-0.5 rounded font-black uppercase tracking-widest inline-block mb-1.5 animate-pulse">
             HIGH-SPEED INVENTORY INTAKE
           </span>
           <h4 className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
-            <Barcode className="w-4 h-4 text-[#b90014]" /> RAPID-SCAN INTAKE MATRIX
+            <Barcode className="w-4 h-4 text-[var(--primary-color)]" /> RAPID-SCAN INTAKE MATRIX
           </h4>
           <p className="text-[10px] text-zinc-400 mt-1 uppercase tracking-widest">
             Modeled after physical size sheets. Lock counts first, then rapid scan serial barcodes.
@@ -329,16 +329,16 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
               disabled={isScanningActive}
               value={ageGroup}
               onChange={(e) => setAgeGroup(e.target.value as any)}
-              className="p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[#b90014] disabled:opacity-50 cursor-pointer"
+              className="p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)] disabled:opacity-50 cursor-pointer"
             >
-              <option value="Adult">👨 Adult (S, M, L, XXS–XXXL)</option>
-              <option value="Youth">👦 Youth (YXXS–YXL)</option>
-              <option value="Balls">⚽ Balls (Size 1–5)</option>
-              <option value="Gloves">🧤 Gloves (3–11)</option>
-              <option value="One Size">📦 One Size (Accessories)</option>
-              <option value="Adult Footwear">👟 Adult Footwear (3–13)</option>
-              <option value="Youth Footwear">👟 Youth Footwear (1Y–6Y)</option>
-              <option value="Toddler">🧒 Toddler (2T, 3T, 4T)</option>
+              <option value="Adult">ðŸ‘¨ Adult (S, M, L, XXSâ€“XXXL)</option>
+              <option value="Youth">ðŸ‘¦ Youth (YXXSâ€“YXL)</option>
+              <option value="Balls">âš½ Balls (Size 1â€“5)</option>
+              <option value="Gloves">ðŸ§¤ Gloves (3â€“11)</option>
+              <option value="One Size">ðŸ“¦ One Size (Accessories)</option>
+              <option value="Adult Footwear">ðŸ‘Ÿ Adult Footwear (3â€“13)</option>
+              <option value="Youth Footwear">ðŸ‘Ÿ Youth Footwear (1Yâ€“6Y)</option>
+              <option value="Toddler">ðŸ§’ Toddler (2T, 3T, 4T)</option>
             </select>
           </div>
           {productColors.length > 0 && (
@@ -350,9 +350,9 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                 disabled={isScanningActive}
                 value={selectedColor}
                 onChange={(e) => setSelectedColor(e.target.value)}
-                className="p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[#b90014] disabled:opacity-50 cursor-pointer"
+                className="p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)] disabled:opacity-50 cursor-pointer"
               >
-                <option value="">— No Color —</option>
+                <option value="">â€” No Color â€”</option>
                 {productColors.map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -427,7 +427,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                       }}
                       placeholder="0"
                       style={{ MozAppearance: 'textfield' }}
-                      className={`w-full text-center py-2.5 px-2 border-2 rounded-xl text-base font-black focus:outline-none focus:ring-2 focus:ring-[#b90014] transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                      className={`w-full text-center py-2.5 px-2 border-2 rounded-xl text-base font-black focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                         hasQty 
                           ? 'border-zinc-900 bg-white text-zinc-900' 
                           : 'border-zinc-200 bg-zinc-50 text-zinc-400'
@@ -439,13 +439,13 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                   {isActiveTarget && (
                     <span className="absolute -top-2.5 -right-1 flex h-4 w-4">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-4 w-4 bg-blue-500 text-white items-center justify-center text-[8px] font-bold">🎯</span>
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-blue-500 text-white items-center justify-center text-[8px] font-bold">ðŸŽ¯</span>
                     </span>
                   )}
 
                   {isFinishedInQueue && (
                     <span className="absolute -top-2 -right-1 bg-green-500 text-white rounded-full p-0.5 text-[8px] font-bold shadow-xs">
-                      ✔
+                      âœ”
                     </span>
                   )}
                 </motion.div>
@@ -456,7 +456,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
             {!isScanningActive && (
               <form onSubmit={handleCustomSizeAdd} className="p-4 border-2 border-dashed border-zinc-300 rounded-2xl flex flex-col gap-3 bg-zinc-50/30 hover:bg-zinc-50 transition-colors min-h-[100px]">
                 <label className="block text-[8px] font-black text-zinc-400 uppercase tracking-widest text-center mb-1">
-                  ＋ Custom Size
+                  ï¼‹ Custom Size
                 </label>
                 <div className="space-y-1.5 mt-1.5">
                   <input
@@ -464,7 +464,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                     placeholder="e.g. 5.5Y"
                     value={customSizeInput}
                     onChange={(e) => setCustomSizeInput(e.target.value)}
-                    className="w-full text-center uppercase font-mono py-1 px-1 text-[11px] font-semibold border border-zinc-200 bg-white rounded focus:outline-none focus:ring-1 focus:ring-[#b90014]"
+                    className="w-full text-center uppercase font-mono py-1 px-1 text-[11px] font-semibold border border-zinc-200 bg-white rounded focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)]"
                   />
                   <button
                     type="submit"
@@ -483,7 +483,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-zinc-100 bg-zinc-50/50 p-4 rounded-xl">
             <div className="flex items-center gap-2.5">
               <span className="p-2 rounded-full bg-amber-50 text-amber-600 block">
-                <QrCode className="w-5 h-5 text-[#b90014]" />
+                <QrCode className="w-5 h-5 text-[var(--primary-color)]" />
               </span>
               <div>
                 <p className="text-[11px] font-extrabold uppercase text-zinc-800 tracking-wider">
@@ -500,7 +500,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
               onClick={startScanningMode}
               className="px-6 py-3 bg-zinc-900 text-white hover:bg-blue-600 rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
             >
-              <Lock className="w-3.5 h-3.5" /> LOCK QUANTITIES & START SCANNING ▶
+              <Lock className="w-3.5 h-3.5" /> LOCK QUANTITIES & START SCANNING â–¶
             </button>
           </div>
         ) : (
@@ -517,7 +517,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                     </span>
                   </div>
                   <h3 className="text-xl font-black text-zinc-900 font-sans tracking-tight">
-                    AWAITING SCAN FOR SIZE: <span className="text-[#b90014] font-mono font-extrabold border-b-2 border-[#b90014] px-1 md:text-2xl">{activeItem.size}</span>
+                    AWAITING SCAN FOR SIZE: <span className="text-[var(--primary-color)] font-mono font-extrabold border-b-2 border-[var(--primary-color)] px-1 md:text-2xl">{activeItem.size}</span>
                   </h3>
                   <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">
                     Input stock is locked at <span className="text-zinc-950 font-black">{activeItem.qty} units</span>. Aim hardware scanner and click play/trigger.
@@ -543,7 +543,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                       {isSaving ? (
-                        <div className="w-5 h-5 border-2 border-[#b90014] border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-5 h-5 border-2 border-[var(--primary-color)] border-t-transparent rounded-full animate-spin"></div>
                       ) : (
                         <Barcode className="w-5 h-5 text-zinc-400" />
                       )}
@@ -565,7 +565,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
             )}
 
             {/* Quick scanning controller options */}
-            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-[#b90014] bg-zinc-50 px-4 py-2 rounded-lg">
+            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-[var(--primary-color)] bg-zinc-50 px-4 py-2 rounded-lg">
               <span className="flex items-center gap-1 text-slate-500">
                 <Volume2 className="w-3.5 h-3.5 text-slate-400" /> Synthetic audio chime status: ACTIVE beep
               </span>
@@ -589,9 +589,9 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                     <div key={idx} className="flex items-center gap-1 bg-white border border-green-200 text-zinc-800 px-2 py-1 rounded shadow-3xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                       <span className="font-extrabold uppercase font-sans">Size {res.size}</span>
-                      {res.color && <><span className="text-zinc-400">·</span><span className="font-bold text-[#b90014] text-[9px] uppercase">{res.color}</span></>}
+                      {res.color && <><span className="text-zinc-400">Â·</span><span className="font-bold text-[var(--primary-color)] text-[9px] uppercase">{res.color}</span></>}
                       <span className="text-zinc-400">|</span>
-                      <span className="font-mono text-[9px] font-bold text-[#b90014]">{res.barcode}</span>
+                      <span className="font-mono text-[9px] font-bold text-[var(--primary-color)]">{res.barcode}</span>
                       <span className="text-zinc-400">|</span>
                       <span className="text-zinc-500 font-semibold">{res.quantity}x</span>
                     </div>
@@ -635,7 +635,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                 <h2 className="text-2xl font-black font-sans uppercase tracking-tight">
                   ALL VARIANTS SECURELY REGISTERED
                 </h2>
-                <div className="w-16 h-1.5 bg-[#b90014] mx-auto rounded-full mt-2"></div>
+                <div className="w-16 h-1.5 bg-[var(--primary-color)] mx-auto rounded-full mt-2"></div>
               </div>
 
               <div className="w-full bg-zinc-950/80 border border-zinc-805 rounded-xl p-4 text-xs font-mono max-h-36 overflow-y-auto text-left style-scrollbar space-y-2">
@@ -653,7 +653,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
               <button
                 type="button"
                 onClick={handleFinishSuccess}
-                className="w-full py-4 bg-[#b90014] hover:bg-red-705 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-[#b90014]/25 cursor-pointer"
+                className="w-full py-4 bg-[var(--primary-color)] hover:bg-red-705 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-[var(--primary-color)]/25 cursor-pointer"
               >
                 CLOSE SECTIONS & REFRESH SYSTEM
               </button>

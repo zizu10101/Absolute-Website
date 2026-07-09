@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'motion/react';
+﻿import { motion, AnimatePresence } from 'motion/react';
 import { X, Shield, Footprints, Flag, CircleDot, Shirt, Dumbbell, Star, Sparkles, Tag, Bolt, ClipboardList, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
@@ -55,7 +55,7 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                 <Link
                   to="/"
                   onClick={onClose}
-                  className="flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[#b90014] hover:text-[#b90014]"
+                  className="flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
                 >
                   Home
                 </Link>
@@ -63,7 +63,7 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                 <Link
                   to="/custom-apparel"
                   onClick={onClose}
-                  className="flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[#b90014] hover:text-[#b90014]"
+                  className="flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
                 >
                   Custom Apparel
                 </Link>
@@ -77,14 +77,14 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                       <Link
                         to={menu.path}
                         onClick={onClose}
-                        className="flex-1 flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[#b90014] hover:text-[#b90014]"
+                        className="flex-1 flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
                       >
                         {menu.label}
                       </Link>
                       {menu.submenus.length > 0 && (
                         <button 
                           onClick={() => toggleMenu(menu.label)}
-                          className="p-2 text-zinc-400 hover:text-[#b90014]"
+                          className="p-2 text-zinc-400 hover:text-[var(--primary-color)]"
                         >
                           <ChevronDown size={18} className={`transition-transform duration-300 ${expandedMenus[menu.label] ? 'rotate-180' : ''}`} />
                         </button>
@@ -122,7 +122,7 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                                         key={item.path}
                                         to={item.path}
                                         onClick={onClose}
-                                        className="px-12 py-2.5 text-xs font-bold text-zinc-600 hover:text-[#b90014] transition-colors border-l-2 border-transparent hover:border-[#b90014]"
+                                        className="px-12 py-2.5 text-xs font-bold text-zinc-600 hover:text-[var(--primary-color)] transition-colors border-l-2 border-transparent hover:border-[var(--primary-color)]"
                                       >
                                         {item.label}
                                       </Link>
@@ -140,7 +140,7 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
               </nav>
             </div>
             <div className="p-6 bg-zinc-50 text-zinc-400 text-[10px] font-bold uppercase tracking-widest border-t border-zinc-100">
-              © 2024 ABSOLUTE SOCCER. ALL RIGHTS RESERVED.
+              Â© 2024 ABSOLUTE SOCCER. ALL RIGHTS RESERVED.
             </div>
           </motion.aside>
         </div>

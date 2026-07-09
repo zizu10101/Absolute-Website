@@ -4,8 +4,39 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - July 7, 2026)
-**Latest:** Mississauga city landing page (session 32)
+## CURRENT STATUS (Main Branch - July 9, 2026)
+**Latest:** Theme & Branding admin panel (session 33)
+
+**Session 33 improvements (Theme & Branding Admin Panel):**
+- ✅ **Theme & Branding tab** added to Admin → Settings: Store Name, Primary Color picker, Secondary Color picker, Font Family selector, Live Preview, Logos section
+- ✅ `src/context/SettingsContext.tsx`: `ThemeSettings` interface + `DEFAULT_THEME` constant; `themeSettings` state; `useEffect([themeSettings])` injects CSS vars on every settings change
+  - `--primary-color`, `--secondary-color`, `--font-family` injected into `:root` via `document.documentElement.style.setProperty`
+  - **Font loading rewrite**: removes old Google Fonts link, creates new one, fires `applyFont()` immediately AND on `link.onload` (handles both cached + fresh fonts)
+  - `applyFont()` sets `--font-family`, `--font-sans` (overrides Tailwind v4's sans variable so `font-sans` class elements also switch), `document.documentElement.style.fontFamily`, and `document.body.style.fontFamily` as inline styles
+  - Font resets cleanly to `default` (removes all inline overrides)
+  - `setThemeSettings()` persists to `settings` table `key='theme'`
+  - Loads `results.theme` from Supabase on `fetchSettings()`
+- ✅ `src/index.css`: `html, body { font-family: var(--font-family) !important; }` — beats Tailwind v4 preflight which sets font-family on `html` via `--font-sans`
+- ✅ `src/pages/AdminPage.tsx`:
+  - `'theme'` tab added to tab union type; `Palette` icon imported
+  - `draftTheme`, `isSavingTheme`, `themeSaveSuccess` states
+  - Preview font-loading `useEffect([draftTheme.fontFamily])`: loads Google Font immediately when dropdown changes (separate `google-fonts-preview` link tag) so live preview reflects selected font before saving
+  - **Font dropdown**: 22 options (Default + 21 fonts) organized in 4 `<optgroup>` categories:
+    - ⚽ Sports/Bold: Bebas Neue, Anton, Teko, Barlow Condensed, Black Han Sans, Archivo Black
+    - ✨ Modern/Clean: Inter, Poppins, Nunito, DM Sans, Plus Jakarta Sans, Syne
+    - 💎 Elegant: Raleway, Josefin Sans, Cormorant, Playfair Display
+    - 🚀 Unique/Creative: Righteous, Russo One, Exo 2, Oxanium, Orbitron
+  - **Live preview mockup**: realistic nav bar (store name + FOOTWEAR/CLUBS/NATIONAL TEAMS links), hero (h2 + body text + Shop Now button), footer strip — all rendered in draftTheme font with primary/secondary colors applied in real-time before saving
+  - Logos section mirrors Slider tab upload handlers
+- ✅ **Primary color applied site-wide**: mass PowerShell replace of all `[#b90014]` → `[var(--primary-color)]` in 33 source files (components, pages, contexts) — every accent, button, and link responds to theme
+- ✅ **Secondary color applied to key dark sections**:
+  - `src/components/Footer.tsx`: `style={{ backgroundColor: 'var(--secondary-color)' }}`
+  - `src/pages/HomePage.tsx`: "Visit Us" dark section
+  - `src/pages/BramptonSoccerPage.tsx`: "How It Works" + footer contact bar
+  - `src/pages/MississaugaSoccerPage.tsx`: "How It Works" + footer contact bar
+  - `src/pages/CustomApparelPage.tsx`: "How It Works" + footer contact bar
+- ✅ Supabase `settings` table: default `theme` row inserted `{storeName, primaryColor: '#b90014', secondaryColor: '#000000', fontFamily: 'default'}`
+- ✅ Verified on localhost via Playwright: 22 font options, 4 optgroups, preview updates to Bebas Neue font, after save → `body font-family: "Bebas Neue", sans-serif`; `--font-sans` overridden; homepage h2 also uses Bebas Neue
 
 **Session 32 improvements (Mississauga City Landing Page):**
 - ✅ `src/pages/MississaugaSoccerPage.tsx`: New city SEO landing page at `/mississauga-soccer-store`
@@ -365,6 +396,10 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ `/brampton-soccer-uniforms`: City SEO landing page for Brampton soccer clubs — hero, why-us, how-it-works, visit-us, quote form; Helmet title/description set
 ✅ `/mississauga-soccer-store`: City SEO landing page for Mississauga — hero, community section, 3-column cards, how-it-works, visit-us (with hours), quote form; canonical URL set
 ✅ Sitemap: 185 URLs (6 main + 7 category + 170 product pages); `/mississauga-soccer-store` added to `scripts/generate-sitemap.js` mainPages array (priority 0.9)
+✅ Theme & Branding admin panel: Admin → Settings → Theme tab; primary color, secondary color, font family (21 fonts in 4 categories), live preview mockup, logos; all settings persisted to `settings` table `key='theme'`
+✅ Primary color site-wide: all `[#b90014]` Tailwind arbitrary values replaced with `[var(--primary-color)]` across 33 source files
+✅ Secondary color applied: Footer, HomePage "Visit Us", BramptonSoccerPage/MississaugaSoccerPage/CustomApparelPage "How It Works" + contact bar sections use `style={{ backgroundColor: 'var(--secondary-color)' }}`
+✅ Font system: `applyFont()` in SettingsContext overrides `--font-sans` (Tailwind v4 variable) + sets inline `fontFamily` on `html` and `body`; `html, body { font-family: var(--font-family) !important }` in index.css; live preview loads Google Font on dropdown change before save
 ✅ Brand tiles on homepage: `BrandShowcase` links to `/brand/:brandName` (was broken `/products?brand=Nike`); `BrandPage` now calls `fetchProductsByCategory()` on mount so direct URL navigation shows products instead of "No products found"
 ✅ Sitemap: 181 URLs (4 main + 7 category + 168 product pages) — regenerated July 3, 2026
 ✅ SEO: updated title/meta description in index.html with keyword-rich content

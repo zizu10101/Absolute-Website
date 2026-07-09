@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   UtensilsCrossed,
   Building2,
@@ -26,7 +26,7 @@ import {
 const WHO_WE_SERVE = [
   { icon: UtensilsCrossed, label: 'Restaurants & Hospitality', desc: 'Staff uniforms, aprons, branded polos for front-of-house and kitchen teams.' },
   { icon: Building2, label: 'Corporate & Office', desc: 'Branded shirts, hoodies, and jackets that represent your company culture.' },
-  { icon: HardHat, label: 'Construction & Trades', desc: 'Durable workwear with your logo — hi-vis vests, safety shirts, and more.' },
+  { icon: HardHat, label: 'Construction & Trades', desc: 'Durable workwear with your logo â€” hi-vis vests, safety shirts, and more.' },
   { icon: GraduationCap, label: 'Schools & Universities', desc: 'Spirit wear, staff uniforms, and team gear for schools across the GTA.' },
   { icon: Trophy, label: 'Sports Teams & Clubs', desc: 'Custom jerseys, training kits, and fan gear for any sport or level.' },
   { icon: PartyPopper, label: 'Events & Promotions', desc: 'Branded giveaways, volunteer shirts, and event staff apparel.' },
@@ -46,7 +46,7 @@ const STEPS = [
     icon: ClipboardList,
     step: '01',
     title: 'Contact Us',
-    description: 'Tell us what you need — garment type, quantity, colors and your logo or design ideas.',
+    description: 'Tell us what you need â€” garment type, quantity, colors and your logo or design ideas.',
   },
   {
     icon: PenTool,
@@ -69,7 +69,7 @@ const HIGHLIGHTS = [
 ];
 
 const WHY_US = [
-  'Local Mississauga business — we know the GTA',
+  'Local Mississauga business â€” we know the GTA',
   'Fast turnaround times',
   'Premium quality printing and embroidery',
   'Competitive, transparent pricing',
@@ -106,7 +106,7 @@ export function CustomApparelPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const subject = encodeURIComponent(`Custom Apparel Quote Request — ${form.company || form.name}`);
+    const subject = encodeURIComponent(`Custom Apparel Quote Request â€” ${form.company || form.name}`);
     const body = encodeURIComponent(
       `Name: ${form.name}\nCompany: ${form.company}\nEmail: ${form.email}\nPhone: ${form.phone}\nApparel Type: ${form.apparelType}\nQuantity: ${form.quantity}\n\nMessage:\n${form.message}`
     );
@@ -116,17 +116,17 @@ export function CustomApparelPage() {
 
   return (
     <div className="bg-white text-zinc-900">
-      {/* ── HERO ── */}
+      {/* â”€â”€ HERO â”€â”€ */}
       <section id="top" className="relative overflow-hidden bg-white">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 md:grid-cols-2 md:px-6 md:py-24">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600">
-              <MapPin className="size-3.5 text-[#b90014]" />
+              <MapPin className="size-3.5 text-[var(--primary-color)]" />
               Serving Mississauga & the GTA
             </div>
             <h1 className="mt-5 text-balance text-4xl font-bold leading-tight tracking-tight text-zinc-900 md:text-5xl lg:text-6xl">
               Custom Apparel for{' '}
-              <span className="text-[#b90014]">Your Business</span>
+              <span className="text-[var(--primary-color)]">Your Business</span>
             </h1>
             <p className="mt-5 max-w-md text-pretty text-lg leading-relaxed text-zinc-500">
               Professional uniforms and branded clothing for businesses, events,
@@ -136,7 +136,7 @@ export function CustomApparelPage() {
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <a
                 href="#quote"
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-[#b90014] rounded-md hover:bg-red-800 transition-colors"
+                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-[var(--primary-color)] rounded-md hover:bg-red-800 transition-colors"
               >
                 Get a Free Quote
               </a>
@@ -151,7 +151,7 @@ export function CustomApparelPage() {
             <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
               {HIGHLIGHTS.map((item) => (
                 <li key={item} className="flex items-center gap-2 text-sm font-medium text-zinc-900">
-                  <CheckCircle2 className="size-4 text-[#b90014]" />
+                  <CheckCircle2 className="size-4 text-[var(--primary-color)]" />
                   {item}
                 </li>
               ))}
@@ -167,28 +167,28 @@ export function CustomApparelPage() {
               />
             </div>
             <div className="absolute -bottom-5 -left-5 hidden rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-lg sm:block">
-              <p className="text-3xl font-bold text-[#b90014]">10+</p>
+              <p className="text-3xl font-bold text-[var(--primary-color)]">10+</p>
               <p className="text-xs font-medium text-zinc-500">Years serving the GTA</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── WHO WE SERVE ── */}
+      {/* â”€â”€ WHO WE SERVE â”€â”€ */}
       <section className="py-20 md:py-28 bg-zinc-50">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <div className="mb-14">
-            <p className="text-[#b90014] text-xs font-black uppercase tracking-widest mb-3">Who We Serve</p>
+            <p className="text-[var(--primary-color)] text-xs font-black uppercase tracking-widest mb-3">Who We Serve</p>
             <h2 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none">
               We Outfit Every<br />
-              <span className="text-[#b90014]">Kind of Business</span>
+              <span className="text-[var(--primary-color)]">Kind of Business</span>
             </h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {WHO_WE_SERVE.map(({ icon: Icon, label, desc }) => (
-              <div key={label} className="bg-white rounded-2xl p-8 border border-zinc-100 hover:border-[#b90014]/30 hover:shadow-md transition-all group">
-                <div className="w-12 h-12 rounded-xl bg-[#b90014]/10 flex items-center justify-center mb-5 group-hover:bg-[#b90014]/20 transition-colors">
-                  <Icon size={24} className="text-[#b90014]" />
+              <div key={label} className="bg-white rounded-2xl p-8 border border-zinc-100 hover:border-[var(--primary-color)]/30 hover:shadow-md transition-all group">
+                <div className="w-12 h-12 rounded-xl bg-[var(--primary-color)]/10 flex items-center justify-center mb-5 group-hover:bg-[var(--primary-color)]/20 transition-colors">
+                  <Icon size={24} className="text-[var(--primary-color)]" />
                 </div>
                 <h3 className="text-lg font-black uppercase tracking-tight mb-2">{label}</h3>
                 <p className="text-zinc-500 text-sm leading-relaxed">{desc}</p>
@@ -198,21 +198,21 @@ export function CustomApparelPage() {
         </div>
       </section>
 
-      {/* ── WHAT WE OFFER ── */}
+      {/* â”€â”€ WHAT WE OFFER â”€â”€ */}
       <section className="py-20 md:py-28 bg-white">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <div className="mb-14">
-            <p className="text-[#b90014] text-xs font-black uppercase tracking-widest mb-3">What We Offer</p>
+            <p className="text-[var(--primary-color)] text-xs font-black uppercase tracking-widest mb-3">What We Offer</p>
             <h2 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none">
               Apparel for<br />
-              <span className="text-[#b90014]">Every Need</span>
+              <span className="text-[var(--primary-color)]">Every Need</span>
             </h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
             {WHAT_WE_OFFER.map(({ icon: Icon, label, desc }) => (
-              <div key={label} className="relative rounded-2xl p-6 md:p-8 border border-zinc-100 bg-zinc-50 hover:bg-white hover:shadow-md hover:border-[#b90014]/20 transition-all group overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-[#b90014]/5 rounded-full -translate-y-8 translate-x-8 group-hover:bg-[#b90014]/10 transition-colors" />
-                <Icon size={28} className="text-[#b90014] mb-4 relative z-10" />
+              <div key={label} className="relative rounded-2xl p-6 md:p-8 border border-zinc-100 bg-zinc-50 hover:bg-white hover:shadow-md hover:border-[var(--primary-color)]/20 transition-all group overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-[var(--primary-color)]/5 rounded-full -translate-y-8 translate-x-8 group-hover:bg-[var(--primary-color)]/10 transition-colors" />
+                <Icon size={28} className="text-[var(--primary-color)] mb-4 relative z-10" />
                 <h3 className="font-black uppercase tracking-tight mb-1 relative z-10">{label}</h3>
                 <p className="text-zinc-500 text-sm leading-relaxed relative z-10">{desc}</p>
               </div>
@@ -221,11 +221,11 @@ export function CustomApparelPage() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section id="how-it-works" className="bg-zinc-900 py-16 md:py-24">
+      {/* â”€â”€ HOW IT WORKS â”€â”€ */}
+      <section id="how-it-works" className="py-16 md:py-24" style={{ backgroundColor: 'var(--secondary-color)' }}>
         <div className="mx-auto max-w-6xl px-4 md:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-wide text-[#b90014]">
+            <p className="text-sm font-semibold uppercase tracking-wide text-[var(--primary-color)]">
               How It Works
             </p>
             <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight text-white md:text-4xl">
@@ -236,10 +236,10 @@ export function CustomApparelPage() {
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {STEPS.map((step) => (
               <div key={step.step} className="relative rounded-xl border border-white/10 bg-white/5 p-7">
-                <span className="text-5xl font-bold text-[#b90014]">
+                <span className="text-5xl font-bold text-[var(--primary-color)]">
                   {step.step}
                 </span>
-                <div className="mt-4 flex size-11 items-center justify-center rounded-lg bg-[#b90014] text-white">
+                <div className="mt-4 flex size-11 items-center justify-center rounded-lg bg-[var(--primary-color)] text-white">
                   <step.icon className="size-5" />
                 </div>
                 <h3 className="mt-4 text-lg font-semibold text-white">{step.title}</h3>
@@ -252,15 +252,15 @@ export function CustomApparelPage() {
         </div>
       </section>
 
-      {/* ── WHY CHOOSE US ── */}
+      {/* â”€â”€ WHY CHOOSE US â”€â”€ */}
       <section className="py-20 md:py-28 bg-white">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
-              <p className="text-[#b90014] text-xs font-black uppercase tracking-widest mb-3">Why Choose Us</p>
+              <p className="text-[var(--primary-color)] text-xs font-black uppercase tracking-widest mb-3">Why Choose Us</p>
               <h2 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none mb-8">
                 Your Local GTA<br />
-                <span className="text-[#b90014]">Custom Apparel Partner</span>
+                <span className="text-[var(--primary-color)]">Custom Apparel Partner</span>
               </h2>
               <p className="text-zinc-500 text-lg leading-relaxed">
                 Absolute Soccer is a Mississauga-based retail store that has expanded into full custom apparel services for local businesses and organizations. We bring the same quality and care to your branded clothing that we bring to our sports products.
@@ -269,7 +269,7 @@ export function CustomApparelPage() {
             <div className="space-y-4">
               {WHY_US.map(point => (
                 <div key={point} className="flex items-start gap-4 p-5 bg-zinc-50 rounded-xl border border-zinc-100">
-                  <CheckCircle size={20} className="text-[#b90014] shrink-0 mt-0.5" />
+                  <CheckCircle size={20} className="text-[var(--primary-color)] shrink-0 mt-0.5" />
                   <span className="font-semibold text-zinc-800">{point}</span>
                 </div>
               ))}
@@ -278,23 +278,23 @@ export function CustomApparelPage() {
         </div>
       </section>
 
-      {/* ── QUOTE FORM ── */}
+      {/* â”€â”€ QUOTE FORM â”€â”€ */}
       <section id="quote" className="py-20 md:py-28 bg-zinc-50">
         <div className="max-w-3xl mx-auto px-6 md:px-12">
           <div className="mb-12 text-center">
-            <p className="text-[#b90014] text-xs font-black uppercase tracking-widest mb-3">Get Started</p>
+            <p className="text-[var(--primary-color)] text-xs font-black uppercase tracking-widest mb-3">Get Started</p>
             <h2 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none mb-4">
-              Get a <span className="text-[#b90014]">Free Quote</span>
+              Get a <span className="text-[var(--primary-color)]">Free Quote</span>
             </h2>
             <p className="text-zinc-500">Fill out the form and we'll get back to you within one business day.</p>
           </div>
 
           {submitted ? (
             <div className="text-center bg-white border border-zinc-100 rounded-2xl p-12 shadow-sm">
-              <CheckCircle size={48} className="text-[#b90014] mx-auto mb-4" />
+              <CheckCircle size={48} className="text-[var(--primary-color)] mx-auto mb-4" />
               <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Quote Request Sent</h3>
               <p className="text-zinc-500">Your email client should have opened. We'll get back to you shortly.</p>
-              <p className="text-zinc-400 text-sm mt-2">Or call us directly: <a href="tel:9055933600" className="text-[#b90014] font-bold">905-593-3600</a></p>
+              <p className="text-zinc-400 text-sm mt-2">Or call us directly: <a href="tel:9055933600" className="text-[var(--primary-color)] font-bold">905-593-3600</a></p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-8 md:p-12 space-y-6">
@@ -308,7 +308,7 @@ export function CustomApparelPage() {
                     value={form.name}
                     onChange={handleChange}
                     placeholder="John Smith"
-                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors"
+                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors"
                   />
                 </div>
                 <div>
@@ -319,7 +319,7 @@ export function CustomApparelPage() {
                     value={form.company}
                     onChange={handleChange}
                     placeholder="Acme Corp"
-                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors"
+                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors"
                   />
                 </div>
                 <div>
@@ -331,7 +331,7 @@ export function CustomApparelPage() {
                     value={form.email}
                     onChange={handleChange}
                     placeholder="john@example.com"
-                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors"
+                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors"
                   />
                 </div>
                 <div>
@@ -342,7 +342,7 @@ export function CustomApparelPage() {
                     value={form.phone}
                     onChange={handleChange}
                     placeholder="905-000-0000"
-                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors"
+                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors"
                   />
                 </div>
                 <div>
@@ -352,7 +352,7 @@ export function CustomApparelPage() {
                     required
                     value={form.apparelType}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors"
+                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors"
                   >
                     <option value="">Select type...</option>
                     {APPAREL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -367,7 +367,7 @@ export function CustomApparelPage() {
                     value={form.quantity}
                     onChange={handleChange}
                     placeholder="e.g. 50 pieces"
-                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors"
+                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors"
                   />
                 </div>
               </div>
@@ -379,45 +379,45 @@ export function CustomApparelPage() {
                   value={form.message}
                   onChange={handleChange}
                   placeholder="Tell us about your design, colours, logo requirements, deadline, etc."
-                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors resize-none"
+                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors resize-none"
                 />
               </div>
               <button
                 type="submit"
-                className="w-full py-4 bg-[#b90014] text-white font-black uppercase tracking-widest text-sm rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-[#b90014]/20"
+                className="w-full py-4 bg-[var(--primary-color)] text-white font-black uppercase tracking-widest text-sm rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-[var(--primary-color)]/20"
               >
                 Send My Quote Request
               </button>
               <p className="text-center text-zinc-400 text-xs">
                 Prefer to call? Reach us at{' '}
-                <a href="tel:9055933600" className="text-[#b90014] font-bold">905-593-3600</a>
+                <a href="tel:9055933600" className="text-[var(--primary-color)] font-bold">905-593-3600</a>
               </p>
             </form>
           )}
         </div>
       </section>
 
-      {/* ── FOOTER CONTACT BAR ── */}
-      <section className="bg-zinc-900 text-white py-12">
+      {/* â”€â”€ FOOTER CONTACT BAR â”€â”€ */}
+      <section className="text-white py-12" style={{ backgroundColor: 'var(--secondary-color)' }}>
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
             <div className="flex flex-col sm:flex-row items-center gap-8">
-              <a href="tel:9055933600" className="flex items-center gap-3 text-white hover:text-[#b90014] transition-colors">
-                <Phone size={20} className="text-[#b90014]" />
+              <a href="tel:9055933600" className="flex items-center gap-3 text-white hover:text-[var(--primary-color)] transition-colors">
+                <Phone size={20} className="text-[var(--primary-color)]" />
                 <span className="font-bold">905-593-3600</span>
               </a>
               <div className="flex items-center gap-3 text-zinc-400">
-                <MapPin size={20} className="text-[#b90014]" />
+                <MapPin size={20} className="text-[var(--primary-color)]" />
                 <span>Mississauga, ON</span>
               </div>
               <a href="https://torontosoccershop.com" className="flex items-center gap-3 text-zinc-400 hover:text-white transition-colors">
-                <Globe size={20} className="text-[#b90014]" />
+                <Globe size={20} className="text-[var(--primary-color)]" />
                 <span>torontosoccershop.com</span>
               </a>
             </div>
             <a
               href="#quote"
-              className="px-8 py-3 bg-[#b90014] text-white font-black uppercase tracking-widest text-sm rounded-xl hover:bg-red-700 transition-colors whitespace-nowrap"
+              className="px-8 py-3 bg-[var(--primary-color)] text-white font-black uppercase tracking-widest text-sm rounded-xl hover:bg-red-700 transition-colors whitespace-nowrap"
             >
               Get a Free Quote
             </a>

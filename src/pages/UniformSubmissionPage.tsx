@@ -1,10 +1,10 @@
-import { ArrowRight, UploadCloud } from 'lucide-react';
+﻿import { ArrowRight, UploadCloud } from 'lucide-react';
 
 export function UniformSubmissionPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="mb-16">
-        <span className="inline-block px-3 py-1 bg-red-50 text-[#b90014] font-headline font-bold text-xs tracking-widest uppercase mb-4">Kit Registry</span>
+        <span className="inline-block px-3 py-1 bg-red-50 text-[var(--primary-color)] font-headline font-bold text-xs tracking-widest uppercase mb-4">Kit Registry</span>
         <h1 className="text-6xl md:text-8xl font-headline font-bold tracking-tighter uppercase leading-[0.9] mb-6">Uniform<br/>Submission</h1>
         <p className="text-lg text-zinc-500 max-w-md font-medium leading-relaxed">
           Precision engineering starts with your specifications. Submit your team's requirements below to begin the elite customization process.
@@ -32,11 +32,11 @@ export function UniformSubmissionPage() {
         <p className="text-zinc-500 font-medium">Already have your designs? Submit your team's technical specifications directly.</p>
       </div>
       <div className="bg-white p-8 md:p-16 shadow-xl border border-zinc-100 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-[#b90014] -mr-16 -mt-16 rotate-45"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--primary-color)] -mr-16 -mt-16 rotate-45"></div>
         
         <form className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-10">
           <div className="space-y-10">
-            <div className="border-l-4 border-[#b90014] pl-6">
+            <div className="border-l-4 border-[var(--primary-color)] pl-6">
               <h2 className="font-headline font-bold text-2xl uppercase tracking-tight mb-8">Team Identity</h2>
               <div className="space-y-6">
                 <div>
@@ -90,7 +90,7 @@ export function UniformSubmissionPage() {
           </div>
 
           <div className="md:col-span-2 pt-8">
-            <button className="w-full bg-[#b90014] text-white py-6 font-headline font-black text-2xl uppercase tracking-widest hover:bg-zinc-900 transition-colors flex items-center justify-center gap-4">
+            <button className="w-full bg-[var(--primary-color)] text-white py-6 font-headline font-black text-2xl uppercase tracking-widest hover:bg-zinc-900 transition-colors flex items-center justify-center gap-4">
               Complete Submission
               <ArrowRight />
             </button>

@@ -1,4 +1,4 @@
-import { useProducts } from '../context/ProductContext';
+﻿import { useProducts } from '../context/ProductContext';
 import { useSettings } from '../context/SettingsContext';
 import { Helmet } from 'react-helmet-async';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
@@ -22,8 +22,8 @@ const ITEMS_PER_PAGE = 4;
 const PRICE_RANGES: { value: PriceRange; label: string }[] = [
   { value: 'all', label: 'All Prices' },
   { value: 'under-50', label: 'Under $50' },
-  { value: '50-100', label: '$50–$100' },
-  { value: '100-150', label: '$100–$150' },
+  { value: '50-100', label: '$50â€“$100' },
+  { value: '100-150', label: '$100â€“$150' },
   { value: 'over-150', label: 'Over $150' },
 ];
 
@@ -55,7 +55,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
   const urlQuery = searchParams.get('q') || '';
   const region = searchParams.get('region') || '';
 
-  // Filter + sort state — lazy initializers read URL params synchronously on first render
+  // Filter + sort state â€” lazy initializers read URL params synchronously on first render
   const [localSearch, setLocalSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [sortBy, setSortBy] = useState<SortOption>(() => {
@@ -300,7 +300,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
       });
     }
 
-    // Region filter — e.g. /category/national-teams?region=europe
+    // Region filter â€” e.g. /category/national-teams?region=europe
     if (region) {
       const norm = (s: string) => s.trim().toLowerCase().replace(/-/g, ' ');
       const regionNorm = norm(region);
@@ -443,8 +443,8 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     return [];
   }, [currentMenu, submenu]);
 
-  // When submenu matches a heading (EUROPE, LIGA…), groupedSubmenuItems has logo items → show ONLY the logo grid.
-  // When submenu matches an item (PORTUGAL, ARSENAL…), groupedSubmenuItems is empty → show product grid.
+  // When submenu matches a heading (EUROPE, LIGAâ€¦), groupedSubmenuItems has logo items â†’ show ONLY the logo grid.
+  // When submenu matches an item (PORTUGAL, ARSENALâ€¦), groupedSubmenuItems is empty â†’ show product grid.
   const isHeadingLandingPage = !!submenu && groupedSubmenuItems.length > 0;
 
   const shouldShowGrid = useMemo(() => {
@@ -501,7 +501,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
             {shouldShowGrid
               ? `Showing ${Math.min(visibleCount, filteredProducts.length)} of ${filteredProducts.length} Products`
               : isHeadingLandingPage
-                ? `${groupedSubmenuItems.reduce((acc, g) => acc + g.items.length, 0)} Teams — Select one to browse products`
+                ? `${groupedSubmenuItems.reduce((acc, g) => acc + g.items.length, 0)} Teams â€” Select one to browse products`
                 : `${groupedSubmenuItems.reduce((acc, g) => acc + g.items.length, 0)} Categories Available`
             }
           </p>
@@ -510,13 +510,13 @@ export function ProductGridPage({ title, category, submenu }: Props) {
         <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
           <div className="relative group min-w-[280px]">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-[#b90014] transition-colors" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-[var(--primary-color)] transition-colors" size={18} />
             <input
               type="text"
               placeholder="Search in this category..."
               value={localSearch}
               onChange={(e) => { setLocalSearch(e.target.value); setVisibleCount(ITEMS_PER_PAGE); }}
-              className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#b90014] focus:border-transparent outline-none transition-all font-medium text-sm"
+              className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none transition-all font-medium text-sm"
             />
           </div>
 
@@ -529,7 +529,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
               <SlidersHorizontal size={14} />
               Filters
               {activeFilterCount > 0 && (
-                <span className="w-5 h-5 bg-[#b90014] text-white rounded-full text-[9px] flex items-center justify-center font-black">
+                <span className="w-5 h-5 bg-[var(--primary-color)] text-white rounded-full text-[9px] flex items-center justify-center font-black">
                   {activeFilterCount}
                 </span>
               )}
@@ -538,7 +538,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
         </div>
       </div>
 
-      {/* Local SEO description — Footwear and National Teams category pages only */}
+      {/* Local SEO description â€” Footwear and National Teams category pages only */}
       {category?.toUpperCase() === 'FOOTWEAR' && !submenu && (
         <p className="text-zinc-500 text-xs leading-relaxed mb-6">
           Shop the latest Nike, Adidas and Puma soccer cleats at Absolute Soccer in Mississauga. Serving players across Brampton, Oakville, Toronto, Etobicoke and the GTA.
@@ -598,7 +598,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
             </span>
           ))}
           {onSaleOnly && (
-            <span className={`${tagClass} bg-[#b90014]`}>
+            <span className={`${tagClass} bg-[var(--primary-color)]`}>
               On Sale
               <button
                 onClick={() => { setOnSaleOnly(false); setVisibleCount(ITEMS_PER_PAGE); }}
@@ -639,7 +639,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                   >
                     <Link
                       to={item.path}
-                      className="group block bg-white border border-zinc-100 rounded-2xl p-4 text-center transition-all hover:border-[#b90014] hover:shadow-xl hover:shadow-red-900/5 hover:-translate-y-1"
+                      className="group block bg-white border border-zinc-100 rounded-2xl p-4 text-center transition-all hover:border-[var(--primary-color)] hover:shadow-xl hover:shadow-red-900/5 hover:-translate-y-1"
                     >
                       <div className="aspect-square mb-3 flex items-center justify-center relative overflow-hidden">
                         <img
@@ -687,7 +687,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
         <>
           {isLoading && paginatedProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-32">
-              <div className="w-10 h-10 border-4 border-zinc-200 border-t-[#b90014] rounded-full animate-spin mb-4" />
+              <div className="w-10 h-10 border-4 border-zinc-200 border-t-[var(--primary-color)] rounded-full animate-spin mb-4" />
               <p className="text-zinc-500 font-bold uppercase tracking-widest text-sm">Loading Products...</p>
             </div>
           ) : (
@@ -717,7 +717,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                 <p className="text-zinc-500 text-sm">Try adjusting your search or filters.</p>
                 <button
                   onClick={() => { setLocalSearch(''); clearAllFilters(); }}
-                  className="text-[#b90014] font-bold uppercase tracking-widest text-[10px] hover:underline"
+                  className="text-[var(--primary-color)] font-bold uppercase tracking-widest text-[10px] hover:underline"
                 >
                   Clear Filters
                 </button>
@@ -729,7 +729,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
             <div className="mt-20 text-center">
               <button
                 onClick={handleLoadMore}
-                className="px-12 py-5 bg-zinc-900 text-white rounded-2xl font-headline font-black uppercase italic tracking-widest hover:bg-[#b90014] transition-all shadow-xl shadow-zinc-900/10 hover:shadow-red-900/20 active:scale-95"
+                className="px-12 py-5 bg-zinc-900 text-white rounded-2xl font-headline font-black uppercase italic tracking-widest hover:bg-[var(--primary-color)] transition-all shadow-xl shadow-zinc-900/10 hover:shadow-red-900/20 active:scale-95"
               >
                 Load More Products
               </button>
@@ -769,7 +769,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
               <div>
                 <h2 className="text-sm font-black uppercase tracking-[0.2em] text-zinc-900">Filter & Sort</h2>
                 {hasActiveFilters && (
-                  <p className="text-[10px] text-[#b90014] font-bold uppercase tracking-widest mt-0.5">
+                  <p className="text-[10px] text-[var(--primary-color)] font-bold uppercase tracking-widest mt-0.5">
                     {activeFilterCount} active
                   </p>
                 )}
@@ -782,7 +782,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
               </button>
             </div>
 
-            {/* Sidebar body — scrollable */}
+            {/* Sidebar body â€” scrollable */}
             <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
 
               {/* Sort */}
@@ -797,7 +797,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                         value={opt.value}
                         checked={sortBy === opt.value}
                         onChange={() => { setSortBy(opt.value as SortOption); setVisibleCount(ITEMS_PER_PAGE); }}
-                        className="w-4 h-4 accent-[#b90014] flex-shrink-0"
+                        className="w-4 h-4 accent-[var(--primary-color)] flex-shrink-0"
                       />
                       <span className={`text-[11px] font-bold uppercase tracking-widest transition-colors ${
                         sortBy === opt.value ? 'text-zinc-900' : 'text-zinc-500 group-hover:text-zinc-700'
@@ -827,7 +827,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                               );
                               setVisibleCount(ITEMS_PER_PAGE);
                             }}
-                            className="w-4 h-4 accent-[#b90014] flex-shrink-0 rounded"
+                            className="w-4 h-4 accent-[var(--primary-color)] flex-shrink-0 rounded"
                           />
                           <span className={`flex-1 text-[11px] font-bold uppercase tracking-widest transition-colors ${
                             selectedBrands.includes(brand) ? 'text-zinc-900' : 'text-zinc-500 group-hover:text-zinc-700'
@@ -900,7 +900,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                     aria-checked={onSaleOnly}
                     onClick={() => { setOnSaleOnly(!onSaleOnly); setVisibleCount(ITEMS_PER_PAGE); }}
                     className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
-                      onSaleOnly ? 'bg-[#b90014]' : 'bg-zinc-200'
+                      onSaleOnly ? 'bg-[var(--primary-color)]' : 'bg-zinc-200'
                     }`}
                   >
                     <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
@@ -922,7 +922,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
               </button>
               <button
                 onClick={() => setShowSidebar(false)}
-                className="flex-1 py-3.5 bg-[#b90014] text-white rounded-xl font-headline font-black uppercase italic tracking-widest hover:bg-red-800 transition-all text-sm"
+                className="flex-1 py-3.5 bg-[var(--primary-color)] text-white rounded-xl font-headline font-black uppercase italic tracking-widest hover:bg-red-800 transition-all text-sm"
               >
                 Apply Filters
               </button>

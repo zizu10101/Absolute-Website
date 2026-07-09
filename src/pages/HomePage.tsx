@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { useSettings } from '../context/SettingsContext';
@@ -159,7 +159,7 @@ export function HomePage() {
                       onClick={() => { setCurrentIndex(i); resetTimer(); }}
                       className={`rounded-sm transition-all duration-300 ${
                         i === currentIndex
-                          ? 'w-6 h-2 bg-[#b90014]'
+                          ? 'w-6 h-2 bg-[var(--primary-color)]'
                           : 'w-2 h-2 bg-white/50 hover:bg-white/80'
                       }`}
                     />
@@ -208,7 +208,7 @@ export function HomePage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-8">
                   <h3 className="text-white text-4xl font-black uppercase tracking-widest font-headline italic leading-none">{category.name}</h3>
                   <span className="text-white font-bold text-sm uppercase tracking-widest mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-4 group-hover:translate-y-0">
-                    {category.description} →
+                    {category.description} â†’
                   </span>
                 </div>
               </Link>
@@ -224,7 +224,7 @@ export function HomePage() {
               <h2 className="text-4xl font-black font-headline uppercase italic tracking-tighter">FEATURED GEAR</h2>
               <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mt-2">Our top picks for this season</p>
             </div>
-            <Link to="/footwear" className="text-zinc-900 font-bold uppercase tracking-widest text-[10px] hover:text-[#b90014] transition-colors border-b-2 border-zinc-900 hover:border-[#b90014] pb-1">
+            <Link to="/footwear" className="text-zinc-900 font-bold uppercase tracking-widest text-[10px] hover:text-[var(--primary-color)] transition-colors border-b-2 border-zinc-900 hover:border-[var(--primary-color)] pb-1">
               View All
             </Link>
           </div>
@@ -238,12 +238,12 @@ export function HomePage() {
 
       <BrandShowcase />
 
-      <section className="bg-zinc-950 text-white py-20 px-8 border-t border-zinc-900">
+      <section className="text-white py-20 px-8 border-t border-zinc-900" style={{ backgroundColor: 'var(--secondary-color)' }}>
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             {/* Visit info */}
             <div className="space-y-6 text-center md:text-left">
-              <h2 className="text-4xl md:text-5xl font-black font-headline uppercase italic tracking-tighter text-[#b90014]">VISIT US</h2>
+              <h2 className="text-4xl md:text-5xl font-black font-headline uppercase italic tracking-tighter text-[var(--primary-color)]">VISIT US</h2>
               <div className="space-y-2">
                 <p className="text-xl font-bold uppercase tracking-widest">{storeInfo.name}</p>
                 <p className="text-zinc-400 font-medium">{storeInfo.address}</p>
@@ -265,7 +265,7 @@ export function HomePage() {
                   href="https://www.instagram.com/absolutemississauga?igsh=MXNrOW15Mmhna2Q5ZA=="
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block bg-[#b90014] text-white px-8 py-3.5 font-headline font-bold uppercase tracking-widest hover:bg-white hover:text-zinc-950 transition-colors"
+                  className="inline-block bg-[var(--primary-color)] text-white px-8 py-3.5 font-headline font-bold uppercase tracking-widest hover:bg-white hover:text-zinc-950 transition-colors"
                 >
                   Follow on Instagram
                 </a>

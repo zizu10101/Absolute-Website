@@ -53,6 +53,20 @@ export interface StoreInfo {
   hours: StoreHours;
 }
 
+export interface ThemeSettings {
+  storeName: string;
+  primaryColor: string;
+  secondaryColor: string;
+  fontFamily: string;
+}
+
+const DEFAULT_THEME: ThemeSettings = {
+  storeName: 'Absolute Soccer Mississauga',
+  primaryColor: '#b90014',
+  secondaryColor: '#000000',
+  fontFamily: 'default',
+};
+
 const DEFAULT_STORE_INFO: StoreInfo = {
   name: 'Absolute Soccer',
   address: '5600 Rose Cherry Place, Mississauga, Ontario',
@@ -95,6 +109,8 @@ interface SettingsContextType {
   isLoading: boolean;
   showSizesOnline: boolean;
   setShowSizesOnline: (show: boolean) => Promise<void>;
+  themeSettings: ThemeSettings;
+  setThemeSettings: (theme: ThemeSettings) => Promise<void>;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -119,6 +135,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     canonicalUrl: 'https://torontosoccershop.com'
   });
   const [storeInfo, setStoreInfoState] = useState<StoreInfo>(DEFAULT_STORE_INFO);
+  const [themeSettings, setThemeSettingsState] = useState<ThemeSettings>(DEFAULT_THEME);
   const [showSizesOnline, setShowSizesOnlineState] = useState<boolean>(() => {
     const cached = localStorage.getItem('show_sizes_online');
     return cached !== null ? cached === 'true' : false;
@@ -126,6 +143,74 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const isSavingRef = useRef(false);
+
+  useEffect(() => {
+    const primary = themeSettings.primaryColor || '#b90014';
+    const secondary = themeSettings.secondaryColor || '#000000';
+    const font = themeSettings.fontFamily || 'default';
+
+    document.documentElement.style.setProperty('--primary-color', primary);
+    document.documentElement.style.setProperty('--secondary-color', secondary);
+
+    // Per-font Google Fonts URL segments (display fonts only support specific weights)
+    const fontUrlMap: Record<string, string> = {
+      // Sports / Bold
+      'Bebas Neue': 'Bebas+Neue',
+      'Anton': 'Anton',
+      'Teko': 'Teko:wght@400;500;600;700',
+      'Barlow Condensed': 'Barlow+Condensed:wght@400;500;600;700;800;900',
+      'Black Han Sans': 'Black+Han+Sans',
+      'Archivo Black': 'Archivo+Black',
+      // Modern / Clean
+      'Inter': 'Inter:wght@400;500;600;700;800;900',
+      'Poppins': 'Poppins:wght@400;500;600;700;800;900',
+      'Nunito': 'Nunito:wght@400;500;600;700;800;900',
+      'DM Sans': 'DM+Sans:wght@400;500;600;700;800;900',
+      'Plus Jakarta Sans': 'Plus+Jakarta+Sans:wght@400;500;600;700;800;900',
+      'Syne': 'Syne:wght@400;500;600;700;800',
+      // Elegant
+      'Raleway': 'Raleway:wght@400;500;600;700;800;900',
+      'Josefin Sans': 'Josefin+Sans:wght@400;500;600;700',
+      'Cormorant': 'Cormorant:wght@400;500;600;700',
+      'Playfair Display': 'Playfair+Display:wght@400;500;600;700;800;900',
+      // Unique / Creative
+      'Righteous': 'Righteous',
+      'Russo One': 'Russo+One',
+      'Exo 2': 'Exo+2:wght@400;500;600;700;800;900',
+      'Oxanium': 'Oxanium:wght@400;500;600;700;800',
+      'Orbitron': 'Orbitron:wght@400;500;600;700;800;900',
+    };
+
+    if (font === 'default') {
+      document.documentElement.style.removeProperty('--font-family');
+      document.documentElement.style.removeProperty('--font-sans');
+      document.documentElement.style.fontFamily = '';
+      document.body.style.fontFamily = '';
+    } else {
+      // Remove previous link so onload fires reliably on every font change
+      const existing = document.getElementById('google-fonts-theme');
+      if (existing) existing.remove();
+
+      const link = document.createElement('link');
+      link.id = 'google-fonts-theme';
+      link.rel = 'stylesheet';
+      const fontParam = fontUrlMap[font] ?? `${font.replace(/ /g, '+')}:wght@400;700`;
+      link.href = `https://fonts.googleapis.com/css2?family=${fontParam}&display=swap`;
+      document.head.appendChild(link);
+
+      const applyFont = () => {
+        const cssValue = `'${font}', sans-serif`;
+        document.documentElement.style.setProperty('--font-family', cssValue);
+        // Override Tailwind v4's --font-sans so font-sans utility classes also use the custom font
+        document.documentElement.style.setProperty('--font-sans', cssValue);
+        document.documentElement.style.fontFamily = cssValue;
+        document.body.style.fontFamily = cssValue;
+      };
+
+      link.onload = applyFont;
+      applyFont(); // also apply immediately for cached fonts
+    }
+  }, [themeSettings]);
 
   const location = useLocation();
 
@@ -199,6 +284,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           const foot = results.footer;
           const seoData = results.seo;
           const storeInfoData = results.store_info;
+          const themeData = results.theme;
 
           if (global?.logo) {
             setLogoState(global.logo);
@@ -251,6 +337,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           if (foot?.footerLinks) setFooterLinksState(foot.footerLinks);
           if (seoData && Object.keys(seoData).length > 0) setSeoSettingsState(prev => ({ ...prev, ...seoData }));
           if (storeInfoData && Object.keys(storeInfoData).length > 0) setStoreInfoState(prev => ({ ...DEFAULT_STORE_INFO, ...prev, ...storeInfoData, hours: { ...DEFAULT_STORE_INFO.hours, ...(storeInfoData.hours || {}) } }));
+          if (themeData && Object.keys(themeData).length > 0) setThemeSettingsState(prev => ({ ...DEFAULT_THEME, ...prev, ...themeData }));
         }
       } catch (criticalErr) {
         console.error('Critical context collection fault:', criticalErr);
@@ -416,6 +503,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setSeoSettingsState(prev => ({ ...prev, ...updates }));
     } else if (key === 'store_info') {
       setStoreInfoState(prev => ({ ...prev, ...updates, hours: { ...prev.hours, ...(updates.hours || {}) } }));
+    } else if (key === 'theme') {
+      setThemeSettingsState(prev => ({ ...prev, ...updates }));
     }
   };
 
@@ -615,6 +704,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     await updateSettings('store_info', info);
   };
 
+  const setThemeSettings = async (theme: ThemeSettings) => {
+    await updateSettings('theme', theme);
+  };
+
   const resetSettings = async () => {
     window.location.reload(); 
   };
@@ -645,8 +738,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setGlobalSettings,
     isLoading,
     showSizesOnline,
-    setShowSizesOnline
-  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, storeInfo, isLoading, showSizesOnline]);
+    setShowSizesOnline,
+    themeSettings,
+    setThemeSettings
+  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, storeInfo, isLoading, showSizesOnline, themeSettings]);
 
   return (
     <SettingsContext.Provider value={value}>

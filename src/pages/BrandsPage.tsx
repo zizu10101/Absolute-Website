@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -89,8 +89,8 @@ export function BrandsPage() {
                 onClick={() => setSelectedLetter(null)}
                 className={`w-10 h-10 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all flex items-center justify-center ${
                   selectedLetter === null
-                    ? 'bg-[#b90014] text-white shadow-lg'
-                    : 'bg-white border border-zinc-200 text-zinc-900 hover:border-[#b90014] hover:text-[#b90014]'
+                    ? 'bg-[var(--primary-color)] text-white shadow-lg'
+                    : 'bg-white border border-zinc-200 text-zinc-900 hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]'
                 }`}
               >
                 All
@@ -104,8 +104,8 @@ export function BrandsPage() {
                   onClick={() => setSelectedLetter(selectedLetter === letter ? null : letter)}
                   className={`w-10 h-10 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all flex items-center justify-center ${
                     selectedLetter === letter
-                      ? 'bg-[#b90014] text-white shadow-lg'
-                      : 'bg-white border border-zinc-200 text-zinc-900 hover:border-[#b90014] hover:text-[#b90014]'
+                      ? 'bg-[var(--primary-color)] text-white shadow-lg'
+                      : 'bg-white border border-zinc-200 text-zinc-900 hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]'
                   }`}
                 >
                   {letter}
@@ -133,18 +133,18 @@ export function BrandsPage() {
               >
                 <Link
                   to={`/brand/${brand.name.toLowerCase()}`}
-                  className="group block p-6 bg-white border border-zinc-200 rounded-xl hover:shadow-lg transition-all hover:border-[#b90014]"
+                  className="group block p-6 bg-white border border-zinc-200 rounded-xl hover:shadow-lg transition-all hover:border-[var(--primary-color)]"
                 >
                   <div className="space-y-4">
-                    <h3 className="text-lg font-headline font-black uppercase text-zinc-900 group-hover:text-[#b90014] transition-colors">
+                    <h3 className="text-lg font-headline font-black uppercase text-zinc-900 group-hover:text-[var(--primary-color)] transition-colors">
                       {brand.name}
                     </h3>
                     <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
                       {brand.productCount} {brand.productCount === 1 ? 'Product' : 'Products'}
                     </p>
                     <div className="pt-2 border-t border-zinc-100">
-                      <p className="text-[10px] font-bold text-[#b90014] uppercase tracking-widest group-hover:translate-x-1 transition-transform">
-                        Shop {brand.name} →
+                      <p className="text-[10px] font-bold text-[var(--primary-color)] uppercase tracking-widest group-hover:translate-x-1 transition-transform">
+                        Shop {brand.name} â†’
                       </p>
                     </div>
                   </div>

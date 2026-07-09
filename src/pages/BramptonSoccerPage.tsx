@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import {
@@ -29,7 +29,7 @@ const THREE_COLUMNS = [
   {
     icon: Shirt,
     title: 'Complete Roster Customization',
-    desc: 'From custom sponsor logo integration and official typography numbering to personalized player names — your squad will look like pros. Simply upload your roster and we handle the rest.',
+    desc: 'From custom sponsor logo integration and official typography numbering to personalized player names â€” your squad will look like pros. Simply upload your roster and we handle the rest.',
   },
 ];
 
@@ -57,7 +57,7 @@ const STEPS = [
 const HIGHLIGHTS = [
   'Heat-press, sublimation & embroidery',
   'Full squad turnaround in days',
-  'All sizes — youth to adult',
+  'All sizes â€” youth to adult',
 ];
 
 const APPAREL_TYPES = [
@@ -88,7 +88,7 @@ export function BramptonSoccerPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const subject = encodeURIComponent(`Squad Uniform Quote — ${form.company || form.name}`);
+    const subject = encodeURIComponent(`Squad Uniform Quote â€” ${form.company || form.name}`);
     const body = encodeURIComponent(
       `Name: ${form.name}\nClub / Team: ${form.company}\nEmail: ${form.email}\nPhone: ${form.phone}\nKit Type: ${form.apparelType}\nQuantity: ${form.quantity}\n\nMessage:\n${form.message}`
     );
@@ -108,17 +108,17 @@ export function BramptonSoccerPage() {
 
       <div className="bg-white text-zinc-900">
 
-        {/* ── HERO ── */}
+        {/* â”€â”€ HERO â”€â”€ */}
         <section id="top" className="relative overflow-hidden bg-white">
           <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 md:grid-cols-2 md:px-6 md:py-24">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600">
-                <MapPin className="size-3.5 text-[#b90014]" />
+                <MapPin className="size-3.5 text-[var(--primary-color)]" />
                 Serving Brampton &amp; the GTA
               </div>
               <h1 className="mt-5 text-balance text-4xl font-bold leading-tight tracking-tight text-zinc-900 md:text-5xl lg:text-6xl">
                 Custom Soccer Uniforms &amp;{' '}
-                <span className="text-[#b90014]">Team Printing in Brampton</span>
+                <span className="text-[var(--primary-color)]">Team Printing in Brampton</span>
               </h1>
               <p className="mt-5 max-w-md text-pretty text-lg leading-relaxed text-zinc-500">
                 Engineered for elite performance. Custom jerseys, training kits, and full club
@@ -128,7 +128,7 @@ export function BramptonSoccerPage() {
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <a
                   href="#quote"
-                  className="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-[#b90014] rounded-md hover:bg-red-800 transition-colors"
+                  className="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-[var(--primary-color)] rounded-md hover:bg-red-800 transition-colors"
                 >
                   Get a Fast Squad Quote
                 </a>
@@ -143,7 +143,7 @@ export function BramptonSoccerPage() {
               <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
                 {HIGHLIGHTS.map((item) => (
                   <li key={item} className="flex items-center gap-2 text-sm font-medium text-zinc-900">
-                    <CheckCircle2 className="size-4 text-[#b90014]" />
+                    <CheckCircle2 className="size-4 text-[var(--primary-color)]" />
                     {item}
                   </li>
                 ))}
@@ -159,21 +159,21 @@ export function BramptonSoccerPage() {
                 />
               </div>
               <div className="absolute -bottom-5 -left-5 hidden rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-lg sm:block">
-                <p className="text-3xl font-bold text-[#b90014]">10+</p>
+                <p className="text-3xl font-bold text-[var(--primary-color)]">10+</p>
                 <p className="text-xs font-medium text-zinc-500">Years serving the GTA</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ── WHY BRAMPTON CLUBS CHOOSE US ── */}
+        {/* â”€â”€ WHY BRAMPTON CLUBS CHOOSE US â”€â”€ */}
         <section className="py-20 md:py-28 bg-zinc-50">
           <div className="max-w-7xl mx-auto px-6 md:px-12">
             <div className="mb-14 max-w-3xl">
-              <p className="text-[#b90014] text-xs font-black uppercase tracking-widest mb-3">Why Brampton Clubs Choose Us</p>
+              <p className="text-[var(--primary-color)] text-xs font-black uppercase tracking-widest mb-3">Why Brampton Clubs Choose Us</p>
               <h2 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none mb-6">
                 Professional Kit Engineering for{' '}
-                <span className="text-[#b90014]">Brampton Soccer Leagues</span>
+                <span className="text-[var(--primary-color)]">Brampton Soccer Leagues</span>
               </h2>
               <p className="text-zinc-500 text-lg leading-relaxed">
                 From competitive youth academies in the Brampton Soccer League to indoor turf teams
@@ -187,10 +187,10 @@ export function BramptonSoccerPage() {
               {THREE_COLUMNS.map(({ icon: Icon, title, desc }) => (
                 <div
                   key={title}
-                  className="bg-white rounded-2xl p-8 border border-zinc-100 hover:border-[#b90014]/30 hover:shadow-md transition-all group"
+                  className="bg-white rounded-2xl p-8 border border-zinc-100 hover:border-[var(--primary-color)]/30 hover:shadow-md transition-all group"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-[#b90014]/10 flex items-center justify-center mb-5 group-hover:bg-[#b90014]/20 transition-colors">
-                    <Icon size={24} className="text-[#b90014]" />
+                  <div className="w-12 h-12 rounded-xl bg-[var(--primary-color)]/10 flex items-center justify-center mb-5 group-hover:bg-[var(--primary-color)]/20 transition-colors">
+                    <Icon size={24} className="text-[var(--primary-color)]" />
                   </div>
                   <h3 className="text-lg font-black uppercase tracking-tight mb-2">{title}</h3>
                   <p className="text-zinc-500 text-sm leading-relaxed">{desc}</p>
@@ -200,21 +200,21 @@ export function BramptonSoccerPage() {
           </div>
         </section>
 
-        {/* ── HOW IT WORKS ── */}
-        <section id="how-it-works" className="bg-zinc-900 py-16 md:py-24">
+        {/* â”€â”€ HOW IT WORKS â”€â”€ */}
+        <section id="how-it-works" className="py-16 md:py-24" style={{ backgroundColor: 'var(--secondary-color)' }}>
           <div className="mx-auto max-w-6xl px-4 md:px-6">
             <div className="mx-auto max-w-2xl text-center">
-              <p className="text-sm font-semibold uppercase tracking-wide text-[#b90014]">How It Works</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-[var(--primary-color)]">How It Works</p>
               <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight text-white md:text-4xl">
-                Your squad in custom kits — three simple steps
+                Your squad in custom kits â€” three simple steps
               </h2>
             </div>
 
             <div className="mt-12 grid gap-6 md:grid-cols-3">
               {STEPS.map((step) => (
                 <div key={step.step} className="relative rounded-xl border border-white/10 bg-white/5 p-7">
-                  <span className="text-5xl font-bold text-[#b90014]">{step.step}</span>
-                  <div className="mt-4 flex size-11 items-center justify-center rounded-lg bg-[#b90014] text-white">
+                  <span className="text-5xl font-bold text-[var(--primary-color)]">{step.step}</span>
+                  <div className="mt-4 flex size-11 items-center justify-center rounded-lg bg-[var(--primary-color)] text-white">
                     <step.icon className="size-5" />
                   </div>
                   <h3 className="mt-4 text-lg font-semibold text-white">{step.title}</h3>
@@ -225,15 +225,15 @@ export function BramptonSoccerPage() {
           </div>
         </section>
 
-        {/* ── VISIT US ── */}
+        {/* â”€â”€ VISIT US â”€â”€ */}
         <section className="py-20 md:py-28 bg-white">
           <div className="max-w-7xl mx-auto px-6 md:px-12">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
               <div>
-                <p className="text-[#b90014] text-xs font-black uppercase tracking-widest mb-3">Visit Our Showroom</p>
+                <p className="text-[var(--primary-color)] text-xs font-black uppercase tracking-widest mb-3">Visit Our Showroom</p>
                 <h2 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none mb-6">
                   Visit Our{' '}
-                  <span className="text-[#b90014]">Mississauga Showroom</span>
+                  <span className="text-[var(--primary-color)]">Mississauga Showroom</span>
                 </h2>
                 <p className="text-zinc-500 text-lg leading-relaxed mb-8">
                   Located just a short drive from Brampton on Highway 410, our flagship showroom
@@ -244,13 +244,13 @@ export function BramptonSoccerPage() {
                 <div className="flex flex-col gap-4">
                   <a
                     href="tel:9055933600"
-                    className="flex items-center gap-3 text-zinc-900 hover:text-[#b90014] transition-colors font-semibold text-lg"
+                    className="flex items-center gap-3 text-zinc-900 hover:text-[var(--primary-color)] transition-colors font-semibold text-lg"
                   >
-                    <Phone size={22} className="text-[#b90014]" />
+                    <Phone size={22} className="text-[var(--primary-color)]" />
                     905-593-3600
                   </a>
                   <div className="flex items-center gap-3 text-zinc-500">
-                    <MapPin size={22} className="text-[#b90014]" />
+                    <MapPin size={22} className="text-[var(--primary-color)]" />
                     Mississauga, ON
                   </div>
                 </div>
@@ -265,7 +265,7 @@ export function BramptonSoccerPage() {
                   'Youth and adult sizes available',
                 ].map(point => (
                   <div key={point} className="flex items-start gap-4 p-5 bg-zinc-50 rounded-xl border border-zinc-100">
-                    <CheckCircle size={20} className="text-[#b90014] shrink-0 mt-0.5" />
+                    <CheckCircle size={20} className="text-[var(--primary-color)] shrink-0 mt-0.5" />
                     <span className="font-semibold text-zinc-800">{point}</span>
                   </div>
                 ))}
@@ -274,25 +274,25 @@ export function BramptonSoccerPage() {
           </div>
         </section>
 
-        {/* ── QUOTE FORM ── */}
+        {/* â”€â”€ QUOTE FORM â”€â”€ */}
         <section id="quote" className="py-20 md:py-28 bg-zinc-50">
           <div className="max-w-3xl mx-auto px-6 md:px-12">
             <div className="mb-12 text-center">
-              <p className="text-[#b90014] text-xs font-black uppercase tracking-widest mb-3">Get Started</p>
+              <p className="text-[var(--primary-color)] text-xs font-black uppercase tracking-widest mb-3">Get Started</p>
               <h2 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none mb-4">
-                Get a <span className="text-[#b90014]">Fast Squad Quote</span>
+                Get a <span className="text-[var(--primary-color)]">Fast Squad Quote</span>
               </h2>
               <p className="text-zinc-500">Fill out the form and we'll get back to you within one business day.</p>
             </div>
 
             {submitted ? (
               <div className="text-center bg-white border border-zinc-100 rounded-2xl p-12 shadow-sm">
-                <CheckCircle size={48} className="text-[#b90014] mx-auto mb-4" />
+                <CheckCircle size={48} className="text-[var(--primary-color)] mx-auto mb-4" />
                 <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Quote Request Sent</h3>
                 <p className="text-zinc-500">Your email client should have opened. We'll get back to you shortly.</p>
                 <p className="text-zinc-400 text-sm mt-2">
                   Or call us directly:{' '}
-                  <a href="tel:9055933600" className="text-[#b90014] font-bold">905-593-3600</a>
+                  <a href="tel:9055933600" className="text-[var(--primary-color)] font-bold">905-593-3600</a>
                 </p>
               </div>
             ) : (
@@ -307,7 +307,7 @@ export function BramptonSoccerPage() {
                       value={form.name}
                       onChange={handleChange}
                       placeholder="John Smith"
-                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors"
+                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors"
                     />
                   </div>
                   <div>
@@ -318,7 +318,7 @@ export function BramptonSoccerPage() {
                       value={form.company}
                       onChange={handleChange}
                       placeholder="Brampton United FC"
-                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors"
+                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors"
                     />
                   </div>
                   <div>
@@ -330,7 +330,7 @@ export function BramptonSoccerPage() {
                       value={form.email}
                       onChange={handleChange}
                       placeholder="john@example.com"
-                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors"
+                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors"
                     />
                   </div>
                   <div>
@@ -341,7 +341,7 @@ export function BramptonSoccerPage() {
                       value={form.phone}
                       onChange={handleChange}
                       placeholder="905-000-0000"
-                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors"
+                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors"
                     />
                   </div>
                   <div>
@@ -351,7 +351,7 @@ export function BramptonSoccerPage() {
                       required
                       value={form.apparelType}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors"
+                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors"
                     >
                       <option value="">Select type...</option>
                       {APPAREL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -366,7 +366,7 @@ export function BramptonSoccerPage() {
                       value={form.quantity}
                       onChange={handleChange}
                       placeholder="e.g. 18 players"
-                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors"
+                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors"
                     />
                   </div>
                 </div>
@@ -378,45 +378,45 @@ export function BramptonSoccerPage() {
                     value={form.message}
                     onChange={handleChange}
                     placeholder="Tell us about your design, colours, crest or sponsor logo requirements, deadline, etc."
-                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]/30 focus:border-[#b90014] transition-colors resize-none"
+                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] transition-colors resize-none"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-4 bg-[#b90014] text-white font-black uppercase tracking-widest text-sm rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-[#b90014]/20"
+                  className="w-full py-4 bg-[var(--primary-color)] text-white font-black uppercase tracking-widest text-sm rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-[var(--primary-color)]/20"
                 >
                   Send My Quote Request
                 </button>
                 <p className="text-center text-zinc-400 text-xs">
                   Prefer to call? Reach us at{' '}
-                  <a href="tel:9055933600" className="text-[#b90014] font-bold">905-593-3600</a>
+                  <a href="tel:9055933600" className="text-[var(--primary-color)] font-bold">905-593-3600</a>
                 </p>
               </form>
             )}
           </div>
         </section>
 
-        {/* ── FOOTER CONTACT BAR ── */}
-        <section className="bg-zinc-900 text-white py-12">
+        {/* â”€â”€ FOOTER CONTACT BAR â”€â”€ */}
+        <section className="text-white py-12" style={{ backgroundColor: 'var(--secondary-color)' }}>
           <div className="max-w-7xl mx-auto px-6 md:px-12">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
               <div className="flex flex-col sm:flex-row items-center gap-8">
-                <a href="tel:9055933600" className="flex items-center gap-3 text-white hover:text-[#b90014] transition-colors">
-                  <Phone size={20} className="text-[#b90014]" />
+                <a href="tel:9055933600" className="flex items-center gap-3 text-white hover:text-[var(--primary-color)] transition-colors">
+                  <Phone size={20} className="text-[var(--primary-color)]" />
                   <span className="font-bold">905-593-3600</span>
                 </a>
                 <div className="flex items-center gap-3 text-zinc-400">
-                  <MapPin size={20} className="text-[#b90014]" />
+                  <MapPin size={20} className="text-[var(--primary-color)]" />
                   <span>Mississauga, ON</span>
                 </div>
                 <a href="https://torontosoccershop.com" className="flex items-center gap-3 text-zinc-400 hover:text-white transition-colors">
-                  <Globe size={20} className="text-[#b90014]" />
+                  <Globe size={20} className="text-[var(--primary-color)]" />
                   <span>torontosoccershop.com</span>
                 </a>
               </div>
               <a
                 href="#quote"
-                className="px-8 py-3 bg-[#b90014] text-white font-black uppercase tracking-widest text-sm rounded-xl hover:bg-red-700 transition-colors whitespace-nowrap"
+                className="px-8 py-3 bg-[var(--primary-color)] text-white font-black uppercase tracking-widest text-sm rounded-xl hover:bg-red-700 transition-colors whitespace-nowrap"
               >
                 Get a Fast Squad Quote
               </a>

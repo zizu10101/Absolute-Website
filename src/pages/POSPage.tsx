@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Moon, Sun, LogOut, Search, Users, Percent, FileText, Trash2,
   Barcode as BarcodeIcon, Archive, Home, AlertCircle, X, Check,
@@ -301,7 +301,7 @@ export function POSPage() {
       // UUID format: 8-4-4-4-12 hex digits (36 chars total with hyphens)
       const isUUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(barcode);
       if (isUUID) {
-        setBarcodeError('❌ That appears to be a transaction UUID. Please scan the invoice barcode (INV-XXXXX) instead.');
+        setBarcodeError('âŒ That appears to be a transaction UUID. Please scan the invoice barcode (INV-XXXXX) instead.');
         setTimeout(() => setBarcodeError(null), 4000);
         return;
       }
@@ -354,7 +354,7 @@ export function POSPage() {
 
         const stock = variant.stock_quantity ?? 0;
         if (stock <= 0) {
-          setBarcodeError(`OUT OF STOCK — ${product.name} · Size ${variant.size}`);
+          setBarcodeError(`OUT OF STOCK â€” ${product.name} Â· Size ${variant.size}`);
           setTimeout(() => setBarcodeError(null), 4000);
           return;
         }
@@ -402,8 +402,8 @@ export function POSPage() {
         setBarcodeError(addError);
         setTimeout(() => setBarcodeError(null), 4000);
       } else {
-        const colorText = cartItem.color ? ` · ${cartItem.color}` : '';
-        const sizeText = cartItem.size ? ` · Sz ${cartItem.size}` : '';
+        const colorText = cartItem.color ? ` Â· ${cartItem.color}` : '';
+        const sizeText = cartItem.size ? ` Â· Sz ${cartItem.size}` : '';
         setBarcodeSuccess(`Added: ${cartItem.name}${colorText}${sizeText}`);
         setTimeout(() => setBarcodeSuccess(null), 2000);
       }
@@ -483,7 +483,7 @@ export function POSPage() {
         setRecentTransactions(data);
       }
     } catch (e: any) {
-      console.error(`❌ STEP 8: Caught exception:`, e.message);
+      console.error(`âŒ STEP 8: Caught exception:`, e.message);
       alert(`Error: ${e.message}`);
     }
   };
@@ -511,7 +511,7 @@ export function POSPage() {
       // Detect UUID format
       const isUUID = input.length === 36 && input.includes('-') && !input.startsWith('INV-');
       if (isUUID) {
-        setReturnsLookupError('❌ Please scan the invoice barcode, not the transaction UUID');
+        setReturnsLookupError('âŒ Please scan the invoice barcode, not the transaction UUID');
         return;
       }
 
@@ -674,7 +674,7 @@ export function POSPage() {
           setAvailableStoreCredits(filteredCredits);
           hasCustomerCredits = filteredCredits.length > 0;
         } catch (err: any) {
-          console.error('🔴 SC MODAL ERROR fetching customer store credits:', err);
+          console.error('ðŸ”´ SC MODAL ERROR fetching customer store credits:', err);
           setAvailableStoreCredits([]);
         }
       } else {
@@ -708,7 +708,7 @@ export function POSPage() {
       // Detect if this is an invoice number (INV-XXXXX format)
       if (searchCode.startsWith('INV-') || /^INV-\d+$/.test(searchCode)) {
         setStoreCreditError(
-          '⛔ This is an invoice barcode, not a store credit.\n\n' +
+          'â›” This is an invoice barcode, not a store credit.\n\n' +
           'Invoice codes are in format: INV-XXXXX\n\n' +
           'To process a return or look up a transaction, use the Returns tab instead.'
         );
@@ -719,7 +719,7 @@ export function POSPage() {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (uuidRegex.test(searchCode)) {
         setStoreCreditError(
-          '❌ This is a transaction receipt barcode, not a store credit.\n\n' +
+          'âŒ This is a transaction receipt barcode, not a store credit.\n\n' +
           'Store Credit codes are in format: SC-XXXXXXXXXXXX\n\n' +
           'Please scan the STORE CREDIT receipt instead.'
         );
@@ -788,7 +788,7 @@ export function POSPage() {
       setScScanInput('');
       // DO NOT call processPayment here - user will select payment method next
     } catch (err: any) {
-      console.error('🔴 SC SCAN EXCEPTION:', err);
+      console.error('ðŸ”´ SC SCAN EXCEPTION:', err);
       setStoreCreditError('Error scanning store credit: ' + err.message);
     } finally {
       setScLookupLoading(false);
@@ -837,7 +837,7 @@ export function POSPage() {
         setStoreCreditError('No store credits found matching that search');
       }
     } catch (err: any) {
-      console.error('🔴 SC SEARCH ERROR:', err);
+      console.error('ðŸ”´ SC SEARCH ERROR:', err);
       setStoreCreditError('Error searching store credits: ' + err.message);
       setScSearchResults([]);
     } finally {
@@ -958,7 +958,7 @@ export function POSPage() {
 
 
           if (scError) {
-            console.error('🔴 SC UPDATE FAILED:', scError);
+            console.error('ðŸ”´ SC UPDATE FAILED:', scError);
           } else {
             storeCreditNewBalance = newBalance;
 
@@ -972,12 +972,12 @@ export function POSPage() {
               });
 
             if (txError) {
-              console.error('🔴 Transaction record failed:', txError);
+              console.error('ðŸ”´ Transaction record failed:', txError);
             } else {
             }
           }
         } catch (err) {
-          console.error('🔴 Error updating store credit balance:', err);
+          console.error('ðŸ”´ Error updating store credit balance:', err);
         }
       } else {
       }
@@ -1020,11 +1020,11 @@ export function POSPage() {
             .eq('card_number', capturedGiftCard.cardNumber);
 
           if (updateErr) {
-            console.error('⚠️ Gift card redemption warning:', updateErr);
+            console.error('âš ï¸ Gift card redemption warning:', updateErr);
           } else {
           }
         } catch (err) {
-          console.error('❌ Error processing gift card redemption:', err);
+          console.error('âŒ Error processing gift card redemption:', err);
           // Don't fail the transaction if gift card redemption fails
         }
       }
@@ -1276,27 +1276,27 @@ export function POSPage() {
                 placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[#1a2236] border border-[#2d3547] rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#b90014]"
+                className="w-full pl-10 pr-4 py-2 bg-[#1a2236] border border-[#2d3547] rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--primary-color)]"
               />
             </div>
 
             {/* Category Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-1">
               {[
-                { id: 'ALL' as CategoryTab, label: 'ALL', icon: '🏪' },
-                { id: 'FOOTWEAR' as CategoryTab, label: 'FOOTWEAR', icon: '👟' },
-                { id: 'KITS' as CategoryTab, label: 'KITS', icon: '👕' },
-                { id: 'BALLS' as CategoryTab, label: 'BALLS', icon: '⚽' },
-                { id: 'EQUIPMENT' as CategoryTab, label: 'EQUIPMENT', icon: '🛡️' },
-                { id: 'TEAMWEAR' as CategoryTab, label: 'TEAMWEAR', icon: '🎽' },
-                { id: 'GLOVES' as CategoryTab, label: 'GLOVES', icon: '🧤' },
+                { id: 'ALL' as CategoryTab, label: 'ALL', icon: 'ðŸª' },
+                { id: 'FOOTWEAR' as CategoryTab, label: 'FOOTWEAR', icon: 'ðŸ‘Ÿ' },
+                { id: 'KITS' as CategoryTab, label: 'KITS', icon: 'ðŸ‘•' },
+                { id: 'BALLS' as CategoryTab, label: 'BALLS', icon: 'âš½' },
+                { id: 'EQUIPMENT' as CategoryTab, label: 'EQUIPMENT', icon: 'ðŸ›¡ï¸' },
+                { id: 'TEAMWEAR' as CategoryTab, label: 'TEAMWEAR', icon: 'ðŸŽ½' },
+                { id: 'GLOVES' as CategoryTab, label: 'GLOVES', icon: 'ðŸ§¤' },
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveCategory(tab.id)}
                   className={`px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap transition-colors ${
                     activeCategory === tab.id
-                      ? 'bg-[#b90014] text-white'
+                      ? 'bg-[var(--primary-color)] text-white'
                       : 'bg-[#1a2236] text-gray-400 hover:text-white'
                   }`}
                 >
@@ -1408,7 +1408,7 @@ export function POSPage() {
                       className={`rounded p-2 flex flex-col items-center justify-center gap-1 transition-colors group text-center ${
                         stockStatus.isDisabled
                           ? 'bg-[#0d1117] border border-[#1a1a1a] opacity-50 cursor-not-allowed'
-                          : 'bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#b90014]'
+                          : 'bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[var(--primary-color)]'
                       }`}
                     >
                       {product.image && (
@@ -1417,7 +1417,7 @@ export function POSPage() {
                       <span className="text-xs font-semibold text-gray-300 group-hover:text-white line-clamp-2">
                         {product.name}
                       </span>
-                      <span className="text-sm font-bold text-[#b90014]">${product.price?.toFixed(2) || '0.00'}</span>
+                      <span className="text-sm font-bold text-[var(--primary-color)]">${product.price?.toFixed(2) || '0.00'}</span>
                       {stockStatus.text && (
                         <span className={`text-xs font-semibold ${stockStatus.color}`}>
                           {stockStatus.text}
@@ -1438,7 +1438,7 @@ export function POSPage() {
             <div className="px-4 py-3 border-b border-[#2d3547] bg-[#2d3547]">
               <div className="flex items-center gap-2 justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-[#b90014] rounded-full"></div>
+                  <div className="w-2 h-2 bg-[var(--primary-color)] rounded-full"></div>
                   <div>
                     <p className="text-sm font-semibold">{selectedCustomer.first_name} {selectedCustomer.last_name}</p>
                     <p className="text-xs text-gray-400">Returning customer</p>
@@ -1473,7 +1473,7 @@ export function POSPage() {
                           <p className="text-sm font-semibold truncate">{item.name}</p>
                           {(item.color || item.size) && (
                             <p className="text-xs text-gray-400">
-                              {item.color}{item.color && item.size ? ' · ' : ''}{item.size && `Size ${item.size}`}
+                              {item.color}{item.color && item.size ? ' Â· ' : ''}{item.size && `Size ${item.size}`}
                             </p>
                           )}
                         </div>
@@ -1482,11 +1482,11 @@ export function POSPage() {
                         </button>
                       </div>
                       <div className="flex items-center gap-2 mb-1">
-                        <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">−</button>
+                        <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">âˆ’</button>
                         <span className="text-xs font-bold w-5 text-center">{item.quantity}</span>
                         <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">+</button>
                       </div>
-                      <p className="text-xs font-bold text-[#b90014]">${(item.price * item.quantity).toFixed(2)}</p>
+                      <p className="text-xs font-bold text-[var(--primary-color)]">${(item.price * item.quantity).toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
@@ -1504,13 +1504,13 @@ export function POSPage() {
               {totalDiscount > 0 && (
                 <div className="flex justify-between text-red-400">
                   <span>Item Discount</span>
-                  <span>−${totalDiscount.toFixed(2)}</span>
+                  <span>âˆ’${totalDiscount.toFixed(2)}</span>
                 </div>
               )}
               {discountAmount > 0 && (
                 <div className="flex justify-between text-red-400">
                   <span>Order Discount</span>
-                  <span>−${discountAmount.toFixed(2)}</span>
+                  <span>âˆ’${discountAmount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-gray-400">
@@ -1519,16 +1519,16 @@ export function POSPage() {
               </div>
               <div className="flex justify-between font-bold text-base pt-2 border-t border-[#2d3547]">
                 <span>Total Due</span>
-                <span className="text-lg text-[#b90014]">${grandTotal.toFixed(2)}</span>
+                <span className="text-lg text-[var(--primary-color)]">${grandTotal.toFixed(2)}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-4 gap-2">
               <button onClick={() => setPosTab('gc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
-                💳 GC
+                ðŸ’³ GC
               </button>
               <button onClick={() => setPosTab('sc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
-                🎟 SC
+                ðŸŽŸ SC
               </button>
               <button onClick={() => setShowDiscountModal(true)} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
                 <Percent size={14} /> Disc
@@ -1546,13 +1546,13 @@ export function POSPage() {
             <button
               onClick={() => setShowCheckout(true)}
               disabled={cart.length === 0}
-              className="w-full py-3 bg-[#b90014] hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-sm uppercase"
+              className="w-full py-3 bg-[var(--primary-color)] hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-sm uppercase"
             >
               Checkout ({totalCartItems})
             </button>
 
             <div className="grid grid-cols-4 gap-2">
-              <button onClick={() => setShowVoidRefundModal(true)} className="py-2 bg-[#b90014] hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase">
+              <button onClick={() => setShowVoidRefundModal(true)} className="py-2 bg-[var(--primary-color)] hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase">
                 Void/Refund
               </button>
               <button onClick={() => setPosTab('returns')} className="py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold uppercase flex items-center justify-center gap-1">
@@ -1630,7 +1630,7 @@ export function POSPage() {
 
               {returnsFoundTransaction && !showReturnsModal && (
                 <div className="p-4 bg-green-900/20 border border-green-500 rounded space-y-2">
-                  <p className="text-green-400 font-bold">✓ Invoice Found</p>
+                  <p className="text-green-400 font-bold">âœ“ Invoice Found</p>
                   <p className="text-gray-300 text-sm">
                     Invoice: {returnsFoundTransaction.id.slice(0, 8).toUpperCase()}
                   </p>
@@ -1734,12 +1734,12 @@ export function POSPage() {
                       className={`w-full p-3 rounded flex items-center justify-between transition-colors ${
                         variant.stock_quantity <= 0
                           ? 'bg-[#0d1117] text-gray-500 opacity-50 cursor-not-allowed'
-                          : 'bg-[#2d3547] hover:bg-[#b90014] hover:text-white text-gray-300'
+                          : 'bg-[#2d3547] hover:bg-[var(--primary-color)] hover:text-white text-gray-300'
                       }`}
                     >
                       <span className="font-semibold">
                         Size {variant.size || '(no size)'}
-                        {variant.color && ` · ${variant.color}`}
+                        {variant.color && ` Â· ${variant.color}`}
                         {variant.age_group && ` (${variant.age_group})`}
                       </span>
                       <span className={`text-sm ${
@@ -1781,7 +1781,7 @@ export function POSPage() {
                     <CheckCircle2 size={20} className="text-green-600 shrink-0" />
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest text-green-800">Sale Complete</p>
-                      <p className="text-[10px] text-green-600 font-bold">{receipt.time} · {receipt.method}</p>
+                      <p className="text-[10px] text-green-600 font-bold">{receipt.time} Â· {receipt.method}</p>
                     </div>
                   </div>
 
@@ -1810,11 +1810,11 @@ export function POSPage() {
                             <p className="font-bold text-black uppercase leading-tight">{item.name}</p>
                             {(item.color || item.size || item.ageGroup) && (
                               <p className="text-zinc-600 font-medium">
-                                {item.color && `${item.color}`}{item.color && (item.size || item.ageGroup) ? ' · ' : ''}{item.ageGroup && `${item.ageGroup} · `}
+                                {item.color && `${item.color}`}{item.color && (item.size || item.ageGroup) ? ' Â· ' : ''}{item.ageGroup && `${item.ageGroup} Â· `}
                                 {item.size && `Size ${item.size}`}
                               </p>
                             )}
-                            <p className="text-zinc-600">Qty {item.quantity} × ${Number(item.price).toFixed(2)}</p>
+                            <p className="text-zinc-600">Qty {item.quantity} Ã— ${Number(item.price).toFixed(2)}</p>
                           </div>
                           <p className="font-black text-black shrink-0">${(Number(item.price) * item.quantity).toFixed(2)}</p>
                         </div>
@@ -1824,27 +1824,27 @@ export function POSPage() {
                     <div className="border-t border-dashed border-zinc-300 pt-3 space-y-1 text-[10px] font-bold text-zinc-700">
                       <div className="flex justify-between"><span>Subtotal</span><span>${receipt.subtotal.toFixed(2)}</span></div>
                       {discountAmount > 0 && (
-                        <div className="flex justify-between text-red-600"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>
+                        <div className="flex justify-between text-red-600"><span>Discount</span><span>âˆ’${discountAmount.toFixed(2)}</span></div>
                       )}
                       <div className="flex justify-between"><span>HST {receipt.isTaxExempt ? '(Exempt)' : '(13%)'}</span><span>${receipt.hst.toFixed(2)}</span></div>
                       <div className="flex justify-between text-sm font-black text-black pt-1 border-t border-zinc-300">
                         <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
                       </div>
                       {receipt.giftCardAmount && receipt.giftCardAmount > 0 && (
-                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span>💳 Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
+                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span>ðŸ’³ Gift Card</span><span>âˆ’${receipt.giftCardAmount.toFixed(2)}</span></div>
                       )}
                       {receipt.storeCreditAmount && receipt.storeCreditAmount > 0 && (
                         <>
-                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>🎟 Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
+                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>ðŸŽŸ Store Credit</span><span>âˆ’${receipt.storeCreditAmount.toFixed(2)}</span></div>
                           {receipt.storeCreditNewBalance !== undefined && (
                             <div className="mt-3 p-4 bg-gradient-to-r from-blue-100 to-blue-50 border-4 border-blue-500 rounded-lg text-center space-y-2">
                               <div className="text-[9px] font-bold text-blue-700 uppercase tracking-widest">Store Credit Payment</div>
-                              <div className="text-sm text-blue-600">Amount Used: −${receipt.storeCreditAmount.toFixed(2)}</div>
+                              <div className="text-sm text-blue-600">Amount Used: âˆ’${receipt.storeCreditAmount.toFixed(2)}</div>
                               {receipt.storeCreditNewBalance === 0 ? (
-                                <div className="text-[18px] font-black text-blue-900 py-2">★ STORE CREDIT FULLY REDEEMED ★</div>
+                                <div className="text-[18px] font-black text-blue-900 py-2">â˜… STORE CREDIT FULLY REDEEMED â˜…</div>
                               ) : (
                                 <div className="py-2 space-y-1">
-                                  <div className="text-[18px] font-black text-blue-900">★ REMAINING BALANCE: ${receipt.storeCreditNewBalance.toFixed(2)} ★</div>
+                                  <div className="text-[18px] font-black text-blue-900">â˜… REMAINING BALANCE: ${receipt.storeCreditNewBalance.toFixed(2)} â˜…</div>
                                 </div>
                               )}
                             </div>
@@ -1884,7 +1884,7 @@ export function POSPage() {
                       </button>
                       <button
                         onClick={handleNewTransaction}
-                        className="flex-1 bg-[#b90014] text-white rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
+                        className="flex-1 bg-[var(--primary-color)] text-white rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
                       >
                         New Sale
                       </button>
@@ -1921,7 +1921,7 @@ export function POSPage() {
                                 <div className="flex-1 text-[11px]">
                                   <p className="font-bold leading-tight">{item.name}</p>
                                   {(item.size || item.ageGroup) && (
-                                    <p className="text-zinc-500">{item.ageGroup ? `${item.ageGroup} · ` : ''}Size {item.size}</p>
+                                    <p className="text-zinc-500">{item.ageGroup ? `${item.ageGroup} Â· ` : ''}Size {item.size}</p>
                                   )}
                                   <p className="text-zinc-500">Qty {item.quantity}</p>
                                 </div>
@@ -1939,7 +1939,7 @@ export function POSPage() {
                           <button
                             onClick={handlePrintGiftReceipt}
                             disabled={giftReceiptSelected.size === 0}
-                            className="flex-1 bg-[#b90014] disabled:bg-zinc-300 text-white rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
+                            className="flex-1 bg-[var(--primary-color)] disabled:bg-zinc-300 text-white rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
                           >
                             <Printer size={13} /> Print Gift
                           </button>
@@ -1959,8 +1959,8 @@ export function POSPage() {
                     {cart.map(item => (
                       <div key={item.id} className="border border-[#2d3547] rounded p-2">
                         <p className="font-bold text-white">{item.name}</p>
-                        <p className="text-gray-400">Qty {item.quantity} × ${Number(item.price).toFixed(2)}</p>
-                        <p className="text-[#b90014] font-bold">${(Number(item.price) * item.quantity).toFixed(2)}</p>
+                        <p className="text-gray-400">Qty {item.quantity} Ã— ${Number(item.price).toFixed(2)}</p>
+                        <p className="text-[var(--primary-color)] font-bold">${(Number(item.price) * item.quantity).toFixed(2)}</p>
                       </div>
                     ))}
                   </div>
@@ -1968,7 +1968,7 @@ export function POSPage() {
                   <div className="p-4 border-t border-[#2d3547] space-y-3">
                     <div className="space-y-1 text-[10px]">
                       <div className="flex justify-between"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-                      {discountAmount > 0 && <div className="flex justify-between text-red-400"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>}
+                      {discountAmount > 0 && <div className="flex justify-between text-red-400"><span>Discount</span><span>âˆ’${discountAmount.toFixed(2)}</span></div>}
                       <div className="flex justify-between"><span>HST</span><span>${hst.toFixed(2)}</span></div>
                       <div className="flex justify-between font-bold text-sm border-t border-[#2d3547] pt-1"><span>Total Due</span><span>${grandTotal.toFixed(2)}</span></div>
                     </div>
@@ -1976,7 +1976,7 @@ export function POSPage() {
                     {selectedGiftCard && (
                       <div className="bg-[#2d3547] p-3 rounded-lg border border-amber-500/30 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-amber-400 uppercase">💳 Gift Card Payment</span>
+                          <span className="text-[10px] font-bold text-amber-400 uppercase">ðŸ’³ Gift Card Payment</span>
                           <button
                             onClick={() => setSelectedGiftCard(null)}
                             className="text-amber-400 hover:text-amber-300 text-[11px] font-bold uppercase"
@@ -1997,7 +1997,7 @@ export function POSPage() {
                     {selectedStoreCredit && (
                       <div className="bg-[#2d3547] p-3 rounded-lg border border-blue-500/30 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-blue-400 uppercase">🎟 Store Credit Payment</span>
+                          <span className="text-[10px] font-bold text-blue-400 uppercase">ðŸŽŸ Store Credit Payment</span>
                           <button
                             onClick={() => setSelectedStoreCredit(null)}
                             className="text-blue-400 hover:text-blue-300 text-[11px] font-bold uppercase"
@@ -2035,7 +2035,7 @@ export function POSPage() {
                           </>
                         )}
                         {scRemainingBalance === 0 && (
-                          <div className="text-[9px] text-green-300 font-bold italic">✅ Store credit fully covers this transaction. Click "Complete Sale" below.</div>
+                          <div className="text-[9px] text-green-300 font-bold italic">âœ… Store credit fully covers this transaction. Click "Complete Sale" below.</div>
                         )}
                       </div>
                     )}
@@ -2047,7 +2047,7 @@ export function POSPage() {
                         disabled={isConfirming}
                         className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white p-3 rounded font-bold text-sm uppercase mb-3"
                       >
-                        ✅ Complete Sale (Store Credit)
+                        âœ… Complete Sale (Store Credit)
                       </button>
                     ) : (
                       <div className="grid grid-cols-2 gap-2 mb-3">
@@ -2056,7 +2056,7 @@ export function POSPage() {
                             key={method}
                             disabled={isConfirming || (selectedStoreCredit && method === 'Store Credit')}
                             onClick={() => handleConfirmSale(method)}
-                            className="bg-[#b90014] hover:bg-red-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
+                            className="bg-[var(--primary-color)] hover:bg-red-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
                             title={selectedStoreCredit && method === 'Store Credit' ? 'SC already applied' : ''}
                           >
                             {method}
@@ -2073,7 +2073,7 @@ export function POSPage() {
                       disabled={isConfirming}
                       className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
                     >
-                      💳 Redeem Gift Card
+                      ðŸ’³ Redeem Gift Card
                     </button>
 
                     <button
@@ -2084,7 +2084,7 @@ export function POSPage() {
                       disabled={isConfirming}
                       className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
                     >
-                      🎟 Redeem Store Credit
+                      ðŸŽŸ Redeem Store Credit
                     </button>
                   </div>
 
@@ -2095,7 +2095,7 @@ export function POSPage() {
                         <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a2236] p-6 rounded-lg shadow-2xl w-full max-w-sm space-y-4 border border-[#2d3547]">
                           <div className="text-center">
                             <h2 className="text-sm font-black uppercase text-white mb-2">Cash Payment</h2>
-                            <p className="text-xs text-gray-300">Total Due: <span className="text-[#b90014] text-base">${grandTotal.toFixed(2)}</span></p>
+                            <p className="text-xs text-gray-300">Total Due: <span className="text-[var(--primary-color)] text-base">${grandTotal.toFixed(2)}</span></p>
                           </div>
 
                           {/* Amount Tendered Input */}
@@ -2106,7 +2106,7 @@ export function POSPage() {
                               value={cashTendered}
                               onChange={e => setCashTendered(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                               placeholder="0.00"
-                              className="w-full p-3 text-2xl font-black text-center bg-[#0f1117] border-2 border-[#2d3547] rounded text-white focus:ring-2 focus:ring-[#b90014] focus:border-transparent outline-none"
+                              className="w-full p-3 text-2xl font-black text-center bg-[#0f1117] border-2 border-[#2d3547] rounded text-white focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none"
                               autoFocus
                             />
                           </div>
@@ -2171,7 +2171,7 @@ export function POSPage() {
                                   processPayment(pendingPaymentMethod, cashTendered);
                                 }
                               }}
-                              className="flex-1 p-2 bg-[#b90014] hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-xs font-bold uppercase text-white transition-colors"
+                              className="flex-1 p-2 bg-[var(--primary-color)] hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-xs font-bold uppercase text-white transition-colors"
                             >
                               {isConfirming ? 'Processing...' : 'Complete Sale'}
                             </button>
@@ -2188,7 +2188,7 @@ export function POSPage() {
                         <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a2236] p-6 rounded-lg shadow-2xl w-full max-w-lg space-y-4 border border-[#2d3547] max-h-[90vh] overflow-y-auto">
                           <div className="text-center">
                             <h2 className="text-sm font-black uppercase text-white mb-2">Select Store Credit</h2>
-                            <p className="text-xs text-gray-300">Total Due: <span className="text-[#b90014] text-base">${grandTotal.toFixed(2)}</span></p>
+                            <p className="text-xs text-gray-300">Total Due: <span className="text-[var(--primary-color)] text-base">${grandTotal.toFixed(2)}</span></p>
                           </div>
 
                           {storeCreditError && (
@@ -2425,7 +2425,7 @@ export function POSPage() {
               ))}
               <div className="flex gap-2">
                 <button onClick={() => { setShowCustomerModal(false); setCustomerForm({ first_name: '', last_name: '', email: '', phone: '', club_affinity: '' }); }} className="flex-1 p-2 bg-[#2d3547] rounded text-xs text-white">Cancel</button>
-                <button disabled={isAddingCustomer} onClick={handleAddCustomer} className="flex-1 p-2 bg-[#b90014] hover:bg-red-700 disabled:opacity-50 rounded text-xs font-bold text-white uppercase">
+                <button disabled={isAddingCustomer} onClick={handleAddCustomer} className="flex-1 p-2 bg-[var(--primary-color)] hover:bg-red-700 disabled:opacity-50 rounded text-xs font-bold text-white uppercase">
                   {isAddingCustomer ? 'Adding...' : 'Save'}
                 </button>
               </div>
@@ -2451,7 +2451,7 @@ export function POSPage() {
                   {recentTransactions.slice(0, 10).map((tx) => (
                     <div key={tx.id} className="bg-[#0f1117] border border-[#2d3547] p-3 rounded flex items-center justify-between">
                       <div className="flex-1">
-                        <p className="text-xs font-bold text-white">{tx.method} · ${Number(tx.total_amount).toFixed(2)} <span className="text-[10px] text-gray-400">({tx.status || 'completed'})</span></p>
+                        <p className="text-xs font-bold text-white">{tx.method} Â· ${Number(tx.total_amount).toFixed(2)} <span className="text-[10px] text-gray-400">({tx.status || 'completed'})</span></p>
                         <p className="text-[10px] text-gray-400">{new Date(tx.created_at).toLocaleString()}</p>
                         {tx.customer_id && (
                           <p className="text-[10px] text-gray-400">
@@ -2528,7 +2528,7 @@ export function POSPage() {
           onClick={() => setPosTab('register')}
           className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
             posTab === 'register'
-              ? 'bg-[#b90014] text-white'
+              ? 'bg-[var(--primary-color)] text-white'
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
@@ -2538,7 +2538,7 @@ export function POSPage() {
           onClick={() => setPosTab('history')}
           className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
             posTab === 'history'
-              ? 'bg-[#b90014] text-white'
+              ? 'bg-[var(--primary-color)] text-white'
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
@@ -2548,7 +2548,7 @@ export function POSPage() {
           onClick={() => setPosTab('customers')}
           className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
             posTab === 'customers'
-              ? 'bg-[#b90014] text-white'
+              ? 'bg-[var(--primary-color)] text-white'
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
@@ -2558,21 +2558,21 @@ export function POSPage() {
           onClick={() => setPosTab('gc')}
           className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
             posTab === 'gc'
-              ? 'bg-[#b90014] text-white'
+              ? 'bg-[var(--primary-color)] text-white'
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
-          💳 Gift Cards
+          ðŸ’³ Gift Cards
         </button>
         <button
           onClick={() => setPosTab('sc')}
           className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
             posTab === 'sc'
-              ? 'bg-[#b90014] text-white'
+              ? 'bg-[var(--primary-color)] text-white'
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
-          🎟 Store Credit
+          ðŸŽŸ Store Credit
         </button>
       </div>
     </div>
