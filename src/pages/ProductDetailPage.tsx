@@ -358,7 +358,7 @@ export function ProductDetailPage() {
             <div>
               <p className="text-xs font-black uppercase tracking-widest leading-none mb-1">ADDED TO SQUAD BAG</p>
               <p className="text-[10px] text-red-100 uppercase tracking-tight">
-                {product.name} ({selectedAgeGroup ? `${selectedAgeGroup} â€¢ ` : ''}size {selectedSize}) x {quantity}
+                {product.name} ({selectedAgeGroup ? `${selectedAgeGroup} • ` : ''}size {selectedSize}) x {quantity}
               </p>
             </div>
           </motion.div>
@@ -508,7 +508,7 @@ export function ProductDetailPage() {
                     href="tel:9055933600"
                     className="inline-flex items-center gap-2 bg-[var(--primary-color)] hover:bg-[#d4001a] text-white font-black text-lg px-6 py-3 rounded-lg transition-colors shadow-md shadow-red-900/30"
                   >
-                    ðŸ“ž 905-593-3600
+                    📞 905-593-3600
                   </a>
                   <p className="text-[11px] text-zinc-500 mt-3 uppercase tracking-widest">
                     Call to order or visit us in store
@@ -583,7 +583,7 @@ export function ProductDetailPage() {
                       href="tel:9055933600"
                       className="inline-flex items-center gap-2 bg-[var(--primary-color)] hover:bg-[#d4001a] text-white font-black text-lg px-6 py-3 rounded-lg transition-colors shadow-md shadow-red-900/30"
                     >
-                      ðŸ“ž 905-593-3600
+                      📞 905-593-3600
                     </a>
                     <p className="text-[11px] text-zinc-500 mt-3 uppercase tracking-widest">
                       Call to order or visit us in store

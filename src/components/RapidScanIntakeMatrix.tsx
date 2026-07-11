@@ -246,13 +246,13 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
     const isDuplicateInDb = existingVariants.some(v => v.barcode?.toUpperCase() === code);
 
     if (isDuplicateInSession) {
-      alert(`âš ï¸ Barcode "${code}" was already scanned in this session for another size. Please scan a different barcode.`);
+      alert(`⚠️ Barcode "${code}" was already scanned in this session for another size. Please scan a different barcode.`);
       setBarcodeInput('');
       return;
     }
 
     if (isDuplicateInDb) {
-      alert(`âš ï¸ Barcode "${code}" already exists in the database for this product. Please scan a different barcode.`);
+      alert(`⚠️ Barcode "${code}" already exists in the database for this product. Please scan a different barcode.`);
       setBarcodeInput('');
       return;
     }
@@ -331,14 +331,14 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
               onChange={(e) => setAgeGroup(e.target.value as any)}
               className="p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)] disabled:opacity-50 cursor-pointer"
             >
-              <option value="Adult">ðŸ‘¨ Adult (S, M, L, XXSâ€“XXXL)</option>
-              <option value="Youth">ðŸ‘¦ Youth (YXXSâ€“YXL)</option>
-              <option value="Balls">âš½ Balls (Size 1â€“5)</option>
-              <option value="Gloves">ðŸ§¤ Gloves (3â€“11)</option>
-              <option value="One Size">ðŸ“¦ One Size (Accessories)</option>
-              <option value="Adult Footwear">ðŸ‘Ÿ Adult Footwear (3â€“13)</option>
-              <option value="Youth Footwear">ðŸ‘Ÿ Youth Footwear (1Yâ€“6Y)</option>
-              <option value="Toddler">ðŸ§’ Toddler (2T, 3T, 4T)</option>
+              <option value="Adult">👨 Adult (S, M, L, XXS–XXXL)</option>
+              <option value="Youth">👦 Youth (YXXS–YXL)</option>
+              <option value="Balls">⚽ Balls (Size 1–5)</option>
+              <option value="Gloves">🧤 Gloves (3–11)</option>
+              <option value="One Size">📦 One Size (Accessories)</option>
+              <option value="Adult Footwear">👟 Adult Footwear (3–13)</option>
+              <option value="Youth Footwear">👟 Youth Footwear (1Y–6Y)</option>
+              <option value="Toddler">🧒 Toddler (2T, 3T, 4T)</option>
             </select>
           </div>
           {productColors.length > 0 && (
@@ -439,7 +439,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
                   {isActiveTarget && (
                     <span className="absolute -top-2.5 -right-1 flex h-4 w-4">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-4 w-4 bg-blue-500 text-white items-center justify-center text-[8px] font-bold">ðŸŽ¯</span>
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-blue-500 text-white items-center justify-center text-[8px] font-bold">🎯</span>
                     </span>
                   )}
 

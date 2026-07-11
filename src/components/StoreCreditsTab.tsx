@@ -471,7 +471,7 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
                         {credit.customers?.first_name} {credit.customers?.last_name}
                       </div>
                       <div className="text-xs text-zinc-500 mt-1">
-                        ${credit.amount.toFixed(2)} â€¢ {credit.reason}
+                        ${credit.amount.toFixed(2)} &bull; {credit.reason}
                       </div>
                     </div>
                     <div className="text-right mr-3">

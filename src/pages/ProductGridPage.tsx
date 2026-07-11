@@ -22,8 +22,8 @@ const ITEMS_PER_PAGE = 4;
 const PRICE_RANGES: { value: PriceRange; label: string }[] = [
   { value: 'all', label: 'All Prices' },
   { value: 'under-50', label: 'Under $50' },
-  { value: '50-100', label: '$50â€“$100' },
-  { value: '100-150', label: '$100â€“$150' },
+  { value: '50-100', label: '$50–$100' },
+  { value: '100-150', label: '$100–$150' },
   { value: 'over-150', label: 'Over $150' },
 ];
 

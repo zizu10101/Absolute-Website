@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Moon, Sun, LogOut, Search, Users, Percent, FileText, Trash2,
   Barcode as BarcodeIcon, Archive, Home, AlertCircle, X, Check,
@@ -23,6 +24,14 @@ import { generateThermalReceiptHTML, generateGiftReceiptHTML } from '../utils/th
 
 type CategoryTab = 'ALL' | 'FOOTWEAR' | 'KITS' | 'BALLS' | 'EQUIPMENT' | 'TEAMWEAR' | 'GLOVES';
 
+interface PendingBarcode {
+  barcode: string;
+  brand: string;
+  price: number;
+  name: string;
+  scannedAt: string;
+}
+
 interface Receipt {
   transactionId?: string;
   invoiceNumber?: string;
@@ -46,6 +55,7 @@ interface Receipt {
 }
 
 export function POSPage() {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
 
@@ -92,6 +102,23 @@ export function POSPage() {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeError, setBarcodeError] = useState<string | null>(null);
   const [barcodeSuccess, setBarcodeSuccess] = useState<string | null>(null);
+
+  // Unknown barcode modal
+  const [showUnknownBarcodeModal, setShowUnknownBarcodeModal] = useState(false);
+  const [unknownBarcode, setUnknownBarcode] = useState('');
+  const [unknownBarcodeBrand, setUnknownBarcodeBrand] = useState('');
+  const [unknownBarcodePrice, setUnknownBarcodePrice] = useState('');
+  const [unknownBarcodeName, setUnknownBarcodeName] = useState('');
+
+  // Pending barcodes (barcodes scanned but not yet linked to a product)
+  const [pendingBarcodes, setPendingBarcodes] = useState<PendingBarcode[]>(() => {
+    try { return JSON.parse(localStorage.getItem('pending_barcodes') || '[]'); } catch { return []; }
+  });
+  const [showPendingBarcodesModal, setShowPendingBarcodesModal] = useState(false);
+  const [pendingItemModes, setPendingItemModes] = useState<Record<string, 'save-existing' | null>>({});
+  const [pendingSearchQueries, setPendingSearchQueries] = useState<Record<string, string>>({});
+  const [pendingSearchResults, setPendingSearchResults] = useState<Record<string, any[]>>({});
+  const [pendingSaving, setPendingSaving] = useState<Record<string, boolean>>({});
 
   // Customer management
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
@@ -257,10 +284,10 @@ export function POSPage() {
 
   // Auto-focus barcode input (disabled when modals are open)
   useEffect(() => {
-    if (!showCheckout && !showDiscountModal && posTab === 'register') {
+    if (!showCheckout && !showDiscountModal && !showUnknownBarcodeModal && !showPendingBarcodesModal && posTab === 'register') {
       barcodeInputRef.current?.focus();
     }
-  }, [showCheckout, showDiscountModal, posTab]);
+  }, [showCheckout, showDiscountModal, showUnknownBarcodeModal, showPendingBarcodesModal, posTab]);
 
   // Barcode scanning
   const handleBarcodeScan = async (rawBarcode: string) => {
@@ -268,6 +295,7 @@ export function POSPage() {
     if (!barcode) return;
     setBarcodeError(null);
     setBarcodeSuccess(null);
+    let openedUnknownModal = false;
 
     try {
       // BARCODE ROUTING LOGIC
@@ -335,8 +363,13 @@ export function POSPage() {
       }
 
       if (!variantData && !productByCode) {
-        setBarcodeError(`No product found for barcode: ${barcode}`);
-        setTimeout(() => setBarcodeError(null), 4000);
+        openedUnknownModal = true;
+        setUnknownBarcode(barcode);
+        setUnknownBarcodeBrand('');
+        setUnknownBarcodePrice('');
+        setUnknownBarcodeName('');
+        setShowPendingBarcodesModal(false);
+        setShowUnknownBarcodeModal(true);
         return;
       }
 
@@ -413,10 +446,98 @@ export function POSPage() {
       setTimeout(() => setBarcodeError(null), 4000);
     } finally {
       setBarcodeInput('');
-      if (!showCheckout && !showDiscountModal && posTab === 'register') {
+      if (!openedUnknownModal && !showCheckout && !showDiscountModal && posTab === 'register') {
         setTimeout(() => barcodeInputRef.current?.focus(), 60);
       }
     }
+  };
+
+  // Pending barcodes helpers
+  const savePendingBarcodes = (barcodes: PendingBarcode[]) => {
+    setPendingBarcodes(barcodes);
+    localStorage.setItem('pending_barcodes', JSON.stringify(barcodes));
+  };
+
+  const handleAddUnknownToCart = (saveNow: boolean) => {
+    const price = parseFloat(unknownBarcodePrice) || 0;
+    const brand = unknownBarcodeBrand || 'Unknown';
+    const itemName = unknownBarcodeName.trim() || `${brand} Item`;
+
+    const cartItem: any = {
+      id: `unknown-${unknownBarcode}-${Date.now()}`,
+      name: itemName,
+      price,
+      originalPrice: price,
+      barcode: unknownBarcode,
+      category: '',
+      quantity: 1,
+    };
+
+    addItem(cartItem);
+
+    const pending: PendingBarcode = {
+      barcode: unknownBarcode,
+      brand,
+      price,
+      name: itemName,
+      scannedAt: new Date().toISOString(),
+    };
+    savePendingBarcodes([...pendingBarcodes.filter(p => p.barcode !== unknownBarcode), pending]);
+
+    setShowUnknownBarcodeModal(false);
+    setBarcodeSuccess(`Added: ${itemName}`);
+    setTimeout(() => setBarcodeSuccess(null), 2000);
+
+    if (saveNow) {
+      setTimeout(() => setShowPendingBarcodesModal(true), 350);
+    }
+  };
+
+  const handlePendingSearch = async (barcode: string, query: string) => {
+    setPendingSearchQueries(prev => ({ ...prev, [barcode]: query }));
+    if (query.trim().length < 2) {
+      setPendingSearchResults(prev => ({ ...prev, [barcode]: [] }));
+      return;
+    }
+    const { data } = await supabase
+      .from('products')
+      .select('id, name, brand, category')
+      .ilike('name', `%${query}%`)
+      .limit(6);
+    setPendingSearchResults(prev => ({ ...prev, [barcode]: data || [] }));
+  };
+
+  const handleSaveToExisting = async (pb: PendingBarcode, product: any) => {
+    setPendingSaving(prev => ({ ...prev, [pb.barcode]: true }));
+    try {
+      const { data: variants } = await supabase
+        .from('product_variants')
+        .select('id, size')
+        .eq('product_id', product.id)
+        .limit(1);
+
+      if (variants && variants.length > 0) {
+        await supabase.from('product_variants').update({ barcode: pb.barcode }).eq('id', variants[0].id);
+      } else {
+        await supabase.from('product_variants').insert({
+          product_id: product.id,
+          barcode: pb.barcode,
+          size: 'One Size',
+          stock_quantity: 1,
+        });
+      }
+
+      savePendingBarcodes(pendingBarcodes.filter(p => p.barcode !== pb.barcode));
+      setPendingItemModes(prev => { const n = { ...prev }; delete n[pb.barcode]; return n; });
+    } catch (err) {
+      console.error('Failed to save barcode to existing product:', err);
+    } finally {
+      setPendingSaving(prev => ({ ...prev, [pb.barcode]: false }));
+    }
+  };
+
+  const handleSkipBarcode = (barcode: string) => {
+    savePendingBarcodes(pendingBarcodes.filter(p => p.barcode !== barcode));
   };
 
   // Get stock from pre-built map (instant lookup, no calculations)
@@ -674,7 +795,7 @@ export function POSPage() {
           setAvailableStoreCredits(filteredCredits);
           hasCustomerCredits = filteredCredits.length > 0;
         } catch (err: any) {
-          console.error('ðŸ”´ SC MODAL ERROR fetching customer store credits:', err);
+          console.error('🔴 SC MODAL ERROR fetching customer store credits:', err);
           setAvailableStoreCredits([]);
         }
       } else {
@@ -788,7 +909,7 @@ export function POSPage() {
       setScScanInput('');
       // DO NOT call processPayment here - user will select payment method next
     } catch (err: any) {
-      console.error('ðŸ”´ SC SCAN EXCEPTION:', err);
+      console.error('🔴 SC SCAN EXCEPTION:', err);
       setStoreCreditError('Error scanning store credit: ' + err.message);
     } finally {
       setScLookupLoading(false);
@@ -837,7 +958,7 @@ export function POSPage() {
         setStoreCreditError('No store credits found matching that search');
       }
     } catch (err: any) {
-      console.error('ðŸ”´ SC SEARCH ERROR:', err);
+      console.error('🔴 SC SEARCH ERROR:', err);
       setStoreCreditError('Error searching store credits: ' + err.message);
       setScSearchResults([]);
     } finally {
@@ -958,7 +1079,7 @@ export function POSPage() {
 
 
           if (scError) {
-            console.error('ðŸ”´ SC UPDATE FAILED:', scError);
+            console.error('🔴 SC UPDATE FAILED:', scError);
           } else {
             storeCreditNewBalance = newBalance;
 
@@ -972,12 +1093,12 @@ export function POSPage() {
               });
 
             if (txError) {
-              console.error('ðŸ”´ Transaction record failed:', txError);
+              console.error('🔴 Transaction record failed:', txError);
             } else {
             }
           }
         } catch (err) {
-          console.error('ðŸ”´ Error updating store credit balance:', err);
+          console.error('🔴 Error updating store credit balance:', err);
         }
       } else {
       }
@@ -1020,7 +1141,7 @@ export function POSPage() {
             .eq('card_number', capturedGiftCard.cardNumber);
 
           if (updateErr) {
-            console.error('âš ï¸ Gift card redemption warning:', updateErr);
+            console.error('⚠️ Gift card redemption warning:', updateErr);
           } else {
           }
         } catch (err) {
@@ -1283,13 +1404,13 @@ export function POSPage() {
             {/* Category Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-1">
               {[
-                { id: 'ALL' as CategoryTab, label: 'ALL', icon: 'ðŸª' },
-                { id: 'FOOTWEAR' as CategoryTab, label: 'FOOTWEAR', icon: 'ðŸ‘Ÿ' },
-                { id: 'KITS' as CategoryTab, label: 'KITS', icon: 'ðŸ‘•' },
-                { id: 'BALLS' as CategoryTab, label: 'BALLS', icon: 'âš½' },
-                { id: 'EQUIPMENT' as CategoryTab, label: 'EQUIPMENT', icon: 'ðŸ›¡ï¸' },
-                { id: 'TEAMWEAR' as CategoryTab, label: 'TEAMWEAR', icon: 'ðŸŽ½' },
-                { id: 'GLOVES' as CategoryTab, label: 'GLOVES', icon: 'ðŸ§¤' },
+                { id: 'ALL' as CategoryTab, label: 'ALL', icon: '🏪' },
+                { id: 'FOOTWEAR' as CategoryTab, label: 'FOOTWEAR', icon: '👟' },
+                { id: 'KITS' as CategoryTab, label: 'KITS', icon: '👕' },
+                { id: 'BALLS' as CategoryTab, label: 'BALLS', icon: '⚽' },
+                { id: 'EQUIPMENT' as CategoryTab, label: 'EQUIPMENT', icon: '🛡️' },
+                { id: 'TEAMWEAR' as CategoryTab, label: 'TEAMWEAR', icon: '🎽' },
+                { id: 'GLOVES' as CategoryTab, label: 'GLOVES', icon: '🧤' },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -1482,7 +1603,7 @@ export function POSPage() {
                         </button>
                       </div>
                       <div className="flex items-center gap-2 mb-1">
-                        <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">âˆ’</button>
+                        <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">−</button>
                         <span className="text-xs font-bold w-5 text-center">{item.quantity}</span>
                         <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">+</button>
                       </div>
@@ -1504,13 +1625,13 @@ export function POSPage() {
               {totalDiscount > 0 && (
                 <div className="flex justify-between text-red-400">
                   <span>Item Discount</span>
-                  <span>âˆ’${totalDiscount.toFixed(2)}</span>
+                  <span>−${totalDiscount.toFixed(2)}</span>
                 </div>
               )}
               {discountAmount > 0 && (
                 <div className="flex justify-between text-red-400">
                   <span>Order Discount</span>
-                  <span>âˆ’${discountAmount.toFixed(2)}</span>
+                  <span>−${discountAmount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-gray-400">
@@ -1528,7 +1649,7 @@ export function POSPage() {
                 ðŸ’³ GC
               </button>
               <button onClick={() => setPosTab('sc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
-                ðŸŽŸ SC
+                🎟 SC
               </button>
               <button onClick={() => setShowDiscountModal(true)} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
                 <Percent size={14} /> Disc
@@ -1569,6 +1690,16 @@ export function POSPage() {
             <button onClick={() => setPosTab('customers')} className="w-full py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
               Customers
             </button>
+
+            {pendingBarcodes.length > 0 && (
+              <button
+                onClick={() => setShowPendingBarcodesModal(true)}
+                className="w-full py-2 border border-amber-600 text-amber-400 hover:text-amber-300 hover:border-amber-500 rounded text-[10px] font-bold uppercase flex items-center justify-center gap-2"
+              >
+                <AlertCircle size={12} />
+                {pendingBarcodes.length} Unsaved Barcode{pendingBarcodes.length !== 1 ? 's' : ''}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1824,22 +1955,22 @@ export function POSPage() {
                     <div className="border-t border-dashed border-zinc-300 pt-3 space-y-1 text-[10px] font-bold text-zinc-700">
                       <div className="flex justify-between"><span>Subtotal</span><span>${receipt.subtotal.toFixed(2)}</span></div>
                       {discountAmount > 0 && (
-                        <div className="flex justify-between text-red-600"><span>Discount</span><span>âˆ’${discountAmount.toFixed(2)}</span></div>
+                        <div className="flex justify-between text-red-600"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>
                       )}
                       <div className="flex justify-between"><span>HST {receipt.isTaxExempt ? '(Exempt)' : '(13%)'}</span><span>${receipt.hst.toFixed(2)}</span></div>
                       <div className="flex justify-between text-sm font-black text-black pt-1 border-t border-zinc-300">
                         <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
                       </div>
                       {receipt.giftCardAmount && receipt.giftCardAmount > 0 && (
-                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span>ðŸ’³ Gift Card</span><span>âˆ’${receipt.giftCardAmount.toFixed(2)}</span></div>
+                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span>ðŸ’³ Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
                       )}
                       {receipt.storeCreditAmount && receipt.storeCreditAmount > 0 && (
                         <>
-                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>ðŸŽŸ Store Credit</span><span>âˆ’${receipt.storeCreditAmount.toFixed(2)}</span></div>
+                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>🎟 Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
                           {receipt.storeCreditNewBalance !== undefined && (
                             <div className="mt-3 p-4 bg-gradient-to-r from-blue-100 to-blue-50 border-4 border-blue-500 rounded-lg text-center space-y-2">
                               <div className="text-[9px] font-bold text-blue-700 uppercase tracking-widest">Store Credit Payment</div>
-                              <div className="text-sm text-blue-600">Amount Used: âˆ’${receipt.storeCreditAmount.toFixed(2)}</div>
+                              <div className="text-sm text-blue-600">Amount Used: −${receipt.storeCreditAmount.toFixed(2)}</div>
                               {receipt.storeCreditNewBalance === 0 ? (
                                 <div className="text-[18px] font-black text-blue-900 py-2">â˜… STORE CREDIT FULLY REDEEMED â˜…</div>
                               ) : (
@@ -1968,7 +2099,7 @@ export function POSPage() {
                   <div className="p-4 border-t border-[#2d3547] space-y-3">
                     <div className="space-y-1 text-[10px]">
                       <div className="flex justify-between"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-                      {discountAmount > 0 && <div className="flex justify-between text-red-400"><span>Discount</span><span>âˆ’${discountAmount.toFixed(2)}</span></div>}
+                      {discountAmount > 0 && <div className="flex justify-between text-red-400"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>}
                       <div className="flex justify-between"><span>HST</span><span>${hst.toFixed(2)}</span></div>
                       <div className="flex justify-between font-bold text-sm border-t border-[#2d3547] pt-1"><span>Total Due</span><span>${grandTotal.toFixed(2)}</span></div>
                     </div>
@@ -1997,7 +2128,7 @@ export function POSPage() {
                     {selectedStoreCredit && (
                       <div className="bg-[#2d3547] p-3 rounded-lg border border-blue-500/30 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-blue-400 uppercase">ðŸŽŸ Store Credit Payment</span>
+                          <span className="text-[10px] font-bold text-blue-400 uppercase">🎟 Store Credit Payment</span>
                           <button
                             onClick={() => setSelectedStoreCredit(null)}
                             className="text-blue-400 hover:text-blue-300 text-[11px] font-bold uppercase"
@@ -2084,7 +2215,7 @@ export function POSPage() {
                       disabled={isConfirming}
                       className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
                     >
-                      ðŸŽŸ Redeem Store Credit
+                      🎟 Redeem Store Credit
                     </button>
                   </div>
 
@@ -2522,6 +2653,203 @@ export function POSPage() {
         />
       )}
 
+      {/* Unknown Barcode Modal */}
+      <AnimatePresence>
+        {showUnknownBarcodeModal && (
+          <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-6">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#1a2236] border border-[#2d3547] rounded-lg w-full max-w-sm p-6 space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="text-amber-400" size={18} />
+                  <h2 className="text-sm font-bold text-white uppercase">Unknown Barcode</h2>
+                </div>
+                <button onClick={() => setShowUnknownBarcodeModal(false)} className="text-gray-400 hover:text-white"><X size={16} /></button>
+              </div>
+
+              <p className="text-[10px] font-mono text-amber-300 bg-[#0f1117] px-3 py-2 rounded border border-[#2d3547]">{unknownBarcode}</p>
+
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Select Brand</p>
+                <div className="flex flex-wrap gap-2">
+                  {['Nike', 'Adidas', 'Puma', 'Joma', 'New Balance', 'Other'].map(brand => (
+                    <button
+                      key={brand}
+                      onClick={() => setUnknownBarcodeBrand(brand)}
+                      className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${
+                        unknownBarcodeBrand === brand
+                          ? 'bg-[var(--primary-color)] text-white'
+                          : 'bg-[#2d3547] text-gray-300 hover:text-white'
+                      }`}
+                    >
+                      {brand}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Price</p>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={unknownBarcodePrice}
+                    onChange={e => setUnknownBarcodePrice(e.target.value)}
+                    className="w-full bg-[#0f1117] border border-[#2d3547] rounded pl-7 pr-3 py-2 text-xs text-white placeholder-gray-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Name (optional)</p>
+                <input
+                  type="text"
+                  placeholder="Product name..."
+                  value={unknownBarcodeName}
+                  onChange={e => setUnknownBarcodeName(e.target.value)}
+                  className="w-full bg-[#0f1117] border border-[#2d3547] rounded px-3 py-2 text-xs text-white placeholder-gray-500"
+                />
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <button
+                  onClick={() => handleAddUnknownToCart(false)}
+                  disabled={!unknownBarcodeBrand || !unknownBarcodePrice}
+                  className="w-full py-2.5 bg-[var(--primary-color)] hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-[10px] font-bold uppercase rounded"
+                >
+                  Add to Cart & Save Later
+                </button>
+                <button
+                  onClick={() => handleAddUnknownToCart(true)}
+                  disabled={!unknownBarcodeBrand || !unknownBarcodePrice}
+                  className="w-full py-2.5 bg-[#2d3547] hover:bg-[#3d4557] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-bold uppercase rounded"
+                >
+                  Add to Cart & Save Now
+                </button>
+                <button
+                  onClick={() => setShowUnknownBarcodeModal(false)}
+                  className="w-full py-2 text-gray-400 hover:text-white text-[10px] font-bold uppercase"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Pending Barcodes Modal */}
+      <AnimatePresence>
+        {showPendingBarcodesModal && (
+          <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-6">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#1a2236] border border-[#2d3547] rounded-lg w-full max-w-lg flex flex-col"
+              style={{ maxHeight: '80vh' }}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-[#2d3547] shrink-0">
+                <h2 className="text-sm font-bold text-white uppercase">Pending Barcodes ({pendingBarcodes.length})</h2>
+                <button onClick={() => setShowPendingBarcodesModal(false)} className="text-gray-400 hover:text-white"><X size={18} /></button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {pendingBarcodes.length === 0 ? (
+                  <p className="text-gray-400 text-sm text-center py-8">All barcodes saved!</p>
+                ) : (
+                  pendingBarcodes.map(pb => {
+                    const mode = pendingItemModes[pb.barcode] ?? null;
+                    const isSaving = pendingSaving[pb.barcode] || false;
+
+                    return (
+                      <div key={pb.barcode} className="bg-[#0f1117] border border-[#2d3547] rounded-lg p-3 space-y-3">
+                        <div>
+                          <p className="text-xs font-bold text-white">{pb.name}</p>
+                          <p className="text-[10px] font-mono text-amber-300">{pb.barcode}</p>
+                          <p className="text-[10px] text-gray-500">{pb.brand} · ${pb.price.toFixed(2)} · {new Date(pb.scannedAt).toLocaleTimeString()}</p>
+                        </div>
+
+                        {mode === null && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setPendingItemModes(prev => ({ ...prev, [pb.barcode]: 'save-existing' }));
+                                setPendingSearchQueries(prev => ({ ...prev, [pb.barcode]: '' }));
+                                setPendingSearchResults(prev => ({ ...prev, [pb.barcode]: [] }));
+                              }}
+                              className="flex-1 py-1.5 bg-[#2d3547] hover:bg-[#3d4557] text-white text-[10px] font-bold uppercase rounded"
+                            >
+                              Save to Existing
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowPendingBarcodesModal(false);
+                                navigate('/admin', { state: { openAddProduct: true, pendingBarcode: pb } });
+                              }}
+                              className="flex-1 py-1.5 bg-blue-700 hover:bg-blue-600 text-white text-[10px] font-bold uppercase rounded"
+                            >
+                              Create New
+                            </button>
+                            <button
+                              onClick={() => handleSkipBarcode(pb.barcode)}
+                              className="py-1.5 px-3 border border-[#2d3547] text-gray-400 hover:text-white text-[10px] font-bold uppercase rounded"
+                            >
+                              Skip
+                            </button>
+                          </div>
+                        )}
+
+                        {mode === 'save-existing' && (
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              placeholder="Search product by name..."
+                              value={pendingSearchQueries[pb.barcode] || ''}
+                              onChange={e => handlePendingSearch(pb.barcode, e.target.value)}
+                              className="w-full bg-[#1a2236] border border-[#2d3547] rounded px-3 py-2 text-xs text-white placeholder-gray-500"
+                              autoFocus
+                            />
+                            <div className="space-y-1">
+                              {(pendingSearchResults[pb.barcode] || []).map(product => (
+                                <button
+                                  key={product.id}
+                                  onClick={() => handleSaveToExisting(pb, product)}
+                                  disabled={isSaving}
+                                  className="w-full text-left p-2 bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] rounded disabled:opacity-50"
+                                >
+                                  <p className="text-xs text-white">{product.name}</p>
+                                  <p className="text-[10px] text-gray-400">{product.brand} · {product.category}</p>
+                                </button>
+                              ))}
+                            </div>
+                            <button
+                              onClick={() => setPendingItemModes(prev => ({ ...prev, [pb.barcode]: null }))}
+                              className="text-[10px] text-gray-400 hover:text-white"
+                            >
+                              ← Back
+                            </button>
+                          </div>
+                        )}
+
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Bottom Tab Bar */}
       <div className="bg-[#1a2236] border-t border-[#2d3547] h-12 px-6 flex items-center justify-start gap-2">
         <button
@@ -2572,7 +2900,7 @@ export function POSPage() {
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
-          ðŸŽŸ Store Credit
+          🎟 Store Credit
         </button>
       </div>
     </div>

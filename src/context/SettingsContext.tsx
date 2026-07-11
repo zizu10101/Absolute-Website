@@ -147,75 +147,28 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const primary = themeSettings.primaryColor || '#b90014';
     const secondary = themeSettings.secondaryColor || '#000000';
-    const font = themeSettings.fontFamily || 'default';
 
     document.documentElement.style.setProperty('--primary-color', primary);
     document.documentElement.style.setProperty('--secondary-color', secondary);
 
-    // Per-font Google Fonts URL segments (display fonts only support specific weights)
-    const fontUrlMap: Record<string, string> = {
-      // Sports / Bold
-      'Bebas Neue': 'Bebas+Neue',
-      'Anton': 'Anton',
-      'Teko': 'Teko:wght@400;500;600;700',
-      'Barlow Condensed': 'Barlow+Condensed:wght@400;500;600;700;800;900',
-      'Black Han Sans': 'Black+Han+Sans',
-      'Archivo Black': 'Archivo+Black',
-      // Modern / Clean
-      'Inter': 'Inter:wght@400;500;600;700;800;900',
-      'Poppins': 'Poppins:wght@400;500;600;700;800;900',
-      'Nunito': 'Nunito:wght@400;500;600;700;800;900',
-      'DM Sans': 'DM+Sans:wght@400;500;600;700;800;900',
-      'Plus Jakarta Sans': 'Plus+Jakarta+Sans:wght@400;500;600;700;800;900',
-      'Syne': 'Syne:wght@400;500;600;700;800',
-      // Elegant
-      'Raleway': 'Raleway:wght@400;500;600;700;800;900',
-      'Josefin Sans': 'Josefin+Sans:wght@400;500;600;700',
-      'Cormorant': 'Cormorant:wght@400;500;600;700',
-      'Playfair Display': 'Playfair+Display:wght@400;500;600;700;800;900',
-      // Unique / Creative
-      'Righteous': 'Righteous',
-      'Russo One': 'Russo+One',
-      'Exo 2': 'Exo+2:wght@400;500;600;700;800;900',
-      'Oxanium': 'Oxanium:wght@400;500;600;700;800',
-      'Orbitron': 'Orbitron:wght@400;500;600;700;800;900',
-    };
-
-    if (font === 'default') {
-      document.documentElement.style.removeProperty('--font-family');
-      document.documentElement.style.removeProperty('--font-sans');
-      document.documentElement.style.fontFamily = '';
-      document.body.style.fontFamily = '';
-    } else {
-      // Remove previous link so onload fires reliably on every font change
-      const existing = document.getElementById('google-fonts-theme');
-      if (existing) existing.remove();
-
-      const link = document.createElement('link');
-      link.id = 'google-fonts-theme';
-      link.rel = 'stylesheet';
-      const fontParam = fontUrlMap[font] ?? `${font.replace(/ /g, '+')}:wght@400;700`;
-      link.href = `https://fonts.googleapis.com/css2?family=${fontParam}&display=swap`;
-      document.head.appendChild(link);
-
-      const applyFont = () => {
-        const cssValue = `'${font}', sans-serif`;
-        document.documentElement.style.setProperty('--font-family', cssValue);
-        // Override Tailwind v4's --font-sans so font-sans utility classes also use the custom font
-        document.documentElement.style.setProperty('--font-sans', cssValue);
-        document.documentElement.style.fontFamily = cssValue;
-        document.body.style.fontFamily = cssValue;
-      };
-
-      link.onload = applyFont;
-      applyFont(); // also apply immediately for cached fonts
-    }
+    // Font feature disabled — remove any stale Google Font links and reset inline font styles
+    document.querySelectorAll('[id^="google-font"]').forEach(el => el.remove());
+    document.documentElement.style.removeProperty('--font-family');
+    document.documentElement.style.removeProperty('--font-sans');
+    document.documentElement.style.fontFamily = '';
+    document.body.style.fontFamily = '';
   }, [themeSettings]);
 
   const location = useLocation();
 
   const fetchSettings = async () => {
       setIsLoading(true);
+
+      // Clear any stale font keys from localStorage (font feature is disabled)
+      try {
+        localStorage.removeItem('theme');
+        localStorage.removeItem('fontFamily');
+      } catch {}
 
       try {
         let results: any = {};
@@ -337,7 +290,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           if (foot?.footerLinks) setFooterLinksState(foot.footerLinks);
           if (seoData && Object.keys(seoData).length > 0) setSeoSettingsState(prev => ({ ...prev, ...seoData }));
           if (storeInfoData && Object.keys(storeInfoData).length > 0) setStoreInfoState(prev => ({ ...DEFAULT_STORE_INFO, ...prev, ...storeInfoData, hours: { ...DEFAULT_STORE_INFO.hours, ...(storeInfoData.hours || {}) } }));
-          if (themeData && Object.keys(themeData).length > 0) setThemeSettingsState(prev => ({ ...DEFAULT_THEME, ...prev, ...themeData }));
+          if (themeData && Object.keys(themeData).length > 0) {
+            // Always force fontFamily to 'default' regardless of what's stored — font feature disabled
+            setThemeSettingsState(prev => ({ ...DEFAULT_THEME, ...prev, ...themeData, fontFamily: 'default' }));
+          }
         }
       } catch (criticalErr) {
         console.error('Critical context collection fault:', criticalErr);

@@ -1,5 +1,5 @@
 ﻿import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useProducts, Product } from '../context/ProductContext';
 import { useSettings, NavMenu, SEO, ThemeSettings, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
@@ -183,12 +183,17 @@ export function AdminPage() {
 }
 
 function AdminPageInner() {
-  const { 
+  const {
     products, addProduct, deleteProduct, updateProduct, resetProducts, markAllProductsOnline,
     fetchAdminProducts, loadMoreAdminProducts, hasMoreProducts, isLoading, fetchProductById
   } = useProducts();
   const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, storeInfo, setStoreInfo, setGlobalSettings, resetSettings, showSizesOnline, setShowSizesOnline, themeSettings, setThemeSettings } = useSettings();
   const { logout, user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Barcode pre-fill when navigating here from POS "Create New Product"
+  const [fromPOSData, setFromPOSData] = useState<{ barcode: string; brand: string; price: number; name: string } | null>(null);
 
   const updateDraftNavigationMenu = (index: number, field: string, value: string) => {
     setDraftNavigationMenus(prev => {
@@ -201,7 +206,37 @@ function AdminPageInner() {
   useEffect(() => {
     fetchAdminProducts();
   }, []);
-  
+
+  // If navigated here from POS "Create New Product", auto-open add form pre-filled
+  useEffect(() => {
+    const state = location.state as any;
+    if (state?.openAddProduct && state?.pendingBarcode) {
+      const pb = state.pendingBarcode;
+      setFromPOSData(pb);
+      setActiveTab('products');
+      setProductSubTab('add');
+      setNewProduct(prev => ({
+        ...prev,
+        name: pb.name || '',
+        brand: pb.brand || '',
+        price: pb.price || 0,
+        image: '/logo.svg',
+        showSizes: true,
+      }));
+      setNewProductVariantBarcode(pb.barcode || '');
+      // Clear the navigation state so a refresh doesn't re-trigger
+      window.history.replaceState({}, '', '/admin');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Remove preview font link tag when admin page unmounts
+  useEffect(() => {
+    return () => {
+      const previewLink = document.getElementById('google-fonts-preview');
+      if (previewLink) previewLink.remove();
+    };
+  }, []);
+
   const [newProduct, setNewProduct] = useState<Omit<Product, 'id'>>({
     name: '',
     price: 0,
@@ -334,31 +369,6 @@ function AdminPageInner() {
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [themeSaveSuccess, setThemeSaveSuccess] = useState(false);
 
-  // Load Google Font for live preview whenever the draft font selection changes
-  useEffect(() => {
-    const font = draftTheme.fontFamily;
-    if (!font || font === 'default') return;
-    const PREVIEW_FONT_URL_MAP: Record<string, string> = {
-      'Bebas Neue': 'Bebas+Neue', 'Anton': 'Anton', 'Teko': 'Teko:wght@400;700',
-      'Barlow Condensed': 'Barlow+Condensed:wght@400;700', 'Black Han Sans': 'Black+Han+Sans',
-      'Archivo Black': 'Archivo+Black', 'Inter': 'Inter:wght@400;700',
-      'Poppins': 'Poppins:wght@400;700', 'Nunito': 'Nunito:wght@400;700',
-      'DM Sans': 'DM+Sans:wght@400;700', 'Plus Jakarta Sans': 'Plus+Jakarta+Sans:wght@400;700',
-      'Syne': 'Syne:wght@400;700', 'Raleway': 'Raleway:wght@400;700',
-      'Josefin Sans': 'Josefin+Sans:wght@400;700', 'Cormorant': 'Cormorant:wght@400;700',
-      'Playfair Display': 'Playfair+Display:wght@400;700', 'Righteous': 'Righteous',
-      'Russo One': 'Russo+One', 'Exo 2': 'Exo+2:wght@400;700',
-      'Oxanium': 'Oxanium:wght@400;700', 'Orbitron': 'Orbitron:wght@400;700',
-    };
-    const existing = document.getElementById('google-fonts-preview');
-    if (existing) existing.remove();
-    const link = document.createElement('link');
-    link.id = 'google-fonts-preview';
-    link.rel = 'stylesheet';
-    const param = PREVIEW_FONT_URL_MAP[font] ?? `${font.replace(/ /g, '+')}:wght@400;700`;
-    link.href = `https://fonts.googleapis.com/css2?family=${param}&display=swap`;
-    document.head.appendChild(link);
-  }, [draftTheme.fontFamily]);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -654,7 +664,7 @@ function AdminPageInner() {
         .maybeSingle();
 
       if (existing && existing.product_id !== editingProduct.id) {
-        alert(`âš ï¸ Barcode "${barcodeValue}" is already assigned to a different product (Size: ${existing.size}). Please use a unique barcode.`);
+        alert(`⚠️ Barcode "${barcodeValue}" is already assigned to a different product (Size: ${existing.size}). Please use a unique barcode.`);
         return;
       }
 
@@ -1026,6 +1036,18 @@ function AdminPageInner() {
         colors: [],
         release_date: null
       });
+
+      // If came from POS, remove barcode from pending list and return
+      if (fromPOSData) {
+        try {
+          const stored = JSON.parse(localStorage.getItem('pending_barcodes') || '[]');
+          const updated = stored.filter((p: any) => p.barcode !== fromPOSData.barcode);
+          localStorage.setItem('pending_barcodes', JSON.stringify(updated));
+        } catch {}
+        setFromPOSData(null);
+        setTimeout(() => navigate('/pos'), 1200);
+      }
+
       setTimeout(() => setAddStatus('idle'), 3000);
       await resetProducts();
     } catch (error: any) {
@@ -1791,7 +1813,8 @@ function AdminPageInner() {
   const handleSaveTheme = async () => {
     setIsSavingTheme(true);
     try {
-      await setThemeSettings(draftTheme);
+      // Always force fontFamily to 'default' — font feature is disabled
+      await setThemeSettings({ ...draftTheme, fontFamily: 'default' });
       setThemeSaveSuccess(true);
       setTimeout(() => setThemeSaveSuccess(false), 3000);
     } catch (error: any) {
@@ -2319,7 +2342,7 @@ function AdminPageInner() {
           ? 'text-amber-600'
           : 'text-green-600'
       }`}>
-        ðŸ“¦ {stock} in stock {isLowStock && 'âš ï¸'}
+        📦 {stock} in stock {isLowStock && '⚠️'}
       </p>
     );
   };
@@ -2358,11 +2381,11 @@ function AdminPageInner() {
               }} 
               className="px-4 py-2 bg-zinc-700 text-white font-bold text-[10px] uppercase tracking-widest rounded hover:bg-zinc-600 transition-colors flex items-center gap-2"
             >
-              ðŸ› ï¸ Standardize Database & Assets
+              🛠️ Standardize Database & Assets
             </button>
           </div>
           <button onClick={(e) => { e.preventDefault(); forceManualNavigationMigration(); }} className="px-4 py-2 bg-blue-600 text-white font-bold text-[10px] uppercase tracking-widest rounded hover:bg-blue-700 transition-colors">
-            ðŸš€ Force Manual Database Migration
+            🚀 Force Manual Database Migration
           </button>
         </div>
         <div className="mb-8 flex items-center justify-between">
@@ -3450,88 +3473,36 @@ function AdminPageInner() {
                     </div>
                   </div>
 
-                  {/* Right column: Font + Live preview */}
+                  {/* Right column: Live Preview */}
                   <div className="space-y-6">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--primary-color)]">Typography</h3>
-
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Font Family</label>
-                      <select
-                        value={draftTheme.fontFamily}
-                        onChange={e => setDraftTheme(p => ({ ...p, fontFamily: e.target.value }))}
-                        className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
-                      >
-                        <option value="default">Default (System Font)</option>
-                        <optgroup label="⚽ Sports / Bold">
-                          <option value="Bebas Neue">Bebas Neue — athletic, all-caps display</option>
-                          <option value="Anton">Anton — bold, impactful display</option>
-                          <option value="Teko">Teko — sporty, condensed</option>
-                          <option value="Barlow Condensed">Barlow Condensed — athletic, narrow</option>
-                          <option value="Black Han Sans">Black Han Sans — heavy, striking</option>
-                          <option value="Archivo Black">Archivo Black — ultra bold, modern</option>
-                        </optgroup>
-                        <optgroup label="✨ Modern / Clean">
-                          <option value="Inter">Inter — professional, highly readable</option>
-                          <option value="Poppins">Poppins — popular, rounded geometric</option>
-                          <option value="Nunito">Nunito — friendly, rounded</option>
-                          <option value="DM Sans">DM Sans — clean, contemporary</option>
-                          <option value="Plus Jakarta Sans">Plus Jakarta Sans — modern, versatile</option>
-                          <option value="Syne">Syne — geometric, editorial</option>
-                        </optgroup>
-                        <optgroup label="💎 Elegant">
-                          <option value="Raleway">Raleway — elegant, thin strokes</option>
-                          <option value="Josefin Sans">Josefin Sans — geometric, stylish</option>
-                          <option value="Cormorant">Cormorant — refined, serif elegance</option>
-                          <option value="Playfair Display">Playfair Display — editorial, serif</option>
-                        </optgroup>
-                        <optgroup label="🚀 Unique / Creative">
-                          <option value="Righteous">Righteous — retro, sporty</option>
-                          <option value="Russo One">Russo One — bold, industrial</option>
-                          <option value="Exo 2">Exo 2 — sci-fi, techy</option>
-                          <option value="Oxanium">Oxanium — futuristic, techy</option>
-                          <option value="Orbitron">Orbitron — space-age, geometric</option>
-                        </optgroup>
-                      </select>
-                      <p className="text-[10px] text-zinc-400">Applied site-wide. Google Fonts loaded automatically.</p>
-                    </div>
-
-                    {/* Live Preview */}
-                    <div className="space-y-3 pt-4">
-                      <h3 className="text-sm font-black uppercase tracking-widest text-[var(--primary-color)]">Live Preview</h3>
-                      <div
-                        className="border border-zinc-200 rounded-xl overflow-hidden text-left"
-                        style={{ fontFamily: draftTheme.fontFamily !== 'default' ? `'${draftTheme.fontFamily}', sans-serif` : 'inherit' }}
-                      >
-                        {/* Nav bar */}
-                        <div className="px-4 py-2 bg-white border-b border-zinc-100 flex items-center gap-4">
-                          <span className="font-bold text-xs" style={{ color: draftTheme.primaryColor }}>
-                            {draftTheme.storeName || 'Absolute Soccer'}
-                          </span>
-                          <span className="text-[10px] text-zinc-500 tracking-wider">FOOTWEAR</span>
-                          <span className="text-[10px] text-zinc-500 tracking-wider">CLUBS</span>
-                          <span className="text-[10px] text-zinc-500 tracking-wider">NATIONAL TEAMS</span>
-                        </div>
-                        {/* Hero area */}
-                        <div className="px-4 py-5 bg-zinc-50">
-                          <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-1">New Arrivals</p>
-                          <h2 className="text-2xl font-black leading-tight text-zinc-900">Absolute Soccer Mississauga</h2>
-                          <p className="text-sm text-zinc-600 mt-1">Premium Soccer Gear &amp; Custom Kits</p>
-                          <button
-                            className="mt-3 px-5 py-2 text-white text-xs font-bold rounded"
-                            style={{ backgroundColor: draftTheme.primaryColor }}
-                          >
-                            Shop Now
-                          </button>
-                        </div>
-                        {/* Footer strip */}
-                        <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: draftTheme.secondaryColor }}>
-                          <span className="text-white/80 text-[10px] font-bold uppercase tracking-widest">Footer · Dark Sections</span>
-                          <span className="text-white/50 text-[10px]">torontosoccershop.com</span>
-                        </div>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--primary-color)]">Live Preview</h3>
+                    <div className="border border-zinc-200 rounded-xl overflow-hidden text-left">
+                      {/* Nav bar */}
+                      <div className="px-4 py-2 bg-white border-b border-zinc-100 flex items-center gap-4">
+                        <span className="font-bold text-xs" style={{ color: draftTheme.primaryColor }}>
+                          {draftTheme.storeName || 'Absolute Soccer'}
+                        </span>
+                        <span className="text-[10px] text-zinc-500 tracking-wider">FOOTWEAR</span>
+                        <span className="text-[10px] text-zinc-500 tracking-wider">CLUBS</span>
+                        <span className="text-[10px] text-zinc-500 tracking-wider">NATIONAL TEAMS</span>
                       </div>
-                      {draftTheme.fontFamily !== 'default' && (
-                        <p className="text-[10px] text-zinc-400">Previewing: <strong>{draftTheme.fontFamily}</strong> · Font loads from Google Fonts</p>
-                      )}
+                      {/* Hero area */}
+                      <div className="px-4 py-5 bg-zinc-50">
+                        <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-1">New Arrivals</p>
+                        <h2 className="text-2xl font-black leading-tight text-zinc-900">Absolute Soccer Mississauga</h2>
+                        <p className="text-sm text-zinc-600 mt-1">Premium Soccer Gear &amp; Custom Kits</p>
+                        <button
+                          className="mt-3 px-5 py-2 text-white text-xs font-bold rounded"
+                          style={{ backgroundColor: draftTheme.primaryColor }}
+                        >
+                          Shop Now
+                        </button>
+                      </div>
+                      {/* Footer strip */}
+                      <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: draftTheme.secondaryColor }}>
+                        <span className="text-white/80 text-[10px] font-bold uppercase tracking-widest">Footer · Dark Sections</span>
+                        <span className="text-white/50 text-[10px]">torontosoccershop.com</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3673,6 +3644,20 @@ function AdminPageInner() {
               {productSubTab === 'add' && (
                 <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
                   <div className="p-8 border-b border-zinc-100">
+                    {fromPOSData && (
+                      <div className="mb-4 flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                        <div>
+                          <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">Creating product from POS scan</p>
+                          <p className="text-[11px] text-amber-700 font-mono mt-0.5">Barcode: {fromPOSData.barcode}</p>
+                        </div>
+                        <button
+                          onClick={() => navigate('/pos')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-[11px] font-bold uppercase transition-colors"
+                        >
+                          <ArrowLeft size={13} /> Back to POS
+                        </button>
+                      </div>
+                    )}
                     <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
                       <Plus size={20} className="text-[var(--primary-color)]" /> Add New Product
                     </h2>
@@ -4602,14 +4587,14 @@ function AdminPageInner() {
                             <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">
                               {product.category}
                               {product.isOnSale && product.salePrice ? (
-                                <span className="ml-1">â€¢ <span className="line-through opacity-50">${product.price}</span> <span className="text-[var(--primary-color)] font-bold">${product.salePrice}</span></span>
+                                <span className="ml-1">&bull; <span className="line-through opacity-50">${product.price}</span> <span className="text-[var(--primary-color)] font-bold">${product.salePrice}</span></span>
                               ) : (
-                                <span className="ml-1">â€¢ ${product.price}</span>
+                                <span className="ml-1">&bull; ${product.price}</span>
                               )}
                             </p>
                             <StockBadge productId={product.id} productStockCache={productStockCache} />
                             {!product.brand && (
-                              <p className="text-[9px] text-amber-600 mt-0.5 font-medium">âš ï¸ Missing Brand</p>
+                              <p className="text-[9px] text-amber-600 mt-0.5 font-medium">⚠️ Missing Brand</p>
                             )}
                           </div>
                           {/* Buttons: always visible on mobile, hover-only on desktop */}
@@ -5410,7 +5395,7 @@ function AdminPageInner() {
                                           setEditingProductVariants(prev => prev.map(x => x.id === v.id ? { ...x, stock_quantity: newQty } : x));
                                         }}
                                         className="w-6 h-6 bg-zinc-200 hover:bg-zinc-300 rounded font-bold text-zinc-700 flex items-center justify-center text-sm cursor-pointer"
-                                      >âˆ’</button>
+                                      >−</button>
                                       <input
                                         type="number"
                                         value={v.stock_quantity || 0}
@@ -5459,7 +5444,7 @@ function AdminPageInner() {
                   <div className="text-left flex-1">
                     {editStatus === 'error' && editErrorMessage && (
                       <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest">
-                        âš ï¸ {editErrorMessage}
+                        ⚠️ {editErrorMessage}
                       </p>
                     )}
                     {editStatus === 'success' && (

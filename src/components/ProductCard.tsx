@@ -99,8 +99,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
 
       <Link to={`/product/${product.id}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} className="p-6 block">
         <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">
-          {product.category} {product.submenu && `â€¢ ${product.submenu}`}
-          {!product.submenu && product.submenus && product.submenus.length > 0 && `â€¢ ${product.submenus.join(', ')}`}
+          {product.category} {product.submenu && `• ${product.submenu}`}
+          {!product.submenu && product.submenus && product.submenus.length > 0 && `• ${product.submenus.join(', ')}`}
         </p>
         <h4 className="font-headline text-lg font-bold uppercase text-zinc-900">{product.name}</h4>
         <div className="mt-4">

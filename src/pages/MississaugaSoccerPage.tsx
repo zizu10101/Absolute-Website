@@ -258,7 +258,7 @@ export function MississaugaSoccerPage() {
                     <MapPin size={22} className="text-[var(--primary-color)] shrink-0 mt-0.5" />
                     <div>
                       <p>Mississauga, ON</p>
-                      <p className="text-sm text-zinc-400 mt-1">Monâ€“Fri: 1:00 PM â€“ 7:00 PM &nbsp;|&nbsp; Satâ€“Sun: 11:00 AM â€“ 4:00 PM</p>
+                      <p className="text-sm text-zinc-400 mt-1">Mon–Fri: 1:00 PM – 7:00 PM &nbsp;|&nbsp; Sat–Sun: 11:00 AM – 4:00 PM</p>
                     </div>
                   </div>
                 </div>

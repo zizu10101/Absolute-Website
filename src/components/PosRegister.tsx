@@ -586,13 +586,13 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
             {[
-              { id: 'ALL',       label: 'ALL',       desc: 'Entire inventory',       icon: 'ðŸª' },
-              { id: 'FOOTWEAR',  label: 'FOOTWEAR',  desc: 'Boots & cleats',         icon: 'ðŸ‘Ÿ' },
-              { id: 'KITS',      label: 'KITS',      desc: 'Jerseys & licensed',     icon: 'ðŸ‘•' },
-              { id: 'BALLS',     label: 'BALLS',     desc: 'Soccer, futsal & more',  icon: 'âš½' },
-              { id: 'EQUIPMENT', label: 'EQUIPMENT', desc: 'Shin guards & bags',     icon: 'ðŸ›¡ï¸' },
-              { id: 'TEAMWEAR',  label: 'TEAM WEAR', desc: 'Training & apparel',     icon: 'ðŸŽ½' },
-              { id: 'GLOVES',    label: 'GLOVES',    desc: 'Goalkeeper gloves',      icon: 'ðŸ§¤' },
+              { id: 'ALL',       label: 'ALL',       desc: 'Entire inventory',       icon: '🏪' },
+              { id: 'FOOTWEAR',  label: 'FOOTWEAR',  desc: 'Boots & cleats',         icon: '👟' },
+              { id: 'KITS',      label: 'KITS',      desc: 'Jerseys & licensed',     icon: '👕' },
+              { id: 'BALLS',     label: 'BALLS',     desc: 'Soccer, futsal & more',  icon: '⚽' },
+              { id: 'EQUIPMENT', label: 'EQUIPMENT', desc: 'Shin guards & bags',     icon: '🛡️' },
+              { id: 'TEAMWEAR',  label: 'TEAM WEAR', desc: 'Training & apparel',     icon: '🎽' },
+              { id: 'GLOVES',    label: 'GLOVES',    desc: 'Goalkeeper gloves',      icon: '🧤' },
             ].map(tab => {
               const isActive = activeTab === tab.id;
               return (
@@ -779,7 +779,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                     <div className="border-t border-dashed border-zinc-300 pt-3 space-y-1 text-[10px] font-bold text-zinc-600">
                       <div className="flex justify-between"><span>Subtotal</span><span>${receipt.subtotal.toFixed(2)}</span></div>
                       {discountAmount > 0 && (
-                        <div className="flex justify-between text-red-600"><span>Discount</span><span>âˆ’${discountAmount.toFixed(2)}</span></div>
+                        <div className="flex justify-between text-red-600"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>
                       )}
                       <div className="flex justify-between"><span>HST {receipt.isTaxExempt ? '(Exempt)' : '(13%)'}</span><span>${receipt.hst.toFixed(2)}</span></div>
                       <div className="flex justify-between text-sm font-black text-zinc-950 pt-1 border-t border-zinc-200">
@@ -853,7 +853,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className="w-6 h-6 rounded border border-zinc-200 text-xs font-black hover:bg-zinc-100 flex items-center justify-center">âˆ’</button>
+                            <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className="w-6 h-6 rounded border border-zinc-200 text-xs font-black hover:bg-zinc-100 flex items-center justify-center">−</button>
                             <span className="text-xs font-black w-6 text-center">{item.quantity}</span>
                             <button
                               onClick={() => {
@@ -894,7 +894,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
 
                     <div className="space-y-1.5 text-xs font-bold text-zinc-600">
                       <div className="flex justify-between"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-                      {totalDiscount > 0 && <div className="flex justify-between text-red-600"><span>Item Discount</span><span>âˆ’${totalDiscount.toFixed(2)}</span></div>}
+                      {totalDiscount > 0 && <div className="flex justify-between text-red-600"><span>Item Discount</span><span>−${totalDiscount.toFixed(2)}</span></div>}
                       {discountAmount > 0 && (
                         <div className="flex justify-between text-red-600">
                           <button
@@ -903,7 +903,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                           >
                             Order Discount <X size={12} />
                           </button>
-                          <span>âˆ’${discountAmount.toFixed(2)}</span>
+                          <span>−${discountAmount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between"><span>HST {isTaxExempt ? '(Exempt)' : '(13%)'}</span><span>${hst.toFixed(2)}</span></div>
