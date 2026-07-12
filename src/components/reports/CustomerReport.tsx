@@ -168,10 +168,10 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
         {
           type: 'summary-cards',
           cards: [
-            { label: 'Total Customers', value: metrics.totalCustomers.toString(), icon: '👥' },
-            { label: 'Total Spent', value: `$${metrics.totalSpent.toFixed(2)}`, icon: '💰' },
-            { label: 'Total Purchases', value: metrics.totalPurchases.toString(), icon: '🛍️' },
-            { label: 'Avg Customer Value', value: `$${metrics.avgCustomerValue.toFixed(2)}`, icon: '📊' },
+            { label: 'Total Customers', value: metrics.totalCustomers.toString(),icon: '' },
+            { label: 'Total Spent', value: `$${metrics.totalSpent.toFixed(2)}`,icon: '' },
+            { label: 'Total Purchases', value: metrics.totalPurchases.toString(),icon: '' },
+            { label: 'Avg Customer Value', value: `$${metrics.avgCustomerValue.toFixed(2)}`,icon: '' },
           ],
         },
         {
@@ -225,10 +225,10 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard label="Customers" value={metrics.totalCustomers.toString()} icon="👥" />
-        <MetricCard label="Total Spent" value={`$${metrics.totalSpent.toFixed(2)}`} icon="💰" />
-        <MetricCard label="Avg Customer Value" value={`$${metrics.avgCustomerValue.toFixed(2)}`} icon="📊" />
-        <MetricCard label="Total Purchases" value={metrics.totalPurchases.toString()} icon="🛍️" />
+        <MetricCard label="Customers" value={metrics.totalCustomers.toString()} icon="" />
+        <MetricCard label="Total Spent" value={`$${metrics.totalSpent.toFixed(2)}`} icon="" />
+        <MetricCard label="Avg Customer Value" value={`$${metrics.avgCustomerValue.toFixed(2)}`} icon="" />
+        <MetricCard label="Total Purchases" value={metrics.totalPurchases.toString()} icon="" />
       </div>
 
       {/* Customers Table */}

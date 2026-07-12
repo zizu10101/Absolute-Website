@@ -238,9 +238,9 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
         {
           type: 'summary-cards',
           cards: [
-            { label: 'Total Sales', value: `$${metrics.totalSales.toFixed(2)}`, icon: '💰' },
-            { label: 'Transactions', value: metrics.totalTransactions.toString(), icon: '📊' },
-            { label: 'Net Sales', value: `$${metrics.netSales.toFixed(2)}`, icon: '💵' },
+            { label: 'Total Sales', value: `$${metrics.totalSales.toFixed(2)}`,icon: '' },
+            { label: 'Transactions', value: metrics.totalTransactions.toString(),icon: '' },
+            { label: 'Net Sales', value: `$${metrics.netSales.toFixed(2)}`, icon: '' },
             { label: 'HST Collected', value: `$${metrics.hstCollected.toFixed(2)}`, icon: '🧮' },
           ],
         },
@@ -298,9 +298,9 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <SummaryCard label="Total Sales" value={`$${metrics.totalSales.toFixed(2)}`} icon="💰" />
-        <SummaryCard label="Transactions" value={metrics.totalTransactions.toString()} icon="📊" />
-        <SummaryCard label="Net Sales" value={`$${metrics.netSales.toFixed(2)}`} icon="💵" />
+        <SummaryCard label="Total Sales" value={`$${metrics.totalSales.toFixed(2)}`} icon="" />
+        <SummaryCard label="Transactions" value={metrics.totalTransactions.toString()} icon="" />
+        <SummaryCard label="Net Sales" value={`$${metrics.netSales.toFixed(2)}`} icon="" />
         <SummaryCard label="HST Collected" value={`$${metrics.hstCollected.toFixed(2)}`} icon="🧮" />
       </div>
 

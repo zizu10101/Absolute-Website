@@ -246,13 +246,13 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
     const isDuplicateInDb = existingVariants.some(v => v.barcode?.toUpperCase() === code);
 
     if (isDuplicateInSession) {
-      alert(`⚠️ Barcode "${code}" was already scanned in this session for another size. Please scan a different barcode.`);
+      alert(`ERROR: Barcode "${code}" was already scanned in this session for another size. Please scan a different barcode.`);
       setBarcodeInput('');
       return;
     }
 
     if (isDuplicateInDb) {
-      alert(`⚠️ Barcode "${code}" already exists in the database for this product. Please scan a different barcode.`);
+      alert(`ERROR: Barcode "${code}" already exists in the database for this product. Please scan a different barcode.`);
       setBarcodeInput('');
       return;
     }
@@ -335,7 +335,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
               <option value="Youth">👦 Youth (YXXS–YXL)</option>
               <option value="Balls">⚽ Balls (Size 1–5)</option>
               <option value="Gloves">🧤 Gloves (3–11)</option>
-              <option value="One Size">📦 One Size (Accessories)</option>
+              <option value="One Size">One Size (Accessories)</option>
               <option value="Adult Footwear">👟 Adult Footwear (3–13)</option>
               <option value="Youth Footwear">👟 Youth Footwear (1Y–6Y)</option>
               <option value="Toddler">🧒 Toddler (2T, 3T, 4T)</option>

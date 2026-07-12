@@ -158,7 +158,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       // Detect format: UUID (UUID will be 36 chars), INV-XXXXX, or just XXXXX
       const isUUID = input.length === 36 && input.includes('-') && !input.startsWith('INV-');
       if (isUUID) {
-        setError('❌ Please scan the invoice barcode, not the transaction UUID');
+        setError('Error: Please scan the invoice barcode, not the transaction UUID');
         setLoading(false);
         return;
       }
@@ -385,7 +385,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         .single();
 
       if (returnError) {
-        console.error('❌ [Returns] Error creating return record:', returnError);
+        console.error('ERROR [Returns] Error creating return record:', returnError);
         throw returnError;
       }
 
@@ -394,7 +394,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         .from('transactions')
         .update({ status: newTransactionStatus })
         .eq('id', transaction.id);
-      if (statusError) console.error('⚠️ [Returns] Error updating status:', statusError);
+      if (statusError) console.error('ERROR: [Returns] Error updating status:', statusError);
 
       // 2. Restore inventory
       for (const item of selectedItems) {
@@ -432,7 +432,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           .single();
 
         if (scError) {
-          console.error('❌ [Returns] Error creating store credit:', scError);
+          console.error('ERROR [Returns] Error creating store credit:', scError);
           throw new Error('Failed to create store credit');
         }
 
@@ -444,7 +444,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           .eq('id', returnRecord.id);
 
         if (updateReturnError) {
-          console.error('⚠️ [Returns] Error updating return with store_credit_id:', updateReturnError);
+          console.error('ERROR: [Returns] Error updating return with store_credit_id:', updateReturnError);
         } else {
         }
 
@@ -517,8 +517,8 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       }, 1500);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : JSON.stringify(err);
-      console.error('❌ [Returns] ERROR:', errorMsg);
-      console.error('❌ [Returns] Full error object:', err);
+      console.error('ERROR [Returns] ERROR:', errorMsg);
+      console.error('ERROR [Returns] Full error object:', err);
       setError(err instanceof Error ? err.message : 'Error processing return');
     } finally {
       setProcessing(false);
@@ -682,7 +682,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                 )}
 
                 <div className="p-4 bg-blue-50 rounded-lg text-sm text-blue-700">
-                  💡 You can scan the invoice barcode from the receipt or enter the transaction ID
+                  Tip: You can scan the invoice barcode from the receipt or enter the transaction ID
                 </div>
               </div>
             )}

@@ -53,13 +53,13 @@ export const CustomerGiftCards: React.FC<CustomerGiftCardsProps> = ({ customerId
 
 
       if (error) {
-        console.error('❌ Gift cards fetch error:', error);
+        console.error('ERROR Gift cards fetch error:', error);
         throw error;
       }
 
       setGiftCards(data || []);
     } catch (e: any) {
-      console.error('❌ Failed to fetch gift cards:', e);
+      console.error('ERROR Failed to fetch gift cards:', e);
       setError('Failed to load gift cards');
     } finally {
       setIsLoading(false);

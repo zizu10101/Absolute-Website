@@ -63,7 +63,7 @@ export function ReturnTab() {
       // Detect UUID format
       const isUUID = input.length === 36 && input.includes('-') && !input.startsWith('INV-');
       if (isUUID) {
-        setError('❌ Please scan the invoice barcode, not the transaction UUID');
+        setError('Error: Please scan the invoice barcode, not the transaction UUID');
         setLoading(false);
         return;
       }

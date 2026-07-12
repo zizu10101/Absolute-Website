@@ -230,8 +230,8 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
         {
           type: 'summary-cards',
           cards: [
-            { label: 'Total Revenue', value: `$${metrics.totalRevenue.toFixed(2)}`, icon: '💰' },
-            { label: 'Transactions', value: metrics.totalTransactions.toString(), icon: '📊' },
+            { label: 'Total Revenue', value: `$${metrics.totalRevenue.toFixed(2)}`,icon: '' },
+            { label: 'Transactions', value: metrics.totalTransactions.toString(),icon: '' },
             { label: 'Avg Transaction', value: `$${metrics.avgTransaction.toFixed(2)}`, icon: '📈' },
             { label: 'HST Collected', value: `$${metrics.hstCollected.toFixed(2)}`, icon: '🧮' },
           ],
@@ -325,8 +325,8 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard label="Total Revenue" value={`$${metrics.totalRevenue.toFixed(2)}`} icon="💰" />
-        <MetricCard label="Transactions" value={metrics.totalTransactions.toString()} icon="📊" />
+        <MetricCard label="Total Revenue" value={`$${metrics.totalRevenue.toFixed(2)}`} icon="" />
+        <MetricCard label="Transactions" value={metrics.totalTransactions.toString()} icon="" />
         <MetricCard label="Avg Transaction" value={`$${metrics.avgTransaction.toFixed(2)}`} icon="📈" />
         <MetricCard label="HST Collected" value={`$${metrics.hstCollected.toFixed(2)}`} icon="🧮" />
       </div>

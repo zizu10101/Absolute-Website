@@ -111,9 +111,9 @@ export const GiftCardReport: React.FC<GiftCardReportProps> = ({ logo }) => {
         {
           type: 'summary-cards',
           cards: [
-            { label: 'Cards Issued', value: metrics.count.toString(), icon: '🎁' },
-            { label: 'Total Value', value: `$${metrics.totalIssued.toFixed(2)}`, icon: '💰' },
-            { label: 'Total Redeemed', value: `$${metrics.totalRedeemed.toFixed(2)}`, icon: '✅' },
+            { label: 'Cards Issued', value: metrics.count.toString(),icon: '' },
+            { label: 'Total Value', value: `$${metrics.totalIssued.toFixed(2)}`,icon: '' },
+            { label: 'Total Redeemed', value: `$${metrics.totalRedeemed.toFixed(2)}`,icon: '' },
             { label: 'Outstanding', value: `$${metrics.totalOutstanding.toFixed(2)}`, icon: '⏳' },
           ],
         },
@@ -169,9 +169,9 @@ export const GiftCardReport: React.FC<GiftCardReportProps> = ({ logo }) => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard label="Gift Cards" value={metrics.count.toString()} icon="🎁" />
-        <MetricCard label="Total Issued" value={`$${metrics.totalIssued.toFixed(2)}`} icon="💰" />
-        <MetricCard label="Total Redeemed" value={`$${metrics.totalRedeemed.toFixed(2)}`} icon="✅" />
+        <MetricCard label="Gift Cards" value={metrics.count.toString()} icon="" />
+        <MetricCard label="Total Issued" value={`$${metrics.totalIssued.toFixed(2)}`} icon="" />
+        <MetricCard label="Total Redeemed" value={`$${metrics.totalRedeemed.toFixed(2)}`} icon="" />
         <MetricCard label="Outstanding" value={`$${metrics.totalOutstanding.toFixed(2)}`} icon="⏳" />
       </div>
 

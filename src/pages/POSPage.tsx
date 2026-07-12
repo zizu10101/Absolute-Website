@@ -795,7 +795,7 @@ export function POSPage() {
           setAvailableStoreCredits(filteredCredits);
           hasCustomerCredits = filteredCredits.length > 0;
         } catch (err: any) {
-          console.error('🔴 SC MODAL ERROR fetching customer store credits:', err);
+          console.error('ERROR SC MODAL - fetching customer store credits:', err);
           setAvailableStoreCredits([]);
         }
       } else {
@@ -909,7 +909,7 @@ export function POSPage() {
       setScScanInput('');
       // DO NOT call processPayment here - user will select payment method next
     } catch (err: any) {
-      console.error('🔴 SC SCAN EXCEPTION:', err);
+      console.error('ERROR SC SCAN EXCEPTION:', err);
       setStoreCreditError('Error scanning store credit: ' + err.message);
     } finally {
       setScLookupLoading(false);
@@ -958,7 +958,7 @@ export function POSPage() {
         setStoreCreditError('No store credits found matching that search');
       }
     } catch (err: any) {
-      console.error('🔴 SC SEARCH ERROR:', err);
+      console.error('ERROR SC SEARCH:', err);
       setStoreCreditError('Error searching store credits: ' + err.message);
       setScSearchResults([]);
     } finally {
@@ -1079,7 +1079,7 @@ export function POSPage() {
 
 
           if (scError) {
-            console.error('🔴 SC UPDATE FAILED:', scError);
+            console.error('ERROR SC UPDATE FAILED:', scError);
           } else {
             storeCreditNewBalance = newBalance;
 
@@ -1093,12 +1093,12 @@ export function POSPage() {
               });
 
             if (txError) {
-              console.error('🔴 Transaction record failed:', txError);
+              console.error('ERROR Transaction record failed:', txError);
             } else {
             }
           }
         } catch (err) {
-          console.error('🔴 Error updating store credit balance:', err);
+          console.error('ERROR updating store credit balance:', err);
         }
       } else {
       }
@@ -1141,7 +1141,7 @@ export function POSPage() {
             .eq('card_number', capturedGiftCard.cardNumber);
 
           if (updateErr) {
-            console.error('⚠️ Gift card redemption warning:', updateErr);
+            console.error('ERROR: Gift card redemption warning:', updateErr);
           } else {
           }
         } catch (err) {

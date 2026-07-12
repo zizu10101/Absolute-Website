@@ -402,7 +402,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                 : 'border-transparent text-zinc-900 hover:text-zinc-900'
             }`}
           >
-            {tab === 'sell' ? 'ðŸ’³ Sell' : tab === 'redeem' ? 'ðŸ’° Redeem' : '📊 History'}
+            {tab === ‘sell’ ? ‘Sell’ : tab === ‘redeem’ ? ‘Redeem’ : ‘History’}
           </button>
         ))}
       </div>
@@ -1001,7 +1001,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
 
                 {!cartHasItems && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-amber-700 text-[11px] font-bold">
-                    ⚠️ Add items to cart first
+                    ERROR: Add items to cart first
                   </div>
                 )}
 

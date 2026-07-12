@@ -103,7 +103,7 @@ export const VoidRefundReport: React.FC<VoidRefundReportProps> = ({ logo }) => {
         {
           type: 'summary-cards',
           cards: [
-            { label: 'Voided', value: `${metrics.voidedCount} × $${metrics.voidedAmount.toFixed(2)}`, icon: '❌' },
+            { label: 'Voided', value: `${metrics.voidedCount} × $${metrics.voidedAmount.toFixed(2)}`,icon: '' },
             { label: 'Refunded', value: `${metrics.refundedCount} × $${metrics.refundedAmount.toFixed(2)}`, icon: '↩️' },
           ],
         },
@@ -161,7 +161,7 @@ export const VoidRefundReport: React.FC<VoidRefundReportProps> = ({ logo }) => {
         <MetricCard
           label="Voided"
           value={`${metrics.voidedCount}`}
-          icon="❌"
+          icon=""
           subtext={`$${metrics.voidedAmount.toFixed(2)}`}
         />
         <MetricCard
@@ -173,7 +173,7 @@ export const VoidRefundReport: React.FC<VoidRefundReportProps> = ({ logo }) => {
         <MetricCard
           label="Total"
           value={`${metrics.totalCount}`}
-          icon="📊"
+          icon=""
           subtext={`$${metrics.totalAmount.toFixed(2)}`}
         />
       </div>

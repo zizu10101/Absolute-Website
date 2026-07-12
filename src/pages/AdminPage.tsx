@@ -664,7 +664,7 @@ function AdminPageInner() {
         .maybeSingle();
 
       if (existing && existing.product_id !== editingProduct.id) {
-        alert(`⚠️ Barcode "${barcodeValue}" is already assigned to a different product (Size: ${existing.size}). Please use a unique barcode.`);
+        alert(`Barcode "${barcodeValue}" is already assigned to a different product (Size: ${existing.size}). Please use a unique barcode.`);
         return;
       }
 
@@ -2342,7 +2342,7 @@ function AdminPageInner() {
           ? 'text-amber-600'
           : 'text-green-600'
       }`}>
-        📦 {stock} in stock {isLowStock && '⚠️'}
+        {stock} in stock
       </p>
     );
   };
@@ -4594,7 +4594,7 @@ function AdminPageInner() {
                             </p>
                             <StockBadge productId={product.id} productStockCache={productStockCache} />
                             {!product.brand && (
-                              <p className="text-[9px] text-amber-600 mt-0.5 font-medium">⚠️ Missing Brand</p>
+                              <p className="text-[9px] text-amber-600 mt-0.5 font-medium">Missing Brand</p>
                             )}
                           </div>
                           {/* Buttons: always visible on mobile, hover-only on desktop */}
@@ -5444,7 +5444,7 @@ function AdminPageInner() {
                   <div className="text-left flex-1">
                     {editStatus === 'error' && editErrorMessage && (
                       <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest">
-                        ⚠️ {editErrorMessage}
+                        ERROR: {editErrorMessage}
                       </p>
                     )}
                     {editStatus === 'success' && (
