@@ -4,7 +4,7 @@ import {
   Moon, Sun, LogOut, Search, Users, Percent, FileText, Trash2,
   Barcode as BarcodeIcon, Archive, Home, AlertCircle, X, Check,
   Receipt, RotateCcw, RefreshCw, Plus, Printer, ScanLine, CheckCircle2, BarChart3, Undo2,
-  UserPlus, Gift, Tag, CreditCard
+  UserPlus, Gift, Tag, CreditCard, Ticket
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Barcode from 'react-barcode';
@@ -1646,10 +1646,10 @@ export function POSPage() {
 
             <div className="grid grid-cols-4 gap-2">
               <button onClick={() => setPosTab('gc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
-                ðŸ’³ GC
+                <CreditCard size={14} className="inline mr-1" /> GC
               </button>
               <button onClick={() => setPosTab('sc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
-                🎟 SC
+                <Ticket size={14} /> SC
               </button>
               <button onClick={() => setShowDiscountModal(true)} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
                 <Percent size={14} /> Disc
@@ -1962,11 +1962,11 @@ export function POSPage() {
                         <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
                       </div>
                       {receipt.giftCardAmount && receipt.giftCardAmount > 0 && (
-                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span>ðŸ’³ Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
+                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span className="flex items-center gap-1"><CreditCard size={14} /> Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
                       )}
                       {receipt.storeCreditAmount && receipt.storeCreditAmount > 0 && (
                         <>
-                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>🎟 Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
+                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span className="flex items-center gap-1"><Ticket size={14} /> Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
                           {receipt.storeCreditNewBalance !== undefined && (
                             <div className="mt-3 p-4 bg-gradient-to-r from-blue-100 to-blue-50 border-4 border-blue-500 rounded-lg text-center space-y-2">
                               <div className="text-[9px] font-bold text-blue-700 uppercase tracking-widest">Store Credit Payment</div>
@@ -2107,7 +2107,7 @@ export function POSPage() {
                     {selectedGiftCard && (
                       <div className="bg-[#2d3547] p-3 rounded-lg border border-amber-500/30 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-amber-400 uppercase">ðŸ’³ Gift Card Payment</span>
+                          <span className="text-[10px] font-bold text-amber-400 uppercase flex items-center gap-1"><CreditCard size={12} /> Gift Card Payment</span>
                           <button
                             onClick={() => setSelectedGiftCard(null)}
                             className="text-amber-400 hover:text-amber-300 text-[11px] font-bold uppercase"
@@ -2128,7 +2128,7 @@ export function POSPage() {
                     {selectedStoreCredit && (
                       <div className="bg-[#2d3547] p-3 rounded-lg border border-blue-500/30 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-blue-400 uppercase">🎟 Store Credit Payment</span>
+                          <span className="text-[10px] font-bold text-blue-400 uppercase flex items-center gap-1"><Ticket size={12} /> Store Credit Payment</span>
                           <button
                             onClick={() => setSelectedStoreCredit(null)}
                             className="text-blue-400 hover:text-blue-300 text-[11px] font-bold uppercase"
@@ -2204,7 +2204,7 @@ export function POSPage() {
                       disabled={isConfirming}
                       className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
                     >
-                      ðŸ’³ Redeem Gift Card
+                      <CreditCard size={12} className="inline mr-1" /> Redeem Gift Card
                     </button>
 
                     <button
@@ -2215,7 +2215,7 @@ export function POSPage() {
                       disabled={isConfirming}
                       className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
                     >
-                      🎟 Redeem Store Credit
+                      <Ticket size={12} className="inline mr-1" /> Redeem Store Credit
                     </button>
                   </div>
 
@@ -2890,7 +2890,7 @@ export function POSPage() {
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
-          ðŸ’³ Gift Cards
+          <CreditCard size={14} className="inline mr-1" /> Gift Cards
         </button>
         <button
           onClick={() => setPosTab('sc')}
@@ -2900,7 +2900,7 @@ export function POSPage() {
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
-          🎟 Store Credit
+          <Ticket size={14} className="inline mr-1" /> Store Credit
         </button>
       </div>
     </div>
