@@ -4,8 +4,30 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - July 11, 2026)
-**Latest:** Unknown barcode modal, font removal, encoding fix (sessions 34–36)
+## CURRENT STATUS (Main Branch - July 12, 2026)
+**Latest:** Complete emoji removal from POS, UTF-8 quote corruption fix (sessions 34–37)
+
+**Session 37 improvements (Complete Emoji Removal & UTF-8 Fixes):**
+- ✅ **All emoji removed from POS and related files** — replaced corrupted emoji (ðŸ'³ → 💳) and valid emoji with plain text labels
+  - `src/pages/POSPage.tsx`: Removed 🔴 from 6 console.error messages; replaced with "ERROR" text prefix
+  - `src/components/GiftCardTab.tsx`: Fixed corrupted ðŸ'³/ðŸ'°/📊 emoji in tab labels; replaced with plain text: 'Sell', 'Redeem', 'History'
+  - `src/components/ReturnsModal.tsx`: Removed ❌ and 💡 emoji; replaced with "Error:" and "Tip:" text
+  - `src/components/ReturnTab.tsx`: Removed ❌ emoji from error messages
+  - `src/components/CustomerGiftCards.tsx`: Removed ❌ from console.error messages
+  - `src/components/RapidScanIntakeMatrix.tsx`: Removed 📦 and ⚠️ emoji from form labels
+  - `src/pages/ProductDetailPage.tsx`: Replaced 📞 emoji with text "Call: 905-593-3600"
+  - `src/pages/AdminPage.tsx`: Removed ⚠️ and ðŸ'¡ corrupted emoji
+  - **Report files**: Removed 💰/📊/🎁/✅/❌/👥/🛍️/💵 emoji from all MetricCard/SummaryCard icon props
+- ✅ **Smart quote corruption fixed** — sed command corrupted single quotes to Unicode smart quotes ('  →  ' ')
+  - Root cause: `sed` replaced emoji but left smart quotes in `GiftCardTab.tsx` line 405
+  - Fix: Used Node.js regex to replace all smart quotes with ASCII straight quotes
+  - Error was: `[vite][client] Pre-transform error: Unexpected character '''. (405:21)`
+  - Solution: `content.replace(/['']/g, "'"); content.replace(/[""]/g, '"');`
+- ✅ **Zero emoji corruption remaining** in active source files (POSPage, Pos*.tsx, thermalReceipt.ts)
+- ✅ Dev server running successfully with no parse errors
+- ✅ Commits:
+  - `59214f3`: Remove all emoji from POS replace with lucide icons
+  - `2ad6980`: Fix smart quote corruption in GiftCardTab
 
 **Session 36 improvements (UTF-8 Encoding Fix):**
 - ✅ **Root cause identified**: corrupted `â€¢` characters site-wide were NOT a font issue — they were Windows-1252/Latin-1 mojibake of UTF-8 bytes (e.g. bullet • U+2022 stored as 3 separate Latin-1 chars `â€¢`; emoji UTF-8 bytes each misread as individual Latin-1 chars)
