@@ -1,4 +1,4 @@
-﻿import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
+import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useProducts, Product } from '../context/ProductContext';
 import { useSettings, NavMenu, SEO, ThemeSettings, forceManualNavigationMigration } from '../context/SettingsContext';
@@ -2381,11 +2381,11 @@ function AdminPageInner() {
               }} 
               className="px-4 py-2 bg-zinc-700 text-white font-bold text-[10px] uppercase tracking-widest rounded hover:bg-zinc-600 transition-colors flex items-center gap-2"
             >
-              🛠️ Standardize Database & Assets
+              Standardize Database & Assets
             </button>
           </div>
           <button onClick={(e) => { e.preventDefault(); forceManualNavigationMigration(); }} className="px-4 py-2 bg-blue-600 text-white font-bold text-[10px] uppercase tracking-widest rounded hover:bg-blue-700 transition-colors">
-            🚀 Force Manual Database Migration
+            Force Manual Database Migration
           </button>
         </div>
         <div className="mb-8 flex items-center justify-between">
@@ -2851,7 +2851,7 @@ function AdminPageInner() {
                         Reset to Defaults
                       </button>
                       <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest flex items-center">
-                        â† Apply default club/brand logos to your menus
+                         Apply default club/brand logos to your menus
                       </p>
                     </div>
                     {saveErrorMessage && (
@@ -3513,7 +3513,7 @@ function AdminPageInner() {
                 <div className="p-8 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-bold text-zinc-900">Logos</h2>
-                    <p className="text-sm text-zinc-500 mt-1">Upload your store's logos (recommended 500Ã—300, transparent SVG/PNG). Also editable in the Slider tab.</p>
+                    <p className="text-sm text-zinc-500 mt-1">Upload your store's logos (recommended 500x300, transparent SVG/PNG). Also editable in the Slider tab.</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <label className="flex items-center gap-2 px-4 py-2.5 bg-zinc-100 text-zinc-900 rounded-lg font-bold uppercase tracking-widest text-[10px] cursor-pointer hover:bg-zinc-200 transition-colors">
@@ -3732,8 +3732,8 @@ function AdminPageInner() {
                                       [imgs[idx - 1], imgs[idx]] = [imgs[idx], imgs[idx - 1]];
                                       setNewProduct({...newProduct, images: imgs});
                                     }}
-                                    className="w-5 h-5 bg-zinc-200 hover:bg-zinc-300 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                  >â–²</button>
+                                    className="w-5 h-5 bg-zinc-200 hover:bg-zinc-300 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  ><ChevronUp size={12} /></button>
                                   <button
                                     type="button"
                                     disabled={idx === (newProduct.images || []).length - 1}
@@ -3742,8 +3742,8 @@ function AdminPageInner() {
                                       [imgs[idx + 1], imgs[idx]] = [imgs[idx], imgs[idx + 1]];
                                       setNewProduct({...newProduct, images: imgs});
                                     }}
-                                    className="w-5 h-5 bg-zinc-200 hover:bg-zinc-300 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                  >â–¼</button>
+                                    className="w-5 h-5 bg-zinc-200 hover:bg-zinc-300 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  ><ChevronDown size={12} /></button>
                                 </div>
                                 <div className="w-10 h-10 rounded bg-white border border-zinc-200 overflow-hidden flex-shrink-0">
                                   {img ? (
@@ -4208,7 +4208,7 @@ function AdminPageInner() {
                                         }}
                                         className="text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)]"
                                       >
-                                        <option value="">â€” None â€”</option>
+                                        <option value="">- None -</option>
                                         {(newProduct.colors || []).map((c: any) => (
                                           <option key={c.name} value={c.name}>{c.name}</option>
                                         ))}
@@ -4287,7 +4287,7 @@ function AdminPageInner() {
                         </div>
                         
                         <div className="text-[10px] space-y-2 text-red-950 font-bold leading-normal uppercase tracking-wider pl-6 select-all">
-                          <p className="text-[var(--primary-color)] font-black underline">ðŸ’¡ Fix: Check Supabase RLS Policy</p>
+                          <p className="text-[var(--primary-color)] font-black underline">Tip: Fix: Check Supabase RLS Policy</p>
                           <ol className="list-decimal pl-4 space-y-1 text-[9.5px]">
                             <li>Go to your <span className="font-extrabold text-[var(--primary-color)]">Supabase Dashboard</span> and navigate to the products table.</li>
                             <li>Check the <span className="underline font-black text-[var(--primary-color)]">RLS (Row Level Security)</span> policies.</li>
@@ -4367,7 +4367,7 @@ function AdminPageInner() {
                             disabled={isMarkingAllOnline}
                             className="text-[10px] font-bold text-zinc-400 hover:text-[var(--primary-color)] uppercase tracking-widest disabled:opacity-50"
                           >
-                            {isMarkingAllOnline ? 'Marking...' : markAllOnlineStatus === 'success' ? 'All Online âœ“' : 'Mark All Online'}
+                            {isMarkingAllOnline ? 'Marking...' : markAllOnlineStatus === 'success' ? 'All Online' : 'Mark All Online'}
                           </button>
                           {confirmMarkAllOnline && (
                             <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-zinc-200 rounded-lg shadow-xl p-4 z-50">
@@ -4655,7 +4655,7 @@ function AdminPageInner() {
                           onClick={() => setAdminCurrentPage(prev => Math.max(1, prev - 1))}
                           className="px-4 py-2 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 disabled:opacity-40 disabled:hover:bg-white rounded-lg font-bold uppercase tracking-wider text-[10px] transition-all cursor-pointer"
                         >
-                          â—€ Previous
+                          Previous
                         </button>
                         <span className="font-bold text-zinc-650 bg-white border border-zinc-200 px-3.5 py-2 rounded-lg text-[10px]">
                           Page <span className="text-zinc-900">{adminCurrentPage}</span> of {Math.ceil(filteredProducts.length / adminItemsPerPage)}
@@ -4666,7 +4666,7 @@ function AdminPageInner() {
                           onClick={() => setAdminCurrentPage(prev => Math.min(Math.ceil(filteredProducts.length / adminItemsPerPage), prev + 1))}
                           className="px-4 py-2 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 disabled:opacity-40 disabled:hover:bg-white rounded-lg font-bold uppercase tracking-wider text-[10px] transition-all cursor-pointer"
                         >
-                          Next â–¶
+                          Next
                         </button>
                       </div>
                     </div>
@@ -4957,7 +4957,7 @@ function AdminPageInner() {
                       </div>
                       <div className="pt-2">
                         <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
-                          Release Date (optional â€” hides sizes until this date)
+                          Release Date (optional - hides sizes until this date)
                         </label>
                         <input
                           type="datetime-local"
@@ -5000,8 +5000,8 @@ function AdminPageInner() {
                                     [imgs[idx - 1], imgs[idx]] = [imgs[idx], imgs[idx - 1]];
                                     setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
                                   }}
-                                  className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                >â–²</button>
+                                  className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                                ><ChevronUp size={12} /></button>
                                 <button
                                   type="button"
                                   disabled={idx === allImgs.length - 1}
@@ -5010,8 +5010,8 @@ function AdminPageInner() {
                                     [imgs[idx + 1], imgs[idx]] = [imgs[idx], imgs[idx + 1]];
                                     setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
                                   }}
-                                  className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                >â–¼</button>
+                                  className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                                ><ChevronDown size={12} /></button>
                               </div>
                               <div className="relative w-10 h-10 rounded bg-zinc-100 border border-zinc-200 overflow-hidden flex-shrink-0">
                                 {img_safe ? (
@@ -5378,7 +5378,7 @@ function AdminPageInner() {
                                       }}
                                       className="text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)]"
                                     >
-                                      <option value="">â€” None â€”</option>
+                                      <option value="">- None -</option>
                                       {(editingProduct.colors || []).map((c: any) => (
                                         <option key={c.name} value={c.name}>{c.name}</option>
                                       ))}
@@ -5395,7 +5395,7 @@ function AdminPageInner() {
                                           setEditingProductVariants(prev => prev.map(x => x.id === v.id ? { ...x, stock_quantity: newQty } : x));
                                         }}
                                         className="w-6 h-6 bg-zinc-200 hover:bg-zinc-300 rounded font-bold text-zinc-700 flex items-center justify-center text-sm cursor-pointer"
-                                      >−</button>
+                                      >-</button>
                                       <input
                                         type="number"
                                         value={v.stock_quantity || 0}
@@ -5449,7 +5449,7 @@ function AdminPageInner() {
                     )}
                     {editStatus === 'success' && (
                       <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">
-                        âœ¨ Product updated successfully!
+                        Product updated successfully!
                       </p>
                     )}
                   </div>

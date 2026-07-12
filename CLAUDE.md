@@ -6,6 +6,19 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (July 2026)
 
+**ADMIN PAGE ENCODING FIXES (Session 38):**
+- UTF-8 BOM stripped from AdminPage.tsx line 1
+- Image reorder arrows `â–²`/`â–¼` (▲▼ mojibake) in Add Product form → `<ChevronUp size={12} />` / `<ChevronDown size={12} />`
+- En-dash `â€"` mojibake in option labels ("— None —") and release date label → plain `-`
+- `ðŸ'¡` (💡 mojibake) before "Fix: Check Supabase RLS Policy" → `Tip: `
+- `âœ"` (✓ mojibake) after "All Online" status → removed
+- `â—€`/`â–¶` (◀▶ mojibake) in product list pagination buttons → removed (buttons say "Previous"/"Next")
+- `âœ¨` (✨ mojibake) before "Product updated successfully" → removed
+- `🛠️` / `🚀` emoji in admin tool buttons → removed
+- `−` Unicode minus sign (U+2212) in variant stock decrement button → ASCII `-`
+- Stray U+0090 control char left on arrow-text line → stripped
+- `src/components/POSPinEntry.tsx` rewritten: PIN dots use pure CSS `rounded-full` divs, no Unicode chars
+
 **PRODUCT CARDS:**
 - Submenu path removed from product cards — now shows brand only (was "FOOTWEAR • nike, firm ground...")
 - Product name font: `text-[14px] font-semibold leading-tight flex-1` (no truncation)
