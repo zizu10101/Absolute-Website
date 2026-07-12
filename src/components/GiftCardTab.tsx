@@ -402,7 +402,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                 : 'border-transparent text-zinc-900 hover:text-zinc-900'
             }`}
           >
-            {tab === ‘sell’ ? ‘Sell’ : tab === ‘redeem’ ? ‘Redeem’ : ‘History’}
+            {tab === 'sell' ? 'Sell' : tab === 'redeem' ? 'Redeem' : 'History'}
           </button>
         ))}
       </div>
