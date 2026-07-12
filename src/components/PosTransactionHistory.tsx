@@ -60,7 +60,7 @@ export const PosTransactionHistory: React.FC = () => {
 
       setTransactions(data || []);
     } catch (e: any) {
-      console.error('❌ Transaction fetch error:', e.message, e);
+      console.error('ERROR Transaction fetch error:', e.message, e);
       setErrorMsg(`Failed to load transactions: ${e.message}`);
     } finally {
       setIsLoading(false);

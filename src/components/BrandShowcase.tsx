@@ -70,7 +70,7 @@ export function BrandShowcase() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 justify-items-center">
         {brands.map((brand, idx) => (
           <motion.div
             key={brand.name}
@@ -81,7 +81,7 @@ export function BrandShowcase() {
           >
             <Link
               to={`/products?brand=${encodeURIComponent(brand.name)}`}
-              className="group block bg-white border border-zinc-100 rounded-lg p-4 text-center transition-all hover:border-[#b90014] hover:shadow-lg hover:shadow-red-900/5 hover:-translate-y-1 h-full flex flex-col items-center justify-center"
+              className="group block bg-white border border-zinc-100 rounded-lg p-4 text-center transition-all hover:border-[#b90014] hover:shadow-lg hover:shadow-red-900/5 hover:-translate-y-1 h-full flex flex-col items-center justify-center w-full"
             >
               <h3 className="text-sm font-bold uppercase tracking-tight text-zinc-900 group-hover:text-[#b90014] transition-colors mb-2">
                 {brand.name}

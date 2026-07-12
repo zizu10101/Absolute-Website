@@ -3,7 +3,7 @@ import {
   Moon, Sun, LogOut, Search, Users, Percent, FileText, Trash2,
   Barcode as BarcodeIcon, Archive, Home, AlertCircle, X, Check,
   Receipt, RotateCcw, RefreshCw, Plus, Printer, ScanLine, CheckCircle2, BarChart3, Undo2,
-  UserPlus, Gift, Tag, CreditCard
+  UserPlus, Gift, Tag, CreditCard, Store, Footprints, Shirt, Shield, Ticket, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Barcode from 'react-barcode';
@@ -301,7 +301,7 @@ export function POSPage() {
       // UUID format: 8-4-4-4-12 hex digits (36 chars total with hyphens)
       const isUUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(barcode);
       if (isUUID) {
-        setBarcodeError('❌ That appears to be a transaction UUID. Please scan the invoice barcode (INV-XXXXX) instead.');
+        setBarcodeError('Error: That appears to be a transaction UUID. Please scan the invoice barcode (INV-XXXXX) instead.');
         setTimeout(() => setBarcodeError(null), 4000);
         return;
       }
@@ -483,7 +483,7 @@ export function POSPage() {
         setRecentTransactions(data);
       }
     } catch (e: any) {
-      console.error(`❌ STEP 8: Caught exception:`, e.message);
+      console.error(`ERROR STEP 8: Caught exception:`, e.message);
       alert(`Error: ${e.message}`);
     }
   };
@@ -511,7 +511,7 @@ export function POSPage() {
       // Detect UUID format
       const isUUID = input.length === 36 && input.includes('-') && !input.startsWith('INV-');
       if (isUUID) {
-        setReturnsLookupError('❌ Please scan the invoice barcode, not the transaction UUID');
+        setReturnsLookupError('Error: Please scan the invoice barcode, not the transaction UUID');
         return;
       }
 
@@ -674,7 +674,7 @@ export function POSPage() {
           setAvailableStoreCredits(filteredCredits);
           hasCustomerCredits = filteredCredits.length > 0;
         } catch (err: any) {
-          console.error('🔴 SC MODAL ERROR fetching customer store credits:', err);
+          console.error('ERROR SC MODAL - fetching customer store credits:', err);
           setAvailableStoreCredits([]);
         }
       } else {
@@ -708,7 +708,7 @@ export function POSPage() {
       // Detect if this is an invoice number (INV-XXXXX format)
       if (searchCode.startsWith('INV-') || /^INV-\d+$/.test(searchCode)) {
         setStoreCreditError(
-          '⛔ This is an invoice barcode, not a store credit.\n\n' +
+          'Error: This is an invoice barcode, not a store credit.\n\n' +
           'Invoice codes are in format: INV-XXXXX\n\n' +
           'To process a return or look up a transaction, use the Returns tab instead.'
         );
@@ -719,7 +719,7 @@ export function POSPage() {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (uuidRegex.test(searchCode)) {
         setStoreCreditError(
-          '❌ This is a transaction receipt barcode, not a store credit.\n\n' +
+          'Error: This is a transaction receipt barcode, not a store credit.\n\n' +
           'Store Credit codes are in format: SC-XXXXXXXXXXXX\n\n' +
           'Please scan the STORE CREDIT receipt instead.'
         );
@@ -788,7 +788,7 @@ export function POSPage() {
       setScScanInput('');
       // DO NOT call processPayment here - user will select payment method next
     } catch (err: any) {
-      console.error('🔴 SC SCAN EXCEPTION:', err);
+      console.error('ERROR SC SCAN EXCEPTION:', err);
       setStoreCreditError('Error scanning store credit: ' + err.message);
     } finally {
       setScLookupLoading(false);
@@ -837,7 +837,7 @@ export function POSPage() {
         setStoreCreditError('No store credits found matching that search');
       }
     } catch (err: any) {
-      console.error('🔴 SC SEARCH ERROR:', err);
+      console.error('ERROR SC SEARCH:', err);
       setStoreCreditError('Error searching store credits: ' + err.message);
       setScSearchResults([]);
     } finally {
@@ -958,7 +958,7 @@ export function POSPage() {
 
 
           if (scError) {
-            console.error('🔴 SC UPDATE FAILED:', scError);
+            console.error('ERROR SC UPDATE FAILED:', scError);
           } else {
             storeCreditNewBalance = newBalance;
 
@@ -972,12 +972,12 @@ export function POSPage() {
               });
 
             if (txError) {
-              console.error('🔴 Transaction record failed:', txError);
+              console.error('ERROR Transaction record failed:', txError);
             } else {
             }
           }
         } catch (err) {
-          console.error('🔴 Error updating store credit balance:', err);
+          console.error('ERROR updating store credit balance:', err);
         }
       } else {
       }
@@ -1020,11 +1020,11 @@ export function POSPage() {
             .eq('card_number', capturedGiftCard.cardNumber);
 
           if (updateErr) {
-            console.error('⚠️ Gift card redemption warning:', updateErr);
+            console.error('WARNING Gift card redemption:', updateErr);
           } else {
           }
         } catch (err) {
-          console.error('❌ Error processing gift card redemption:', err);
+          console.error('ERROR processing gift card redemption:', err);
           // Don't fail the transaction if gift card redemption fails
         }
       }
@@ -1283,24 +1283,25 @@ export function POSPage() {
             {/* Category Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-1">
               {[
-                { id: 'ALL' as CategoryTab, label: 'ALL', icon: '🏪' },
-                { id: 'FOOTWEAR' as CategoryTab, label: 'FOOTWEAR', icon: '👟' },
-                { id: 'KITS' as CategoryTab, label: 'KITS', icon: '👕' },
-                { id: 'BALLS' as CategoryTab, label: 'BALLS', icon: '⚽' },
-                { id: 'EQUIPMENT' as CategoryTab, label: 'EQUIPMENT', icon: '🛡️' },
-                { id: 'TEAMWEAR' as CategoryTab, label: 'TEAMWEAR', icon: '🎽' },
-                { id: 'GLOVES' as CategoryTab, label: 'GLOVES', icon: '🧤' },
+                { id: 'ALL' as CategoryTab, label: 'ALL', Icon: Store },
+                { id: 'FOOTWEAR' as CategoryTab, label: 'FOOTWEAR', Icon: Footprints },
+                { id: 'KITS' as CategoryTab, label: 'KITS', Icon: Shirt },
+                { id: 'BALLS' as CategoryTab, label: 'BALLS', Icon: null },
+                { id: 'EQUIPMENT' as CategoryTab, label: 'EQUIPMENT', Icon: Shield },
+                { id: 'TEAMWEAR' as CategoryTab, label: 'TEAMWEAR', Icon: Shirt },
+                { id: 'GLOVES' as CategoryTab, label: 'GLOVES', Icon: null },
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveCategory(tab.id)}
-                  className={`px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap transition-colors ${
+                  className={`px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 ${
                     activeCategory === tab.id
                       ? 'bg-[#b90014] text-white'
                       : 'bg-[#1a2236] text-gray-400 hover:text-white'
                   }`}
                 >
-                  {tab.icon} {tab.label}
+                  {tab.Icon && <tab.Icon size={14} className="flex-shrink-0" />}
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -1525,10 +1526,10 @@ export function POSPage() {
 
             <div className="grid grid-cols-4 gap-2">
               <button onClick={() => setPosTab('gc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
-                💳 GC
+                <CreditCard size={14} /> GC
               </button>
               <button onClick={() => setPosTab('sc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
-                🎟 SC
+                <Ticket size={14} /> SC
               </button>
               <button onClick={() => setShowDiscountModal(true)} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
                 <Percent size={14} /> Disc
@@ -1630,7 +1631,7 @@ export function POSPage() {
 
               {returnsFoundTransaction && !showReturnsModal && (
                 <div className="p-4 bg-green-900/20 border border-green-500 rounded space-y-2">
-                  <p className="text-green-400 font-bold">✓ Invoice Found</p>
+                  <p className="text-green-400 font-bold flex items-center gap-2"><Check size={16} /> Invoice Found</p>
                   <p className="text-gray-300 text-sm">
                     Invoice: {returnsFoundTransaction.id.slice(0, 8).toUpperCase()}
                   </p>
@@ -1831,11 +1832,11 @@ export function POSPage() {
                         <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
                       </div>
                       {receipt.giftCardAmount && receipt.giftCardAmount > 0 && (
-                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span>💳 Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
+                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span className="flex items-center gap-1"><CreditCard size={14} /> Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
                       )}
                       {receipt.storeCreditAmount && receipt.storeCreditAmount > 0 && (
                         <>
-                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>🎟 Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
+                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span className="flex items-center gap-1"><Ticket size={14} /> Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
                           {receipt.storeCreditNewBalance !== undefined && (
                             <div className="mt-3 p-4 bg-gradient-to-r from-blue-100 to-blue-50 border-4 border-blue-500 rounded-lg text-center space-y-2">
                               <div className="text-[9px] font-bold text-blue-700 uppercase tracking-widest">Store Credit Payment</div>
@@ -1976,7 +1977,7 @@ export function POSPage() {
                     {selectedGiftCard && (
                       <div className="bg-[#2d3547] p-3 rounded-lg border border-amber-500/30 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-amber-400 uppercase">💳 Gift Card Payment</span>
+                          <span className="text-[10px] font-bold text-amber-400 uppercase flex items-center gap-1"><CreditCard size={12} /> Gift Card Payment</span>
                           <button
                             onClick={() => setSelectedGiftCard(null)}
                             className="text-amber-400 hover:text-amber-300 text-[11px] font-bold uppercase"
@@ -1997,7 +1998,7 @@ export function POSPage() {
                     {selectedStoreCredit && (
                       <div className="bg-[#2d3547] p-3 rounded-lg border border-blue-500/30 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-blue-400 uppercase">🎟 Store Credit Payment</span>
+                          <span className="text-[10px] font-bold text-blue-400 uppercase flex items-center gap-1"><Ticket size={12} /> Store Credit Payment</span>
                           <button
                             onClick={() => setSelectedStoreCredit(null)}
                             className="text-blue-400 hover:text-blue-300 text-[11px] font-bold uppercase"
@@ -2035,7 +2036,7 @@ export function POSPage() {
                           </>
                         )}
                         {scRemainingBalance === 0 && (
-                          <div className="text-[9px] text-green-300 font-bold italic">✅ Store credit fully covers this transaction. Click "Complete Sale" below.</div>
+                          <div className="text-[9px] text-green-300 font-bold italic flex items-center gap-1"><CheckCircle2 size={12} /> Store credit fully covers this transaction. Click "Complete Sale" below.</div>
                         )}
                       </div>
                     )}
@@ -2045,9 +2046,9 @@ export function POSPage() {
                       <button
                         onClick={() => handleConfirmSale('Store Credit')}
                         disabled={isConfirming}
-                        className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white p-3 rounded font-bold text-sm uppercase mb-3"
+                        className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white p-3 rounded font-bold text-sm uppercase mb-3 flex items-center justify-center gap-2"
                       >
-                        ✅ Complete Sale (Store Credit)
+                        <CheckCircle2 size={16} /> Complete Sale (Store Credit)
                       </button>
                     ) : (
                       <div className="grid grid-cols-2 gap-2 mb-3">
@@ -2071,9 +2072,9 @@ export function POSPage() {
                         setPosTab('gc');
                       }}
                       disabled={isConfirming}
-                      className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
+                      className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase flex items-center justify-center gap-1"
                     >
-                      💳 Redeem Gift Card
+                      <CreditCard size={12} /> Redeem Gift Card
                     </button>
 
                     <button
@@ -2082,9 +2083,9 @@ export function POSPage() {
                         setPosTab('sc');
                       }}
                       disabled={isConfirming}
-                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase flex items-center justify-center gap-1"
                     >
-                      🎟 Redeem Store Credit
+                      <Ticket size={12} /> Redeem Store Credit
                     </button>
                   </div>
 
@@ -2556,23 +2557,23 @@ export function POSPage() {
         </button>
         <button
           onClick={() => setPosTab('gc')}
-          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
+          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors flex items-center gap-2 ${
             posTab === 'gc'
               ? 'bg-[#b90014] text-white'
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
-          💳 Gift Cards
+          <CreditCard size={14} /> Gift Cards
         </button>
         <button
           onClick={() => setPosTab('sc')}
-          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
+          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors flex items-center gap-2 ${
             posTab === 'sc'
               ? 'bg-[#b90014] text-white'
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
-          🎟 Store Credit
+          <Ticket size={14} /> Store Credit
         </button>
       </div>
     </div>

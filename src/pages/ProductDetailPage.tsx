@@ -26,6 +26,10 @@ export function ProductDetailPage() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(true);
 
+  // Image zoom states
+  const [isImageHovered, setIsImageHovered] = useState(false);
+  const [imageMousePos, setImageMousePos] = useState({ x: 0, y: 0 });
+
   const colorParam = searchParams.get('color');
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
@@ -220,6 +224,14 @@ export function ProductDetailPage() {
     setSelectedSize(null); // Reset size selection when tier changes
   };
 
+  // Handle image zoom on hover
+  const handleImageMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setImageMousePos({ x, y });
+  };
+
   if (isPageLoading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
@@ -352,12 +364,22 @@ export function ProductDetailPage() {
         
         {/* Left: Image Gallery */}
         <div className="lg:col-span-12 xl:col-span-7 space-y-4">
-          <div className="aspect-[4/5] bg-zinc-50 overflow-hidden relative group border border-zinc-100">
+          <div
+            className="relative h-[400px] md:h-[500px] overflow-hidden rounded-xl bg-zinc-50 border border-zinc-100 group cursor-zoom-in"
+            onMouseEnter={() => setIsImageHovered(true)}
+            onMouseLeave={() => setIsImageHovered(false)}
+            onMouseMove={handleImageMouseMove}
+          >
             {allImages[selectedImage] ? (
-              <img 
-                src={allImages[selectedImage]} 
-                alt={product.name} 
-                className="w-full h-full object-cover"
+              <img
+                src={allImages[selectedImage]}
+                alt={product.name}
+                style={{
+                  transform: isImageHovered ? 'scale(2)' : 'scale(1)',
+                  transformOrigin: `${imageMousePos.x}% ${imageMousePos.y}%`,
+                  transition: isImageHovered ? 'none' : 'transform 0.3s ease',
+                }}
+                className="w-full h-full object-contain"
                 referrerPolicy="no-referrer"
               />
             ) : (
@@ -365,13 +387,13 @@ export function ProductDetailPage() {
             )}
             {allImages.length > 1 && (
               <>
-                <button 
+                <button
                   onClick={() => setSelectedImage(prev => (prev - 1 + allImages.length) % allImages.length)}
                   className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-zinc-900 border border-zinc-100"
                 >
                   <ChevronLeft size={24} />
                 </button>
-                <button 
+                <button
                   onClick={() => setSelectedImage(prev => (prev + 1) % allImages.length)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-zinc-900 border border-zinc-100"
                 >

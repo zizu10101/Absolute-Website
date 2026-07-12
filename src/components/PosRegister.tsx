@@ -19,6 +19,10 @@ import {
   ScanLine,
   Printer,
   Percent,
+  Store,
+  Footprints,
+  Shirt,
+  Shield,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -586,13 +590,13 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
             {[
-              { id: 'ALL',       label: 'ALL',       desc: 'Entire inventory',       icon: '🏪' },
-              { id: 'FOOTWEAR',  label: 'FOOTWEAR',  desc: 'Boots & cleats',         icon: '👟' },
-              { id: 'KITS',      label: 'KITS',      desc: 'Jerseys & licensed',     icon: '👕' },
-              { id: 'BALLS',     label: 'BALLS',     desc: 'Soccer, futsal & more',  icon: '⚽' },
-              { id: 'EQUIPMENT', label: 'EQUIPMENT', desc: 'Shin guards & bags',     icon: '🛡️' },
-              { id: 'TEAMWEAR',  label: 'TEAM WEAR', desc: 'Training & apparel',     icon: '🎽' },
-              { id: 'GLOVES',    label: 'GLOVES',    desc: 'Goalkeeper gloves',      icon: '🧤' },
+              { id: 'ALL',       label: 'ALL',       desc: 'Entire inventory',       Icon: Store },
+              { id: 'FOOTWEAR',  label: 'FOOTWEAR',  desc: 'Boots & cleats',         Icon: Footprints },
+              { id: 'KITS',      label: 'KITS',      desc: 'Jerseys & licensed',     Icon: Shirt },
+              { id: 'BALLS',     label: 'BALLS',     desc: 'Soccer, futsal & more',  Icon: null },
+              { id: 'EQUIPMENT', label: 'EQUIPMENT', desc: 'Shin guards & bags',     Icon: Shield },
+              { id: 'TEAMWEAR',  label: 'TEAM WEAR', desc: 'Training & apparel',     Icon: Shirt },
+              { id: 'GLOVES',    label: 'GLOVES',    desc: 'Goalkeeper gloves',      Icon: null },
             ].map(tab => {
               const isActive = activeTab === tab.id;
               return (
@@ -606,7 +610,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                   }`}
                 >
                   <div className="flex items-center justify-between w-full mb-1">
-                    <span className="text-base">{tab.icon}</span>
+                    {tab.Icon && <tab.Icon size={20} className="text-base" />}
                     {isActive && <span className="w-1.5 h-1.5 bg-[#b90014] rounded-full animate-pulse" />}
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-wider">{tab.label}</span>
