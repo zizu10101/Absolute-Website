@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '../supabase';
 
@@ -104,7 +104,7 @@ export const GiftCardsAdmin: React.FC = () => {
           <h2 className="text-lg font-black uppercase tracking-widest text-zinc-900">Gift Cards</h2>
           <button
             onClick={fetchGiftCards}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-950 text-white rounded-lg text-[11px] font-black uppercase hover:bg-[#b90014] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-zinc-950 text-white rounded-lg text-[11px] font-black uppercase hover:bg-[var(--primary-color)] transition-colors"
           >
             <RefreshCw size={14} /> Refresh
           </button>

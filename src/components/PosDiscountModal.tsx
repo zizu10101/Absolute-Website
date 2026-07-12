@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Discount } from '../hooks/usePOSCart';
@@ -188,7 +188,7 @@ export const PosDiscountModal: React.FC<PosDiscountModalProps> = ({
             </button>
             <button
               onClick={handleApply}
-              className="flex-1 px-4 py-2 rounded-lg bg-[#b90014] text-white text-xs font-bold uppercase hover:bg-red-700 transition-colors"
+              className="flex-1 px-4 py-2 rounded-lg bg-[var(--primary-color)] text-white text-xs font-bold uppercase hover:bg-red-700 transition-colors"
             >
               Apply Discount
             </button>

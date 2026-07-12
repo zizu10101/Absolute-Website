@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { X, RefreshCw, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 import { supabase } from '../supabase';
@@ -65,7 +65,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
       if (error) throw error;
       setSearchResults(data || []);
     } catch (e) {
-      console.error('❌ Search error:', e);
+      console.error('âŒ Search error:', e);
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -138,7 +138,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
       setNewCustomerPhone('');
       setNewCustomerEmail('');
     } catch (e: any) {
-      console.error('❌ Create customer error:', e);
+      console.error('âŒ Create customer error:', e);
       setError(e.message || 'Failed to create customer');
     } finally {
       setIsCreating(false);
@@ -155,7 +155,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
 
     if (finalAmount <= 0) {
       setError('Please select or enter a valid amount');
-      console.error('❌ Amount validation failed:', finalAmount);
+      console.error('âŒ Amount validation failed:', finalAmount);
       return;
     }
 
@@ -223,7 +223,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
       setAutoGenerate(true);
       onClose();
     } catch (e: any) {
-      console.error('❌ Issue gift card error:', e);
+      console.error('âŒ Issue gift card error:', e);
       setError(e.message);
     } finally {
       setIsIssuing(false);
@@ -276,7 +276,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
                   }}
                   className={`py-2 rounded-lg font-bold text-xs transition-colors ${
                     amount === preset && !customAmount
-                      ? 'bg-[#b90014] text-white'
+                      ? 'bg-[var(--primary-color)] text-white'
                       : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
                   }`}
                 >
@@ -321,7 +321,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
                   <p className="text-xs font-bold text-emerald-900">{selectedCustomer.first_name} {selectedCustomer.last_name}</p>
                   {(selectedCustomer.email || selectedCustomer.phone) && (
                     <p className="text-[9px] text-emerald-700">
-                      {selectedCustomer.email} {selectedCustomer.email && selectedCustomer.phone ? '·' : ''} {selectedCustomer.phone}
+                      {selectedCustomer.email} {selectedCustomer.email && selectedCustomer.phone ? 'Â·' : ''} {selectedCustomer.phone}
                     </p>
                   )}
                 </div>
@@ -372,7 +372,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
                   <button
                     onClick={handleCreateCustomer}
                     disabled={isCreating}
-                    className="flex-1 px-3 py-2 bg-[#b90014] text-white rounded-lg text-[10px] font-bold hover:bg-red-700 disabled:opacity-50"
+                    className="flex-1 px-3 py-2 bg-[var(--primary-color)] text-white rounded-lg text-[10px] font-bold hover:bg-red-700 disabled:opacity-50"
                   >
                     {isCreating ? 'Creating...' : 'Create'}
                   </button>
@@ -389,7 +389,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
                     onFocus={() => setIsDropdownOpen(true)}
                     onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
                     placeholder="Search customer by name..."
-                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-bold text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#b90014]"
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-bold text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                   />
 
                   {/* Dropdown - Show when open and when there's content to display */}
@@ -421,7 +421,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
                               <p className="text-xs font-bold text-zinc-900">{customer.first_name} {customer.last_name}</p>
                               {(customer.email || customer.phone) && (
                                 <p className="text-[9px] text-zinc-500">
-                                  {customer.email} {customer.email && customer.phone ? '·' : ''} {customer.phone}
+                                  {customer.email} {customer.email && customer.phone ? 'Â·' : ''} {customer.phone}
                                 </p>
                               )}
                             </li>
@@ -434,7 +434,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
 
                 <button
                   onClick={() => setShowCreateMode(true)}
-                  className="w-full text-left px-3 py-2 text-[10px] font-bold text-[#b90014] hover:text-red-700 uppercase hover:underline"
+                  className="w-full text-left px-3 py-2 text-[10px] font-bold text-[var(--primary-color)] hover:text-red-700 uppercase hover:underline"
                 >
                   + Create new customer instead
                 </button>
@@ -506,7 +506,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose, o
             <button
               onClick={handleIssue}
               disabled={isIssuing || finalAmount <= 0}
-              className="flex-1 px-4 py-2 rounded-lg bg-[#b90014] text-white text-xs font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2 rounded-lg bg-[var(--primary-color)] text-white text-xs font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isIssuing ? (
                 <>

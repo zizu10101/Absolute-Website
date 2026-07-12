@@ -1,10 +1,10 @@
-import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+﻿import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useProducts, Product } from '../context/ProductContext';
-import { useSettings, NavMenu, SEO, forceManualNavigationMigration } from '../context/SettingsContext';
+import { useSettings, NavMenu, SEO, ThemeSettings, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, ChevronRight, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical } from 'lucide-react';
+import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, ChevronRight, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical, Palette } from 'lucide-react';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -16,7 +16,7 @@ import { RapidScanIntakeMatrix } from '../components/RapidScanIntakeMatrix';
 import { GiftCardsAdmin } from '../components/GiftCardsAdmin';
 import { ReportsPage } from '../components/ReportsPage';
 
-type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports';
+type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports' | 'theme';
 
 const CATEGORIES = [
   'Footwear',
@@ -94,7 +94,7 @@ class AdminPageErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBo
                 localStorage.clear();
                 window.location.reload();
               }}
-              className="w-full py-3 bg-[#b90014] text-white rounded-xl font-black uppercase tracking-widest text-xs hover:bg-zinc-900 transition-all shadow-lg"
+              className="w-full py-3 bg-[var(--primary-color)] text-white rounded-xl font-black uppercase tracking-widest text-xs hover:bg-zinc-900 transition-all shadow-lg"
             >
               Reset & Reload Dashboard
             </button>
@@ -155,7 +155,7 @@ function SortableSlideCard({ id, img, index, onDelete, onUpdate }: SortableSlide
             type="text"
             value={img.title || ''}
             onChange={(e) => onUpdate(index, 'title', e.target.value)}
-            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[#b90014] outline-none"
+            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
             placeholder="e.g. New Season Arrivals"
           />
         </div>
@@ -165,7 +165,7 @@ function SortableSlideCard({ id, img, index, onDelete, onUpdate }: SortableSlide
             type="text"
             value={img.link || ''}
             onChange={(e) => onUpdate(index, 'link', e.target.value)}
-            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[#b90014] outline-none"
+            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
             placeholder="e.g. /footwear"
           />
         </div>
@@ -183,12 +183,17 @@ export function AdminPage() {
 }
 
 function AdminPageInner() {
-  const { 
+  const {
     products, addProduct, deleteProduct, updateProduct, resetProducts, markAllProductsOnline,
     fetchAdminProducts, loadMoreAdminProducts, hasMoreProducts, isLoading, fetchProductById
   } = useProducts();
-  const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, storeInfo, setStoreInfo, setGlobalSettings, resetSettings, showSizesOnline, setShowSizesOnline } = useSettings();
+  const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, storeInfo, setStoreInfo, setGlobalSettings, resetSettings, showSizesOnline, setShowSizesOnline, themeSettings, setThemeSettings } = useSettings();
   const { logout, user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Barcode pre-fill when navigating here from POS "Create New Product"
+  const [fromPOSData, setFromPOSData] = useState<{ barcode: string; brand: string; price: number; name: string } | null>(null);
 
   const updateDraftNavigationMenu = (index: number, field: string, value: string) => {
     setDraftNavigationMenus(prev => {
@@ -201,7 +206,37 @@ function AdminPageInner() {
   useEffect(() => {
     fetchAdminProducts();
   }, []);
-  
+
+  // If navigated here from POS "Create New Product", auto-open add form pre-filled
+  useEffect(() => {
+    const state = location.state as any;
+    if (state?.openAddProduct && state?.pendingBarcode) {
+      const pb = state.pendingBarcode;
+      setFromPOSData(pb);
+      setActiveTab('products');
+      setProductSubTab('add');
+      setNewProduct(prev => ({
+        ...prev,
+        name: pb.name || '',
+        brand: pb.brand || '',
+        price: pb.price || 0,
+        image: '/logo.svg',
+        showSizes: true,
+      }));
+      setNewProductVariantBarcode(pb.barcode || '');
+      // Clear the navigation state so a refresh doesn't re-trigger
+      window.history.replaceState({}, '', '/admin');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Remove preview font link tag when admin page unmounts
+  useEffect(() => {
+    return () => {
+      const previewLink = document.getElementById('google-fonts-preview');
+      if (previewLink) previewLink.remove();
+    };
+  }, []);
+
   const [newProduct, setNewProduct] = useState<Omit<Product, 'id'>>({
     name: '',
     price: 0,
@@ -329,6 +364,11 @@ function AdminPageInner() {
   const [draftStoreInfo, setDraftStoreInfo] = useState<any>(DEFAULT_STORE_INFO);
   const [isSavingStoreInfo, setIsSavingStoreInfo] = useState(false);
   const [storeInfoSaveSuccess, setStoreInfoSaveSuccess] = useState(false);
+  const DEFAULT_THEME_DRAFT: ThemeSettings = { storeName: 'Absolute Soccer Mississauga', primaryColor: '#b90014', secondaryColor: '#000000', fontFamily: 'default' };
+  const [draftTheme, setDraftTheme] = useState<ThemeSettings>(themeSettings || DEFAULT_THEME_DRAFT);
+  const [isSavingTheme, setIsSavingTheme] = useState(false);
+  const [themeSaveSuccess, setThemeSaveSuccess] = useState(false);
+
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -771,6 +811,10 @@ function AdminPageInner() {
   }, [seoSettings]);
 
   useEffect(() => {
+    if (themeSettings) setDraftTheme(themeSettings);
+  }, [themeSettings]);
+
+  useEffect(() => {
     const fetchStoreInfo = async () => {
       const { data } = await supabase
         .from('settings')
@@ -992,6 +1036,18 @@ function AdminPageInner() {
         colors: [],
         release_date: null
       });
+
+      // If came from POS, remove barcode from pending list and return
+      if (fromPOSData) {
+        try {
+          const stored = JSON.parse(localStorage.getItem('pending_barcodes') || '[]');
+          const updated = stored.filter((p: any) => p.barcode !== fromPOSData.barcode);
+          localStorage.setItem('pending_barcodes', JSON.stringify(updated));
+        } catch {}
+        setFromPOSData(null);
+        setTimeout(() => navigate('/pos'), 1200);
+      }
+
       setTimeout(() => setAddStatus('idle'), 3000);
       await resetProducts();
     } catch (error: any) {
@@ -1754,6 +1810,21 @@ function AdminPageInner() {
     }
   };
 
+  const handleSaveTheme = async () => {
+    setIsSavingTheme(true);
+    try {
+      // Always force fontFamily to 'default' — font feature is disabled
+      await setThemeSettings({ ...draftTheme, fontFamily: 'default' });
+      setThemeSaveSuccess(true);
+      setTimeout(() => setThemeSaveSuccess(false), 3000);
+    } catch (error: any) {
+      console.error('AdminPage: Failed to save theme settings', error);
+      alert(error.message || 'Failed to save theme settings.');
+    } finally {
+      setIsSavingTheme(false);
+    }
+  };
+
   const handleSaveSEO = async () => {
     if (containsBase64(draftSeoSettings)) {
       setSaveErrorMessage('Image upload in progress. Please wait.');
@@ -2328,7 +2399,7 @@ function AdminPageInner() {
             </div>
             <button 
               onClick={() => logout()}
-              className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 text-zinc-600 rounded-lg font-bold uppercase tracking-widest text-[10px] hover:bg-red-50 hover:text-[#b90014] transition-all"
+              className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 text-zinc-600 rounded-lg font-bold uppercase tracking-widest text-[10px] hover:bg-red-50 hover:text-[var(--primary-color)] transition-all"
             >
               <LogOut size={14} /> Logout
             </button>
@@ -2338,7 +2409,7 @@ function AdminPageInner() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-12 gap-6">
           <div>
             <h1 className="text-4xl font-headline font-black uppercase tracking-tighter italic text-zinc-900">
-              Admin <span className="text-[#b90014]">Control Center</span>
+              Admin <span className="text-[var(--primary-color)]">Control Center</span>
             </h1>
             <div className="mt-2">
               <div className="flex items-center gap-4">
@@ -2366,7 +2437,7 @@ function AdminPageInner() {
                 </button>
                 <button
                   onClick={() => window.open('/pos', '_blank', 'width=1024,height=768')}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all bg-[#b90014] text-white hover:bg-red-800 shadow-md"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-all bg-[var(--primary-color)] text-white hover:bg-red-800 shadow-md"
                 >
                   <CreditCard size={16} /> POS (New Tab)
                 </button>
@@ -2418,8 +2489,14 @@ function AdminPageInner() {
               <CreditCard size={14} /> Gift Cards
             </button>
             <button
+              onClick={() => setActiveTab('theme')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'theme' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+            >
+              <Palette size={14} /> Theme
+            </button>
+            <button
               onClick={() => setActiveTab('reports')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'reports' ? 'bg-[#b90014] text-white shadow-md' : 'text-zinc-500 hover:text-[#b90014] hover:bg-red-50'}`}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'reports' ? 'bg-[var(--primary-color)] text-white shadow-md' : 'text-zinc-500 hover:text-[var(--primary-color)] hover:bg-red-50'}`}
             >
               <BarChart3 size={14} /> Reports
             </button>
@@ -2497,7 +2574,7 @@ function AdminPageInner() {
                     <label className="inline-flex items-center gap-3 cursor-pointer select-none bg-white border border-zinc-200 px-5 py-3 rounded-xl hover:border-zinc-300 transition-all shadow-sm">
                       <input 
                         type="checkbox" 
-                        className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014] cursor-pointer"
+                        className="w-5 h-5 rounded border-zinc-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)] cursor-pointer"
                         checked={draftShowSizesOnline} 
                         onChange={e => setDraftShowSizesOnline(e.target.checked)} 
                       />
@@ -2524,7 +2601,7 @@ function AdminPageInner() {
                     <button 
                       onClick={() => syncSliderFromBucket()}
                       disabled={isSyncingBucket || isSaving || isUploading || uploading}
-                      className={`flex items-center gap-2 px-4 py-2.5 bg-zinc-900 border border-zinc-800 text-white rounded-lg font-bold uppercase tracking-widest text-[10px] transition-colors hover:bg-[#b90014] ${(isSyncingBucket || isSaving || isUploading || uploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`flex items-center gap-2 px-4 py-2.5 bg-zinc-900 border border-zinc-800 text-white rounded-lg font-bold uppercase tracking-widest text-[10px] transition-colors hover:bg-[var(--primary-color)] ${(isSyncingBucket || isSaving || isUploading || uploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <RefreshCw size={14} className={isSyncingBucket ? "animate-spin" : ""} />
                       {isSyncingBucket ? 'Syncing...' : 'Sync from Storage'}
@@ -2545,7 +2622,7 @@ function AdminPageInner() {
                       <button 
                         onClick={() => handleSaveSlider()}
                         disabled={isSaving || isUploading || uploading}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading || uploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[var(--primary-color)] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading || uploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                       {isSaving || isUploading || uploading ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -2619,7 +2696,7 @@ function AdminPageInner() {
                     <button 
                       onClick={() => handleSaveHomeLayout()}
                       disabled={isSaving || isUploading}
-                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[var(--primary-color)] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {isSaving || isUploading ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -2662,7 +2739,7 @@ function AdminPageInner() {
                               };
                               setDraftHomeCategories(newCats);
                             }}
-                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg text-sm font-bold uppercase outline-none focus:ring-2 focus:ring-[#b90014]"
+                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg text-sm font-bold uppercase outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                           >
                             <option value={cat.name}>{cat.name}</option>
                             {CATEGORIES.filter(name => 
@@ -2774,7 +2851,7 @@ function AdminPageInner() {
                         Reset to Defaults
                       </button>
                       <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest flex items-center">
-                        ← Apply default club/brand logos to your menus
+                        â† Apply default club/brand logos to your menus
                       </p>
                     </div>
                     {saveErrorMessage && (
@@ -2794,7 +2871,7 @@ function AdminPageInner() {
                       <button 
                         onClick={() => handleSaveNavigation()}
                         disabled={isSaving || isUploading}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[var(--primary-color)] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                       {isSaving || isUploading ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -2865,7 +2942,7 @@ function AdminPageInner() {
                             ) : (
                               <button
                                 onClick={() => toggleMenu(menu.label)}
-                                className="flex-1 text-left font-black text-sm uppercase tracking-widest text-zinc-900 hover:text-[#b90014] transition-colors"
+                                className="flex-1 text-left font-black text-sm uppercase tracking-widest text-zinc-900 hover:text-[var(--primary-color)] transition-colors"
                               >
                                 {highlightText(menu.label, navSearchQuery)}
                                 <span className="ml-2 text-xs text-zinc-400 font-normal normal-case tracking-normal">{menu.submenus.length} columns</span>
@@ -3106,7 +3183,7 @@ function AdminPageInner() {
                     <button 
                       onClick={() => handleSaveFooter()}
                       disabled={isSaving || isUploading}
-                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[var(--primary-color)] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {isSaving || isUploading ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -3164,7 +3241,7 @@ function AdminPageInner() {
                   <button 
                     onClick={() => handleSaveSEO()}
                     disabled={isSaving || isUploading}
-                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[var(--primary-color)] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {isSaving || isUploading ? (
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -3179,7 +3256,7 @@ function AdminPageInner() {
                 
                 <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
                   <div className="space-y-6">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[#b90014]">General Meta Tags</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--primary-color)]">General Meta Tags</h3>
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Meta Title</label>
@@ -3187,7 +3264,7 @@ function AdminPageInner() {
                           type="text"
                           value={draftSeoSettings.title}
                           onChange={(e) => updateSeoField('title', e.target.value)}
-                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all"
+                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
                           placeholder="Site Title"
                         />
                       </div>
@@ -3196,7 +3273,7 @@ function AdminPageInner() {
                         <textarea
                           value={draftSeoSettings.description}
                           onChange={(e) => updateSeoField('description', e.target.value)}
-                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all min-h-[100px]"
+                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all min-h-[100px]"
                           placeholder="Site Description"
                         />
                       </div>
@@ -3206,14 +3283,14 @@ function AdminPageInner() {
                           type="text"
                           value={draftSeoSettings.keywords}
                           onChange={(e) => updateSeoField('keywords', e.target.value)}
-                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all"
+                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
                           placeholder="soccer, mississauga, custom uniforms..."
                         />
                       </div>
                     </div>
                   </div>
                   <div className="space-y-6">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[#b90014]">Social Sharing</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--primary-color)]">Social Sharing</h3>
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">OG Title</label>
@@ -3221,7 +3298,7 @@ function AdminPageInner() {
                           type="text"
                           value={draftSeoSettings.ogTitle}
                           onChange={(e) => updateSeoField('ogTitle', e.target.value)}
-                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all"
+                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
                         />
                       </div>
                       <div className="space-y-2">
@@ -3230,7 +3307,7 @@ function AdminPageInner() {
                           type="text"
                           value={draftSeoSettings.ogImage}
                           onChange={(e) => updateSeoField('ogImage', e.target.value)}
-                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all"
+                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -3248,7 +3325,7 @@ function AdminPageInner() {
                   <button
                     onClick={handleSaveStoreInfo}
                     disabled={isSavingStoreInfo}
-                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${storeInfoSaveSuccess ? 'bg-green-600 text-white' : 'bg-[#b90014] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${isSavingStoreInfo ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${storeInfoSaveSuccess ? 'bg-green-600 text-white' : 'bg-[var(--primary-color)] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${isSavingStoreInfo ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {storeInfoSaveSuccess ? <Check size={14} /> : <Save size={14} />}
                     {isSavingStoreInfo ? 'Saving...' : storeInfoSaveSuccess ? 'Saved!' : 'Save Store Info'}
@@ -3256,26 +3333,26 @@ function AdminPageInner() {
                 </div>
                 <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
                   <div className="space-y-4">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[#b90014]">Contact Details</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--primary-color)]">Contact Details</h3>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Store Name</label>
-                      <input type="text" value={draftStoreInfo.name || ''} onChange={e => setDraftStoreInfo((p: any) => ({ ...p, name: e.target.value }))} className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all" />
+                      <input type="text" value={draftStoreInfo.name || ''} onChange={e => setDraftStoreInfo((p: any) => ({ ...p, name: e.target.value }))} className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all" />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Address</label>
-                      <input type="text" value={draftStoreInfo.address || ''} onChange={e => setDraftStoreInfo((p: any) => ({ ...p, address: e.target.value }))} className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all" />
+                      <input type="text" value={draftStoreInfo.address || ''} onChange={e => setDraftStoreInfo((p: any) => ({ ...p, address: e.target.value }))} className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all" />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Phone</label>
-                      <input type="text" value={draftStoreInfo.phone || ''} onChange={e => setDraftStoreInfo((p: any) => ({ ...p, phone: e.target.value }))} className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all" />
+                      <input type="text" value={draftStoreInfo.phone || ''} onChange={e => setDraftStoreInfo((p: any) => ({ ...p, phone: e.target.value }))} className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all" />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Email</label>
-                      <input type="text" value={draftStoreInfo.email || ''} onChange={e => setDraftStoreInfo((p: any) => ({ ...p, email: e.target.value }))} className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all" />
+                      <input type="text" value={draftStoreInfo.email || ''} onChange={e => setDraftStoreInfo((p: any) => ({ ...p, email: e.target.value }))} className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all" />
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[#b90014]">Store Hours</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--primary-color)]">Store Hours</h3>
                     <p className="text-[10px] text-zinc-400 uppercase tracking-widest">Use "10:00 AM - 6:00 PM" format or "Closed"</p>
                     {(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const).map(day => (
                       <div key={day} className="flex items-center gap-4">
@@ -3284,7 +3361,7 @@ function AdminPageInner() {
                           type="text"
                           value={draftStoreInfo.hours?.[day] || ''}
                           onChange={e => setDraftStoreInfo((p: any) => ({ ...p, hours: { ...p.hours, [day]: e.target.value } }))}
-                          className="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-[#b90014] outline-none transition-all"
+                          className="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
                           placeholder="10:00 AM - 6:00 PM"
                         />
                       </div>
@@ -3295,8 +3372,198 @@ function AdminPageInner() {
             </motion.div>
           )}
 
+          {activeTab === 'theme' && (
+            <motion.div
+              key="theme"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-8"
+            >
+              {/* Theme & Branding */}
+              <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
+                <div className="p-8 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-zinc-900">Theme & Branding</h2>
+                    <p className="text-sm text-zinc-500 mt-1">Customize colors, fonts, and store identity. Changes apply site-wide instantly.</p>
+                  </div>
+                  <button
+                    onClick={handleSaveTheme}
+                    disabled={isSavingTheme}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${themeSaveSuccess ? 'bg-green-600 text-white' : 'bg-[var(--primary-color)] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${isSavingTheme ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {isSavingTheme ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : themeSaveSuccess ? (
+                      <Check size={14} />
+                    ) : (
+                      <Save size={14} />
+                    )}
+                    {isSavingTheme ? 'Saving...' : themeSaveSuccess ? 'Saved!' : 'Save Theme'}
+                  </button>
+                </div>
+
+                <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
+                  {/* Left column: Store name + Colors */}
+                  <div className="space-y-6">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--primary-color)]">Store Identity</h3>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Store Name</label>
+                      <input
+                        type="text"
+                        value={draftTheme.storeName}
+                        onChange={e => setDraftTheme(p => ({ ...p, storeName: e.target.value }))}
+                        className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
+                        placeholder="Absolute Soccer Mississauga"
+                      />
+                      <p className="text-[10px] text-zinc-400">Used in receipts, emails, and page titles.</p>
+                    </div>
+
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--primary-color)] pt-4">Brand Colors</h3>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Primary Color</label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={draftTheme.primaryColor}
+                            onChange={e => setDraftTheme(p => ({ ...p, primaryColor: e.target.value }))}
+                            className="w-12 h-12 rounded-lg border border-zinc-200 cursor-pointer p-1 bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={draftTheme.primaryColor}
+                            onChange={e => setDraftTheme(p => ({ ...p, primaryColor: e.target.value }))}
+                            className="flex-1 px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-mono focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
+                            placeholder="#b90014"
+                          />
+                          <div
+                            className="w-12 h-12 rounded-lg border border-zinc-200 shrink-0"
+                            style={{ backgroundColor: draftTheme.primaryColor }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-zinc-400">Buttons, links, accents across the site.</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Secondary Color</label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={draftTheme.secondaryColor}
+                            onChange={e => setDraftTheme(p => ({ ...p, secondaryColor: e.target.value }))}
+                            className="w-12 h-12 rounded-lg border border-zinc-200 cursor-pointer p-1 bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={draftTheme.secondaryColor}
+                            onChange={e => setDraftTheme(p => ({ ...p, secondaryColor: e.target.value }))}
+                            className="flex-1 px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-mono focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
+                            placeholder="#000000"
+                          />
+                          <div
+                            className="w-12 h-12 rounded-lg border border-zinc-200 shrink-0"
+                            style={{ backgroundColor: draftTheme.secondaryColor }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-zinc-400">Dark backgrounds, navbars, section fills.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right column: Live Preview */}
+                  <div className="space-y-6">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--primary-color)]">Live Preview</h3>
+                    <div className="border border-zinc-200 rounded-xl overflow-hidden text-left">
+                      {/* Nav bar */}
+                      <div className="px-4 py-2 bg-white border-b border-zinc-100 flex items-center gap-4">
+                        <span className="font-bold text-xs" style={{ color: draftTheme.primaryColor }}>
+                          {draftTheme.storeName || 'Absolute Soccer'}
+                        </span>
+                        <span className="text-[10px] text-zinc-500 tracking-wider">FOOTWEAR</span>
+                        <span className="text-[10px] text-zinc-500 tracking-wider">CLUBS</span>
+                        <span className="text-[10px] text-zinc-500 tracking-wider">NATIONAL TEAMS</span>
+                      </div>
+                      {/* Hero area */}
+                      <div className="px-4 py-5 bg-zinc-50">
+                        <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-1">New Arrivals</p>
+                        <h2 className="text-2xl font-black leading-tight text-zinc-900">Absolute Soccer Mississauga</h2>
+                        <p className="text-sm text-zinc-600 mt-1">Premium Soccer Gear &amp; Custom Kits</p>
+                        <button
+                          className="mt-3 px-5 py-2 text-white text-xs font-bold rounded"
+                          style={{ backgroundColor: draftTheme.primaryColor }}
+                        >
+                          Shop Now
+                        </button>
+                      </div>
+                      {/* Footer strip */}
+                      <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: draftTheme.secondaryColor }}>
+                        <span className="text-white/80 text-[10px] font-bold uppercase tracking-widest">Footer · Dark Sections</span>
+                        <span className="text-white/50 text-[10px]">torontosoccershop.com</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Logos (mirrors Slider tab Brand Identity) */}
+              <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
+                <div className="p-8 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-zinc-900">Logos</h2>
+                    <p className="text-sm text-zinc-500 mt-1">Upload your store's logos (recommended 500Ã—300, transparent SVG/PNG). Also editable in the Slider tab.</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2 px-4 py-2.5 bg-zinc-100 text-zinc-900 rounded-lg font-bold uppercase tracking-widest text-[10px] cursor-pointer hover:bg-zinc-200 transition-colors">
+                      <Upload size={14} /> Header Logo
+                      <input type="file" className="hidden" accept="image/*" onChange={handleLogoFileChange} />
+                    </label>
+                    <label className="flex items-center gap-2 px-4 py-2.5 bg-zinc-100 text-zinc-900 rounded-lg font-bold uppercase tracking-widest text-[10px] cursor-pointer hover:bg-zinc-200 transition-colors">
+                      <Upload size={14} /> Landing Logo
+                      <input type="file" className="hidden" accept="image/*" onChange={handleLandingLogoFileChange} />
+                    </label>
+                    <label className="flex items-center gap-2 px-4 py-2.5 bg-zinc-100 text-zinc-900 rounded-lg font-bold uppercase tracking-widest text-[10px] cursor-pointer hover:bg-zinc-200 transition-colors">
+                      <Upload size={14} /> Footer Logo
+                      <input type="file" className="hidden" accept="image/*" onChange={handleFooterLogoFileChange} />
+                    </label>
+                    <button
+                      onClick={handleSaveSlider}
+                      disabled={isSaving || isUploading}
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${saveSuccess ? 'bg-green-600 text-white' : 'bg-[var(--primary-color)] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSaving || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {saveSuccess ? <Check size={14} /> : <Save size={14} />}
+                      {isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Logos'}
+                    </button>
+                  </div>
+                </div>
+                <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-8 bg-zinc-50">
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center">Header Logo</p>
+                    <div className="bg-white p-8 rounded-xl border border-zinc-200 shadow-sm flex items-center justify-center h-40">
+                      <img src={draftLogo} alt="Header Logo" className="max-h-24 w-auto object-contain" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center">Landing Logo</p>
+                    <div className="bg-zinc-900 p-8 rounded-xl border border-zinc-800 shadow-sm flex items-center justify-center h-40">
+                      <img src={draftLandingLogo} alt="Landing Logo" className="max-h-24 w-auto object-contain" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center">Footer Logo</p>
+                    <div className="bg-zinc-900 p-8 rounded-xl border border-zinc-800 shadow-sm flex items-center justify-center h-40">
+                      <img src={draftFooterLogo} alt="Footer Logo" className="max-h-24 w-auto object-contain" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === 'products' && (
-            <motion.div 
+            <motion.div
               key="products"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -3318,14 +3585,14 @@ function AdminPageInner() {
               {productSubTab === 'bulk' && (
                 <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-8">
                   <h2 className="text-xl font-bold text-zinc-900 mb-6 flex items-center gap-2">
-                    <FileText size={20} className="text-[#b90014]" /> Bulk Upload
+                    <FileText size={20} className="text-[var(--primary-color)]" /> Bulk Upload
                   </h2>
                   <div className="space-y-4">
                     <p className="text-sm text-zinc-500">
                       Upload a CSV file to add multiple products at once. 
                       <button 
                         onClick={downloadTemplate}
-                        className="text-[#b90014] font-bold hover:underline ml-1"
+                        className="text-[var(--primary-color)] font-bold hover:underline ml-1"
                       >
                         Download Template
                       </button>
@@ -3336,11 +3603,11 @@ function AdminPageInner() {
                         isBulkUploading ? 'bg-zinc-50 border-zinc-200 cursor-not-allowed' : 
                         bulkUploadStatus === 'success' ? 'bg-green-50 border-green-200' :
                         bulkUploadStatus === 'error' ? 'bg-red-50 border-red-200' :
-                        'bg-zinc-50 border-zinc-200 hover:border-[#b90014] hover:bg-white'
+                        'bg-zinc-50 border-zinc-200 hover:border-[var(--primary-color)] hover:bg-white'
                       }`}>
                         {isBulkUploading ? (
                           <div className="flex flex-col items-center gap-3">
-                            <div className="w-8 h-8 border-4 border-zinc-200 border-t-[#b90014] rounded-full animate-spin" />
+                            <div className="w-8 h-8 border-4 border-zinc-200 border-t-[var(--primary-color)] rounded-full animate-spin" />
                             <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest">
                               Processing {bulkProgress.current} / {bulkProgress.total}
                             </p>
@@ -3377,8 +3644,22 @@ function AdminPageInner() {
               {productSubTab === 'add' && (
                 <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
                   <div className="p-8 border-b border-zinc-100">
+                    {fromPOSData && (
+                      <div className="mb-4 flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                        <div>
+                          <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">Creating product from POS scan</p>
+                          <p className="text-[11px] text-amber-700 font-mono mt-0.5">Barcode: {fromPOSData.barcode}</p>
+                        </div>
+                        <button
+                          onClick={() => navigate('/pos')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-[11px] font-bold uppercase transition-colors"
+                        >
+                          <ArrowLeft size={13} /> Back to POS
+                        </button>
+                      </div>
+                    )}
                     <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
-                      <Plus size={20} className="text-[#b90014]" /> Add New Product
+                      <Plus size={20} className="text-[var(--primary-color)]" /> Add New Product
                     </h2>
                     <p className="text-sm text-zinc-500 mt-1">Use the form below to quickly add products to your catalog</p>
                   </div>
@@ -3392,7 +3673,7 @@ function AdminPageInner() {
                         <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Product Name</label>
                           <input
-                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none"
+                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent transition-all outline-none"
                             placeholder="e.g. Real Madrid Home Kit"
                             value={newProduct.name}
                             onChange={e => setNewProduct({...newProduct, name: e.target.value})}
@@ -3403,7 +3684,7 @@ function AdminPageInner() {
                         <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Description</label>
                           <textarea
-                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none min-h-[120px] resize-none"
+                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent transition-all outline-none min-h-[120px] resize-none"
                             placeholder="Describe the product features, materials, and fit..."
                             value={newProduct.description}
                             onChange={e => setNewProduct({...newProduct, description: e.target.value})}
@@ -3427,7 +3708,7 @@ function AdminPageInner() {
                                 <input type="file" className="hidden" accept="image/*" onChange={handleProductImageUpload} />
                               </label>
                               <input
-                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[#b90014] outline-none"
+                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[var(--primary-color)] outline-none"
                                 placeholder="Or paste image URL..."
                                 value={newProduct.image}
                                 onChange={e => updateNewProductImage('image', e.target.value)}
@@ -3452,7 +3733,7 @@ function AdminPageInner() {
                                       setNewProduct({...newProduct, images: imgs});
                                     }}
                                     className="w-5 h-5 bg-zinc-200 hover:bg-zinc-300 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                  >▲</button>
+                                  >â–²</button>
                                   <button
                                     type="button"
                                     disabled={idx === (newProduct.images || []).length - 1}
@@ -3462,7 +3743,7 @@ function AdminPageInner() {
                                       setNewProduct({...newProduct, images: imgs});
                                     }}
                                     className="w-5 h-5 bg-zinc-200 hover:bg-zinc-300 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                  >▼</button>
+                                  >â–¼</button>
                                 </div>
                                 <div className="w-10 h-10 rounded bg-white border border-zinc-200 overflow-hidden flex-shrink-0">
                                   {img ? (
@@ -3479,7 +3760,7 @@ function AdminPageInner() {
                                     <input type="file" className="hidden" accept="image/*" onChange={(e) => handleAdditionalImageUpload(e, idx)} />
                                   </label>
                                   <input
-                                    className="w-full p-1 bg-white border border-zinc-200 rounded text-[9px] focus:ring-1 focus:ring-[#b90014] outline-none"
+                                    className="w-full p-1 bg-white border border-zinc-200 rounded text-[9px] focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
                                     placeholder="Or URL..."
                                     value={img}
                                     onChange={e => updateNewProductImage('additional', e.target.value, idx)}
@@ -3515,7 +3796,7 @@ function AdminPageInner() {
                             <div>
                               <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Price ($)</label>
                               <input
-                                className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none"
+                                className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent transition-all outline-none"
                                 placeholder="0.00"
                                 type="number"
                                 value={newProduct.price}
@@ -3529,7 +3810,7 @@ function AdminPageInner() {
                               >
                                 <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Sale Price ($)</label>
                                 <input
-                                  className="w-full p-3 bg-red-50 border border-red-100 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none font-bold text-[#b90014]"
+                                  className="w-full p-3 bg-red-50 border border-red-100 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none font-bold text-[var(--primary-color)]"
                                   placeholder="Discounted price..."
                                   type="number"
                                   value={newProduct.salePrice || ''}
@@ -3545,7 +3826,7 @@ function AdminPageInner() {
                           <div>
                             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Category</label>
                             <select
-                              className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer"
+                              className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none appearance-none cursor-pointer"
                               value={availableCategories.find(c => c.toLowerCase() === (newProduct.category || '').toLowerCase()) || newProduct.category}
                               onChange={e => setNewProduct({...newProduct, category: e.target.value, submenu: '', submenus: []})}
                             >
@@ -3559,7 +3840,7 @@ function AdminPageInner() {
                             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Brand</label>
                             <div className="relative">
                               <input
-                                className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none"
+                                className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent transition-all outline-none"
                                 placeholder="Nike, Adidas, Puma..."
                                 value={newProduct.brand || ''}
                                 onChange={e => setNewProduct({...newProduct, brand: e.target.value})}
@@ -3593,7 +3874,7 @@ function AdminPageInner() {
                             Product Code <span className="text-zinc-400 normal-case">(Optional)</span>
                           </label>
                           <input
-                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent transition-all outline-none"
+                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent transition-all outline-none"
                             placeholder="e.g. NK-DV9237, ADI-HG6164"
                             value={newProduct.product_code || ''}
                             onChange={e => setNewProduct({...newProduct, product_code: e.target.value})}
@@ -3610,7 +3891,7 @@ function AdminPageInner() {
                               <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Submenus / Tags</label>
                               <div className="space-y-2">
                                 <select
-                                  className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer text-sm"
+                                  className="w-full p-3 bg-white border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none appearance-none cursor-pointer text-sm"
                                   value=""
                                   onChange={e => {
                                     if (e.target.value && !newProduct.submenus?.includes(e.target.value)) {
@@ -3650,23 +3931,23 @@ function AdminPageInner() {
                           <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 block">Status & Flags</label>
                           <div className="grid grid-cols-2 gap-3">
                             <label className="flex items-center gap-2 cursor-pointer group select-none">
-                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.is_online} onChange={e => setNewProduct({...newProduct, is_online: e.target.checked})} />
+                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)]" checked={newProduct.is_online} onChange={e => setNewProduct({...newProduct, is_online: e.target.checked})} />
                               <span className="text-[9px] font-bold text-zinc-700 group-hover:text-zinc-900">Online</span>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer group select-none">
-                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.showSizes || false} onChange={e => setNewProduct({...newProduct, showSizes: e.target.checked})} />
+                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)]" checked={newProduct.showSizes || false} onChange={e => setNewProduct({...newProduct, showSizes: e.target.checked})} />
                               <span className="text-[9px] font-bold text-zinc-700 group-hover:text-zinc-900">Show Sizes</span>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer group select-none">
-                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.isNewArrival} onChange={e => setNewProduct({...newProduct, isNewArrival: e.target.checked})} />
+                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)]" checked={newProduct.isNewArrival} onChange={e => setNewProduct({...newProduct, isNewArrival: e.target.checked})} />
                               <span className="text-[9px] font-bold text-zinc-700 group-hover:text-zinc-900">New Arrival</span>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer group select-none">
-                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.isFeatured} onChange={e => setNewProduct({...newProduct, isFeatured: e.target.checked})} />
+                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)]" checked={newProduct.isFeatured} onChange={e => setNewProduct({...newProduct, isFeatured: e.target.checked})} />
                               <span className="text-[9px] font-bold text-zinc-700 group-hover:text-zinc-900">Featured</span>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer group select-none col-span-2">
-                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014]" checked={newProduct.isOnSale} onChange={e => setNewProduct({...newProduct, isOnSale: e.target.checked, salePrice: e.target.checked ? (newProduct.salePrice || 0) : 0})} />
+                              <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)]" checked={newProduct.isOnSale} onChange={e => setNewProduct({...newProduct, isOnSale: e.target.checked, salePrice: e.target.checked ? (newProduct.salePrice || 0) : 0})} />
                               <span className="text-[9px] font-bold text-zinc-700 group-hover:text-zinc-900">On Sale</span>
                             </label>
                           </div>
@@ -3679,7 +3960,7 @@ function AdminPageInner() {
                             type="datetime-local"
                             value={newProduct.release_date ? new Date(newProduct.release_date).toISOString().slice(0, 16) : ''}
                             onChange={e => setNewProduct({...newProduct, release_date: e.target.value ? new Date(e.target.value).toISOString() : null})}
-                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                            className="w-full p-3 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                           />
                           {newProduct.release_date && (
                             <button
@@ -3814,7 +4095,7 @@ function AdminPageInner() {
                               type="checkbox"
                               checked={newProductHasNoSizes}
                               onChange={e => setNewProductHasNoSizes(e.target.checked)}
-                              className="w-4 h-4 accent-[#b90014] cursor-pointer rounded"
+                              className="w-4 h-4 accent-[var(--primary-color)] cursor-pointer rounded"
                             />
                             <span>This product has no sizes (one size only)</span>
                           </label>
@@ -3826,7 +4107,7 @@ function AdminPageInner() {
                               <select
                                 value={newProductVariantAgeGroup}
                                 onChange={e => setNewProductVariantAgeGroup(e.target.value as any)}
-                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-[#b90014]"
+                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                               >
                                 <option value="Adult">Adult</option>
                                 <option value="Youth">Youth</option>
@@ -3845,7 +4126,7 @@ function AdminPageInner() {
                                 value={newProductVariantBarcode}
                                 onChange={e => setNewProductVariantBarcode(e.target.value)}
                                 placeholder="Unique barcode"
-                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                               />
                             </div>
                             <div>
@@ -3854,13 +4135,13 @@ function AdminPageInner() {
                                 type="number"
                                 value={newProductVariantQuantity}
                                 onChange={e => setNewProductVariantQuantity(parseInt(e.target.value) || 0)}
-                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               />
                             </div>
                             <button
                               type="button"
                               onClick={handleAddCreatedProductVariant}
-                              className="w-full py-2.5 bg-zinc-900 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-[#b90014] transition-all"
+                              className="w-full py-2.5 bg-zinc-900 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-[var(--primary-color)] transition-all"
                             >
                               + Add Variant
                             </button>
@@ -3925,15 +4206,15 @@ function AdminPageInner() {
                                           const newColor = e.target.value || null;
                                           setCreatedProductVariants(prev => prev.map(x => x.id === v.id ? { ...x, color: newColor } : x));
                                         }}
-                                        className="text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#b90014]"
+                                        className="text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)]"
                                       >
-                                        <option value="">— None —</option>
+                                        <option value="">â€” None â€”</option>
                                         {(newProduct.colors || []).map((c: any) => (
                                           <option key={c.name} value={c.name}>{c.name}</option>
                                         ))}
                                       </select>
                                     </td>
-                                    <td className="p-3 font-mono font-bold text-[#b90014]">{v.barcode}</td>
+                                    <td className="p-3 font-mono font-bold text-[var(--primary-color)]">{v.barcode}</td>
                                     <td className="p-3 font-semibold text-zinc-650">{v.stock_quantity} units</td>
                                     <td className="p-3 text-right">
                                       <button
@@ -3961,7 +4242,7 @@ function AdminPageInner() {
                         addStatus === 'success' ? 'bg-green-600 text-white' :
                         addStatus === 'error' ? 'bg-red-600 text-white' :
                         addStatus === 'syncing' || isUploading ? 'bg-zinc-700 text-white' :
-                        'bg-[#b90014] text-white hover:bg-red-800 shadow-lg shadow-red-900/20'
+                        'bg-[var(--primary-color)] text-white hover:bg-red-800 shadow-lg shadow-red-900/20'
                       }`}
                       onClick={() => handleAdd()}
                       disabled={addStatus === 'syncing' || isUploading}
@@ -4006,10 +4287,10 @@ function AdminPageInner() {
                         </div>
                         
                         <div className="text-[10px] space-y-2 text-red-950 font-bold leading-normal uppercase tracking-wider pl-6 select-all">
-                          <p className="text-[#b90014] font-black underline">💡 Fix: Check Supabase RLS Policy</p>
+                          <p className="text-[var(--primary-color)] font-black underline">ðŸ’¡ Fix: Check Supabase RLS Policy</p>
                           <ol className="list-decimal pl-4 space-y-1 text-[9.5px]">
-                            <li>Go to your <span className="font-extrabold text-[#b90014]">Supabase Dashboard</span> and navigate to the products table.</li>
-                            <li>Check the <span className="underline font-black text-[#b90014]">RLS (Row Level Security)</span> policies.</li>
+                            <li>Go to your <span className="font-extrabold text-[var(--primary-color)]">Supabase Dashboard</span> and navigate to the products table.</li>
+                            <li>Check the <span className="underline font-black text-[var(--primary-color)]">RLS (Row Level Security)</span> policies.</li>
                             <li>Ensure policies allow authenticated or public access for UPDATE operations.</li>
                             <li>If RLS is disabled, the issue may be elsewhere - check browser console for details.</li>
                           </ol>
@@ -4040,13 +4321,13 @@ function AdminPageInner() {
                       </div>
                       <div className="flex gap-4 items-center">
                         <div className="relative group">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-[#b90014] transition-colors" size={14} />
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-[var(--primary-color)] transition-colors" size={14} />
                           <input 
                             type="text" 
                             placeholder="Find products..."
                             value={adminSearchTerm}
                             onChange={(e) => setAdminSearchTerm(e.target.value)}
-                            className="pl-9 pr-12 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-bold outline-none focus:ring-1 focus:ring-[#b90014] transition-all w-[260px]"
+                            className="pl-9 pr-12 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-bold outline-none focus:ring-1 focus:ring-[var(--primary-color)] transition-all w-[260px]"
                           />
                           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
                             {adminSearchTerm && (
@@ -4066,7 +4347,7 @@ function AdminPageInner() {
                             setTimeout(() => setSyncStatus('idle'), 3000);
                           }}
                           disabled={isLoading}
-                          className="flex items-center gap-2 px-3 py-2 bg-zinc-900 text-white rounded-lg font-bold uppercase tracking-widest text-[10px] hover:bg-[#b90014] transition-all disabled:opacity-50 shadow-sm relative overflow-hidden"
+                          className="flex items-center gap-2 px-3 py-2 bg-zinc-900 text-white rounded-lg font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--primary-color)] transition-all disabled:opacity-50 shadow-sm relative overflow-hidden"
                         >
                           <Plus className={`transition-transform ${isLoading ? 'animate-spin' : ''}`} size={14} style={{ rotate: isLoading ? '0deg' : '45deg' }} />
                           {isLoading ? 'Syncing...' : syncStatus === 'success' ? 'Synchronized!' : 'Sync from DB'}
@@ -4084,9 +4365,9 @@ function AdminPageInner() {
                           <button 
                             onClick={() => setConfirmMarkAllOnline(true)}
                             disabled={isMarkingAllOnline}
-                            className="text-[10px] font-bold text-zinc-400 hover:text-[#b90014] uppercase tracking-widest disabled:opacity-50"
+                            className="text-[10px] font-bold text-zinc-400 hover:text-[var(--primary-color)] uppercase tracking-widest disabled:opacity-50"
                           >
-                            {isMarkingAllOnline ? 'Marking...' : markAllOnlineStatus === 'success' ? 'All Online ✓' : 'Mark All Online'}
+                            {isMarkingAllOnline ? 'Marking...' : markAllOnlineStatus === 'success' ? 'All Online âœ“' : 'Mark All Online'}
                           </button>
                           {confirmMarkAllOnline && (
                             <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-zinc-200 rounded-lg shadow-xl p-4 z-50">
@@ -4108,7 +4389,7 @@ function AdminPageInner() {
                                       setIsMarkingAllOnline(false);
                                     }
                                   }}
-                                  className="flex-1 px-2 py-1 bg-[#b90014] text-white text-[8px] font-black uppercase rounded tracking-widest text-center"
+                                  className="flex-1 px-2 py-1 bg-[var(--primary-color)] text-white text-[8px] font-black uppercase rounded tracking-widest text-center"
                                 >
                                   Yes, Do It
                                 </button>
@@ -4217,7 +4498,7 @@ function AdminPageInner() {
                             <select
                               value={bulkBrandAssignBrand}
                               onChange={(e) => setBulkBrandAssignBrand(e.target.value)}
-                              className="px-3 py-2 bg-white border border-blue-200 rounded text-[10px] font-bold uppercase outline-none focus:ring-2 focus:ring-[#b90014]"
+                              className="px-3 py-2 bg-white border border-blue-200 rounded text-[10px] font-bold uppercase outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                             >
                               <option value="">Choose brand...</option>
                               {availableBrands.map(brand => (
@@ -4253,7 +4534,7 @@ function AdminPageInner() {
                     {isLoading && products.length === 0 && (
                       <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
                         <div className="flex flex-col items-center">
-                          <div className="w-8 h-8 border-4 border-zinc-200 border-t-[#b90014] rounded-full animate-spin mb-3" />
+                          <div className="w-8 h-8 border-4 border-zinc-200 border-t-[var(--primary-color)] rounded-full animate-spin mb-3" />
                           <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Loading Catalog...</p>
                         </div>
                       </div>
@@ -4267,7 +4548,7 @@ function AdminPageInner() {
                             setAdminSearchTerm('');
                             setProductCategoryFilter('All');
                           }}
-                          className="mt-6 text-[#b90014] text-[10px] font-black uppercase tracking-widest hover:underline"
+                          className="mt-6 text-[var(--primary-color)] text-[10px] font-black uppercase tracking-widest hover:underline"
                         >
                           Reset Filters
                         </button>
@@ -4287,7 +4568,7 @@ function AdminPageInner() {
                               }
                               setSelectedProductIds(newSelected);
                             }}
-                            className="w-5 h-5 rounded border-zinc-300 text-[#b90014] focus:ring-[#b90014] cursor-pointer flex-shrink-0"
+                            className="w-5 h-5 rounded border-zinc-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)] cursor-pointer flex-shrink-0"
                           />
                           <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg overflow-hidden bg-zinc-100 border border-zinc-200 flex-shrink-0">
                             <img src={product.image || `https://picsum.photos/seed/${product.id}/80`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -4306,9 +4587,9 @@ function AdminPageInner() {
                             <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">
                               {product.category}
                               {product.isOnSale && product.salePrice ? (
-                                <span className="ml-1">• <span className="line-through opacity-50">${product.price}</span> <span className="text-[#b90014] font-bold">${product.salePrice}</span></span>
+                                <span className="ml-1">&bull; <span className="line-through opacity-50">${product.price}</span> <span className="text-[var(--primary-color)] font-bold">${product.salePrice}</span></span>
                               ) : (
-                                <span className="ml-1">• ${product.price}</span>
+                                <span className="ml-1">&bull; ${product.price}</span>
                               )}
                             </p>
                             <StockBadge productId={product.id} productStockCache={productStockCache} />
@@ -4365,7 +4646,7 @@ function AdminPageInner() {
                   {filteredProducts.length > adminItemsPerPage && (
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-zinc-50/50 p-6 border-b border-zinc-100 text-xs font-sans">
                       <div className="text-zinc-500 font-medium font-sans">
-                        Showing <span className="font-bold text-zinc-900">{(adminCurrentPage - 1) * adminItemsPerPage + 1}</span> to <span className="font-bold text-zinc-900">{Math.min(filteredProducts.length, adminCurrentPage * adminItemsPerPage)}</span> of <span className="font-bold text-[#b90014]">{filteredProducts.length}</span> matching products
+                        Showing <span className="font-bold text-zinc-900">{(adminCurrentPage - 1) * adminItemsPerPage + 1}</span> to <span className="font-bold text-zinc-900">{Math.min(filteredProducts.length, adminCurrentPage * adminItemsPerPage)}</span> of <span className="font-bold text-[var(--primary-color)]">{filteredProducts.length}</span> matching products
                       </div>
                       <div className="flex gap-2 items-center font-sans">
                         <button
@@ -4374,7 +4655,7 @@ function AdminPageInner() {
                           onClick={() => setAdminCurrentPage(prev => Math.max(1, prev - 1))}
                           className="px-4 py-2 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 disabled:opacity-40 disabled:hover:bg-white rounded-lg font-bold uppercase tracking-wider text-[10px] transition-all cursor-pointer"
                         >
-                          ◀ Previous
+                          â—€ Previous
                         </button>
                         <span className="font-bold text-zinc-650 bg-white border border-zinc-200 px-3.5 py-2 rounded-lg text-[10px]">
                           Page <span className="text-zinc-900">{adminCurrentPage}</span> of {Math.ceil(filteredProducts.length / adminItemsPerPage)}
@@ -4385,7 +4666,7 @@ function AdminPageInner() {
                           onClick={() => setAdminCurrentPage(prev => Math.min(Math.ceil(filteredProducts.length / adminItemsPerPage), prev + 1))}
                           className="px-4 py-2 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 disabled:opacity-40 disabled:hover:bg-white rounded-lg font-bold uppercase tracking-wider text-[10px] transition-all cursor-pointer"
                         >
-                          Next ▶
+                          Next â–¶
                         </button>
                       </div>
                     </div>
@@ -4445,7 +4726,7 @@ function AdminPageInner() {
                            </div>
                            <div className="flex justify-between items-center text-[10px]">
                                <span className="text-zinc-500 font-bold uppercase tracking-widest">Active Mode:</span>
-                               <span className={`font-mono font-black text-[#b90014]`}>
+                               <span className={`font-mono font-black text-[var(--primary-color)]`}>
                                  LIVE
                                </span>
                            </div>
@@ -4488,7 +4769,7 @@ function AdminPageInner() {
                                  alert(`WRITE FAILED: ${err.message}`);
                                }
                              }}
-                             className="w-full py-1 bg-[#b90014] text-white text-[8px] font-black uppercase rounded tracking-widest hover:opacity-90"
+                             className="w-full py-1 bg-[var(--primary-color)] text-white text-[8px] font-black uppercase rounded tracking-widest hover:opacity-90"
                            >
                              Test Live Write
                            </button>
@@ -4501,7 +4782,7 @@ function AdminPageInner() {
                         <div className="space-y-2">
                            <div className="flex justify-between items-center text-[10px]">
                                <span className="text-zinc-500 font-bold uppercase tracking-widest">Role:</span>
-                               <span className="font-mono text-[#b90014] font-black">ADMIN</span>
+                               <span className="font-mono text-[var(--primary-color)] font-black">ADMIN</span>
                            </div>
                            <div className="flex justify-between items-center text-[10px]">
                                <span className="text-zinc-500 font-bold uppercase tracking-widest">Type:</span>
@@ -4516,7 +4797,7 @@ function AdminPageInner() {
                          Raw Catalog Snapshot (IDs)
                          <button 
                             onClick={fetchAdminProducts}
-                            className="text-[#b90014] hover:underline"
+                            className="text-[var(--primary-color)] hover:underline"
                          >
                             Re-Sync Trace
                          </button>
@@ -4567,12 +4848,12 @@ function AdminPageInner() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Product Name</label>
-                      <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} />
+                      <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Category</label>
                       <select
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer"
+                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none appearance-none cursor-pointer"
                         value={availableCategories.find(c => c.toLowerCase() === (editingProduct.category || '').toLowerCase()) || editingProduct.category}
                         onChange={e => setEditingProduct({...editingProduct, category: e.target.value, submenu: '', submenus: []})}
                       >
@@ -4584,12 +4865,12 @@ function AdminPageInner() {
 
                     <div>
                       <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Brand</label>
-                      <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none" placeholder="e.g. Nike, Adidas, Puma" value={editingProduct.brand || ''} onChange={e => setEditingProduct({...editingProduct, brand: e.target.value})} />
+                      <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none" placeholder="e.g. Nike, Adidas, Puma" value={editingProduct.brand || ''} onChange={e => setEditingProduct({...editingProduct, brand: e.target.value})} />
                     </div>
 
                     <div>
                       <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Product Code <span className="text-zinc-400">(Optional)</span></label>
-                      <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none" placeholder="e.g. NK-DV9237, ADI-HG6164" value={editingProduct.product_code || ''} onChange={e => setEditingProduct({...editingProduct, product_code: e.target.value})} />
+                      <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none" placeholder="e.g. NK-DV9237, ADI-HG6164" value={editingProduct.product_code || ''} onChange={e => setEditingProduct({...editingProduct, product_code: e.target.value})} />
                     </div>
 
                     {(() => {
@@ -4602,7 +4883,7 @@ function AdminPageInner() {
                           <div className="space-y-2">
                             <div className="relative">
                               <select 
-                                className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none appearance-none cursor-pointer pr-10" 
+                                className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none appearance-none cursor-pointer pr-10" 
                                 value="" 
                                 onChange={e => {
                                   if (e.target.value && !editingProduct.submenus?.includes(e.target.value)) {
@@ -4638,35 +4919,35 @@ function AdminPageInner() {
                     })()}
                     <div>
                       <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Price ($)</label>
-                      <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none" type="number" value={editingProduct.price} onChange={e => setEditingProduct({...editingProduct, price: parseFloat(e.target.value)})} />
+                      <input className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none" type="number" value={editingProduct.price} onChange={e => setEditingProduct({...editingProduct, price: parseFloat(e.target.value)})} />
                     </div>
                     <div className="flex flex-col gap-4 pt-4">
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014]" checked={editingProduct.is_online} onChange={e => setEditingProduct({...editingProduct, is_online: e.target.checked})} />
+                        <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[var(--primary-color)]" checked={editingProduct.is_online} onChange={e => setEditingProduct({...editingProduct, is_online: e.target.checked})} />
                         <span className="text-sm font-medium text-zinc-700">Available in Online Store</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014]" checked={editingProduct.showSizes || false} onChange={e => setEditingProduct({...editingProduct, showSizes: e.target.checked})} />
+                        <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[var(--primary-color)]" checked={editingProduct.showSizes || false} onChange={e => setEditingProduct({...editingProduct, showSizes: e.target.checked})} />
                         <span className="text-sm font-medium text-zinc-700">Show Sizes on Product Page</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014]" checked={editingProduct.isNewArrival} onChange={e => setEditingProduct({...editingProduct, isNewArrival: e.target.checked})} />
+                        <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[var(--primary-color)]" checked={editingProduct.isNewArrival} onChange={e => setEditingProduct({...editingProduct, isNewArrival: e.target.checked})} />
                         <span className="text-sm font-medium text-zinc-700">New Arrival</span>
                       </label>
                       <div className="space-y-3">
                         <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014]" checked={editingProduct.isFeatured} onChange={e => setEditingProduct({...editingProduct, isFeatured: e.target.checked})} />
+                          <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[var(--primary-color)]" checked={editingProduct.isFeatured} onChange={e => setEditingProduct({...editingProduct, isFeatured: e.target.checked})} />
                           <span className="text-sm font-medium text-zinc-700">Featured on Home Page</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[#b90014]" checked={editingProduct.isOnSale} onChange={e => setEditingProduct({...editingProduct, isOnSale: e.target.checked, salePrice: e.target.checked ? (editingProduct.salePrice || 0) : 0})} />
+                          <input type="checkbox" className="w-4 h-4 rounded border-zinc-300 text-[var(--primary-color)]" checked={editingProduct.isOnSale} onChange={e => setEditingProduct({...editingProduct, isOnSale: e.target.checked, salePrice: e.target.checked ? (editingProduct.salePrice || 0) : 0})} />
                           <span className="text-sm font-medium text-zinc-700">On Sale</span>
                         </label>
                         {editingProduct.isOnSale && (
                           <div className="pl-6">
                             <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Sale Price ($)</label>
                             <input 
-                              className="w-full p-2 bg-red-50 border border-red-100 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none font-bold text-[#b90014]" 
+                              className="w-full p-2 bg-red-50 border border-red-100 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none font-bold text-[var(--primary-color)]" 
                               type="number" 
                               value={editingProduct.salePrice || ''} 
                               onChange={e => setEditingProduct({...editingProduct, salePrice: parseFloat(e.target.value)})} 
@@ -4676,13 +4957,13 @@ function AdminPageInner() {
                       </div>
                       <div className="pt-2">
                         <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
-                          Release Date (optional — hides sizes until this date)
+                          Release Date (optional â€” hides sizes until this date)
                         </label>
                         <input
                           type="datetime-local"
                           value={editingProduct.release_date ? new Date(editingProduct.release_date).toISOString().slice(0, 16) : ''}
                           onChange={e => setEditingProduct({...editingProduct, release_date: e.target.value ? new Date(e.target.value).toISOString() : null})}
-                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                         />
                         {editingProduct.release_date && (
                           <button
@@ -4720,7 +5001,7 @@ function AdminPageInner() {
                                     setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
                                   }}
                                   className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                >▲</button>
+                                >â–²</button>
                                 <button
                                   type="button"
                                   disabled={idx === allImgs.length - 1}
@@ -4730,7 +5011,7 @@ function AdminPageInner() {
                                     setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
                                   }}
                                   className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                >▼</button>
+                                >â–¼</button>
                               </div>
                               <div className="relative w-10 h-10 rounded bg-zinc-100 border border-zinc-200 overflow-hidden flex-shrink-0">
                                 {img_safe ? (
@@ -4770,7 +5051,7 @@ function AdminPageInner() {
                                   }} />
                                 </label>
                                 <input
-                                  className="flex-1 p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[#b90014] outline-none"
+                                  className="flex-1 p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] focus:ring-2 focus:ring-[var(--primary-color)] outline-none"
                                   placeholder="Or paste image URL..."
                                   value={img_safe || ''}
                                   onChange={e => {
@@ -4911,7 +5192,7 @@ function AdminPageInner() {
                   <div>
                     <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Description</label>
                     <textarea 
-                      className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] outline-none min-h-[120px] resize-none" 
+                      className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none min-h-[120px] resize-none" 
                       value={editingProduct.description} 
                       onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} 
                     />
@@ -4928,7 +5209,7 @@ function AdminPageInner() {
                             type="checkbox"
                             checked={editingProductHasNoSizes}
                             onChange={e => setEditingProductHasNoSizes(e.target.checked)}
-                            className="w-4 h-4 accent-[#b90014] cursor-pointer rounded"
+                            className="w-4 h-4 accent-[var(--primary-color)] cursor-pointer rounded"
                           />
                           <span>This product has no sizes (one size only)</span>
                         </label>
@@ -4939,7 +5220,7 @@ function AdminPageInner() {
                           <select
                             value={newVariantAgeGroup}
                             onChange={e => setNewVariantAgeGroup(e.target.value as any)}
-                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-[#b90014]"
+                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                           >
                             <option value="Adult">Adult</option>
                             <option value="Youth">Youth</option>
@@ -4959,7 +5240,7 @@ function AdminPageInner() {
                               value={newVariantSize}
                               onChange={e => setNewVariantSize(e.target.value)}
                               placeholder="e.g. 9, XL, 4Y"
-                              className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                              className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                             />
                           </div>
                         )}
@@ -4973,7 +5254,7 @@ function AdminPageInner() {
                                 setNewVariantBarcode(`${color} - ${newVariantSize || 'One Size'}`);
                               }
                             }}
-                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                           >
                             <option value="">None</option>
                             {(editingProduct?.colors || []).map((c: any) => (
@@ -4991,12 +5272,12 @@ function AdminPageInner() {
                               value={newVariantBarcode}
                               onChange={e => setNewVariantBarcode(e.target.value)}
                               placeholder="Scan or type barcode"
-                              className="flex-1 p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014]"
+                              className="flex-1 p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                             />
                             <button
                               type="button"
                               onClick={() => newVariantBarcodeRef.current?.focus()}
-                              className="px-3 py-2 bg-zinc-900 text-white rounded-lg flex items-center gap-1 text-[10px] font-black uppercase tracking-widest hover:bg-[#b90014] transition-colors"
+                              className="px-3 py-2 bg-zinc-900 text-white rounded-lg flex items-center gap-1 text-[10px] font-black uppercase tracking-widest hover:bg-[var(--primary-color)] transition-colors"
                               title="Focus barcode input to scan"
                             >
                               <ScanLine size={14} />
@@ -5009,14 +5290,14 @@ function AdminPageInner() {
                             type="number"
                             value={newVariantQuantity}
                             onChange={e => setNewVariantQuantity(parseInt(e.target.value) || 0)}
-                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#b90014] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </div>
                       </div>
                       <button
                         type="button"
                         onClick={handleAddVariant}
-                        className="w-full py-2.5 bg-zinc-900 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-[#b90014] transition-all"
+                        className="w-full py-2.5 bg-zinc-900 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-[var(--primary-color)] transition-all"
                       >
                         + Add Variant to Database
                       </button>
@@ -5095,15 +5376,15 @@ function AdminPageInner() {
                                         await supabase.from('product_variants').update({ color: newColor }).eq('id', v.id);
                                         setEditingProductVariants(prev => prev.map(x => x.id === v.id ? { ...x, color: newColor } : x));
                                       }}
-                                      className="text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#b90014]"
+                                      className="text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)]"
                                     >
-                                      <option value="">— None —</option>
+                                      <option value="">â€” None â€”</option>
                                       {(editingProduct.colors || []).map((c: any) => (
                                         <option key={c.name} value={c.name}>{c.name}</option>
                                       ))}
                                     </select>
                                   </td>
-                                  <td className="p-3 font-mono font-bold text-[#b90014]">{v.barcode}</td>
+                                  <td className="p-3 font-mono font-bold text-[var(--primary-color)]">{v.barcode}</td>
                                   <td className="p-3">
                                     <div className="flex items-center gap-2">
                                       <button
@@ -5168,7 +5449,7 @@ function AdminPageInner() {
                     )}
                     {editStatus === 'success' && (
                       <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">
-                        ✨ Product updated successfully!
+                        âœ¨ Product updated successfully!
                       </p>
                     )}
                   </div>
@@ -5186,7 +5467,7 @@ function AdminPageInner() {
                         }
                       }}
                       disabled={isUploading || editStatus === 'saving'}
-                      className={`px-8 py-3 bg-zinc-900 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#b90014] transition-all shadow-lg shadow-zinc-900/10 flex items-center gap-2 ${(isUploading || editStatus === 'saving') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`px-8 py-3 bg-zinc-900 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[var(--primary-color)] transition-all shadow-lg shadow-zinc-900/10 flex items-center gap-2 ${(isUploading || editStatus === 'saving') ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {isUploading || editStatus === 'saving' ? (
                         <>

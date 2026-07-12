@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Search, ChevronDown, ChevronUp, AlertCircle, RefreshCw, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../supabase';
@@ -398,11 +398,11 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
             onClick={() => setActiveTab(tab)}
             className={`flex-1 px-4 py-3 text-xs font-black uppercase tracking-widest transition-colors border-b-2 ${
               activeTab === tab
-                ? 'border-[#b90014] text-[#b90014] bg-white'
+                ? 'border-[var(--primary-color)] text-[var(--primary-color)] bg-white'
                 : 'border-transparent text-zinc-900 hover:text-zinc-900'
             }`}
           >
-            {tab === 'sell' ? '💳 Sell' : tab === 'redeem' ? '💰 Redeem' : '📊 History'}
+            {tab === 'sell' ? 'ðŸ’³ Sell' : tab === 'redeem' ? 'ðŸ’° Redeem' : '📊 History'}
           </button>
         ))}
       </div>
@@ -433,7 +433,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                     }}
                     className={`py-2 rounded-lg font-bold text-xs transition-colors ${
                       amount === preset && !customAmount
-                        ? 'bg-[#b90014] text-white'
+                        ? 'bg-[var(--primary-color)] text-white'
                         : 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200'
                     }`}
                   >
@@ -477,7 +477,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                     <p className="text-xs font-bold text-emerald-900">{selectedCustomer.first_name} {selectedCustomer.last_name}</p>
                     {(selectedCustomer.email || selectedCustomer.phone) && (
                       <p className="text-[9px] text-emerald-700">
-                        {selectedCustomer.email} {selectedCustomer.email && selectedCustomer.phone ? '·' : ''} {selectedCustomer.phone}
+                        {selectedCustomer.email} {selectedCustomer.email && selectedCustomer.phone ? 'Â·' : ''} {selectedCustomer.phone}
                       </p>
                     )}
                   </div>
@@ -524,7 +524,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                     <button
                       onClick={handleCreateCustomer}
                       disabled={isIssuing}
-                      className="flex-1 px-3 py-2 bg-[#b90014] text-white rounded-lg text-[10px] font-bold hover:bg-red-700 disabled:opacity-50"
+                      className="flex-1 px-3 py-2 bg-[var(--primary-color)] text-white rounded-lg text-[10px] font-bold hover:bg-red-700 disabled:opacity-50"
                     >
                       {isIssuing ? 'Creating...' : 'Create'}
                     </button>
@@ -540,7 +540,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                       onFocus={() => setIsDropdownOpen(true)}
                       onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
                       placeholder="Search customer by name..."
-                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-bold text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#b90014]"
+                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs font-bold text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                     />
 
                     {isDropdownOpen && (
@@ -568,7 +568,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                                 <p className="text-xs font-bold text-zinc-900">{customer.first_name} {customer.last_name}</p>
                                 {(customer.email || customer.phone) && (
                                   <p className="text-[9px] text-zinc-900">
-                                    {customer.email} {customer.email && customer.phone ? '·' : ''} {customer.phone}
+                                    {customer.email} {customer.email && customer.phone ? 'Â·' : ''} {customer.phone}
                                   </p>
                                 )}
                               </li>
@@ -581,7 +581,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
 
                   <button
                     onClick={() => setShowCreateMode(true)}
-                    className="w-full text-left px-3 py-2 text-[10px] font-bold text-[#b90014] hover:text-red-700 uppercase hover:underline"
+                    className="w-full text-left px-3 py-2 text-[10px] font-bold text-[var(--primary-color)] hover:text-red-700 uppercase hover:underline"
                   >
                     + Create new customer instead
                   </button>
@@ -646,7 +646,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
             <button
               onClick={handleIssueGiftCard}
               disabled={isIssuing || finalSellAmount <= 0}
-              className="w-full px-4 py-2 rounded-lg bg-[#b90014] text-white text-xs font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full px-4 py-2 rounded-lg bg-[var(--primary-color)] text-white text-xs font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isIssuing ? (
                 <>
@@ -695,7 +695,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                     <button
                       onClick={handleLookup}
                       disabled={isRedeemLoading || !redeemCardNumber.trim()}
-                      className="px-4 py-2 bg-[#b90014] text-white rounded-lg text-[10px] font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50"
+                      className="px-4 py-2 bg-[var(--primary-color)] text-white rounded-lg text-[10px] font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50"
                     >
                       {isRedeemLoading ? '...' : 'Look Up'}
                     </button>
@@ -724,7 +724,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                   )}
                   <div>
                     <p className="text-[10px] text-zinc-900 uppercase tracking-wide font-bold">Available Balance</p>
-                    <p className="text-sm font-black text-[#b90014]">${redeemCardData.current_balance.toFixed(2)}</p>
+                    <p className="text-sm font-black text-[var(--primary-color)]">${redeemCardData.current_balance.toFixed(2)}</p>
                   </div>
                 </div>
 
@@ -772,7 +772,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                   <button
                     onClick={handleRedeem}
                     disabled={isRedeeming || redeemAmount <= 0 || redeemAmount > redeemCardData.current_balance || !cartHasItems}
-                    className="flex-1 px-4 py-2 rounded-lg bg-[#b90014] text-white text-xs font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 rounded-lg bg-[var(--primary-color)] text-white text-xs font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     title={!cartHasItems ? 'Add items to cart first' : ''}
                   >
                     {isRedeeming ? (
@@ -922,7 +922,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                         {gc.is_active && gc.current_balance > 0 && (
                           <button
                             onClick={() => openRedeemFromHistory(gc)}
-                            className="w-full px-3 py-2 bg-[#b90014] text-white rounded-lg text-[10px] font-bold uppercase hover:bg-red-700 transition-colors"
+                            className="w-full px-3 py-2 bg-[var(--primary-color)] text-white rounded-lg text-[10px] font-bold uppercase hover:bg-red-700 transition-colors"
                           >
                             Redeem This Card
                           </button>
@@ -948,7 +948,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                   </div>
                   <div>
                     <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-widest mb-1">Remaining</p>
-                    <p className="text-xl font-black text-[#b90014]">${totalRemaining.toFixed(0)}</p>
+                    <p className="text-xl font-black text-[var(--primary-color)]">${totalRemaining.toFixed(0)}</p>
                   </div>
                 </div>
               </div>
@@ -995,7 +995,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                   </div>
                   <div>
                     <p className="text-[10px] text-zinc-900 uppercase tracking-wide font-bold">Available Balance</p>
-                    <p className="text-sm font-black text-[#b90014]">${selectedCardForRedeem.current_balance.toFixed(2)}</p>
+                    <p className="text-sm font-black text-[var(--primary-color)]">${selectedCardForRedeem.current_balance.toFixed(2)}</p>
                   </div>
                 </div>
 
@@ -1035,7 +1035,7 @@ export const GiftCardTab: React.FC<GiftCardTabProps> = ({
                   <button
                     onClick={handleRedeemFromHistory}
                     disabled={isRedeeming || redeemAmount <= 0 || redeemAmount > selectedCardForRedeem.current_balance || !cartHasItems}
-                    className="flex-1 px-4 py-2 rounded-lg bg-[#b90014] text-white text-xs font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 rounded-lg bg-[var(--primary-color)] text-white text-xs font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isRedeeming ? (
                       <>

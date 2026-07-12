@@ -1,4 +1,4 @@
-import { useAuth } from '../context/AuthContext';
+﻿import { useAuth } from '../context/AuthContext';
 import { AdminPage } from './AdminPage';
 import { ShieldAlert, LogIn } from 'lucide-react';
 import React, { useState } from 'react';
@@ -55,7 +55,7 @@ export function AdminLogin() {
     <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
       <div className="bg-white p-10 rounded-[2rem] shadow-2xl shadow-zinc-200/50 max-w-md w-full border border-zinc-100">
         <div className="flex flex-col items-center text-center space-y-6">
-          <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center text-[#b90014]">
+          <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center text-[var(--primary-color)]">
             <ShieldAlert size={40} />
           </div>
           
@@ -92,7 +92,7 @@ export function AdminLogin() {
                 <button
                   onClick={handleGoogleLogin}
                   disabled={isLoggingIn}
-                  className="w-full flex items-center justify-center gap-3 bg-zinc-900 text-white py-4 px-6 rounded-2xl font-bold hover:bg-[#b90014] transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-zinc-900/10 disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-3 bg-zinc-900 text-white py-4 px-6 rounded-2xl font-bold hover:bg-[var(--primary-color)] transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-zinc-900/10 disabled:opacity-50"
                 >
                   <LogIn size={20} />
                   {isLoggingIn ? "Signing in..." : "Continue with Google"}
@@ -122,7 +122,7 @@ export function AdminLogin() {
                             setIsLoggingIn(false);
                           }
                         }}
-                        className="py-2 px-3 bg-zinc-50 border border-zinc-200 text-zinc-700 text-xs font-semibold rounded-xl hover:bg-[#b90014] hover:text-white hover:border-[#b90014] transition-all flex items-center justify-between"
+                        className="py-2 px-3 bg-zinc-50 border border-zinc-200 text-zinc-700 text-xs font-semibold rounded-xl hover:bg-[var(--primary-color)] hover:text-white hover:border-[var(--primary-color)] transition-all flex items-center justify-between"
                       >
                         <span>Entry: {admEmail}</span>
                         <span className="text-[8px] bg-zinc-200/50 hover:bg-red-700 px-1 rounded text-zinc-500 font-mono">bypass</span>
@@ -138,13 +138,13 @@ export function AdminLogin() {
                   placeholder="admin@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-[#b90014] focus:border-transparent"
+                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent"
                   required
                 />
                 <button
                   type="submit"
                   disabled={isLoggingIn}
-                  className="w-full flex items-center justify-center gap-3 bg-zinc-900 text-white py-4 px-6 rounded-2xl font-bold hover:bg-[#b90014] transition-all disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-3 bg-zinc-900 text-white py-4 px-6 rounded-2xl font-bold hover:bg-[var(--primary-color)] transition-all disabled:opacity-50"
                 >
                   {isLoggingIn ? "Sending link..." : "Send Magic Link"}
                 </button>

@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+﻿import { motion } from 'motion/react';
 
 interface BrandFilterProps {
   brands: string[];
@@ -27,8 +27,8 @@ export function BrandFilter({ brands, selectedBrands, onBrandsChange }: BrandFil
           onClick={() => toggleBrand(brand)}
           className={`px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${
             selectedBrands.includes(brand)
-              ? 'bg-[#b90014] text-white shadow-lg'
-              : 'bg-white border border-zinc-200 text-zinc-900 hover:border-[#b90014] hover:text-[#b90014]'
+              ? 'bg-[var(--primary-color)] text-white shadow-lg'
+              : 'bg-white border border-zinc-200 text-zinc-900 hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]'
           }`}
         >
           {brand}

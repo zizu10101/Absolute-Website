@@ -1,4 +1,4 @@
-import { MapPin, Phone, Mail, Instagram } from 'lucide-react';
+﻿import { MapPin, Phone, Mail, Instagram } from 'lucide-react';
 
 export function ContactUsPage() {
   return (
@@ -10,20 +10,20 @@ export function ContactUsPage() {
           <div className="bg-zinc-50 p-8 rounded-2xl border border-zinc-100">
             <h2 className="text-2xl font-bold mb-6">Visit Our Store</h2>
             <div className="flex items-start gap-4 mb-4">
-              <MapPin className="text-[#b90014] mt-1" />
+              <MapPin className="text-[var(--primary-color)] mt-1" />
               <p className="text-zinc-600">5600 Rose Cherry Place,<br />Mississauga, Ontario</p>
             </div>
             <div className="flex items-center gap-4 mb-4">
-              <Phone className="text-[#b90014]" />
+              <Phone className="text-[var(--primary-color)]" />
               <p className="text-zinc-600">905-593-3600</p>
             </div>
             <a 
               href="https://www.instagram.com/absolutemississauga?igsh=MXNrOW15Mmhna2Q5ZA==" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center gap-4 text-zinc-600 hover:text-[#b90014] transition-colors"
+              className="flex items-center gap-4 text-zinc-600 hover:text-[var(--primary-color)] transition-colors"
             >
-              <Instagram className="text-[#b90014]" />
+              <Instagram className="text-[var(--primary-color)]" />
               <span>Follow us on Instagram</span>
             </a>
           </div>

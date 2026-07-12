@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+﻿import { useParams } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { useSettings } from '../context/SettingsContext';
 import { ProductCard } from '../components/ProductCard';
@@ -11,8 +11,14 @@ const ITEMS_PER_PAGE = 4;
 
 export function BrandPage() {
   const { brandName } = useParams<{ brandName: string }>();
-  const { products, isLoading } = useProducts();
+  const { products, isLoading, fetchProductsByCategory } = useProducts();
   const { navigationMenus } = useSettings();
+
+  // On direct navigation, context may only have featured products (8).
+  // Fetch all products so the brand filter has the full catalogue.
+  useEffect(() => {
+    fetchProductsByCategory();
+  }, [brandName]);
 
   const [localSearch, setLocalSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
@@ -95,7 +101,7 @@ export function BrandPage() {
         <div className="flex flex-wrap items-center gap-4">
           {/* Search Input */}
           <div className="relative group min-w-[280px]">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-[#b90014] transition-colors" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-[var(--primary-color)] transition-colors" size={18} />
             <input
               type="text"
               placeholder="Search products..."
@@ -104,7 +110,7 @@ export function BrandPage() {
                 setLocalSearch(e.target.value);
                 setVisibleCount(ITEMS_PER_PAGE);
               }}
-              className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#b90014] focus:border-transparent outline-none transition-all font-medium text-sm"
+              className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none transition-all font-medium text-sm"
             />
           </div>
 
@@ -113,7 +119,7 @@ export function BrandPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="appearance-none pl-4 pr-10 py-3 bg-white border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[#b90014] outline-none cursor-pointer font-bold uppercase tracking-widest text-[10px] transition-all"
+              className="appearance-none pl-4 pr-10 py-3 bg-white border border-zinc-200 rounded-xl focus:ring-2 focus:ring-[var(--primary-color)] outline-none cursor-pointer font-bold uppercase tracking-widest text-[10px] transition-all"
             >
               <option value="newest">Newest First</option>
               <option value="price-low">Price: Low to High</option>
@@ -144,8 +150,8 @@ export function BrandPage() {
                 onClick={() => setSelectedCategory(null)}
                 className={`px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${
                   selectedCategory === null
-                    ? 'bg-[#b90014] text-white shadow-lg'
-                    : 'bg-white border border-zinc-200 text-zinc-900 hover:border-[#b90014] hover:text-[#b90014]'
+                    ? 'bg-[var(--primary-color)] text-white shadow-lg'
+                    : 'bg-white border border-zinc-200 text-zinc-900 hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]'
                 }`}
               >
                 All
@@ -159,8 +165,8 @@ export function BrandPage() {
                   onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
                   className={`px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${
                     selectedCategory === category
-                      ? 'bg-[#b90014] text-white shadow-lg'
-                      : 'bg-white border border-zinc-200 text-zinc-900 hover:border-[#b90014] hover:text-[#b90014]'
+                      ? 'bg-[var(--primary-color)] text-white shadow-lg'
+                      : 'bg-white border border-zinc-200 text-zinc-900 hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]'
                   }`}
                 >
                   {category}
@@ -193,13 +199,18 @@ export function BrandPage() {
             <div className="flex justify-center">
               <button
                 onClick={handleLoadMore}
-                className="px-8 py-4 bg-white border border-zinc-200 text-zinc-900 font-bold uppercase tracking-widest text-xs hover:border-[#b90014] hover:text-[#b90014] transition-all rounded-lg"
+                className="px-8 py-4 bg-white border border-zinc-200 text-zinc-900 font-bold uppercase tracking-widest text-xs hover:border-[var(--primary-color)] hover:text-[var(--primary-color)] transition-all rounded-lg"
               >
                 Load More
               </button>
             </div>
           )}
         </>
+      ) : isLoading ? (
+        <div className="flex flex-col items-center justify-center py-24">
+          <div className="w-10 h-10 border-4 border-[var(--primary-color)] border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs">Loading products...</p>
+        </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-24 bg-zinc-50 rounded-xl">
           <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mb-2">No products found</p>

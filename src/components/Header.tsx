@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+﻿import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingBag, Search, Menu, User, Heart, X } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -69,7 +69,7 @@ export function Header({ onMenuClick }: Props) {
         <div className="flex items-center shrink-0 gap-4">
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-1 text-zinc-900 hover:text-[#b90014] transition-colors"
+            className="lg:hidden p-1 text-zinc-900 hover:text-[var(--primary-color)] transition-colors"
           >
             <Menu size={24} strokeWidth={1.5} />
           </button>
@@ -78,7 +78,7 @@ export function Header({ onMenuClick }: Props) {
           </Link>
         </div>
 
-        {/* Center Section: Nav — fills all space between logo and icons */}
+        {/* Center Section: Nav â€” fills all space between logo and icons */}
         <div className="hidden lg:flex flex-1 items-center px-6">
           <nav className="flex w-full items-center justify-center gap-5">
             {navigationMenus.map((menu) => (
@@ -89,7 +89,7 @@ export function Header({ onMenuClick }: Props) {
               >
                 <Link
                   to={menu.path}
-                  className={`text-[11px] font-black uppercase tracking-normal whitespace-nowrap transition-all py-2 border-b-2 ${activeMenu === menu.label ? 'text-[#b90014] border-[#b90014]' : 'text-zinc-900 border-transparent hover:text-[#b90014]'}`}
+                  className={`text-[11px] font-black uppercase tracking-normal whitespace-nowrap transition-all py-2 border-b-2 ${activeMenu === menu.label ? 'text-[var(--primary-color)] border-[var(--primary-color)]' : 'text-zinc-900 border-transparent hover:text-[var(--primary-color)]'}`}
                 >
                   {menu.label}
                 </Link>
@@ -98,7 +98,7 @@ export function Header({ onMenuClick }: Props) {
             <div className="relative flex items-center" onMouseEnter={() => setActiveMenu(null)}>
               <Link
                 to="/custom-apparel"
-                className="text-[11px] font-black uppercase tracking-normal whitespace-nowrap transition-all py-2 border-b-2 text-zinc-900 border-transparent hover:text-[#b90014]"
+                className="text-[11px] font-black uppercase tracking-normal whitespace-nowrap transition-all py-2 border-b-2 text-zinc-900 border-transparent hover:text-[var(--primary-color)]"
               >
                 Custom Apparel
               </Link>
@@ -108,13 +108,13 @@ export function Header({ onMenuClick }: Props) {
 
         {/* Right Section: Icons */}
         <div className="flex items-center gap-6 shrink-0">
-          <button className="p-1 text-zinc-900 hover:text-[#b90014] transition-colors relative">
+          <button className="p-1 text-zinc-900 hover:text-[var(--primary-color)] transition-colors relative">
             <Heart size={24} strokeWidth={1.5} />
             <span className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">0</span>
           </button>
           <button 
             onClick={() => setIsSearchOpen(true)}
-            className="p-1 text-zinc-900 hover:text-[#b90014] transition-colors"
+            className="p-1 text-zinc-900 hover:text-[var(--primary-color)] transition-colors"
           >
             <Search size={24} strokeWidth={1.5} />
           </button>
@@ -179,7 +179,7 @@ export function Header({ onMenuClick }: Props) {
                   {/* Left Column: Submenu Headings */}
                   <div className="w-80 border-r border-zinc-100 py-8 relative z-50">
                     {menu.submenus.map((submenu, idx) => {
-                      const headingClass = `w-full text-left px-12 py-4 cursor-pointer transition-all border-l-4 ${activeSubmenu === submenu.heading ? 'bg-zinc-50 border-[#b90014] text-[#b90014]' : 'border-transparent text-zinc-500 hover:text-zinc-900'}`;
+                      const headingClass = `w-full text-left px-12 py-4 cursor-pointer transition-all border-l-4 ${activeSubmenu === submenu.heading ? 'bg-zinc-50 border-[var(--primary-color)] text-[var(--primary-color)]' : 'border-transparent text-zinc-500 hover:text-zinc-900'}`;
                       const h3 = <h3 className="text-[11px] font-black uppercase tracking-[0.2em] whitespace-nowrap">{submenu.heading}</h3>;
                       return submenu.path ? (
                         <Link
@@ -229,7 +229,7 @@ export function Header({ onMenuClick }: Props) {
                                 <img src={item.logo} alt="" className="max-w-full max-h-full object-contain grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
                               </div>
                             )}
-                            <span className="text-[13px] font-bold text-zinc-600 group-hover:text-[#b90014] transition-colors">
+                            <span className="text-[13px] font-bold text-zinc-600 group-hover:text-[var(--primary-color)] transition-colors">
                               {item.label}
                             </span>
                           </Link>

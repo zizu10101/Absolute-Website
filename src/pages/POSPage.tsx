@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Moon, Sun, LogOut, Search, Users, Percent, FileText, Trash2,
   Barcode as BarcodeIcon, Archive, Home, AlertCircle, X, Check,
   Receipt, RotateCcw, RefreshCw, Plus, Printer, ScanLine, CheckCircle2, BarChart3, Undo2,
-  UserPlus, Gift, Tag, CreditCard, Store, Footprints, Shirt, Shield, Ticket, AlertTriangle
+  UserPlus, Gift, Tag, CreditCard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Barcode from 'react-barcode';
@@ -22,6 +23,14 @@ import { mapProductFromDb } from '../context/ProductContext';
 import { generateThermalReceiptHTML, generateGiftReceiptHTML } from '../utils/thermalReceipt';
 
 type CategoryTab = 'ALL' | 'FOOTWEAR' | 'KITS' | 'BALLS' | 'EQUIPMENT' | 'TEAMWEAR' | 'GLOVES';
+
+interface PendingBarcode {
+  barcode: string;
+  brand: string;
+  price: number;
+  name: string;
+  scannedAt: string;
+}
 
 interface Receipt {
   transactionId?: string;
@@ -46,6 +55,7 @@ interface Receipt {
 }
 
 export function POSPage() {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
 
@@ -92,6 +102,23 @@ export function POSPage() {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeError, setBarcodeError] = useState<string | null>(null);
   const [barcodeSuccess, setBarcodeSuccess] = useState<string | null>(null);
+
+  // Unknown barcode modal
+  const [showUnknownBarcodeModal, setShowUnknownBarcodeModal] = useState(false);
+  const [unknownBarcode, setUnknownBarcode] = useState('');
+  const [unknownBarcodeBrand, setUnknownBarcodeBrand] = useState('');
+  const [unknownBarcodePrice, setUnknownBarcodePrice] = useState('');
+  const [unknownBarcodeName, setUnknownBarcodeName] = useState('');
+
+  // Pending barcodes (barcodes scanned but not yet linked to a product)
+  const [pendingBarcodes, setPendingBarcodes] = useState<PendingBarcode[]>(() => {
+    try { return JSON.parse(localStorage.getItem('pending_barcodes') || '[]'); } catch { return []; }
+  });
+  const [showPendingBarcodesModal, setShowPendingBarcodesModal] = useState(false);
+  const [pendingItemModes, setPendingItemModes] = useState<Record<string, 'save-existing' | null>>({});
+  const [pendingSearchQueries, setPendingSearchQueries] = useState<Record<string, string>>({});
+  const [pendingSearchResults, setPendingSearchResults] = useState<Record<string, any[]>>({});
+  const [pendingSaving, setPendingSaving] = useState<Record<string, boolean>>({});
 
   // Customer management
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
@@ -257,10 +284,10 @@ export function POSPage() {
 
   // Auto-focus barcode input (disabled when modals are open)
   useEffect(() => {
-    if (!showCheckout && !showDiscountModal && posTab === 'register') {
+    if (!showCheckout && !showDiscountModal && !showUnknownBarcodeModal && !showPendingBarcodesModal && posTab === 'register') {
       barcodeInputRef.current?.focus();
     }
-  }, [showCheckout, showDiscountModal, posTab]);
+  }, [showCheckout, showDiscountModal, showUnknownBarcodeModal, showPendingBarcodesModal, posTab]);
 
   // Barcode scanning
   const handleBarcodeScan = async (rawBarcode: string) => {
@@ -268,6 +295,7 @@ export function POSPage() {
     if (!barcode) return;
     setBarcodeError(null);
     setBarcodeSuccess(null);
+    let openedUnknownModal = false;
 
     try {
       // BARCODE ROUTING LOGIC
@@ -301,7 +329,7 @@ export function POSPage() {
       // UUID format: 8-4-4-4-12 hex digits (36 chars total with hyphens)
       const isUUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(barcode);
       if (isUUID) {
-        setBarcodeError('Error: That appears to be a transaction UUID. Please scan the invoice barcode (INV-XXXXX) instead.');
+        setBarcodeError('âŒ That appears to be a transaction UUID. Please scan the invoice barcode (INV-XXXXX) instead.');
         setTimeout(() => setBarcodeError(null), 4000);
         return;
       }
@@ -335,8 +363,13 @@ export function POSPage() {
       }
 
       if (!variantData && !productByCode) {
-        setBarcodeError(`No product found for barcode: ${barcode}`);
-        setTimeout(() => setBarcodeError(null), 4000);
+        openedUnknownModal = true;
+        setUnknownBarcode(barcode);
+        setUnknownBarcodeBrand('');
+        setUnknownBarcodePrice('');
+        setUnknownBarcodeName('');
+        setShowPendingBarcodesModal(false);
+        setShowUnknownBarcodeModal(true);
         return;
       }
 
@@ -354,7 +387,7 @@ export function POSPage() {
 
         const stock = variant.stock_quantity ?? 0;
         if (stock <= 0) {
-          setBarcodeError(`OUT OF STOCK — ${product.name} · Size ${variant.size}`);
+          setBarcodeError(`OUT OF STOCK â€” ${product.name} Â· Size ${variant.size}`);
           setTimeout(() => setBarcodeError(null), 4000);
           return;
         }
@@ -402,8 +435,8 @@ export function POSPage() {
         setBarcodeError(addError);
         setTimeout(() => setBarcodeError(null), 4000);
       } else {
-        const colorText = cartItem.color ? ` · ${cartItem.color}` : '';
-        const sizeText = cartItem.size ? ` · Sz ${cartItem.size}` : '';
+        const colorText = cartItem.color ? ` Â· ${cartItem.color}` : '';
+        const sizeText = cartItem.size ? ` Â· Sz ${cartItem.size}` : '';
         setBarcodeSuccess(`Added: ${cartItem.name}${colorText}${sizeText}`);
         setTimeout(() => setBarcodeSuccess(null), 2000);
       }
@@ -413,10 +446,98 @@ export function POSPage() {
       setTimeout(() => setBarcodeError(null), 4000);
     } finally {
       setBarcodeInput('');
-      if (!showCheckout && !showDiscountModal && posTab === 'register') {
+      if (!openedUnknownModal && !showCheckout && !showDiscountModal && posTab === 'register') {
         setTimeout(() => barcodeInputRef.current?.focus(), 60);
       }
     }
+  };
+
+  // Pending barcodes helpers
+  const savePendingBarcodes = (barcodes: PendingBarcode[]) => {
+    setPendingBarcodes(barcodes);
+    localStorage.setItem('pending_barcodes', JSON.stringify(barcodes));
+  };
+
+  const handleAddUnknownToCart = (saveNow: boolean) => {
+    const price = parseFloat(unknownBarcodePrice) || 0;
+    const brand = unknownBarcodeBrand || 'Unknown';
+    const itemName = unknownBarcodeName.trim() || `${brand} Item`;
+
+    const cartItem: any = {
+      id: `unknown-${unknownBarcode}-${Date.now()}`,
+      name: itemName,
+      price,
+      originalPrice: price,
+      barcode: unknownBarcode,
+      category: '',
+      quantity: 1,
+    };
+
+    addItem(cartItem);
+
+    const pending: PendingBarcode = {
+      barcode: unknownBarcode,
+      brand,
+      price,
+      name: itemName,
+      scannedAt: new Date().toISOString(),
+    };
+    savePendingBarcodes([...pendingBarcodes.filter(p => p.barcode !== unknownBarcode), pending]);
+
+    setShowUnknownBarcodeModal(false);
+    setBarcodeSuccess(`Added: ${itemName}`);
+    setTimeout(() => setBarcodeSuccess(null), 2000);
+
+    if (saveNow) {
+      setTimeout(() => setShowPendingBarcodesModal(true), 350);
+    }
+  };
+
+  const handlePendingSearch = async (barcode: string, query: string) => {
+    setPendingSearchQueries(prev => ({ ...prev, [barcode]: query }));
+    if (query.trim().length < 2) {
+      setPendingSearchResults(prev => ({ ...prev, [barcode]: [] }));
+      return;
+    }
+    const { data } = await supabase
+      .from('products')
+      .select('id, name, brand, category')
+      .ilike('name', `%${query}%`)
+      .limit(6);
+    setPendingSearchResults(prev => ({ ...prev, [barcode]: data || [] }));
+  };
+
+  const handleSaveToExisting = async (pb: PendingBarcode, product: any) => {
+    setPendingSaving(prev => ({ ...prev, [pb.barcode]: true }));
+    try {
+      const { data: variants } = await supabase
+        .from('product_variants')
+        .select('id, size')
+        .eq('product_id', product.id)
+        .limit(1);
+
+      if (variants && variants.length > 0) {
+        await supabase.from('product_variants').update({ barcode: pb.barcode }).eq('id', variants[0].id);
+      } else {
+        await supabase.from('product_variants').insert({
+          product_id: product.id,
+          barcode: pb.barcode,
+          size: 'One Size',
+          stock_quantity: 1,
+        });
+      }
+
+      savePendingBarcodes(pendingBarcodes.filter(p => p.barcode !== pb.barcode));
+      setPendingItemModes(prev => { const n = { ...prev }; delete n[pb.barcode]; return n; });
+    } catch (err) {
+      console.error('Failed to save barcode to existing product:', err);
+    } finally {
+      setPendingSaving(prev => ({ ...prev, [pb.barcode]: false }));
+    }
+  };
+
+  const handleSkipBarcode = (barcode: string) => {
+    savePendingBarcodes(pendingBarcodes.filter(p => p.barcode !== barcode));
   };
 
   // Get stock from pre-built map (instant lookup, no calculations)
@@ -483,7 +604,7 @@ export function POSPage() {
         setRecentTransactions(data);
       }
     } catch (e: any) {
-      console.error(`ERROR STEP 8: Caught exception:`, e.message);
+      console.error(`âŒ STEP 8: Caught exception:`, e.message);
       alert(`Error: ${e.message}`);
     }
   };
@@ -511,7 +632,7 @@ export function POSPage() {
       // Detect UUID format
       const isUUID = input.length === 36 && input.includes('-') && !input.startsWith('INV-');
       if (isUUID) {
-        setReturnsLookupError('Error: Please scan the invoice barcode, not the transaction UUID');
+        setReturnsLookupError('âŒ Please scan the invoice barcode, not the transaction UUID');
         return;
       }
 
@@ -674,7 +795,7 @@ export function POSPage() {
           setAvailableStoreCredits(filteredCredits);
           hasCustomerCredits = filteredCredits.length > 0;
         } catch (err: any) {
-          console.error('ERROR SC MODAL - fetching customer store credits:', err);
+          console.error('🔴 SC MODAL ERROR fetching customer store credits:', err);
           setAvailableStoreCredits([]);
         }
       } else {
@@ -708,7 +829,7 @@ export function POSPage() {
       // Detect if this is an invoice number (INV-XXXXX format)
       if (searchCode.startsWith('INV-') || /^INV-\d+$/.test(searchCode)) {
         setStoreCreditError(
-          'Error: This is an invoice barcode, not a store credit.\n\n' +
+          'â›” This is an invoice barcode, not a store credit.\n\n' +
           'Invoice codes are in format: INV-XXXXX\n\n' +
           'To process a return or look up a transaction, use the Returns tab instead.'
         );
@@ -719,7 +840,7 @@ export function POSPage() {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (uuidRegex.test(searchCode)) {
         setStoreCreditError(
-          'Error: This is a transaction receipt barcode, not a store credit.\n\n' +
+          'âŒ This is a transaction receipt barcode, not a store credit.\n\n' +
           'Store Credit codes are in format: SC-XXXXXXXXXXXX\n\n' +
           'Please scan the STORE CREDIT receipt instead.'
         );
@@ -788,7 +909,7 @@ export function POSPage() {
       setScScanInput('');
       // DO NOT call processPayment here - user will select payment method next
     } catch (err: any) {
-      console.error('ERROR SC SCAN EXCEPTION:', err);
+      console.error('🔴 SC SCAN EXCEPTION:', err);
       setStoreCreditError('Error scanning store credit: ' + err.message);
     } finally {
       setScLookupLoading(false);
@@ -837,7 +958,7 @@ export function POSPage() {
         setStoreCreditError('No store credits found matching that search');
       }
     } catch (err: any) {
-      console.error('ERROR SC SEARCH:', err);
+      console.error('🔴 SC SEARCH ERROR:', err);
       setStoreCreditError('Error searching store credits: ' + err.message);
       setScSearchResults([]);
     } finally {
@@ -958,7 +1079,7 @@ export function POSPage() {
 
 
           if (scError) {
-            console.error('ERROR SC UPDATE FAILED:', scError);
+            console.error('🔴 SC UPDATE FAILED:', scError);
           } else {
             storeCreditNewBalance = newBalance;
 
@@ -972,12 +1093,12 @@ export function POSPage() {
               });
 
             if (txError) {
-              console.error('ERROR Transaction record failed:', txError);
+              console.error('🔴 Transaction record failed:', txError);
             } else {
             }
           }
         } catch (err) {
-          console.error('ERROR updating store credit balance:', err);
+          console.error('🔴 Error updating store credit balance:', err);
         }
       } else {
       }
@@ -1020,11 +1141,11 @@ export function POSPage() {
             .eq('card_number', capturedGiftCard.cardNumber);
 
           if (updateErr) {
-            console.error('WARNING Gift card redemption:', updateErr);
+            console.error('⚠️ Gift card redemption warning:', updateErr);
           } else {
           }
         } catch (err) {
-          console.error('ERROR processing gift card redemption:', err);
+          console.error('âŒ Error processing gift card redemption:', err);
           // Don't fail the transaction if gift card redemption fails
         }
       }
@@ -1276,32 +1397,31 @@ export function POSPage() {
                 placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[#1a2236] border border-[#2d3547] rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#b90014]"
+                className="w-full pl-10 pr-4 py-2 bg-[#1a2236] border border-[#2d3547] rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--primary-color)]"
               />
             </div>
 
             {/* Category Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-1">
               {[
-                { id: 'ALL' as CategoryTab, label: 'ALL', Icon: Store },
-                { id: 'FOOTWEAR' as CategoryTab, label: 'FOOTWEAR', Icon: Footprints },
-                { id: 'KITS' as CategoryTab, label: 'KITS', Icon: Shirt },
-                { id: 'BALLS' as CategoryTab, label: 'BALLS', Icon: null },
-                { id: 'EQUIPMENT' as CategoryTab, label: 'EQUIPMENT', Icon: Shield },
-                { id: 'TEAMWEAR' as CategoryTab, label: 'TEAMWEAR', Icon: Shirt },
-                { id: 'GLOVES' as CategoryTab, label: 'GLOVES', Icon: null },
+                { id: 'ALL' as CategoryTab, label: 'ALL', icon: '🏪' },
+                { id: 'FOOTWEAR' as CategoryTab, label: 'FOOTWEAR', icon: '👟' },
+                { id: 'KITS' as CategoryTab, label: 'KITS', icon: '👕' },
+                { id: 'BALLS' as CategoryTab, label: 'BALLS', icon: '⚽' },
+                { id: 'EQUIPMENT' as CategoryTab, label: 'EQUIPMENT', icon: '🛡️' },
+                { id: 'TEAMWEAR' as CategoryTab, label: 'TEAMWEAR', icon: '🎽' },
+                { id: 'GLOVES' as CategoryTab, label: 'GLOVES', icon: '🧤' },
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveCategory(tab.id)}
-                  className={`px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 ${
+                  className={`px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap transition-colors ${
                     activeCategory === tab.id
-                      ? 'bg-[#b90014] text-white'
+                      ? 'bg-[var(--primary-color)] text-white'
                       : 'bg-[#1a2236] text-gray-400 hover:text-white'
                   }`}
                 >
-                  {tab.Icon && <tab.Icon size={14} className="flex-shrink-0" />}
-                  {tab.label}
+                  {tab.icon} {tab.label}
                 </button>
               ))}
             </div>
@@ -1409,7 +1529,7 @@ export function POSPage() {
                       className={`rounded p-2 flex flex-col items-center justify-center gap-1 transition-colors group text-center ${
                         stockStatus.isDisabled
                           ? 'bg-[#0d1117] border border-[#1a1a1a] opacity-50 cursor-not-allowed'
-                          : 'bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[#b90014]'
+                          : 'bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[var(--primary-color)]'
                       }`}
                     >
                       {product.image && (
@@ -1418,7 +1538,7 @@ export function POSPage() {
                       <span className="text-xs font-semibold text-gray-300 group-hover:text-white line-clamp-2">
                         {product.name}
                       </span>
-                      <span className="text-sm font-bold text-[#b90014]">${product.price?.toFixed(2) || '0.00'}</span>
+                      <span className="text-sm font-bold text-[var(--primary-color)]">${product.price?.toFixed(2) || '0.00'}</span>
                       {stockStatus.text && (
                         <span className={`text-xs font-semibold ${stockStatus.color}`}>
                           {stockStatus.text}
@@ -1439,7 +1559,7 @@ export function POSPage() {
             <div className="px-4 py-3 border-b border-[#2d3547] bg-[#2d3547]">
               <div className="flex items-center gap-2 justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-[#b90014] rounded-full"></div>
+                  <div className="w-2 h-2 bg-[var(--primary-color)] rounded-full"></div>
                   <div>
                     <p className="text-sm font-semibold">{selectedCustomer.first_name} {selectedCustomer.last_name}</p>
                     <p className="text-xs text-gray-400">Returning customer</p>
@@ -1474,7 +1594,7 @@ export function POSPage() {
                           <p className="text-sm font-semibold truncate">{item.name}</p>
                           {(item.color || item.size) && (
                             <p className="text-xs text-gray-400">
-                              {item.color}{item.color && item.size ? ' · ' : ''}{item.size && `Size ${item.size}`}
+                              {item.color}{item.color && item.size ? ' Â· ' : ''}{item.size && `Size ${item.size}`}
                             </p>
                           )}
                         </div>
@@ -1487,7 +1607,7 @@ export function POSPage() {
                         <span className="text-xs font-bold w-5 text-center">{item.quantity}</span>
                         <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">+</button>
                       </div>
-                      <p className="text-xs font-bold text-[#b90014]">${(item.price * item.quantity).toFixed(2)}</p>
+                      <p className="text-xs font-bold text-[var(--primary-color)]">${(item.price * item.quantity).toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
@@ -1520,16 +1640,16 @@ export function POSPage() {
               </div>
               <div className="flex justify-between font-bold text-base pt-2 border-t border-[#2d3547]">
                 <span>Total Due</span>
-                <span className="text-lg text-[#b90014]">${grandTotal.toFixed(2)}</span>
+                <span className="text-lg text-[var(--primary-color)]">${grandTotal.toFixed(2)}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-4 gap-2">
               <button onClick={() => setPosTab('gc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
-                <CreditCard size={14} /> GC
+                ðŸ’³ GC
               </button>
               <button onClick={() => setPosTab('sc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
-                <Ticket size={14} /> SC
+                🎟 SC
               </button>
               <button onClick={() => setShowDiscountModal(true)} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
                 <Percent size={14} /> Disc
@@ -1547,13 +1667,13 @@ export function POSPage() {
             <button
               onClick={() => setShowCheckout(true)}
               disabled={cart.length === 0}
-              className="w-full py-3 bg-[#b90014] hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-sm uppercase"
+              className="w-full py-3 bg-[var(--primary-color)] hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-sm uppercase"
             >
               Checkout ({totalCartItems})
             </button>
 
             <div className="grid grid-cols-4 gap-2">
-              <button onClick={() => setShowVoidRefundModal(true)} className="py-2 bg-[#b90014] hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase">
+              <button onClick={() => setShowVoidRefundModal(true)} className="py-2 bg-[var(--primary-color)] hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase">
                 Void/Refund
               </button>
               <button onClick={() => setPosTab('returns')} className="py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold uppercase flex items-center justify-center gap-1">
@@ -1570,6 +1690,16 @@ export function POSPage() {
             <button onClick={() => setPosTab('customers')} className="w-full py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
               Customers
             </button>
+
+            {pendingBarcodes.length > 0 && (
+              <button
+                onClick={() => setShowPendingBarcodesModal(true)}
+                className="w-full py-2 border border-amber-600 text-amber-400 hover:text-amber-300 hover:border-amber-500 rounded text-[10px] font-bold uppercase flex items-center justify-center gap-2"
+              >
+                <AlertCircle size={12} />
+                {pendingBarcodes.length} Unsaved Barcode{pendingBarcodes.length !== 1 ? 's' : ''}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1631,7 +1761,7 @@ export function POSPage() {
 
               {returnsFoundTransaction && !showReturnsModal && (
                 <div className="p-4 bg-green-900/20 border border-green-500 rounded space-y-2">
-                  <p className="text-green-400 font-bold flex items-center gap-2"><Check size={16} /> Invoice Found</p>
+                  <p className="text-green-400 font-bold">âœ“ Invoice Found</p>
                   <p className="text-gray-300 text-sm">
                     Invoice: {returnsFoundTransaction.id.slice(0, 8).toUpperCase()}
                   </p>
@@ -1735,12 +1865,12 @@ export function POSPage() {
                       className={`w-full p-3 rounded flex items-center justify-between transition-colors ${
                         variant.stock_quantity <= 0
                           ? 'bg-[#0d1117] text-gray-500 opacity-50 cursor-not-allowed'
-                          : 'bg-[#2d3547] hover:bg-[#b90014] hover:text-white text-gray-300'
+                          : 'bg-[#2d3547] hover:bg-[var(--primary-color)] hover:text-white text-gray-300'
                       }`}
                     >
                       <span className="font-semibold">
                         Size {variant.size || '(no size)'}
-                        {variant.color && ` · ${variant.color}`}
+                        {variant.color && ` Â· ${variant.color}`}
                         {variant.age_group && ` (${variant.age_group})`}
                       </span>
                       <span className={`text-sm ${
@@ -1782,7 +1912,7 @@ export function POSPage() {
                     <CheckCircle2 size={20} className="text-green-600 shrink-0" />
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest text-green-800">Sale Complete</p>
-                      <p className="text-[10px] text-green-600 font-bold">{receipt.time} · {receipt.method}</p>
+                      <p className="text-[10px] text-green-600 font-bold">{receipt.time} Â· {receipt.method}</p>
                     </div>
                   </div>
 
@@ -1811,11 +1941,11 @@ export function POSPage() {
                             <p className="font-bold text-black uppercase leading-tight">{item.name}</p>
                             {(item.color || item.size || item.ageGroup) && (
                               <p className="text-zinc-600 font-medium">
-                                {item.color && `${item.color}`}{item.color && (item.size || item.ageGroup) ? ' · ' : ''}{item.ageGroup && `${item.ageGroup} · `}
+                                {item.color && `${item.color}`}{item.color && (item.size || item.ageGroup) ? ' Â· ' : ''}{item.ageGroup && `${item.ageGroup} Â· `}
                                 {item.size && `Size ${item.size}`}
                               </p>
                             )}
-                            <p className="text-zinc-600">Qty {item.quantity} × ${Number(item.price).toFixed(2)}</p>
+                            <p className="text-zinc-600">Qty {item.quantity} Ã— ${Number(item.price).toFixed(2)}</p>
                           </div>
                           <p className="font-black text-black shrink-0">${(Number(item.price) * item.quantity).toFixed(2)}</p>
                         </div>
@@ -1832,20 +1962,20 @@ export function POSPage() {
                         <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
                       </div>
                       {receipt.giftCardAmount && receipt.giftCardAmount > 0 && (
-                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span className="flex items-center gap-1"><CreditCard size={14} /> Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
+                        <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span>ðŸ’³ Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
                       )}
                       {receipt.storeCreditAmount && receipt.storeCreditAmount > 0 && (
                         <>
-                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span className="flex items-center gap-1"><Ticket size={14} /> Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
+                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-blue-600"><span>🎟 Store Credit</span><span>−${receipt.storeCreditAmount.toFixed(2)}</span></div>
                           {receipt.storeCreditNewBalance !== undefined && (
                             <div className="mt-3 p-4 bg-gradient-to-r from-blue-100 to-blue-50 border-4 border-blue-500 rounded-lg text-center space-y-2">
                               <div className="text-[9px] font-bold text-blue-700 uppercase tracking-widest">Store Credit Payment</div>
                               <div className="text-sm text-blue-600">Amount Used: −${receipt.storeCreditAmount.toFixed(2)}</div>
                               {receipt.storeCreditNewBalance === 0 ? (
-                                <div className="text-[18px] font-black text-blue-900 py-2">★ STORE CREDIT FULLY REDEEMED ★</div>
+                                <div className="text-[18px] font-black text-blue-900 py-2">â˜… STORE CREDIT FULLY REDEEMED â˜…</div>
                               ) : (
                                 <div className="py-2 space-y-1">
-                                  <div className="text-[18px] font-black text-blue-900">★ REMAINING BALANCE: ${receipt.storeCreditNewBalance.toFixed(2)} ★</div>
+                                  <div className="text-[18px] font-black text-blue-900">â˜… REMAINING BALANCE: ${receipt.storeCreditNewBalance.toFixed(2)} â˜…</div>
                                 </div>
                               )}
                             </div>
@@ -1885,7 +2015,7 @@ export function POSPage() {
                       </button>
                       <button
                         onClick={handleNewTransaction}
-                        className="flex-1 bg-[#b90014] text-white rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
+                        className="flex-1 bg-[var(--primary-color)] text-white rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
                       >
                         New Sale
                       </button>
@@ -1922,7 +2052,7 @@ export function POSPage() {
                                 <div className="flex-1 text-[11px]">
                                   <p className="font-bold leading-tight">{item.name}</p>
                                   {(item.size || item.ageGroup) && (
-                                    <p className="text-zinc-500">{item.ageGroup ? `${item.ageGroup} · ` : ''}Size {item.size}</p>
+                                    <p className="text-zinc-500">{item.ageGroup ? `${item.ageGroup} Â· ` : ''}Size {item.size}</p>
                                   )}
                                   <p className="text-zinc-500">Qty {item.quantity}</p>
                                 </div>
@@ -1940,7 +2070,7 @@ export function POSPage() {
                           <button
                             onClick={handlePrintGiftReceipt}
                             disabled={giftReceiptSelected.size === 0}
-                            className="flex-1 bg-[#b90014] disabled:bg-zinc-300 text-white rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
+                            className="flex-1 bg-[var(--primary-color)] disabled:bg-zinc-300 text-white rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
                           >
                             <Printer size={13} /> Print Gift
                           </button>
@@ -1960,8 +2090,8 @@ export function POSPage() {
                     {cart.map(item => (
                       <div key={item.id} className="border border-[#2d3547] rounded p-2">
                         <p className="font-bold text-white">{item.name}</p>
-                        <p className="text-gray-400">Qty {item.quantity} × ${Number(item.price).toFixed(2)}</p>
-                        <p className="text-[#b90014] font-bold">${(Number(item.price) * item.quantity).toFixed(2)}</p>
+                        <p className="text-gray-400">Qty {item.quantity} Ã— ${Number(item.price).toFixed(2)}</p>
+                        <p className="text-[var(--primary-color)] font-bold">${(Number(item.price) * item.quantity).toFixed(2)}</p>
                       </div>
                     ))}
                   </div>
@@ -1977,7 +2107,7 @@ export function POSPage() {
                     {selectedGiftCard && (
                       <div className="bg-[#2d3547] p-3 rounded-lg border border-amber-500/30 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-amber-400 uppercase flex items-center gap-1"><CreditCard size={12} /> Gift Card Payment</span>
+                          <span className="text-[10px] font-bold text-amber-400 uppercase">ðŸ’³ Gift Card Payment</span>
                           <button
                             onClick={() => setSelectedGiftCard(null)}
                             className="text-amber-400 hover:text-amber-300 text-[11px] font-bold uppercase"
@@ -1998,7 +2128,7 @@ export function POSPage() {
                     {selectedStoreCredit && (
                       <div className="bg-[#2d3547] p-3 rounded-lg border border-blue-500/30 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-blue-400 uppercase flex items-center gap-1"><Ticket size={12} /> Store Credit Payment</span>
+                          <span className="text-[10px] font-bold text-blue-400 uppercase">🎟 Store Credit Payment</span>
                           <button
                             onClick={() => setSelectedStoreCredit(null)}
                             className="text-blue-400 hover:text-blue-300 text-[11px] font-bold uppercase"
@@ -2036,7 +2166,7 @@ export function POSPage() {
                           </>
                         )}
                         {scRemainingBalance === 0 && (
-                          <div className="text-[9px] text-green-300 font-bold italic flex items-center gap-1"><CheckCircle2 size={12} /> Store credit fully covers this transaction. Click "Complete Sale" below.</div>
+                          <div className="text-[9px] text-green-300 font-bold italic">âœ… Store credit fully covers this transaction. Click "Complete Sale" below.</div>
                         )}
                       </div>
                     )}
@@ -2046,9 +2176,9 @@ export function POSPage() {
                       <button
                         onClick={() => handleConfirmSale('Store Credit')}
                         disabled={isConfirming}
-                        className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white p-3 rounded font-bold text-sm uppercase mb-3 flex items-center justify-center gap-2"
+                        className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white p-3 rounded font-bold text-sm uppercase mb-3"
                       >
-                        <CheckCircle2 size={16} /> Complete Sale (Store Credit)
+                        âœ… Complete Sale (Store Credit)
                       </button>
                     ) : (
                       <div className="grid grid-cols-2 gap-2 mb-3">
@@ -2057,7 +2187,7 @@ export function POSPage() {
                             key={method}
                             disabled={isConfirming || (selectedStoreCredit && method === 'Store Credit')}
                             onClick={() => handleConfirmSale(method)}
-                            className="bg-[#b90014] hover:bg-red-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
+                            className="bg-[var(--primary-color)] hover:bg-red-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
                             title={selectedStoreCredit && method === 'Store Credit' ? 'SC already applied' : ''}
                           >
                             {method}
@@ -2072,9 +2202,9 @@ export function POSPage() {
                         setPosTab('gc');
                       }}
                       disabled={isConfirming}
-                      className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase flex items-center justify-center gap-1"
+                      className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
                     >
-                      <CreditCard size={12} /> Redeem Gift Card
+                      ðŸ’³ Redeem Gift Card
                     </button>
 
                     <button
@@ -2083,9 +2213,9 @@ export function POSPage() {
                         setPosTab('sc');
                       }}
                       disabled={isConfirming}
-                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase flex items-center justify-center gap-1"
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
                     >
-                      <Ticket size={12} /> Redeem Store Credit
+                      🎟 Redeem Store Credit
                     </button>
                   </div>
 
@@ -2096,7 +2226,7 @@ export function POSPage() {
                         <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a2236] p-6 rounded-lg shadow-2xl w-full max-w-sm space-y-4 border border-[#2d3547]">
                           <div className="text-center">
                             <h2 className="text-sm font-black uppercase text-white mb-2">Cash Payment</h2>
-                            <p className="text-xs text-gray-300">Total Due: <span className="text-[#b90014] text-base">${grandTotal.toFixed(2)}</span></p>
+                            <p className="text-xs text-gray-300">Total Due: <span className="text-[var(--primary-color)] text-base">${grandTotal.toFixed(2)}</span></p>
                           </div>
 
                           {/* Amount Tendered Input */}
@@ -2107,7 +2237,7 @@ export function POSPage() {
                               value={cashTendered}
                               onChange={e => setCashTendered(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                               placeholder="0.00"
-                              className="w-full p-3 text-2xl font-black text-center bg-[#0f1117] border-2 border-[#2d3547] rounded text-white focus:ring-2 focus:ring-[#b90014] focus:border-transparent outline-none"
+                              className="w-full p-3 text-2xl font-black text-center bg-[#0f1117] border-2 border-[#2d3547] rounded text-white focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none"
                               autoFocus
                             />
                           </div>
@@ -2172,7 +2302,7 @@ export function POSPage() {
                                   processPayment(pendingPaymentMethod, cashTendered);
                                 }
                               }}
-                              className="flex-1 p-2 bg-[#b90014] hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-xs font-bold uppercase text-white transition-colors"
+                              className="flex-1 p-2 bg-[var(--primary-color)] hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-xs font-bold uppercase text-white transition-colors"
                             >
                               {isConfirming ? 'Processing...' : 'Complete Sale'}
                             </button>
@@ -2189,7 +2319,7 @@ export function POSPage() {
                         <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a2236] p-6 rounded-lg shadow-2xl w-full max-w-lg space-y-4 border border-[#2d3547] max-h-[90vh] overflow-y-auto">
                           <div className="text-center">
                             <h2 className="text-sm font-black uppercase text-white mb-2">Select Store Credit</h2>
-                            <p className="text-xs text-gray-300">Total Due: <span className="text-[#b90014] text-base">${grandTotal.toFixed(2)}</span></p>
+                            <p className="text-xs text-gray-300">Total Due: <span className="text-[var(--primary-color)] text-base">${grandTotal.toFixed(2)}</span></p>
                           </div>
 
                           {storeCreditError && (
@@ -2426,7 +2556,7 @@ export function POSPage() {
               ))}
               <div className="flex gap-2">
                 <button onClick={() => { setShowCustomerModal(false); setCustomerForm({ first_name: '', last_name: '', email: '', phone: '', club_affinity: '' }); }} className="flex-1 p-2 bg-[#2d3547] rounded text-xs text-white">Cancel</button>
-                <button disabled={isAddingCustomer} onClick={handleAddCustomer} className="flex-1 p-2 bg-[#b90014] hover:bg-red-700 disabled:opacity-50 rounded text-xs font-bold text-white uppercase">
+                <button disabled={isAddingCustomer} onClick={handleAddCustomer} className="flex-1 p-2 bg-[var(--primary-color)] hover:bg-red-700 disabled:opacity-50 rounded text-xs font-bold text-white uppercase">
                   {isAddingCustomer ? 'Adding...' : 'Save'}
                 </button>
               </div>
@@ -2452,7 +2582,7 @@ export function POSPage() {
                   {recentTransactions.slice(0, 10).map((tx) => (
                     <div key={tx.id} className="bg-[#0f1117] border border-[#2d3547] p-3 rounded flex items-center justify-between">
                       <div className="flex-1">
-                        <p className="text-xs font-bold text-white">{tx.method} · ${Number(tx.total_amount).toFixed(2)} <span className="text-[10px] text-gray-400">({tx.status || 'completed'})</span></p>
+                        <p className="text-xs font-bold text-white">{tx.method} Â· ${Number(tx.total_amount).toFixed(2)} <span className="text-[10px] text-gray-400">({tx.status || 'completed'})</span></p>
                         <p className="text-[10px] text-gray-400">{new Date(tx.created_at).toLocaleString()}</p>
                         {tx.customer_id && (
                           <p className="text-[10px] text-gray-400">
@@ -2523,13 +2653,210 @@ export function POSPage() {
         />
       )}
 
+      {/* Unknown Barcode Modal */}
+      <AnimatePresence>
+        {showUnknownBarcodeModal && (
+          <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-6">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#1a2236] border border-[#2d3547] rounded-lg w-full max-w-sm p-6 space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="text-amber-400" size={18} />
+                  <h2 className="text-sm font-bold text-white uppercase">Unknown Barcode</h2>
+                </div>
+                <button onClick={() => setShowUnknownBarcodeModal(false)} className="text-gray-400 hover:text-white"><X size={16} /></button>
+              </div>
+
+              <p className="text-[10px] font-mono text-amber-300 bg-[#0f1117] px-3 py-2 rounded border border-[#2d3547]">{unknownBarcode}</p>
+
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Select Brand</p>
+                <div className="flex flex-wrap gap-2">
+                  {['Nike', 'Adidas', 'Puma', 'Joma', 'New Balance', 'Other'].map(brand => (
+                    <button
+                      key={brand}
+                      onClick={() => setUnknownBarcodeBrand(brand)}
+                      className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${
+                        unknownBarcodeBrand === brand
+                          ? 'bg-[var(--primary-color)] text-white'
+                          : 'bg-[#2d3547] text-gray-300 hover:text-white'
+                      }`}
+                    >
+                      {brand}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Price</p>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={unknownBarcodePrice}
+                    onChange={e => setUnknownBarcodePrice(e.target.value)}
+                    className="w-full bg-[#0f1117] border border-[#2d3547] rounded pl-7 pr-3 py-2 text-xs text-white placeholder-gray-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Name (optional)</p>
+                <input
+                  type="text"
+                  placeholder="Product name..."
+                  value={unknownBarcodeName}
+                  onChange={e => setUnknownBarcodeName(e.target.value)}
+                  className="w-full bg-[#0f1117] border border-[#2d3547] rounded px-3 py-2 text-xs text-white placeholder-gray-500"
+                />
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <button
+                  onClick={() => handleAddUnknownToCart(false)}
+                  disabled={!unknownBarcodeBrand || !unknownBarcodePrice}
+                  className="w-full py-2.5 bg-[var(--primary-color)] hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-[10px] font-bold uppercase rounded"
+                >
+                  Add to Cart & Save Later
+                </button>
+                <button
+                  onClick={() => handleAddUnknownToCart(true)}
+                  disabled={!unknownBarcodeBrand || !unknownBarcodePrice}
+                  className="w-full py-2.5 bg-[#2d3547] hover:bg-[#3d4557] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-bold uppercase rounded"
+                >
+                  Add to Cart & Save Now
+                </button>
+                <button
+                  onClick={() => setShowUnknownBarcodeModal(false)}
+                  className="w-full py-2 text-gray-400 hover:text-white text-[10px] font-bold uppercase"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Pending Barcodes Modal */}
+      <AnimatePresence>
+        {showPendingBarcodesModal && (
+          <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-6">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#1a2236] border border-[#2d3547] rounded-lg w-full max-w-lg flex flex-col"
+              style={{ maxHeight: '80vh' }}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-[#2d3547] shrink-0">
+                <h2 className="text-sm font-bold text-white uppercase">Pending Barcodes ({pendingBarcodes.length})</h2>
+                <button onClick={() => setShowPendingBarcodesModal(false)} className="text-gray-400 hover:text-white"><X size={18} /></button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {pendingBarcodes.length === 0 ? (
+                  <p className="text-gray-400 text-sm text-center py-8">All barcodes saved!</p>
+                ) : (
+                  pendingBarcodes.map(pb => {
+                    const mode = pendingItemModes[pb.barcode] ?? null;
+                    const isSaving = pendingSaving[pb.barcode] || false;
+
+                    return (
+                      <div key={pb.barcode} className="bg-[#0f1117] border border-[#2d3547] rounded-lg p-3 space-y-3">
+                        <div>
+                          <p className="text-xs font-bold text-white">{pb.name}</p>
+                          <p className="text-[10px] font-mono text-amber-300">{pb.barcode}</p>
+                          <p className="text-[10px] text-gray-500">{pb.brand} · ${pb.price.toFixed(2)} · {new Date(pb.scannedAt).toLocaleTimeString()}</p>
+                        </div>
+
+                        {mode === null && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setPendingItemModes(prev => ({ ...prev, [pb.barcode]: 'save-existing' }));
+                                setPendingSearchQueries(prev => ({ ...prev, [pb.barcode]: '' }));
+                                setPendingSearchResults(prev => ({ ...prev, [pb.barcode]: [] }));
+                              }}
+                              className="flex-1 py-1.5 bg-[#2d3547] hover:bg-[#3d4557] text-white text-[10px] font-bold uppercase rounded"
+                            >
+                              Save to Existing
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowPendingBarcodesModal(false);
+                                navigate('/admin', { state: { openAddProduct: true, pendingBarcode: pb } });
+                              }}
+                              className="flex-1 py-1.5 bg-blue-700 hover:bg-blue-600 text-white text-[10px] font-bold uppercase rounded"
+                            >
+                              Create New
+                            </button>
+                            <button
+                              onClick={() => handleSkipBarcode(pb.barcode)}
+                              className="py-1.5 px-3 border border-[#2d3547] text-gray-400 hover:text-white text-[10px] font-bold uppercase rounded"
+                            >
+                              Skip
+                            </button>
+                          </div>
+                        )}
+
+                        {mode === 'save-existing' && (
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              placeholder="Search product by name..."
+                              value={pendingSearchQueries[pb.barcode] || ''}
+                              onChange={e => handlePendingSearch(pb.barcode, e.target.value)}
+                              className="w-full bg-[#1a2236] border border-[#2d3547] rounded px-3 py-2 text-xs text-white placeholder-gray-500"
+                              autoFocus
+                            />
+                            <div className="space-y-1">
+                              {(pendingSearchResults[pb.barcode] || []).map(product => (
+                                <button
+                                  key={product.id}
+                                  onClick={() => handleSaveToExisting(pb, product)}
+                                  disabled={isSaving}
+                                  className="w-full text-left p-2 bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] rounded disabled:opacity-50"
+                                >
+                                  <p className="text-xs text-white">{product.name}</p>
+                                  <p className="text-[10px] text-gray-400">{product.brand} · {product.category}</p>
+                                </button>
+                              ))}
+                            </div>
+                            <button
+                              onClick={() => setPendingItemModes(prev => ({ ...prev, [pb.barcode]: null }))}
+                              className="text-[10px] text-gray-400 hover:text-white"
+                            >
+                              ← Back
+                            </button>
+                          </div>
+                        )}
+
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Bottom Tab Bar */}
       <div className="bg-[#1a2236] border-t border-[#2d3547] h-12 px-6 flex items-center justify-start gap-2">
         <button
           onClick={() => setPosTab('register')}
           className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
             posTab === 'register'
-              ? 'bg-[#b90014] text-white'
+              ? 'bg-[var(--primary-color)] text-white'
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
@@ -2539,7 +2866,7 @@ export function POSPage() {
           onClick={() => setPosTab('history')}
           className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
             posTab === 'history'
-              ? 'bg-[#b90014] text-white'
+              ? 'bg-[var(--primary-color)] text-white'
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
@@ -2549,7 +2876,7 @@ export function POSPage() {
           onClick={() => setPosTab('customers')}
           className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
             posTab === 'customers'
-              ? 'bg-[#b90014] text-white'
+              ? 'bg-[var(--primary-color)] text-white'
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
@@ -2557,23 +2884,23 @@ export function POSPage() {
         </button>
         <button
           onClick={() => setPosTab('gc')}
-          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors flex items-center gap-2 ${
+          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
             posTab === 'gc'
-              ? 'bg-[#b90014] text-white'
+              ? 'bg-[var(--primary-color)] text-white'
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
-          <CreditCard size={14} /> Gift Cards
+          ðŸ’³ Gift Cards
         </button>
         <button
           onClick={() => setPosTab('sc')}
-          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors flex items-center gap-2 ${
+          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
             posTab === 'sc'
-              ? 'bg-[#b90014] text-white'
+              ? 'bg-[var(--primary-color)] text-white'
               : 'bg-[#2d3547] text-gray-400 hover:text-white'
           }`}
         >
-          <Ticket size={14} /> Store Credit
+          🎟 Store Credit
         </button>
       </div>
     </div>

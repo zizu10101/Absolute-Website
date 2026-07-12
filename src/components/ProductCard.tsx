@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../context/ProductContext';
 
@@ -28,7 +28,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
         onMouseLeave={() => setIsHovered(false)}
       >
         {product.isOnSale && product.salePrice && (
-          <div className="absolute top-4 left-4 z-10 bg-[#b90014] text-white px-2 py-1 text-[10px] font-black uppercase tracking-widest italic">
+          <div className="absolute top-4 left-4 z-10 bg-[var(--primary-color)] text-white px-2 py-1 text-[10px] font-black uppercase tracking-widest italic">
             SALE {Math.round((1 - product.salePrice / product.price) * 100)}% OFF
           </div>
         )}
@@ -70,7 +70,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
               setActiveColorIdx(null);
             }}
             onMouseEnter={() => setActiveImage(null)}
-            className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === null ? 'border-[#b90014]' : 'border-zinc-100 hover:border-zinc-200'}`}
+            className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === null ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
           >
             <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt="Default" />
           </button>
@@ -84,7 +84,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
                 setActiveColorIdx(idx);
               }}
               onMouseEnter={() => setActiveImage(color.images[0] || null)}
-              className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === (color.images[0] || '___none___') ? 'border-[#b90014]' : 'border-zinc-100 hover:border-zinc-200'}`}
+              className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === (color.images[0] || '___none___') ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
               title={color.name}
             >
               {color.images[0] ? (
@@ -108,10 +108,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
             {product.isOnSale && product.salePrice ? (
               <>
                 <span className="text-zinc-400 line-through text-xs font-bold">${product.price}</span>
-                <span className="font-headline font-black text-xl text-[#b90014]">${product.salePrice}</span>
+                <span className="font-headline font-black text-xl text-[var(--primary-color)]">${product.salePrice}</span>
               </>
             ) : (
-              <span className="font-headline font-black text-xl text-[#b90014]">${product.price}</span>
+              <span className="font-headline font-black text-xl text-[var(--primary-color)]">${product.price}</span>
             )}
           </div>
         </div>

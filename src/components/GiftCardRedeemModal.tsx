@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -138,7 +138,7 @@ export const GiftCardRedeemModal: React.FC<GiftCardRedeemModalProps> = ({
                   <button
                     onClick={handleLookup}
                     disabled={isLoading || !cardNumber.trim()}
-                    className="px-4 py-2 bg-[#b90014] text-white rounded-lg text-[10px] font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-[var(--primary-color)] text-white rounded-lg text-[10px] font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50"
                   >
                     {isLoading ? '...' : 'Look Up'}
                   </button>
@@ -167,7 +167,7 @@ export const GiftCardRedeemModal: React.FC<GiftCardRedeemModalProps> = ({
                 )}
                 <div>
                   <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-bold">Available Balance</p>
-                  <p className="text-sm font-black text-[#b90014]">${cardData.current_balance.toFixed(2)}</p>
+                  <p className="text-sm font-black text-[var(--primary-color)]">${cardData.current_balance.toFixed(2)}</p>
                 </div>
               </div>
 
@@ -215,7 +215,7 @@ export const GiftCardRedeemModal: React.FC<GiftCardRedeemModalProps> = ({
                 <button
                   onClick={handleRedeem}
                   disabled={isRedeeming || amount <= 0 || amount > cardData.current_balance}
-                  className="flex-1 px-4 py-2 rounded-lg bg-[#b90014] text-white text-xs font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2 rounded-lg bg-[var(--primary-color)] text-white text-xs font-bold uppercase hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isRedeeming ? (
                     <>

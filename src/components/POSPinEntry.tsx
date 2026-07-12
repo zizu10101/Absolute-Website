@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Delete } from 'lucide-react';
 
 interface POSPinEntryProps {
@@ -81,7 +81,7 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
         <div className="flex flex-col items-center space-y-6">
           {/* Logo */}
           <div className={`p-4 rounded-full ${isDarkMode ? 'bg-zinc-800' : 'bg-red-50'}`}>
-            <Lock size={40} className={isDarkMode ? 'text-[#b90014]' : 'text-[#b90014]'} />
+            <Lock size={40} className={isDarkMode ? 'text-[var(--primary-color)]' : 'text-[var(--primary-color)]'} />
           </div>
 
           {/* Title */}
@@ -90,7 +90,7 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
             <p className={isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}>Enter your PIN to access</p>
           </div>
 
-          {/* Hidden keyboard input — inputMode="none" + readOnly suppress mobile keyboard */}
+          {/* Hidden keyboard input â€” inputMode="none" + readOnly suppress mobile keyboard */}
           <input
             ref={inputRef}
             type="text"
@@ -110,13 +110,13 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
                 key={i}
                 className={`w-10 h-10 rounded-lg font-bold text-lg flex items-center justify-center border-2 transition-all ${
                   i < pin.length
-                    ? 'bg-[#b90014] border-red-600 text-white'
+                    ? 'bg-[var(--primary-color)] border-red-600 text-white'
                     : isDarkMode
                     ? 'bg-zinc-700 border-zinc-600'
                     : 'bg-white border-zinc-300'
                 }`}
               >
-                {i < pin.length ? '●' : '○'}
+                {i < pin.length ? 'â—' : 'â—‹'}
               </div>
             ))}
           </div>
@@ -170,7 +170,7 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
               disabled={pin.length < 4}
               className={`p-4 rounded-lg font-black uppercase tracking-widest transition-all active:scale-95 ${
                 pin.length >= 4
-                  ? 'bg-[#b90014] hover:bg-red-700 text-white border border-red-600'
+                  ? 'bg-[var(--primary-color)] hover:bg-red-700 text-white border border-red-600'
                   : isDarkMode
                   ? 'bg-zinc-600 text-zinc-400 border border-zinc-700 cursor-not-allowed'
                   : 'bg-zinc-200 text-zinc-400 border border-zinc-300 cursor-not-allowed'

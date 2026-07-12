@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+:root {
+  --primary-color: #b90014;
+  --secondary-color: #000000;
+  --font-family: inherit;
+}
+
+html,
+body {
+  font-family: var(--font-family) !important;
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;

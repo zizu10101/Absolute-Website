@@ -1,4 +1,4 @@
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+﻿import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
@@ -172,20 +172,37 @@ export function ProductDetailPage() {
     const existing = document.getElementById('product-schema-markup');
     if (existing) existing.remove();
 
+    const getAbsoluteUrl = (url: string) => {
+      if (!url) return '';
+      if (url.startsWith('http')) return url;
+      if (url.startsWith('//')) return `https:${url}`;
+      return `https://torontosoccershop.com${url}`;
+    };
+
+    const productImages = (product.images && product.images.length > 0)
+      ? product.images.map((img: string) => getAbsoluteUrl(img))
+      : [getAbsoluteUrl(product.image)];
+
+    const price = product.isOnSale && product.salePrice ? product.salePrice : product.price;
+
     const schema = {
-      "@context": "https://schema.org",
+      "@context": "https://schema.org/",
       "@type": "Product",
       "name": product.name,
-      "image": product.image,
-      "description": product.description,
+      "image": productImages.filter(Boolean),
+      "description": product.description || '',
+      "sku": product.product_code || '',
+      "mpn": product.product_code || '',
       "brand": {
         "@type": "Brand",
         "name": product.brand || "Absolute Soccer"
       },
       "offers": {
         "@type": "Offer",
-        "price": product.price,
+        "url": `https://torontosoccershop.com/product/${product.id}`,
         "priceCurrency": "CAD",
+        "price": price,
+        "priceValidUntil": "2026-12-31",
         "availability": "https://schema.org/InStock",
         "seller": {
           "@type": "Organization",
@@ -235,7 +252,7 @@ export function ProductDetailPage() {
   if (isPageLoading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
-        <div className="w-12 h-12 border-4 border-[#b90014] border-t-transparent rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-[var(--primary-color)] border-t-transparent rounded-full animate-spin" />
         <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px]">Loading Squad Gear...</p>
       </div>
     );
@@ -245,7 +262,7 @@ export function ProductDetailPage() {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
         <h2 className="text-2xl font-black uppercase italic tracking-tighter">Product Not Found</h2>
-        <Link to="/" className="text-[#b90014] font-bold uppercase tracking-widest text-sm hover:underline">Back to Home</Link>
+        <Link to="/" className="text-[var(--primary-color)] font-bold uppercase tracking-widest text-sm hover:underline">Back to Home</Link>
       </div>
     );
   }
@@ -345,7 +362,7 @@ export function ProductDetailPage() {
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-8 right-8 z-50 bg-[#b90014] text-white p-5 shadow-2xl flex items-center gap-4 border border-red-700/50"
+            className="fixed bottom-8 right-8 z-50 bg-[var(--primary-color)] text-white p-5 shadow-2xl flex items-center gap-4 border border-red-700/50"
           >
             <div className="bg-white/10 p-2 rounded-full">
               <ShoppingBag size={20} className="text-white" />
@@ -409,7 +426,7 @@ export function ProductDetailPage() {
                 <button 
                   key={idx}
                   onClick={() => setSelectedImage(idx)}
-                  className={`aspect-[4/5] bg-zinc-50 overflow-hidden border-2 transition-all ${selectedImage === idx ? 'border-[#b90014]' : 'border-transparent hover:border-zinc-200'}`}
+                  className={`aspect-[4/5] bg-zinc-50 overflow-hidden border-2 transition-all ${selectedImage === idx ? 'border-[var(--primary-color)]' : 'border-transparent hover:border-zinc-200'}`}
                 >
                   {img ? (
                     <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -443,7 +460,7 @@ export function ProductDetailPage() {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Select Color</span>
                 {selectedColor && (
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#b90014] animate-pulse">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--primary-color)] animate-pulse">
                     {selectedColor}
                   </span>
                 )}
@@ -451,7 +468,7 @@ export function ProductDetailPage() {
               <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => setSelectedColor(null)}
-                  className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === null ? 'border-[#b90014] bg-[#b90014]/5 text-[#b90014]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}
+                  className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === null ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}
                 >
                   Default
                 </button>
@@ -459,7 +476,7 @@ export function ProductDetailPage() {
                   <button
                     key={colorName}
                     onClick={() => setSelectedColor(colorName)}
-                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === colorName ? 'border-[#b90014] bg-[#b90014]/5 text-[#b90014]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === colorName ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}
                   >
                     {colorName}
                   </button>
@@ -488,7 +505,7 @@ export function ProductDetailPage() {
 
           {/* Sizing grid and Buy Box conditional layout */}
           {(product.release_date && new Date(product.release_date) > new Date()) ? (
-            <div className="p-6 bg-[#b90014] rounded-xl text-center my-6 shadow-lg shadow-red-900/20">
+            <div className="p-6 bg-[var(--primary-color)] rounded-xl text-center my-6 shadow-lg shadow-red-900/20">
               <div className="flex items-center justify-center gap-2 mb-1">
                 <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                 <p className="text-sm font-black uppercase tracking-widest text-white">
@@ -505,13 +522,13 @@ export function ProductDetailPage() {
           ) : (
             <>
               {!product.showSizes ? (
-                <div className="my-6 rounded-xl border-2 border-[#b90014] bg-[#0d0d0d] p-6 text-center shadow-lg shadow-red-900/20">
+                <div className="my-6 rounded-xl border-2 border-[var(--primary-color)] bg-[#0d0d0d] p-6 text-center shadow-lg shadow-red-900/20">
                   <p className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-3">
                     Available In Store
                   </p>
                   <a
                     href="tel:9055933600"
-                    className="inline-flex items-center gap-2 bg-[#b90014] hover:bg-[#d4001a] text-white font-black text-lg px-6 py-3 rounded-lg transition-colors shadow-md shadow-red-900/30"
+                    className="inline-flex items-center gap-2 bg-[var(--primary-color)] hover:bg-[#d4001a] text-white font-black text-lg px-6 py-3 rounded-lg transition-colors shadow-md shadow-red-900/30"
                   >
                     📞 905-593-3600
                   </a>
@@ -580,13 +597,13 @@ export function ProductDetailPage() {
                   )}
 
                   {/* Call to Order CTA */}
-                  <div className="my-6 rounded-xl border-2 border-[#b90014] bg-[#0d0d0d] p-6 text-center shadow-lg shadow-red-900/20">
+                  <div className="my-6 rounded-xl border-2 border-[var(--primary-color)] bg-[#0d0d0d] p-6 text-center shadow-lg shadow-red-900/20">
                     <p className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-3">
                       Available In Store
                     </p>
                     <a
                       href="tel:9055933600"
-                      className="inline-flex items-center gap-2 bg-[#b90014] hover:bg-[#d4001a] text-white font-black text-lg px-6 py-3 rounded-lg transition-colors shadow-md shadow-red-900/30"
+                      className="inline-flex items-center gap-2 bg-[var(--primary-color)] hover:bg-[#d4001a] text-white font-black text-lg px-6 py-3 rounded-lg transition-colors shadow-md shadow-red-900/30"
                     >
                       📞 905-593-3600
                     </a>
@@ -602,21 +619,21 @@ export function ProductDetailPage() {
           {/* Shipping & Certifications bar */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-zinc-500 font-medium">
             <div className="flex items-center gap-3">
-              <Truck size={18} className="text-[#b90014] flex-shrink-0" />
+              <Truck size={18} className="text-[var(--primary-color)] flex-shrink-0" />
               <div className="leading-tight">
                 <p className="text-[10px] font-black uppercase tracking-wider text-zinc-800 leading-none mb-1">Free Delivery</p>
                 <p className="text-[9px] text-zinc-400 leading-none">On all club orders over $150</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <RotateCcw size={18} className="text-[#b90014] flex-shrink-0" />
+              <RotateCcw size={18} className="text-[var(--primary-color)] flex-shrink-0" />
               <div className="leading-tight">
                 <p className="text-[10px] font-black uppercase tracking-wider text-zinc-800 leading-none mb-1">Easy Returns</p>
                 <p className="text-[9px] text-zinc-400 leading-none">30 days custom refund policy</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <ShieldCheck size={18} className="text-[#b90014] flex-shrink-0" />
+              <ShieldCheck size={18} className="text-[var(--primary-color)] flex-shrink-0" />
               <div className="leading-tight">
                 <p className="text-[10px] font-black uppercase tracking-wider text-zinc-800 leading-none mb-1">100% Authentic</p>
                 <p className="text-[9px] text-zinc-400 leading-none">Official tournament licensed gear</p>
@@ -628,7 +645,7 @@ export function ProductDetailPage() {
           <div className="border-t border-zinc-100 pt-8 animate-fade-in">
             <button 
               onClick={() => setIsDescriptionOpen(!isDescriptionOpen)}
-              className="w-full flex items-center justify-between bg-[#b90014] text-white p-4 font-black uppercase tracking-widest text-xs italic"
+              className="w-full flex items-center justify-between bg-[var(--primary-color)] text-white p-4 font-black uppercase tracking-widest text-xs italic"
             >
               Product Details
               <motion.div

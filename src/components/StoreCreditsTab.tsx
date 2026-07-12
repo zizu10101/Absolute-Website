@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, ChevronDown, ChevronUp, Plus, AlertCircle, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../supabase';
@@ -394,7 +394,7 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
           {/* Success Message */}
           {issueSuccess && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg space-y-1">
-              <p className="text-[11px] font-bold text-green-700">✓ Store Credit Issued!</p>
+              <p className="text-[11px] font-bold text-green-700">âœ“ Store Credit Issued!</p>
               <p className="text-[10px] text-green-600">Customer: {issueSuccess.customer}</p>
               <p className="text-[10px] text-green-600">Amount: ${issueSuccess.amount.toFixed(2)}</p>
               {issueSuccess.cardNumber && (
@@ -407,7 +407,7 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
           <button
             onClick={handleIssueStoreCredit}
             disabled={isIssuing || !selectedCustomer}
-            className="w-full py-3 bg-zinc-900 text-white rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-[#b90014] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3 bg-zinc-900 text-white rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-[var(--primary-color)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isIssuing ? (
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -471,7 +471,7 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
                         {credit.customers?.first_name} {credit.customers?.last_name}
                       </div>
                       <div className="text-xs text-zinc-500 mt-1">
-                        ${credit.amount.toFixed(2)} • {credit.reason}
+                        ${credit.amount.toFixed(2)} &bull; {credit.reason}
                       </div>
                     </div>
                     <div className="text-right mr-3">
@@ -519,7 +519,7 @@ export const StoreCreditsTab: React.FC<StoreCreditsTabProps> = ({ onIssueStoreCr
                             {credit.store_credit_transactions.map((tx) => (
                               <div key={tx.id} className="flex justify-between">
                                 <span className="capitalize text-zinc-600">
-                                  {tx.transaction_type === 'redeemed' ? '↓ Redeemed' : '↑ Issued'}
+                                  {tx.transaction_type === 'redeemed' ? 'â†“ Redeemed' : 'â†‘ Issued'}
                                 </span>
                                 <span className={tx.amount > 0 ? 'text-green-600' : 'text-red-600'}>
                                   ${Math.abs(tx.amount).toFixed(2)}

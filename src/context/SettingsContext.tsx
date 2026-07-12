@@ -53,6 +53,20 @@ export interface StoreInfo {
   hours: StoreHours;
 }
 
+export interface ThemeSettings {
+  storeName: string;
+  primaryColor: string;
+  secondaryColor: string;
+  fontFamily: string;
+}
+
+const DEFAULT_THEME: ThemeSettings = {
+  storeName: 'Absolute Soccer Mississauga',
+  primaryColor: '#b90014',
+  secondaryColor: '#000000',
+  fontFamily: 'default',
+};
+
 const DEFAULT_STORE_INFO: StoreInfo = {
   name: 'Absolute Soccer',
   address: '5600 Rose Cherry Place, Mississauga, Ontario',
@@ -95,6 +109,8 @@ interface SettingsContextType {
   isLoading: boolean;
   showSizesOnline: boolean;
   setShowSizesOnline: (show: boolean) => Promise<void>;
+  themeSettings: ThemeSettings;
+  setThemeSettings: (theme: ThemeSettings) => Promise<void>;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -119,6 +135,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     canonicalUrl: 'https://torontosoccershop.com'
   });
   const [storeInfo, setStoreInfoState] = useState<StoreInfo>(DEFAULT_STORE_INFO);
+  const [themeSettings, setThemeSettingsState] = useState<ThemeSettings>(DEFAULT_THEME);
   const [showSizesOnline, setShowSizesOnlineState] = useState<boolean>(() => {
     const cached = localStorage.getItem('show_sizes_online');
     return cached !== null ? cached === 'true' : false;
@@ -127,10 +144,31 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const isSavingRef = useRef(false);
 
+  useEffect(() => {
+    const primary = themeSettings.primaryColor || '#b90014';
+    const secondary = themeSettings.secondaryColor || '#000000';
+
+    document.documentElement.style.setProperty('--primary-color', primary);
+    document.documentElement.style.setProperty('--secondary-color', secondary);
+
+    // Font feature disabled — remove any stale Google Font links and reset inline font styles
+    document.querySelectorAll('[id^="google-font"]').forEach(el => el.remove());
+    document.documentElement.style.removeProperty('--font-family');
+    document.documentElement.style.removeProperty('--font-sans');
+    document.documentElement.style.fontFamily = '';
+    document.body.style.fontFamily = '';
+  }, [themeSettings]);
+
   const location = useLocation();
 
   const fetchSettings = async () => {
       setIsLoading(true);
+
+      // Clear any stale font keys from localStorage (font feature is disabled)
+      try {
+        localStorage.removeItem('theme');
+        localStorage.removeItem('fontFamily');
+      } catch {}
 
       try {
         let results: any = {};
@@ -199,6 +237,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           const foot = results.footer;
           const seoData = results.seo;
           const storeInfoData = results.store_info;
+          const themeData = results.theme;
 
           if (global?.logo) {
             setLogoState(global.logo);
@@ -251,6 +290,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           if (foot?.footerLinks) setFooterLinksState(foot.footerLinks);
           if (seoData && Object.keys(seoData).length > 0) setSeoSettingsState(prev => ({ ...prev, ...seoData }));
           if (storeInfoData && Object.keys(storeInfoData).length > 0) setStoreInfoState(prev => ({ ...DEFAULT_STORE_INFO, ...prev, ...storeInfoData, hours: { ...DEFAULT_STORE_INFO.hours, ...(storeInfoData.hours || {}) } }));
+          if (themeData && Object.keys(themeData).length > 0) {
+            // Always force fontFamily to 'default' regardless of what's stored — font feature disabled
+            setThemeSettingsState(prev => ({ ...DEFAULT_THEME, ...prev, ...themeData, fontFamily: 'default' }));
+          }
         }
       } catch (criticalErr) {
         console.error('Critical context collection fault:', criticalErr);
@@ -416,6 +459,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setSeoSettingsState(prev => ({ ...prev, ...updates }));
     } else if (key === 'store_info') {
       setStoreInfoState(prev => ({ ...prev, ...updates, hours: { ...prev.hours, ...(updates.hours || {}) } }));
+    } else if (key === 'theme') {
+      setThemeSettingsState(prev => ({ ...prev, ...updates }));
     }
   };
 
@@ -615,6 +660,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     await updateSettings('store_info', info);
   };
 
+  const setThemeSettings = async (theme: ThemeSettings) => {
+    await updateSettings('theme', theme);
+  };
+
   const resetSettings = async () => {
     window.location.reload(); 
   };
@@ -645,8 +694,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setGlobalSettings,
     isLoading,
     showSizesOnline,
-    setShowSizesOnline
-  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, storeInfo, isLoading, showSizesOnline]);
+    setShowSizesOnline,
+    themeSettings,
+    setThemeSettings
+  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, storeInfo, isLoading, showSizesOnline, themeSettings]);
 
   return (
     <SettingsContext.Provider value={value}>

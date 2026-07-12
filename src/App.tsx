@@ -23,6 +23,8 @@ import { CustomLabPage } from './pages/CustomLabPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ContactUsPage } from './pages/ContactUsPage';
 import { CustomApparelPage } from './pages/CustomApparelPage';
+import { BramptonSoccerPage } from './pages/BramptonSoccerPage';
+import { MississaugaSoccerPage } from './pages/MississaugaSoccerPage';
 import { BrandPage } from './pages/BrandPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { useSEO } from './hooks/useSEO';
@@ -175,7 +177,10 @@ function AppRoutes() {
           <Route path="uniform-submission" element={<UniformSubmissionPage />} />
           <Route path="contact-us" element={<ContactUsPage />} />
           <Route path="custom-apparel" element={<CustomApparelPage />} />
+          <Route path="brampton-soccer-uniforms" element={<BramptonSoccerPage />} />
+          <Route path="mississauga-soccer-store" element={<MississaugaSoccerPage />} />
           <Route path="product/:id" element={<ProductDetailPage />} />
+          <Route path="products" element={<Navigate to="/category/footwear" replace />} />
         </Route>
 
         {/* Admin, POS, Reports - Only on torontosoccershop.com */}

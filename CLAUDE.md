@@ -4,8 +4,129 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - June 30, 2026)
-**Latest:** Professional thermal receipt redesign with bold fonts and larger logo (session 25)
+## CURRENT STATUS (Main Branch - July 11, 2026)
+**Latest:** Unknown barcode modal, font removal, encoding fix (sessions 34–36)
+
+**Session 36 improvements (UTF-8 Encoding Fix):**
+- ✅ **Root cause identified**: corrupted `â€¢` characters site-wide were NOT a font issue — they were Windows-1252/Latin-1 mojibake of UTF-8 bytes (e.g. bullet • U+2022 stored as 3 separate Latin-1 chars `â€¢`; emoji UTF-8 bytes each misread as individual Latin-1 chars)
+- ✅ **9 files repaired** with Node.js replacement script (`scripts/fix-encoding.mjs`, deleted after use):
+  - `src/components/ProductCard.tsx`: `â€¢` bullet between category/submenu labels
+  - `src/pages/AdminPage.tsx`: `â€¢` bullets before prices; corrupted 🚀 💡 ⚠️ 🛠️ emojis
+  - `src/pages/ProductDetailPage.tsx`: `â€¢` in "added to squad bag" confirmation; 📞 telephone emoji
+  - `src/components/StoreCreditsTab.tsx`: `â€¢` between credit amount and reason
+  - `src/pages/POSPage.tsx`: all 7 category tab icons (🏪 👟 👕 ⚽ 🛡️ 🎽 🧤) + 💳 🎟 📊 📞 🔴 and others
+  - `src/components/PosRegister.tsx`: same 7 category tab icons
+  - `src/components/GiftCardTab.tsx`: 💳 💰 📊 icons
+  - `src/components/RapidScanIntakeMatrix.tsx`: age group emojis (👨 👦 ⚽ 🧤 📦 👟 🧒) + en-dashes in size range labels
+  - `src/pages/MississaugaSoccerPage.tsx`: en-dashes in hours/text
+- ✅ `POSPage.backup.tsx` left as-is (not rendered, not in git-tracked active build)
+- ✅ Verified with scan script: zero corrupted sequences remain in active source files
+
+**Session 35 improvements (Font Feature Removed):**
+- ✅ **Font selector removed from Admin → Theme tab** — was causing random characters across site when fonts like "Archivo Black" were saved (display fonts lack glyphs for emoji/Unicode used in UI)
+- ✅ `src/context/SettingsContext.tsx`: font loading logic stripped entirely; `useEffect([themeSettings])` now ONLY applies `--primary-color` and `--secondary-color` CSS vars; always cleans up any stale Google Font `<link>` tags and clears `--font-family`/`--font-sans` inline overrides
+  - Added `localStorage.removeItem('theme')` + `localStorage.removeItem('fontFamily')` at top of `fetchSettings()`
+  - Forces `fontFamily: 'default'` when applying DB theme data (prevents old saved value from re-activating)
+- ✅ `src/pages/AdminPage.tsx`: removed Font Family `<select>` and all optgroups from Theme tab; removed `google-fonts-preview` useEffect; `handleSaveTheme` forces `fontFamily: 'default'`
+- ✅ Supabase DB reset: `fontFamily` field set back to `'default'` in `settings` table `key='theme'`
+- ✅ Verified on localhost: homepage `body.style.fontFamily=""`, no Google Font `<link>` tags, no `--font-family` CSS var, localStorage cleared; Theme tab shows Primary Color + Secondary Color + Store Name + Live Preview (no font dropdown)
+
+**Session 34 improvements (Unknown Barcode Modal in POS):**
+- ✅ **Unknown Barcode Modal**: when a scanned barcode is not found in DB, POS shows a modal instead of error message — sale completes immediately, barcode saved later
+  - Brand buttons: Nike / Adidas / Puma / Joma / New Balance / Other
+  - Price field (required), optional Name field
+  - "Add to Cart & Save Later" → adds item to cart + saves to `localStorage.pending_barcodes`; closes modal
+  - "Add to Cart & Save Now" → adds item to cart + closes unknown modal + opens Pending Barcodes Manager
+  - Cart item gets temp ID `unknown-${barcode}-${Date.now()}` with brand/price/name
+- ✅ **Amber "N Unsaved Barcodes" badge button** in POS right panel (below Customers section) — visible whenever `localStorage.pending_barcodes` has entries
+- ✅ **Pending Barcodes Manager Modal**: lists each unsaved barcode with 3 actions per entry:
+  - "Save to Existing" → product search field, click a result to link the barcode to that product
+  - "Create New" → navigates to `/admin` with React Router state `{ openAddProduct: true, pendingBarcode: pb }`; AdminPage detects this state, pre-fills Add Product form (name, brand, price, barcode), shows amber "Creating from POS scan" banner; after save automatically removes barcode from localStorage and redirects back to `/pos` after 1.2s
+  - "Skip" → removes from queue
+- ✅ `src/pages/POSPage.tsx`: added `PendingBarcode` interface; `useNavigate` import; `showUnknownBarcodeModal`, `unknownBarcode`, `unknownBarcodeBrand`, `unknownBarcodePrice`, `unknownBarcodeName`, `pendingBarcodes`, `showPendingBarcodesModal` states; `savePendingBarcodes`, `handleAddUnknownToCart`, `handlePendingSearch`, `handleSaveToExisting`, `handleSkipBarcode` helpers; auto-focus guard on both modals
+- ✅ `src/pages/AdminPage.tsx`: `useNavigate` + `useLocation` imports; `fromPOSData` state; mount `useEffect` detects `openAddProduct` navigation state and pre-fills form; `handleAdd` removes pending barcode from localStorage and redirects to `/pos` when `fromPOSData` is set
+
+**Session 33 improvements (Theme & Branding Admin Panel):**
+- ✅ **Theme & Branding tab** added to Admin → Settings: Store Name, Primary Color picker, Secondary Color picker, Font Family selector (later removed in session 35), Live Preview, Logos section
+- ✅ `src/context/SettingsContext.tsx`: `ThemeSettings` interface + `DEFAULT_THEME` constant; `themeSettings` state; injects `--primary-color` and `--secondary-color` CSS vars on settings change
+- ✅ **Primary color applied site-wide**: all `[#b90014]` → `[var(--primary-color)]` in 33 source files
+- ✅ **Secondary color applied**: Footer, HomePage "Visit Us", BramptonSoccerPage/MississaugaSoccerPage/CustomApparelPage "How It Works" + contact bar use `style={{ backgroundColor: 'var(--secondary-color)' }}`
+- ✅ Supabase `settings` table: `theme` row with `{storeName, primaryColor: '#b90014', secondaryColor: '#000000', fontFamily: 'default'}`
+
+**Session 32 improvements (Mississauga City Landing Page):**
+- ✅ `src/pages/MississaugaSoccerPage.tsx`: New city SEO landing page at `/mississauga-soccer-store`
+  - Hero with H1 "Your Go-To Local Soccer Store in Mississauga", two CTAs (Visit Our Store → Google Maps, Browse In-Stock Gear → `/products`)
+  - "Serving the Community" section with H2 "The Ultimate Headquarters for Local Clubs and Players" + body text about Mississauga Soccer League
+  - Three-column cards: Fast In-Store Pickup & Fitting, Official Club Kits & Lettering, Trusted by Mississauga Teams
+  - "How It Works" 3-step dark section (Submit Roster → Approve Proof → Pick Up/Deliver) — same as Brampton
+  - "Stop By and Gear Up Today" section with phone, address, hours (Mon–Fri 1–7 PM, Sat–Sun 11 AM–4 PM), 6-point checklist
+  - Quote form (mailto: info@edgedbs.com) with squad-specific fields (identical to BramptonSoccerPage)
+  - Footer contact bar with phone, address, website
+  - Helmet: title "Soccer Store in Mississauga | Elite Gear & Custom Kits | Absolute Soccer"; description "Mississauga's premier local soccer shop..."; canonical `https://torontosoccershop.com/mississauga-soccer-store`
+- ✅ `src/App.tsx`: Added import + `<Route path="mississauga-soccer-store">` route
+- ✅ `scripts/generate-sitemap.js`: Added `/mississauga-soccer-store` to `mainPages` array (priority 0.9) — sitemap now 185 URLs (6 main + 7 category + 170 product + 2 static)
+- ✅ Tested on localhost via Playwright — all sections render, both CTA buttons present, hero image loads, quote form functional
+
+**Session 31 improvements (Structured Data Image URL Fix):**
+- ✅ `src/pages/ProductDetailPage.tsx`: Fixed "Invalid URL in field image" Google Search Console error in Merchant Listings
+  - Added `getAbsoluteUrl()` helper inside the schema `useEffect` — handles `http(s)://` (pass-through), `//` (prepend `https:`), and relative paths (prepend `https://torontosoccershop.com`)
+  - `productImages` array built from `product.images[]` or fallback to `product.image`, all passed through `getAbsoluteUrl()`
+  - `"image"` field now uses `productImages.filter(Boolean)` — removes any empty strings when both image fields are null
+  - Verified on localhost via Playwright: both array-images and null-images-fallback paths output full `https://` Supabase Storage URLs
+
+**Session 30 improvements (Brampton City Landing Page):**
+**Latest (previous):** Brampton city landing page (session 30)
+
+**Session 30 improvements (Brampton City Landing Page):**
+- ✅ `src/pages/BramptonSoccerPage.tsx`: New city SEO landing page at `/brampton-soccer-uniforms`
+  - Hero with H1 "Custom Soccer Uniforms & Team Printing in Brampton", two CTAs (Get a Fast Squad Quote → `#quote`, Browse Custom Apparel → `/custom-apparel`)
+  - "Why Brampton Clubs Choose Us" section with 3-column cards (visit, brands, roster customization)
+  - "How It Works" 3-step dark section (Submit Roster → Approve Proof → Pick Up/Deliver)
+  - "Visit Our Mississauga Showroom" section with phone, address, service checklist
+  - Quote form (mailto: info@edgedbs.com) with squad-specific fields (kit type, squad size/quantity, club name)
+  - Footer contact bar with phone, address, website
+  - Helmet: title "Custom Soccer Uniforms & Jersey Printing Brampton | Absolute Soccer"; description "The premier team uniform destination for Brampton soccer clubs..."
+- ✅ `src/App.tsx`: Added import + `<Route path="brampton-soccer-uniforms">` route
+- ✅ Tested on localhost — all 5 sections render, both CTA buttons present, phone number shown
+- ✅ `scripts/generate-sitemap.js`: Added `/brampton-soccer-uniforms` to `mainPages` array — sitemap now 184 URLs (5 main + 7 category + 170 product + 2 static)
+
+**Session 29 improvements (Bidirectional SKU Search):**
+- ✅ `ProductGridPage.tsx`: Fixed search so hyphens in SKU codes are ignored in both directions
+  - Root cause: Many products have `product_code = null`; Nike-style style codes (e.g. `IB5300-480`) live inside the `description` field as `"Style: IB5300-480"`
+  - Previous fix only stripped hyphens from `product_code` — didn't help when code was in description
+  - Fix: strip hyphens from `name`, `description`, AND `product_code` before comparing against the hyphen-stripped query
+  - Searching `"IB5300-480"` → finds product whose description contains `"Style: IB5300-480"` ✓
+  - Searching `"IB5300480"` → `desc.replace(/-/g,'').includes("ib5300480")` matches same product ✓
+  - Works for all three fields: `name`, `description`, `product_code`
+  - Verified on localhost: both queries return "SHOWING 1 OF 1 PRODUCTS" (FFF 2026 Stadium Home Jersey)
+
+**Session 28 improvements (Brand Page "No Products" Fix):**
+- ✅ `BrandPage.tsx`: Fixed "No products found" on direct navigation to `/brand/Adidas`
+  - Root cause: `ProductContext` only pre-loads 8 featured products on app init (`fetchFeaturedProducts`)
+  - `BrandPage` was filtering those 8 products client-side — finding 0 Adidas products → "No products found"
+  - Fix: added `useEffect(() => { fetchProductsByCategory(); }, [brandName])` — fetches all 168+ products into context on mount
+  - Also added a spinner (`isLoading` check) instead of flashing "No products found" while fetching
+  - Works on direct URL navigation now (verified cold-start: `/brand/Adidas` → 30 products, `/brand/Nike` → 59 products)
+
+**Session 27 improvements (Brand Tile Fix):**
+- ✅ `BrandShowcase.tsx`: Fixed brand tiles linking to broken `/products?brand=Nike` — no such route existed
+  - Changed to `/brand/${encodeURIComponent(brand.name)}` which routes to existing `BrandPage` component
+  - `BrandPage` at `/brand/:brandName` was already implemented with category filter, search, sort
+  - "View All Brands" link to `/brands` was already correct — only the individual tile links were broken
+  - Verified: clicking Nike tile from homepage → `/brand/Nike` → 59 Nike products render correctly
+
+**Session 26 improvements (SEO & Search):**
+- ✅ `ProductDetailPage.tsx`: Enhanced Product JSON-LD schema (`product-schema-markup` script)
+  - Added `sku` and `mpn` fields (populated from `product.product_code`)
+  - `image` now an array (`product.images[]` with fallback to `[product.image]`)
+  - `offers.url`: canonical product URL `https://torontosoccershop.com/product/${product.id}`
+  - `offers.price`: sale-price-aware (`product.salePrice || product.price`)
+  - `offers.priceValidUntil`: `"2026-12-31"`
+  - `description` and `sku`/`mpn` default to `''` when null (valid schema output)
+- ✅ `ProductGridPage.tsx`: Search filter now includes `product_code` and `brand` fields
+  - Customers can search by manufacturer SKU (e.g. "HQ2314" finds Nike Phantom 6 Haaland boot)
+  - Brand field explicitly checked (previously only matched via submenu text)
+- ✅ Sitemap regenerated: 181 URLs (4 main + 7 category + 168 product pages); was 171
 
 **Session 25 improvements (Thermal Receipt Redesign):**
 - ✅ `thermalReceipt.ts`: Professional redesign with elegant typography and layout for Epson TM-T88V
@@ -182,7 +303,7 @@ Admin login: info@edgedbs.com
 - ✅ Removed `ChevronDown` icon import (no longer needed without sort dropdown)
 
 **Session 14 improvements:**
-- ✅ `/custom-apparel` route added to sitemap generator (`scripts/generate-sitemap.js` `mainPages` array) — sitemap now 171 URLs (4 main pages)
+- ✅ `/custom-apparel` route added to sitemap generator (`scripts/generate-sitemap.js` `mainPages` array) — sitemap now 181 URLs (4 main + 7 category + 168 product pages)
 - ✅ `CustomApparelPage.tsx` hero image: replaced placeholder `<div>` with `<img src="/hero-apparel.png" alt="Custom business apparel and uniforms in Mississauga" className="aspect-[4/3] w-full object-cover" />`
 - ✅ `public/hero-apparel.png` added to main branch (1.45 MB) — was only on `custom-apparel` branch, causing missing image on live site
 - ✅ `public/custom-apparel-banner.jpg` also in public folder (2.1 MB) — not currently used in hero but available
@@ -283,7 +404,22 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Unified Refund/Return flow: both paths use ReturnsModal with choose-refund → SC or Original Payment → confirm
 ✅ Refund button in PosTransactionHistory fixed: was calling direct DB update, now opens ReturnsModal(mode=refund)
 ✅ Store Credit on returns/refunds: works without a linked customer (walk-ins get card number printed on receipt)
-✅ JSON-LD schema markup: SportingGoodsStore on homepage, Product schema on product detail pages
+✅ JSON-LD schema markup: SportingGoodsStore on homepage, Product schema on product detail pages (sku, mpn, image array, sale price, canonical URL, priceValidUntil)
+✅ Product schema image URLs: `getAbsoluteUrl()` ensures all image URLs in JSON-LD are absolute `https://` — fixes Google Search Console "Invalid URL in field image" Merchant Listings error
+✅ Search by product_code and brand: `ProductGridPage` client-side filter includes `product_code` and `brand` fields — customers can find products by manufacturer SKU
+✅ Bidirectional SKU search: hyphens stripped from `name`, `description`, and `product_code` before comparing — `"IB5300480"` finds product with `"IB5300-480"` in description, and vice versa
+✅ `/brampton-soccer-uniforms`: City SEO landing page for Brampton soccer clubs — hero, why-us, how-it-works, visit-us, quote form; Helmet title/description set
+✅ `/mississauga-soccer-store`: City SEO landing page for Mississauga — hero, community section, 3-column cards, how-it-works, visit-us (with hours), quote form; canonical URL set
+✅ Sitemap: 185 URLs (6 main + 7 category + 170 product pages); `/mississauga-soccer-store` added to `scripts/generate-sitemap.js` mainPages array (priority 0.9)
+✅ Theme & Branding admin panel: Admin → Settings → Theme tab; primary color, secondary color, live preview mockup, logos; all settings persisted to `settings` table `key='theme'`; **font selector removed** (caused Unicode corruption — see session 35/36)
+✅ Primary color site-wide: all `[#b90014]` Tailwind arbitrary values replaced with `[var(--primary-color)]` across 33 source files
+✅ Secondary color applied: Footer, HomePage "Visit Us", BramptonSoccerPage/MississaugaSoccerPage/CustomApparelPage "How It Works" + contact bar sections use `style={{ backgroundColor: 'var(--secondary-color)' }}`
+✅ Unknown barcode modal in POS: scanned barcode not in DB → quick modal (brand + price + name) → "Add to Cart & Save Later" or "Add to Cart & Save Now"; amber badge button shows pending count; Pending Barcodes Manager lets staff link to existing product, create new (navigates to Admin pre-filled), or skip
+✅ Admin pre-fill from POS scan: React Router navigation state `{ openAddProduct, pendingBarcode }` → AdminPage detects on mount, pre-fills Add Product form, auto-navigates back to /pos after save
+✅ UTF-8 encoding fix: site-wide mojibake repaired in 9 files (corrupted â€¢ â€" emoji sequences fixed to proper • – 💳 👕 ⚽ 🛡️ etc.)
+✅ Font system: `applyFont()` in SettingsContext overrides `--font-sans` (Tailwind v4 variable) + sets inline `fontFamily` on `html` and `body`; `html, body { font-family: var(--font-family) !important }` in index.css; live preview loads Google Font on dropdown change before save
+✅ Brand tiles on homepage: `BrandShowcase` links to `/brand/:brandName` (was broken `/products?brand=Nike`); `BrandPage` now calls `fetchProductsByCategory()` on mount so direct URL navigation shows products instead of "No products found"
+✅ Sitemap: 181 URLs (4 main + 7 category + 168 product pages) — regenerated July 3, 2026
 ✅ SEO: updated title/meta description in index.html with keyword-rich content
 ✅ SEO: "formerly Golazo Store" brand attribution added to footer
 ✅ Instagram handle updated to @absolutemississauga across all files (schema, receipts)
@@ -293,7 +429,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Header nav: flex-1 center fills all space between logo and icons; 9 items at text-[11px] whitespace-nowrap tracking-normal on one line
 ✅ Mega menu inner container: px-4 md:px-8 padding matches header — dropdown left edge aligns with nav items
 ✅ `/custom-apparel` landing page: hero image (`/hero-apparel.png`), Who We Serve, What We Offer, How It Works, Why Choose Us, quote form (mailto), footer contact bar
-✅ Sitemap: `/custom-apparel` added to `scripts/generate-sitemap.js` — now 171 URLs (4 main pages)
+✅ Sitemap: `scripts/generate-sitemap.js` — 181 URLs (4 main + 7 category + 168 product pages); regenerated July 3, 2026
 ✅ Homepage slider: prev/next clicks reset auto-advance timer (`intervalRef` + `resetTimer()`) — no more immediate jump after manual navigation
 ✅ Homepage slider: indicator pins at bottom — active wide red rectangle, inactive small gray square; click to jump + reset timer
 ✅ Admin slider: drag-to-reorder slides with `@dnd-kit` — grip handle top-left of each card, order saved to DB on drop
@@ -438,11 +574,14 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - `/` — Home/storefront
 - `/admin` — Admin panel
 - `/pos` — POS system (PIN auth)
-- `/brands` — Brand pages
+- `/brands` — All brands listing page (BrandsPage)
+- `/brand/:brandName` — Individual brand page (BrandPage) — filters products by brand, with category sub-filter + search + sort
 - `/reports` — Financial reports
 - `/kit-orders` — Kit Orders / Uniform Submission page (also aliased at `/uniform-submission` for backward compat)
 - `/sale` — Sale page (filters products where isOnSale=true)
 - `/custom-apparel` — Custom Apparel landing page
+- `/brampton-soccer-uniforms` — City SEO landing page for Brampton soccer clubs (BramptonSoccerPage)
+- `/mississauga-soccer-store` — City SEO landing page for Mississauga soccer store (MississaugaSoccerPage)
 - `/category/:slug` — Alias for any nav menu path slug (e.g. `/category/national-teams`) — handled by `CategorySlugRoute`
 
 **Navigation landing pages (logo grid → click to see products):**

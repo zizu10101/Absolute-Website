@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Barcode from 'react-barcode';
 import { useProducts, mapProductFromDb } from '../context/ProductContext';
 import { useCustomers } from '../context/CustomerContext';
@@ -19,10 +19,6 @@ import {
   ScanLine,
   Printer,
   Percent,
-  Store,
-  Footprints,
-  Shirt,
-  Shield,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -201,7 +197,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
     }
   }, [isCheckoutOpen, isCustomerModalOpen, isDiscountModalOpen]);
 
-  // ── Barcode scanner handler ──────────────────────────────────────────────
+  // â”€â”€ Barcode scanner handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleBarcodeScan = async (rawBarcode: string) => {
     const barcode = rawBarcode.trim().toUpperCase();
     if (!barcode) return;
@@ -244,9 +240,9 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
 
       const stock = variant.stock_quantity ?? 0;
       if (stock <= 0) {
-        const sizeText = variant.size ? ` · Size ${variant.size}` : '';
+        const sizeText = variant.size ? ` Â· Size ${variant.size}` : '';
         setBarcodeError(
-          `OUT OF STOCK — ${product.name}${sizeText}`
+          `OUT OF STOCK â€” ${product.name}${sizeText}`
         );
         setTimeout(() => setBarcodeError(null), 4000);
         return;
@@ -273,13 +269,13 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
         setBarcodeError(addError);
         setTimeout(() => setBarcodeError(null), 4000);
       } else {
-        const sizeText = variant.size ? ` · Sz ${variant.size}` : '';
+        const sizeText = variant.size ? ` Â· Sz ${variant.size}` : '';
         setBarcodeSuccess(`Added: ${product.name}${sizeText}`);
         setTimeout(() => setBarcodeSuccess(null), 2000);
       }
     } catch (err: any) {
       console.error('Barcode scan error:', err);
-      setBarcodeError('Error looking up barcode — check connection');
+      setBarcodeError('Error looking up barcode â€” check connection');
       setTimeout(() => setBarcodeError(null), 4000);
     } finally {
       setBarcodeInput('');
@@ -309,7 +305,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
   const getStockCount = (product: any) => {
     if (product.stock !== undefined) return product.stock;
     if (product.inventory_quantity !== undefined) return product.inventory_quantity;
-    return '—';
+    return 'â€”';
   };
 
   const matchesCategory = (p: any, tab: TabId) => {
@@ -349,7 +345,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
 
   const totalCartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  // ── Checkout ─────────────────────────────────────────────────────────────
+  // â”€â”€ Checkout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleConfirmSale = async (method: string) => {
 
     // For cash, show calculator instead of confirming immediately
@@ -459,11 +455,11 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] bg-[#f9f9f9] relative select-none rounded-xl overflow-hidden shadow-inner border border-zinc-200">
 
-      {/* ── Top controls ── */}
+      {/* â”€â”€ Top controls â”€â”€ */}
       <div className="p-6 bg-white border-b border-zinc-200 space-y-4">
 
         {/* Barcode scanner input */}
@@ -473,7 +469,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
             barcodeSuccess ? 'border-emerald-500 bg-emerald-50' :
             'border-zinc-900 bg-zinc-950'
           }`}>
-            <ScanLine size={18} className={barcodeError ? 'text-red-500' : barcodeSuccess ? 'text-emerald-500' : 'text-[#b90014]'} />
+            <ScanLine size={18} className={barcodeError ? 'text-red-500' : barcodeSuccess ? 'text-emerald-500' : 'text-[var(--primary-color)]'} />
             <input
               ref={barcodeInputRef}
               type="text"
@@ -554,7 +550,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
               )}
               <button
                 onClick={() => setIsCustomerModalOpen(true)}
-                className="bg-zinc-950 text-white px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest hover:bg-[#b90014] transition-colors"
+                className="bg-zinc-950 text-white px-4 py-2 rounded text-[10px] font-black uppercase tracking-widest hover:bg-[var(--primary-color)] transition-colors"
               >
                 <Plus size={14} />
               </button>
@@ -583,20 +579,20 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
               <span className="text-[9.5px] font-black text-zinc-500 group-hover:text-zinc-900 transition-colors uppercase tracking-wider">Online Store Items Only</span>
               <div className="relative">
                 <input type="checkbox" className="sr-only" checked={showOnlineOnly} onChange={e => setShowOnlineOnly(e.target.checked)} />
-                <div className={`w-8 h-4 rounded-full transition-colors duration-200 ${showOnlineOnly ? 'bg-[#b90014]' : 'bg-zinc-200'}`} />
+                <div className={`w-8 h-4 rounded-full transition-colors duration-200 ${showOnlineOnly ? 'bg-[var(--primary-color)]' : 'bg-zinc-200'}`} />
                 <div className={`absolute top-0.5 left-0.5 bg-white w-3 h-3 rounded-full shadow-xs transition-transform duration-200 ${showOnlineOnly ? 'translate-x-4' : 'translate-x-0'}`} />
               </div>
             </label>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
             {[
-              { id: 'ALL',       label: 'ALL',       desc: 'Entire inventory',       Icon: Store },
-              { id: 'FOOTWEAR',  label: 'FOOTWEAR',  desc: 'Boots & cleats',         Icon: Footprints },
-              { id: 'KITS',      label: 'KITS',      desc: 'Jerseys & licensed',     Icon: Shirt },
-              { id: 'BALLS',     label: 'BALLS',     desc: 'Soccer, futsal & more',  Icon: null },
-              { id: 'EQUIPMENT', label: 'EQUIPMENT', desc: 'Shin guards & bags',     Icon: Shield },
-              { id: 'TEAMWEAR',  label: 'TEAM WEAR', desc: 'Training & apparel',     Icon: Shirt },
-              { id: 'GLOVES',    label: 'GLOVES',    desc: 'Goalkeeper gloves',      Icon: null },
+              { id: 'ALL',       label: 'ALL',       desc: 'Entire inventory',       icon: '🏪' },
+              { id: 'FOOTWEAR',  label: 'FOOTWEAR',  desc: 'Boots & cleats',         icon: '👟' },
+              { id: 'KITS',      label: 'KITS',      desc: 'Jerseys & licensed',     icon: '👕' },
+              { id: 'BALLS',     label: 'BALLS',     desc: 'Soccer, futsal & more',  icon: '⚽' },
+              { id: 'EQUIPMENT', label: 'EQUIPMENT', desc: 'Shin guards & bags',     icon: '🛡️' },
+              { id: 'TEAMWEAR',  label: 'TEAM WEAR', desc: 'Training & apparel',     icon: '🎽' },
+              { id: 'GLOVES',    label: 'GLOVES',    desc: 'Goalkeeper gloves',      icon: '🧤' },
             ].map(tab => {
               const isActive = activeTab === tab.id;
               return (
@@ -605,13 +601,13 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex flex-col items-start p-3 rounded-lg border-2 text-left transition-all active:scale-[0.98] shrink-0 w-28 ${
                     isActive
-                      ? 'bg-zinc-950 border-[#b90014] text-white shadow-md'
+                      ? 'bg-zinc-950 border-[var(--primary-color)] text-white shadow-md'
                       : 'bg-white border-zinc-200 hover:border-zinc-400 text-zinc-800 hover:bg-zinc-50'
                   }`}
                 >
                   <div className="flex items-center justify-between w-full mb-1">
-                    {tab.Icon && <tab.Icon size={20} className="text-base" />}
-                    {isActive && <span className="w-1.5 h-1.5 bg-[#b90014] rounded-full animate-pulse" />}
+                    <span className="text-base">{tab.icon}</span>
+                    {isActive && <span className="w-1.5 h-1.5 bg-[var(--primary-color)] rounded-full animate-pulse" />}
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-wider">{tab.label}</span>
                   <span className={`text-[8px] mt-0.5 ${isActive ? 'text-zinc-400' : 'text-zinc-500'}`}>{tab.desc}</span>
@@ -622,7 +618,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
         </div>
       </div>
 
-      {/* ── Product grid ── */}
+      {/* â”€â”€ Product grid â”€â”€ */}
       <div className="flex-1 overflow-y-auto p-5 pb-24">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
           {filteredProducts.map(p => {
@@ -659,13 +655,13 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                         QTY: {stock}
                       </span>
                       {p.isOnSale && p.salePrice && (
-                        <span className="inline-block bg-red-100 text-[#b90014] border border-red-200 px-1 py-0.5 rounded-[3px] text-[7px] font-black tracking-wider uppercase">SALE</span>
+                        <span className="inline-block bg-red-100 text-[var(--primary-color)] border border-red-200 px-1 py-0.5 rounded-[3px] text-[7px] font-black tracking-wider uppercase">SALE</span>
                       )}
                     </div>
                   </div>
                   <button
                     onClick={e => { e.stopPropagation(); addItem(p); }}
-                    className="w-full bg-[#b90014] text-white text-[8px] font-black py-1 rounded uppercase tracking-wider hover:bg-red-700 transition-all flex items-center justify-center gap-1 mt-2 shadow-xs active:scale-95"
+                    className="w-full bg-[var(--primary-color)] text-white text-[8px] font-black py-1 rounded uppercase tracking-wider hover:bg-red-700 transition-all flex items-center justify-center gap-1 mt-2 shadow-xs active:scale-95"
                   >
                     + ADD UNIT
                   </button>
@@ -684,7 +680,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                 {isContextLoading ? (
                   <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <><RefreshCw size={11} className="text-[#b90014]" /> LOAD MORE ({activeProductSource.length} loaded)</>
+                  <><RefreshCw size={11} className="text-[var(--primary-color)]" /> LOAD MORE ({activeProductSource.length} loaded)</>
                 )}
               </button>
             </div>
@@ -692,7 +688,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
         </div>
       </div>
 
-      {/* ── Bottom bar ── */}
+      {/* â”€â”€ Bottom bar â”€â”€ */}
       <div className="absolute bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-900 px-6 py-4 flex justify-between items-center z-30 shadow-[0_-8px_30px_rgb(0,0,0,0.12)]">
         <div className="flex flex-col justify-center">
           <span className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-widest mb-0.5">ITEMS: {totalCartItemsCount}</span>
@@ -702,13 +698,13 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
           <button onClick={() => setPosTab?.('history')} className="flex items-center gap-2 px-4 py-3 border border-zinc-700 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white transition-all text-xs font-bold uppercase tracking-widest"><RotateCcw size={16} /> History</button>
           <button disabled={totalCartItemsCount === 0} onClick={() => setIsCheckoutOpen(true)} className="p-3 border border-zinc-800 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all" title="View Order"><Receipt size={18} /></button>
           <button disabled={totalCartItemsCount === 0} onClick={() => { if (confirm('Clear the active POS ticket?')) clearCart(); }} className="p-3 border border-zinc-800 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all" title="Clear Ticket"><Trash2 size={18} /></button>
-          <button disabled={totalCartItemsCount === 0} onClick={() => setIsCheckoutOpen(true)} className="bg-[#b90014] hover:bg-red-700 active:scale-[0.98] text-white px-8 py-3 rounded-md text-[11px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2.5 disabled:opacity-40 disabled:cursor-not-allowed text-nowrap">
+          <button disabled={totalCartItemsCount === 0} onClick={() => setIsCheckoutOpen(true)} className="bg-[var(--primary-color)] hover:bg-red-700 active:scale-[0.98] text-white px-8 py-3 rounded-md text-[11px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2.5 disabled:opacity-40 disabled:cursor-not-allowed text-nowrap">
             PROCESS CHECKOUT <ArrowRight size={13} className="stroke-[3px]" />
           </button>
         </div>
       </div>
 
-      {/* ── Checkout drawer ── */}
+      {/* â”€â”€ Checkout drawer â”€â”€ */}
       <AnimatePresence>
         {isCheckoutOpen && (
           <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-55 flex justify-end">
@@ -722,7 +718,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
             >
               <div className="p-6 border-b border-zinc-150 flex justify-between items-center bg-zinc-950 text-white">
                 <div className="flex items-center gap-2">
-                  <Receipt size={18} className="text-[#b90014]" />
+                  <Receipt size={18} className="text-[var(--primary-color)]" />
                   <h2 className="text-xs font-black uppercase tracking-widest">
                     {receipt ? 'RECEIPT' : 'POS CHECKOUT'}
                   </h2>
@@ -735,13 +731,13 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
               </div>
 
               {receipt ? (
-                /* ── Receipt view ── */
+                /* â”€â”€ Receipt view â”€â”€ */
                 <div className="flex-1 flex flex-col overflow-hidden">
                   <div className="p-6 bg-emerald-50 border-b border-emerald-200 flex items-center gap-3">
                     <CheckCircle2 size={24} className="text-emerald-600 shrink-0" />
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest text-emerald-800">Sale Complete</p>
-                      <p className="text-[10px] text-emerald-600 font-bold">{receipt.time} · {receipt.method}</p>
+                      <p className="text-[10px] text-emerald-600 font-bold">{receipt.time} Â· {receipt.method}</p>
                     </div>
                   </div>
 
@@ -770,10 +766,10 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                             <p className="font-bold text-zinc-900 uppercase leading-tight">{item.name}</p>
                             {item.size && (
                               <p className="text-zinc-400 font-medium">
-                                {item.ageGroup && `${item.ageGroup} · `}Size {item.size}
+                                {item.ageGroup && `${item.ageGroup} Â· `}Size {item.size}
                               </p>
                             )}
-                            <p className="text-zinc-500">Qty {item.quantity} × ${Number(item.price).toFixed(2)}</p>
+                            <p className="text-zinc-500">Qty {item.quantity} Ã— ${Number(item.price).toFixed(2)}</p>
                           </div>
                           <p className="font-black text-zinc-900 shrink-0">${(Number(item.price) * item.quantity).toFixed(2)}</p>
                         </div>
@@ -809,14 +805,14 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                     </button>
                     <button
                       onClick={handleNewTransaction}
-                      className="flex-1 bg-[#b90014] text-white rounded-lg py-3 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
+                      className="flex-1 bg-[var(--primary-color)] text-white rounded-lg py-3 text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
                     >
                       New Transaction
                     </button>
                   </div>
                 </div>
               ) : (
-                /* ── Checkout form ── */
+                /* â”€â”€ Checkout form â”€â”€ */
                 <>
                   <div className="p-5 border-b border-zinc-100">
                     <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Customer</p>
@@ -838,14 +834,14 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                               <p className="text-[11px] font-black uppercase text-zinc-900 leading-snug">{item.name}</p>
                               {item.size && (
                                 <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wide">
-                                  {item.ageGroup && `${item.ageGroup} · `}Size {item.size}
+                                  {item.ageGroup && `${item.ageGroup} Â· `}Size {item.size}
                                 </p>
                               )}
                               {item.stockQuantity !== undefined && (
                                 <p className={`text-[9px] font-bold uppercase tracking-wide ${isLowStock ? 'text-amber-600' : 'text-zinc-400'}`}>
                                   {isLowStock && <AlertTriangle size={9} className="inline mr-0.5" />}
                                   Stock: {item.stockQuantity}
-                                  {isLowStock && ' — LOW STOCK'}
+                                  {isLowStock && ' â€” LOW STOCK'}
                                 </p>
                               )}
                             </div>
@@ -869,7 +865,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                             >
                               +
                             </button>
-                            <span className="text-[9px] text-zinc-400 font-bold">× ${Number(item.price).toFixed(2)}</span>
+                            <span className="text-[9px] text-zinc-400 font-bold">Ã— ${Number(item.price).toFixed(2)}</span>
                           </div>
                         </div>
                       );
@@ -935,7 +931,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                 </>
               )}
 
-              {/* ── Cash Calculator Modal (INSIDE checkout) ── */}
+              {/* â”€â”€ Cash Calculator Modal (INSIDE checkout) â”€â”€ */}
               <AnimatePresence>
                 {showCashCalculator && (() => {
                   return (
@@ -943,7 +939,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                     <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm space-y-6">
                       <div className="text-center">
                         <h2 className="text-lg font-black uppercase tracking-widest text-zinc-900 mb-2">Cash Payment</h2>
-                        <p className="text-sm text-zinc-600 font-bold">Total Due: <span className="text-[#b90014] text-lg">${grandTotal.toFixed(2)}</span></p>
+                        <p className="text-sm text-zinc-600 font-bold">Total Due: <span className="text-[var(--primary-color)] text-lg">${grandTotal.toFixed(2)}</span></p>
                       </div>
 
                       {/* Amount Tendered Input */}
@@ -954,7 +950,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                           value={cashTendered}
                           onChange={e => setCashTendered(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                           placeholder="0.00"
-                          className="w-full p-4 text-3xl font-black text-center bg-zinc-50 border-2 border-zinc-200 rounded-lg focus:ring-2 focus:ring-[#b90014] focus:border-transparent outline-none"
+                          className="w-full p-4 text-3xl font-black text-center bg-zinc-50 border-2 border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none"
                           autoFocus
                         />
                       </div>
@@ -1019,7 +1015,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                               processPayment(pendingPaymentMethod, cashTendered, cashTendered - grandTotal);
                             }
                           }}
-                          className="flex-1 p-3 bg-[#b90014] text-white rounded-lg text-xs font-bold uppercase hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          className="flex-1 p-3 bg-[var(--primary-color)] text-white rounded-lg text-xs font-bold uppercase hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                           {isConfirming ? 'Processing...' : 'Complete Sale'}
                         </button>
@@ -1034,7 +1030,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
         )}
       </AnimatePresence>
 
-      {/* ── Discount Modal ── */}
+      {/* â”€â”€ Discount Modal â”€â”€ */}
       <PosDiscountModal
         isOpen={isDiscountModalOpen}
         onClose={() => setIsDiscountModalOpen(false)}
@@ -1043,7 +1039,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
         subtotal={subtotal}
       />
 
-      {/* ── Add Customer modal ── */}
+      {/* â”€â”€ Add Customer modal â”€â”€ */}
       <AnimatePresence>
         {isCustomerModalOpen && (
           <div className="absolute inset-0 bg-black/50 z-60 flex items-center justify-center p-6">
@@ -1062,7 +1058,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
               ))}
               <div className="flex gap-2">
                 <button onClick={() => { setIsCustomerModalOpen(false); resetCustomerForm(); }} className="flex-1 p-2 bg-zinc-100 rounded text-xs">Cancel</button>
-                <button disabled={isAddingCustomer} onClick={handleAddCustomer} className="flex-1 p-2 bg-[#b90014] text-white rounded text-xs font-bold uppercase">
+                <button disabled={isAddingCustomer} onClick={handleAddCustomer} className="flex-1 p-2 bg-[var(--primary-color)] text-white rounded text-xs font-bold uppercase">
                   {isAddingCustomer ? 'Adding...' : 'Save Customer'}
                 </button>
               </div>
