@@ -242,9 +242,9 @@ export function HomePage() {
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             {/* Visit info */}
-            <div className="space-y-6 text-center md:text-left">
-              <h2 className="text-4xl md:text-5xl font-black font-headline uppercase italic tracking-tighter text-[var(--primary-color)]">VISIT US</h2>
-              <div className="space-y-2">
+            <div className="space-y-6">
+              <h2 className="text-4xl md:text-5xl font-black font-headline uppercase italic tracking-tighter text-[var(--primary-color)] text-center md:text-left">VISIT US</h2>
+              <div className="flex flex-col items-center md:items-start gap-1">
                 <p className="text-xl font-bold uppercase tracking-widest">{storeInfo.name}</p>
                 <p className="text-zinc-400 font-medium">{storeInfo.address}</p>
                 <p className="text-zinc-400 font-medium">Phone: {storeInfo.phone}</p>
@@ -252,20 +252,20 @@ export function HomePage() {
                   <p className="text-zinc-400 font-medium">Email: {storeInfo.email}</p>
                 )}
               </div>
-              <div className="space-y-1 text-sm">
+              <div className="flex flex-col items-center md:items-start gap-1 text-sm w-full">
                 {(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const).map(day => (
-                  <div key={day} className="flex justify-center md:justify-start gap-3">
-                    <span className="text-zinc-500 w-24 text-right capitalize">{day}</span>
+                  <div key={day} className="flex justify-between w-full max-w-xs">
+                    <span className="text-zinc-500 capitalize">{day}</span>
                     <span className="text-zinc-300">{storeInfo.hours[day]}</span>
                   </div>
                 ))}
               </div>
-              <div className="pt-4">
+              <div className="flex justify-center md:justify-start w-full">
                 <a
                   href="https://www.instagram.com/absolutemississauga?igsh=MXNrOW15Mmhna2Q5ZA=="
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block bg-[var(--primary-color)] text-white px-8 py-3.5 font-headline font-bold uppercase tracking-widest hover:bg-white hover:text-zinc-950 transition-colors"
+                  className="block w-full max-w-xs text-center bg-[var(--primary-color)] text-white px-8 py-3.5 font-headline font-bold uppercase tracking-widest hover:bg-white hover:text-zinc-950 transition-colors"
                 >
                   Follow on Instagram
                 </a>

@@ -4,6 +4,41 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
+## RECENT CHANGES (July 2026)
+
+**PRODUCT CARDS:**
+- Submenu path removed from product cards — now shows brand only (was "FOOTWEAR • nike, firm ground...")
+- Product name font: `text-[14px] font-semibold leading-tight flex-1` (no truncation)
+- Price always at bottom using `flex-1` on name + `mt-auto` on price container
+- Sale price shows left with strikethrough original price right
+- Uniform card height: outer div `flex flex-col h-full`, `motion.div` wrapper `h-full`
+
+**POS FIXES:**
+- All emoji replaced with lucide-react icons or plain text labels
+- PIN dots now use CSS `rounded-full` divs — no Unicode characters (was corrupted `â—`/`â—‹`)
+- Unknown barcode modal: add to cart + save later flow
+- Pending barcodes stored in `localStorage` key: `pending_barcodes`
+
+**THEME SETTINGS (Admin):**
+- Primary color picker, secondary color picker, store name
+- CSS variables: `--primary-color`, `--secondary-color`
+- Font selector removed (caused Unicode corruption — see session 35/36)
+
+**HOMEPAGE:**
+- Visit Us heading centered (`text-center md:text-left`)
+- Hours rows: `flex justify-between w-full max-w-xs` — day name left, time right
+- Instagram button: `block w-full max-w-xs` — matches hours row width
+
+**SEO:**
+- Product schema with SKU/MPN on product pages
+- Bidirectional barcode search (with and without hyphens)
+- City landing pages: `/brampton-soccer-uniforms`, `/mississauga-soccer-store`
+
+**NAVIGATION:**
+- Left column submenu headings clickable as links when path is set
+- Collapsible menus in admin navigation editor
+- Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
+
 ## CURRENT STATUS (Main Branch - July 12, 2026)
 **Latest:** Complete emoji removal from POS, UTF-8 quote corruption fix (sessions 34–37)
 

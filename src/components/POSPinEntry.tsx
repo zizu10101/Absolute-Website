@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Delete } from 'lucide-react';
 
 interface POSPinEntryProps {
@@ -90,7 +90,7 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
             <p className={isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}>Enter your PIN to access</p>
           </div>
 
-          {/* Hidden keyboard input â€” inputMode="none" + readOnly suppress mobile keyboard */}
+          {/* Hidden keyboard input - inputMode="none" + readOnly suppress mobile keyboard */}
           <input
             ref={inputRef}
             type="text"
@@ -103,20 +103,28 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
             aria-hidden="true"
           />
 
-          {/* PIN display */}
+          {/* PIN display - pure CSS dots, no Unicode characters */}
           <div className={`w-full flex justify-center gap-2 py-6 px-4 rounded-lg ${isDarkMode ? 'bg-zinc-800/50' : 'bg-zinc-100'}`}>
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className={`w-10 h-10 rounded-lg font-bold text-lg flex items-center justify-center border-2 transition-all ${
+                className={`w-10 h-10 rounded-lg flex items-center justify-center border-2 transition-all ${
                   i < pin.length
-                    ? 'bg-[var(--primary-color)] border-red-600 text-white'
+                    ? 'bg-[var(--primary-color)] border-red-600'
                     : isDarkMode
                     ? 'bg-zinc-700 border-zinc-600'
                     : 'bg-white border-zinc-300'
                 }`}
               >
-                {i < pin.length ? 'â—' : 'â—‹'}
+                <div
+                  className={`w-4 h-4 rounded-full transition-all ${
+                    i < pin.length
+                      ? 'bg-white'
+                      : isDarkMode
+                      ? 'bg-zinc-500'
+                      : 'bg-zinc-300'
+                  }`}
+                />
               </div>
             ))}
           </div>

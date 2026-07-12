@@ -20,7 +20,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
   const displayImage = activeImage || (isHovered && hoverImage ? hoverImage : product.image);
 
   return (
-    <div className={`bg-white group cursor-pointer border border-zinc-100 relative block${isSoldOut ? ' opacity-70' : ''}`}>
+    <div className={`bg-white group cursor-pointer border border-zinc-100 relative flex flex-col h-full${isSoldOut ? ' opacity-70' : ''}`}>
       <Link 
         to={`/product/${product.id}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} 
         className="block"
@@ -97,23 +97,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
         </div>
       )}
 
-      <Link to={`/product/${product.id}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} className="p-6 block">
-        <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">
-          {product.category} {product.submenu && `• ${product.submenu}`}
-          {!product.submenu && product.submenus && product.submenus.length > 0 && `• ${product.submenus.join(', ')}`}
-        </p>
-        <h4 className="font-headline text-lg font-bold uppercase text-zinc-900">{product.name}</h4>
-        <div className="mt-4">
-          <div className="flex flex-col">
-            {product.isOnSale && product.salePrice ? (
-              <>
-                <span className="text-zinc-400 line-through text-xs font-bold">${product.price}</span>
-                <span className="font-headline font-black text-xl text-[var(--primary-color)]">${product.salePrice}</span>
-              </>
-            ) : (
-              <span className="font-headline font-black text-xl text-[var(--primary-color)]">${product.price}</span>
-            )}
-          </div>
+      <Link to={`/product/${product.id}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} className="flex flex-col flex-1 p-3">
+        {product.brand && (
+          <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wide mb-1">
+            {product.brand}
+          </span>
+        )}
+        <h4 className="text-[14px] font-semibold text-zinc-900 leading-tight flex-1">{product.name}</h4>
+        <div className="mt-auto pt-2 flex items-center gap-2">
+          {product.isOnSale && product.salePrice ? (
+            <>
+              <span className="text-sm font-bold text-[var(--primary-color)]">${product.salePrice}</span>
+              <span className="text-[10px] text-zinc-400 line-through">${product.price}</span>
+            </>
+          ) : (
+            <span className="text-sm font-bold text-[var(--primary-color)]">${product.price}</span>
+          )}
         </div>
       </Link>
     </div>
