@@ -187,7 +187,7 @@ function AdminPageInner() {
     products, addProduct, deleteProduct, updateProduct, resetProducts, markAllProductsOnline,
     fetchAdminProducts, loadMoreAdminProducts, hasMoreProducts, isLoading, fetchProductById
   } = useProducts();
-  const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, storeInfo, setStoreInfo, setGlobalSettings, resetSettings, showSizesOnline, setShowSizesOnline, themeSettings, setThemeSettings } = useSettings();
+  const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, storeInfo, setStoreInfo, setGlobalSettings, resetSettings, showSizesOnline, setShowSizesOnline, themeSettings, setThemeSettings, brandImages, setBrandImages, categoryImages, setCategoryImages } = useSettings();
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -368,6 +368,14 @@ function AdminPageInner() {
   const [draftTheme, setDraftTheme] = useState<ThemeSettings>(themeSettings || DEFAULT_THEME_DRAFT);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [themeSaveSuccess, setThemeSaveSuccess] = useState(false);
+
+  const [draftBrandImages, setDraftBrandImages] = useState<Record<string, string>>({});
+  const [isSavingBrandImages, setIsSavingBrandImages] = useState(false);
+  const [brandImagesSaveSuccess, setBrandImagesSaveSuccess] = useState(false);
+
+  const [draftCategoryImages, setDraftCategoryImages] = useState<Record<string, string>>({});
+  const [isSavingCategoryImages, setIsSavingCategoryImages] = useState(false);
+  const [categoryImagesSaveSuccess, setCategoryImagesSaveSuccess] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -813,6 +821,14 @@ function AdminPageInner() {
   useEffect(() => {
     if (themeSettings) setDraftTheme(themeSettings);
   }, [themeSettings]);
+
+  useEffect(() => {
+    if (brandImages && Object.keys(brandImages).length > 0) setDraftBrandImages(brandImages);
+  }, [brandImages]);
+
+  useEffect(() => {
+    if (categoryImages && Object.keys(categoryImages).length > 0) setDraftCategoryImages(categoryImages);
+  }, [categoryImages]);
 
   useEffect(() => {
     const fetchStoreInfo = async () => {
@@ -1637,6 +1653,75 @@ function AdminPageInner() {
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBrandImageUpload = (brandName: string, e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const resized = await resizeImage(reader.result as string, 1200, 800, 0.85);
+        const safeName = brandName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const path = `brand_images/${safeName}_${Date.now()}.jpg`;
+        const publicUrl = await uploadImage(resized, path);
+        setDraftBrandImages(prev => ({ ...prev, [brandName]: publicUrl }));
+      } catch (err) {
+        console.error('Brand image upload failed:', err);
+      } finally {
+        setIsUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleSaveBrandImages = async () => {
+    setIsSavingBrandImages(true);
+    try {
+      await setBrandImages(draftBrandImages);
+      setBrandImagesSaveSuccess(true);
+      setTimeout(() => setBrandImagesSaveSuccess(false), 3000);
+    } catch (err: any) {
+      alert(err.message || 'Failed to save brand images.');
+    } finally {
+      setIsSavingBrandImages(false);
+    }
+  };
+
+  const handleCategoryTileImageUpload = (categoryKey: string, e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const resized = await resizeImage(reader.result as string, 800, 800, 0.85);
+        const path = `category_images/${categoryKey}_${Date.now()}.jpg`;
+        const publicUrl = await uploadImage(resized, path);
+        setDraftCategoryImages(prev => ({ ...prev, [categoryKey]: publicUrl }));
+      } catch (err) {
+        console.error('Category image upload failed:', err);
+      } finally {
+        setIsUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleSaveCategoryImages = async () => {
+    setIsSavingCategoryImages(true);
+    try {
+      await setCategoryImages(draftCategoryImages);
+      setCategoryImagesSaveSuccess(true);
+      setTimeout(() => setCategoryImagesSaveSuccess(false), 3000);
+    } catch (err: any) {
+      alert(err.message || 'Failed to save category images.');
+    } finally {
+      setIsSavingCategoryImages(false);
     }
   };
 
@@ -3505,6 +3590,109 @@ function AdminPageInner() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Brand Images */}
+              <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
+                <div className="p-8 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-zinc-900">Brand Showcase Images</h2>
+                    <p className="text-sm text-zinc-500 mt-1">Upload lifestyle images for each brand banner on the homepage. Falls back to Unsplash placeholder if not set.</p>
+                  </div>
+                  <button
+                    onClick={handleSaveBrandImages}
+                    disabled={isSavingBrandImages || isUploading}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all whitespace-nowrap ${brandImagesSaveSuccess ? 'bg-green-600 text-white' : 'bg-[var(--primary-color)] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSavingBrandImages || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {brandImagesSaveSuccess ? <Check size={14} /> : <Save size={14} />}
+                    {isSavingBrandImages ? 'Saving...' : brandImagesSaveSuccess ? 'Saved!' : 'Save Brand Images'}
+                  </button>
+                </div>
+                <div className="p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+                  {(['Nike', 'Adidas', 'Puma', 'Joma', 'New Balance'] as const).map(brand => (
+                    <div key={brand} className="space-y-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">{brand}</p>
+                      <div className="relative aspect-[4/3] rounded-xl overflow-hidden border border-zinc-200 bg-zinc-100">
+                        {draftBrandImages[brand] ? (
+                          <img src={draftBrandImages[brand]} alt={brand} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-zinc-300">
+                            <ImageIcon size={28} />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">No image</span>
+                          </div>
+                        )}
+                        {draftBrandImages[brand] && (
+                          <button
+                            onClick={() => setDraftBrandImages(prev => { const n = { ...prev }; delete n[brand]; return n; })}
+                            className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                      <label className={`flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-zinc-200 text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-zinc-50'}`}>
+                        <Upload size={12} />
+                        {draftBrandImages[brand] ? 'Replace' : 'Upload'}
+                        <input type="file" className="hidden" accept="image/*" disabled={isUploading} onChange={e => handleBrandImageUpload(brand, e)} />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Category Images */}
+              <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
+                <div className="p-8 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-zinc-900">Category Tile Images</h2>
+                    <p className="text-sm text-zinc-500 mt-1">Upload images for the category quick-links row. The emoji icon is used as a fallback when no image is set.</p>
+                  </div>
+                  <button
+                    onClick={handleSaveCategoryImages}
+                    disabled={isSavingCategoryImages || isUploading}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all whitespace-nowrap ${categoryImagesSaveSuccess ? 'bg-green-600 text-white' : 'bg-[var(--primary-color)] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSavingCategoryImages || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {categoryImagesSaveSuccess ? <Check size={14} /> : <Save size={14} />}
+                    {isSavingCategoryImages ? 'Saving...' : categoryImagesSaveSuccess ? 'Saved!' : 'Save Category Images'}
+                  </button>
+                </div>
+                <div className="p-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
+                  {([
+                    { key: 'cleats', label: 'Cleats', emoji: '⚽' },
+                    { key: 'jerseys', label: 'Jerseys', emoji: '👕' },
+                    { key: 'gloves', label: 'Gloves', emoji: '🥊' },
+                    { key: 'balls', label: 'Balls', emoji: '⚽' },
+                    { key: 'training', label: 'Training', emoji: '💪' },
+                    { key: 'accessories', label: 'Accessories', emoji: '🎽' },
+                  ] as const).map(cat => (
+                    <div key={cat.key} className="space-y-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">{cat.label}</p>
+                      <div className="relative aspect-square rounded-xl overflow-hidden border border-zinc-200 bg-zinc-100">
+                        {draftCategoryImages[cat.key] ? (
+                          <img src={draftCategoryImages[cat.key]} alt={cat.label} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-zinc-300">
+                            <span className="text-3xl" role="img" aria-label={cat.label}>{cat.emoji}</span>
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Fallback</span>
+                          </div>
+                        )}
+                        {draftCategoryImages[cat.key] && (
+                          <button
+                            onClick={() => setDraftCategoryImages(prev => { const n = { ...prev }; delete n[cat.key]; return n; })}
+                            className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                      <label className={`flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-zinc-200 text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-zinc-50'}`}>
+                        <Upload size={12} />
+                        {draftCategoryImages[cat.key] ? 'Replace' : 'Upload'}
+                        <input type="file" className="hidden" accept="image/*" disabled={isUploading} onChange={e => handleCategoryTileImageUpload(cat.key, e)} />
+                      </label>
+                    </div>
+                  ))}
                 </div>
               </div>
 

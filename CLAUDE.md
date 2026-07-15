@@ -6,6 +6,26 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (July 2026)
 
+**HOMEPAGE REDESIGN + ADMIN IMAGE UPLOADS (Session 39):**
+
+**Homepage sections (replaced Featured Products):**
+- `src/components/BrandBanners.tsx` (NEW): Nike Futbol-style brand banner grid — 5 brands (Nike, Adidas, Puma, Joma, New Balance) with dark lifestyle images, white bold text, red "Shop →" CTA, zoom-on-hover; 2-col featured row (Nike+Adidas) + 3-col row (Puma+Joma+NB); links to `/brand/:name`; product counts fetched from Supabase; falls back to Unsplash if no admin image set
+- `src/components/CategoryQuickLinks.tsx` (NEW): 6 category quick-link tiles (Cleats/Jerseys/Gloves/Balls/Training/Accessories) in a responsive grid; shows uploaded image with dark overlay when set, emoji fallback when not; links to category routes
+- `src/pages/HomePage.tsx`: Replaced Featured Products section with BrandBanners → CategoryQuickLinks → homeCategories (SELECT YOUR SQUAD) → New Arrivals → On Sale → BrandShowcase (logos) → Visit Us
+- New Arrivals: queries `products` ordered by `created_at DESC LIMIT 6`; graceful fallback to `isNewArrival=true` filter if `created_at` column absent (returns 400)
+- On Sale: queries `isOnSale=true` products with `salePrice` set, LIMIT 6; section hidden if no sale products exist
+- Removed `useProducts` import from HomePage (no longer needed)
+
+**Admin → Settings → Theme tab — image upload sections:**
+- `src/context/SettingsContext.tsx`: Added `BrandImages` and `CategoryImages` types; `brandImages`/`categoryImages` state; loaded from `settings` table keys `brand_images` and `category_images`; `setBrandImages`/`setCategoryImages` setters; exported via context
+- `src/pages/AdminPage.tsx`: Added `Brand Showcase Images` card — 5 upload slots (Nike/Adidas/Puma/Joma/New Balance) with 4:3 preview, "No image" placeholder, Upload/Replace button, X to clear; `Save Brand Images` button saves to `settings` key `brand_images`; images uploaded to Supabase Storage `media` bucket folder `brand_images/`
+- `src/pages/AdminPage.tsx`: Added `Category Tile Images` card — 6 upload slots (Cleats/Jerseys/Gloves/Balls/Training/Accessories) with square preview showing emoji fallback, Upload/Replace, X to clear; `Save Category Images` button saves to `settings` key `category_images`; images uploaded to folder `category_images/`
+- Handlers: `handleBrandImageUpload(brandName, e)` and `handleCategoryTileImageUpload(categoryKey, e)` (renamed from `handleCategoryImageUpload` which already existed for home-layout categories)
+- Draft state syncs from context via `useEffect([brandImages])` and `useEffect([categoryImages])`
+
+**Encoding fix (during this session):**
+- Edit tool introduced smart/curly single quotes (`'` U+2018/U+2019) inside the homeCategories template literal — fixed with Node.js `.replace(/['']/g, "'")`
+
 **ADMIN PAGE ENCODING FIXES (Session 38):**
 - UTF-8 BOM stripped from AdminPage.tsx line 1
 - Image reorder arrows `â–²`/`â–¼` (▲▼ mojibake) in Add Product form → `<ChevronUp size={12} />` / `<ChevronDown size={12} />`
@@ -52,8 +72,8 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-## CURRENT STATUS (Main Branch - July 12, 2026)
-**Latest:** Complete emoji removal from POS, UTF-8 quote corruption fix (sessions 34–37)
+## CURRENT STATUS (Main Branch - July 15, 2026)
+**Latest:** Homepage redesign (brand banners, category tiles, new arrivals, on sale) + Admin image uploads for brands/categories (session 39)
 
 **Session 37 improvements (Complete Emoji Removal & UTF-8 Fixes):**
 - ✅ **All emoji removed from POS and related files** — replaced corrupted emoji (ðŸ'³ → 💳) and valid emoji with plain text labels
@@ -488,6 +508,14 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Admin pre-fill from POS scan: React Router navigation state `{ openAddProduct, pendingBarcode }` → AdminPage detects on mount, pre-fills Add Product form, auto-navigates back to /pos after save
 ✅ UTF-8 encoding fix: site-wide mojibake repaired in 9 files (corrupted â€¢ â€" emoji sequences fixed to proper • – 💳 👕 ⚽ 🛡️ etc.)
 ✅ Font system: `applyFont()` in SettingsContext overrides `--font-sans` (Tailwind v4 variable) + sets inline `fontFamily` on `html` and `body`; `html, body { font-family: var(--font-family) !important }` in index.css; live preview loads Google Font on dropdown change before save
+✅ Homepage redesign: BrandBanners (Nike Futbol-style) → CategoryQuickLinks → SELECT YOUR SQUAD → New Arrivals → On Sale → BrandShowcase logos → Visit Us; Featured Products section removed
+✅ BrandBanners component: 5 brand cards (Nike/Adidas/Puma/Joma/New Balance) with dark lifestyle images, hover zoom, product count badge, red CTA; 2-col featured + 3-col secondary layout; uses admin-uploaded image or Unsplash fallback
+✅ CategoryQuickLinks component: 6 tiles with uploaded image (dark overlay) or emoji fallback; responsive 3-col mobile / 6-col desktop
+✅ New Arrivals section on homepage: 6 most-recently-added online products; fallback to `isNewArrival=true` if `created_at` column absent
+✅ On Sale section on homepage: up to 6 products with `isOnSale=true`; hidden when no sale items exist
+✅ Admin → Theme tab: Brand Showcase Images — upload per-brand lifestyle image saved to `settings` key `brand_images`, stored in Supabase Storage `media/brand_images/`
+✅ Admin → Theme tab: Category Tile Images — upload per-category image saved to `settings` key `category_images`, stored in Supabase Storage `media/category_images/`
+✅ SettingsContext: `brandImages`/`categoryImages` state + `BrandImages`/`CategoryImages` types + `setBrandImages`/`setCategoryImages` setters; auto-loaded from DB on mount
 ✅ Brand tiles on homepage: `BrandShowcase` links to `/brand/:brandName` (was broken `/products?brand=Nike`); `BrandPage` now calls `fetchProductsByCategory()` on mount so direct URL navigation shows products instead of "No products found"
 ✅ Sitemap: 181 URLs (4 main + 7 category + 168 product pages) — regenerated July 3, 2026
 ✅ SEO: updated title/meta description in index.html with keyword-rich content

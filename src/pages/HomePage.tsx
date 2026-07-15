@@ -1,31 +1,55 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { useProducts } from '../context/ProductContext';
 import { useSettings } from '../context/SettingsContext';
-import { ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProductCard } from '../components/ProductCard';
 import { BrandShowcase } from '../components/BrandShowcase';
+import { BrandBanners } from '../components/BrandBanners';
+import { CategoryQuickLinks } from '../components/CategoryQuickLinks';
+import { supabase } from '../supabase';
+import { mapProductFromDb, Product } from '../context/ProductContext';
 
 export function HomePage() {
-  const { products, fetchFeaturedProducts } = useProducts();
   const { sliderImages, homeCategories, storeInfo } = useSettings();
-  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
-  
-  useEffect(() => {
-    fetchFeaturedProducts();
-  }, []);
+  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [saleProducts, setSaleProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    const onlineProducts = products.filter(p => p.is_online === true);
-    const featured = onlineProducts.filter(p => p.isFeatured);
-    const sourceList = featured.length > 0 ? featured : onlineProducts;
-    if (sourceList.length > 0) {
-      // Shuffle the list and select 4 random products
-      const shuffled = [...sourceList].sort(() => 0.5 - Math.random());
-      setFeaturedProducts(shuffled.slice(0, 4));
-    }
-  }, [products]);
+    const fetchNewArrivals = async () => {
+      // Try ordering by created_at; fall back to isNewArrival flag if column absent
+      let { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_online', true)
+        .order('created_at', { ascending: false })
+        .limit(6);
+      if (error || !data || data.length === 0) {
+        const res = await supabase
+          .from('products')
+          .select('*')
+          .eq('is_online', true)
+          .eq('isNewArrival', true)
+          .limit(6);
+        data = res.data;
+      }
+      if (data) setNewArrivals(data.map(mapProductFromDb));
+    };
+
+    const fetchSaleProducts = async () => {
+      const { data } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_online', true)
+        .eq('isOnSale', true)
+        .not('salePrice', 'is', null)
+        .limit(6);
+      if (data) setSaleProducts(data.map(mapProductFromDb));
+    };
+
+    fetchNewArrivals();
+    fetchSaleProducts();
+  }, []);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -183,6 +207,10 @@ export function HomePage() {
         </div>
       )}
 
+      <BrandBanners />
+
+      <CategoryQuickLinks />
+
       {homeCategories.length > 0 && (
         <section className="max-w-7xl mx-auto px-8">
           <div className="text-center mb-16">
@@ -190,17 +218,17 @@ export function HomePage() {
             <p className="text-zinc-500 font-bold uppercase tracking-widest text-sm">Pick a category to explore the collection</p>
           </div>
           <div className={`grid grid-cols-1 ${
-            homeCategories.length === 1 ? 'max-w-3xl mx-auto' : 
-            homeCategories.length === 2 ? 'md:grid-cols-2' : 
+            homeCategories.length === 1 ? 'max-w-3xl mx-auto' :
+            homeCategories.length === 2 ? 'md:grid-cols-2' :
             homeCategories.length === 4 ? 'md:grid-cols-2 lg:grid-cols-4' :
             'md:grid-cols-3'
           } gap-8`}>
             {homeCategories.map((category, index) => (
               <Link key={category.name} to={category.path} className="group relative block aspect-[3/4] overflow-hidden bg-zinc-100">
-                <img 
-                  src={category.image} 
-                  alt={category.name} 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                <img
+                  src={category.image}
+                  alt={category.name}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   referrerPolicy="no-referrer"
                   loading={index < 2 ? "eager" : "lazy"}
                   fetchPriority={index < 2 ? "high" : "auto"}
@@ -208,7 +236,7 @@ export function HomePage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-8">
                   <h3 className="text-white text-4xl font-black uppercase tracking-widest font-headline italic leading-none">{category.name}</h3>
                   <span className="text-white font-bold text-sm uppercase tracking-widest mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-4 group-hover:translate-y-0">
-                    {category.description} â†’
+                    {category.description} &rarr;
                   </span>
                 </div>
               </Link>
@@ -217,20 +245,45 @@ export function HomePage() {
         </section>
       )}
 
-      {featuredProducts.length > 0 && (
-        <section className="max-w-7xl mx-auto px-8">
-          <div className="flex items-end justify-between mb-12">
+      {newArrivals.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between mb-8">
             <div>
-              <h2 className="text-4xl font-black font-headline uppercase italic tracking-tighter">FEATURED GEAR</h2>
-              <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mt-2">Our top picks for this season</p>
+              <h2 className="text-4xl font-black font-headline uppercase italic tracking-tighter">NEW ARRIVALS</h2>
+              <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mt-2">Just dropped — fresh gear in stock</p>
             </div>
-            <Link to="/footwear" className="text-zinc-900 font-bold uppercase tracking-widest text-[10px] hover:text-[var(--primary-color)] transition-colors border-b-2 border-zinc-900 hover:border-[var(--primary-color)] pb-1">
-              View All
+            <Link
+              to="/new-arrivals"
+              className="text-zinc-900 font-bold uppercase tracking-widest text-[10px] hover:text-[var(--primary-color)] transition-colors border-b-2 border-zinc-900 hover:border-[var(--primary-color)] pb-1"
+            >
+              View All New Arrivals &rarr;
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {featuredProducts.map(product => (
-              <ProductCard key={`featured-${product.id}`} product={product} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {newArrivals.map(product => (
+              <ProductCard key={`new-${product.id}`} product={product} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {saleProducts.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between mb-8">
+            <div>
+              <h2 className="text-4xl font-black font-headline uppercase italic tracking-tighter">ON SALE</h2>
+              <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mt-2">Limited-time deals on top gear</p>
+            </div>
+            <Link
+              to="/sale"
+              className="text-zinc-900 font-bold uppercase tracking-widest text-[10px] hover:text-[var(--primary-color)] transition-colors border-b-2 border-zinc-900 hover:border-[var(--primary-color)] pb-1"
+            >
+              View All Sale Items &rarr;
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {saleProducts.map(product => (
+              <ProductCard key={`sale-${product.id}`} product={product} />
             ))}
           </div>
         </section>
