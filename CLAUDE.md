@@ -6,6 +6,23 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (July 2026)
 
+**HERO PEEK CAROUSEL + EDITABLE BRAND TITLES (Session 40):**
+
+**Admin → Settings → Theme → Brand Showcase Images:**
+- `src/context/SettingsContext.tsx`: `BrandImages` type changed from `Record<string, string>` to `Record<string, { title?: string; image?: string }>` (`BrandImageData` interface added); legacy flat-string rows from before this session are normalized to `{ image: value }` on load so existing uploaded images aren't lost
+- `src/pages/AdminPage.tsx`: added a title text input above each brand's image preview (placeholder `"{Brand} Futbol"`); `handleBrandTitleChange()` updates the nested `title` field; upload/delete now target the nested `image` field only, so clearing an image doesn't wipe a saved title
+- `src/components/BrandBanners.tsx`: reads `brandImages[brand.name]?.title || brand.label` and `?.image || brand.image` — falls back to the existing hardcoded labels/Unsplash images until an admin sets a custom title
+- Saved to `settings` key `brand_images` as `{ "Nike": { "title": "...", "image": "..." }, ... }`
+
+**Homepage hero — peek/carousel redesign:**
+- `src/pages/HomePage.tsx`: replaced the single full-width rounded hero card with a full-bleed peek carousel — center slide wide with partial slides visible on both edges, dark `opacity-50` overlay on non-active slides, only the active slide shows a title/CTA overlay
+- Desktop: center slide 84vw, height 68vh; mobile (<768px): 90vw / 62vh — widened from an initial 70vw/85vh spec after testing against real slide data showed banner headline text getting clipped at the edges (see below)
+- Arrow buttons (`ChevronLeft`/`ChevronRight` in `bg-white/20` pills) + bottom dot indicators; auto-advances every 5s, resets timer on manual navigation; touch swipe support (`onTouchStart`/`onTouchEnd`, 50px threshold)
+- **Infinite loop:** `infiniteSlides = [lastSlide, ...realSlides, firstSlide]`, `currentIndex` starts at 1 (position into `infiniteSlides`, not the real array). Landing on a cloned edge slide lets the 0.5s transition play, then after 500ms silently snaps `currentIndex` to the matching real slide with the transition switched off for one frame (`loopTransitionEnabled` + double `requestAnimationFrame`) — the wrap-around is invisible instead of a visible snap-back. `nextSlide`/`prevSlide`/the auto-advance tick are clamped to `infiniteSlides` bounds so rapid clicking can't index past the clone array before the snap-back resolves
+- Dots reflect the real slide via `activeRealIndex = ((currentIndex - 1) % N + N) % N` — stays correct even while transiently sitting on a clone
+- Verified via Playwright against the live 6-slide production data: no horizontal page overflow at any width tested, no crash under rapid clicking, wrap-around peek shows real (dimmed) neighbor content on both edges, not empty space
+- Known cosmetic note: the peek showing the "Custom Apparel" banner's edge can look almost solid black in screenshots — confirmed via zoomed crop this is real (dimmed) image content, not a bug; that specific asset's edge is dark-colored, not empty background
+
 **HOMEPAGE REDESIGN + ADMIN IMAGE UPLOADS (Session 39):**
 
 **Homepage sections (replaced Featured Products):**
@@ -72,8 +89,14 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-## CURRENT STATUS (Main Branch - July 15, 2026)
-**Latest:** Homepage redesign (brand banners, category tiles, new arrivals, on sale) + Admin image uploads for brands/categories (session 39)
+## CURRENT STATUS (Main Branch - July 16, 2026)
+**Latest:** Hero peek carousel with infinite loop + editable brand showcase titles in Admin (session 40)
+
+**Session 40 improvements (Hero Peek Carousel + Editable Brand Titles):**
+- ✅ Admin → Settings → Theme → Brand Showcase Images: per-brand title input alongside the existing image upload; saved to `settings.brand_images` as `{ title, image }` per brand
+- ✅ Homepage hero redesigned into a peek carousel (center slide + partial slides visible on both edges, dark overlay on non-active slides) — replaces the old single full-width rounded hero card
+- ✅ Hero carousel is a true infinite loop — cloned slides at each end mean the first/last slide's peek shows the wrap-around neighbor instead of grey/empty space, with an invisible transition-less snap-back
+- ✅ Verified on localhost with Playwright against real production slider data — no horizontal overflow, no crash on rapid navigation, wrap-around confirmed working in both directions
 
 **Session 37 improvements (Complete Emoji Removal & UTF-8 Fixes):**
 - ✅ **All emoji removed from POS and related files** — replaced corrupted emoji (ðŸ'³ → 💳) and valid emoji with plain text labels
@@ -546,6 +569,9 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ 2-copy thermal receipt: both copies in ONE print window with `page-break-before: always`; class-based barcodes (`.receipt-barcode`) so JsBarcode renders both via `querySelectorAll`
 ✅ Product name truncation on receipts: `truncateName(name, 24)` — names over 24 chars get `...` suffix to fit 72mm paper
 ✅ Auto-print via `printWindow.onload` (500ms delay + `onafterprint` closes window) — replaced unreliable inline `setTimeout` script
+✅ Admin → Theme tab: Brand Showcase Images cards each have an editable title field (`settings.brand_images` → `{ title, image }` per brand) — homepage `BrandBanners` falls back to hardcoded labels when no title is set
+✅ Homepage hero: full-bleed peek carousel (center slide + edge peeks, dark overlay on non-active slides) replaces the old single full-width rounded hero card; arrow/dot navigation, auto-advance, touch swipe
+✅ Homepage hero: true infinite loop via cloned first/last slides + transition-less snap-back — peek on the first/last slide shows the wrap-around neighbor, not empty space
 
 ## COMPLETED FEATURES
 
@@ -646,7 +672,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - gift_cards: id, card_number, initial_balance, current_balance, is_active
 - store_credits: id, card_number, customer_id, amount, remaining_balance, is_active
 - returns: id, transaction_id, customer_id, items, refund_amount, status, refund_payment_method (TEXT — run migration if missing)
-- settings: key, data (jsonb) — keys: global, slider, homeCategories, navigation, footer, seo, store_info
+- settings: key, data (jsonb) — keys: global, slider, homeCategories, navigation, footer, seo, store_info, theme, brand_images ({title,image} per brand), category_images
 - navigation_menus: id, label, path, order_index, is_active
 - navigation_items: id, menu_id, label, path, logo_url, order_index, parent_id
 
@@ -657,6 +683,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - src/pages/POSPage.tsx - POS main interface
 - src/pages/AdminPage.tsx - Admin panel (8+ tabs)
 - src/pages/ProductDetailPage.tsx - Product detail page (Call to Order CTA for no-size products; Product JSON-LD schema)
+- src/pages/HomePage.tsx - Homepage, incl. hero peek carousel with infinite loop (cloned edge slides + transition-less snap-back)
+- src/components/BrandBanners.tsx - Homepage brand banner grid; reads admin-editable title/image from settings.brand_images
 - src/context/ProductContext.tsx - Product CRUD
 - src/context/SettingsContext.tsx - Site settings defaults (canonical URL, SEO)
 - src/components/ReturnsModal.tsx - Returns/Refund modal (mode="return" or mode="refund"); handles both flows with payment method selection
