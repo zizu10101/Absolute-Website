@@ -80,14 +80,14 @@ export function BrandBanners() {
       {/* Row 1: Nike + Adidas — featured, taller */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         {featured.map((brand, idx) => (
-          <BrandCard key={brand.name} brand={{ ...brand, image: brandImages[brand.name] || brand.image }} count={brandCounts[brand.name] ?? 0} tall idx={idx} />
+          <BrandCard key={brand.name} brand={{ ...brand, image: brandImages[brand.name]?.image || brand.image, label: brandImages[brand.name]?.title || brand.label }} count={brandCounts[brand.name] ?? 0} tall idx={idx} />
         ))}
       </div>
 
       {/* Row 2: Puma + Joma + New Balance */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {rest.map((brand, idx) => (
-          <BrandCard key={brand.name} brand={{ ...brand, image: brandImages[brand.name] || brand.image }} count={brandCounts[brand.name] ?? 0} tall={false} idx={idx + 2} />
+          <BrandCard key={brand.name} brand={{ ...brand, image: brandImages[brand.name]?.image || brand.image, label: brandImages[brand.name]?.title || brand.label }} count={brandCounts[brand.name] ?? 0} tall={false} idx={idx + 2} />
         ))}
       </div>
     </section>

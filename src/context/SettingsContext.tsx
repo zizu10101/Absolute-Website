@@ -60,7 +60,11 @@ export interface ThemeSettings {
   fontFamily: string;
 }
 
-export type BrandImages = Record<string, string>;
+export interface BrandImageData {
+  title?: string;
+  image?: string;
+}
+export type BrandImages = Record<string, BrandImageData>;
 export type CategoryImages = Record<string, string>;
 
 const DEFAULT_THEME: ThemeSettings = {
@@ -305,7 +309,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             // Always force fontFamily to 'default' regardless of what's stored — font feature disabled
             setThemeSettingsState(prev => ({ ...DEFAULT_THEME, ...prev, ...themeData, fontFamily: 'default' }));
           }
-          if (brandImagesData && typeof brandImagesData === 'object') setBrandImagesState(brandImagesData);
+          if (brandImagesData && typeof brandImagesData === 'object') {
+            // Legacy rows stored a plain image URL string per brand — normalize to { title, image }
+            const normalizedBrandImages: BrandImages = {};
+            for (const [brandName, value] of Object.entries(brandImagesData)) {
+              normalizedBrandImages[brandName] = typeof value === 'string' ? { image: value } : (value as BrandImageData);
+            }
+            setBrandImagesState(normalizedBrandImages);
+          }
           if (categoryImagesData && typeof categoryImagesData === 'object') setCategoryImagesState(categoryImagesData);
         }
       } catch (criticalErr) {

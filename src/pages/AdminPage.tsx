@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useProducts, Product } from '../context/ProductContext';
-import { useSettings, NavMenu, SEO, ThemeSettings, forceManualNavigationMigration } from '../context/SettingsContext';
+import { useSettings, NavMenu, SEO, ThemeSettings, BrandImages, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
 import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, ChevronRight, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical, Palette } from 'lucide-react';
@@ -369,7 +369,7 @@ function AdminPageInner() {
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [themeSaveSuccess, setThemeSaveSuccess] = useState(false);
 
-  const [draftBrandImages, setDraftBrandImages] = useState<Record<string, string>>({});
+  const [draftBrandImages, setDraftBrandImages] = useState<BrandImages>({});
   const [isSavingBrandImages, setIsSavingBrandImages] = useState(false);
   const [brandImagesSaveSuccess, setBrandImagesSaveSuccess] = useState(false);
 
@@ -1667,7 +1667,7 @@ function AdminPageInner() {
         const safeName = brandName.toLowerCase().replace(/[^a-z0-9]/g, '_');
         const path = `brand_images/${safeName}_${Date.now()}.jpg`;
         const publicUrl = await uploadImage(resized, path);
-        setDraftBrandImages(prev => ({ ...prev, [brandName]: publicUrl }));
+        setDraftBrandImages(prev => ({ ...prev, [brandName]: { ...prev[brandName], image: publicUrl } }));
       } catch (err) {
         console.error('Brand image upload failed:', err);
       } finally {
@@ -1676,6 +1676,10 @@ function AdminPageInner() {
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  };
+
+  const handleBrandTitleChange = (brandName: string, title: string) => {
+    setDraftBrandImages(prev => ({ ...prev, [brandName]: { ...prev[brandName], title } }));
   };
 
   const handleSaveBrandImages = async () => {
@@ -3613,18 +3617,25 @@ function AdminPageInner() {
                   {(['Nike', 'Adidas', 'Puma', 'Joma', 'New Balance'] as const).map(brand => (
                     <div key={brand} className="space-y-3">
                       <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">{brand}</p>
+                      <input
+                        type="text"
+                        value={draftBrandImages[brand]?.title ?? ''}
+                        onChange={e => handleBrandTitleChange(brand, e.target.value)}
+                        placeholder={`${brand} Futbol`}
+                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
+                      />
                       <div className="relative aspect-[4/3] rounded-xl overflow-hidden border border-zinc-200 bg-zinc-100">
-                        {draftBrandImages[brand] ? (
-                          <img src={draftBrandImages[brand]} alt={brand} className="w-full h-full object-cover" />
+                        {draftBrandImages[brand]?.image ? (
+                          <img src={draftBrandImages[brand]?.image} alt={brand} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-zinc-300">
                             <ImageIcon size={28} />
                             <span className="text-[10px] font-bold uppercase tracking-wider">No image</span>
                           </div>
                         )}
-                        {draftBrandImages[brand] && (
+                        {draftBrandImages[brand]?.image && (
                           <button
-                            onClick={() => setDraftBrandImages(prev => { const n = { ...prev }; delete n[brand]; return n; })}
+                            onClick={() => setDraftBrandImages(prev => ({ ...prev, [brand]: { ...prev[brand], image: undefined } }))}
                             className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
                           >
                             <X size={12} />
@@ -3633,7 +3644,7 @@ function AdminPageInner() {
                       </div>
                       <label className={`flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-zinc-200 text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-zinc-50'}`}>
                         <Upload size={12} />
-                        {draftBrandImages[brand] ? 'Replace' : 'Upload'}
+                        {draftBrandImages[brand]?.image ? 'Replace' : 'Upload'}
                         <input type="file" className="hidden" accept="image/*" disabled={isUploading} onChange={e => handleBrandImageUpload(brand, e)} />
                       </label>
                     </div>
