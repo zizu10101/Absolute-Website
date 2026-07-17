@@ -23,7 +23,9 @@ export function CategoryQuickLinks() {
 
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
         {CATEGORIES.map((cat, idx) => {
-          const imgUrl = categoryImages[cat.key];
+          const catData = categoryImages[cat.key];
+          const imgUrl = catData?.image;
+          const linkTo = catData?.link || cat.path;
           return (
             <motion.div
               key={cat.label}
@@ -33,7 +35,7 @@ export function CategoryQuickLinks() {
               viewport={{ once: true }}
             >
               <Link
-                to={cat.path}
+                to={linkTo}
                 className="group relative flex flex-col items-center justify-center gap-2 border border-zinc-100 hover:border-[var(--primary-color)] hover:shadow-md transition-all duration-200 rounded-sm aspect-square overflow-hidden"
               >
                 {imgUrl ? (

@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useProducts, Product } from '../context/ProductContext';
-import { useSettings, NavMenu, SEO, ThemeSettings, BrandImages, forceManualNavigationMigration } from '../context/SettingsContext';
+import { useSettings, NavMenu, SEO, ThemeSettings, BrandImages, CategoryImages, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
 import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, ChevronRight, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical, Palette } from 'lucide-react';
@@ -37,6 +37,16 @@ const getCategoryPath = (name: string) => {
   if (name === 'Custom Lab') return '/customization';
   if (name === 'Kit Orders') return '/kit-orders';
   return `/${name.toLowerCase().replace(/\s+/g, '-')}`;
+};
+
+// Default destinations for the homepage "Shop By Category" tiles - kept in sync with CategoryQuickLinks.tsx
+const DEFAULT_CATEGORY_TILE_LINKS: Record<string, string> = {
+  cleats: '/category/footwear',
+  jerseys: '/category/national-teams',
+  gloves: '/category/equipment?type=goalkeeper',
+  balls: '/category/equipment?type=balls',
+  training: '/category/training-apparel',
+  accessories: '/category/accessories',
 };
 
 interface ErrorBoundaryProps {
@@ -373,7 +383,7 @@ function AdminPageInner() {
   const [isSavingBrandImages, setIsSavingBrandImages] = useState(false);
   const [brandImagesSaveSuccess, setBrandImagesSaveSuccess] = useState(false);
 
-  const [draftCategoryImages, setDraftCategoryImages] = useState<Record<string, string>>({});
+  const [draftCategoryImages, setDraftCategoryImages] = useState<CategoryImages>({});
   const [isSavingCategoryImages, setIsSavingCategoryImages] = useState(false);
   const [categoryImagesSaveSuccess, setCategoryImagesSaveSuccess] = useState(false);
 
@@ -1705,7 +1715,7 @@ function AdminPageInner() {
         const resized = await resizeImage(reader.result as string, 800, 800, 0.85);
         const path = `category_images/${categoryKey}_${Date.now()}.jpg`;
         const publicUrl = await uploadImage(resized, path);
-        setDraftCategoryImages(prev => ({ ...prev, [categoryKey]: publicUrl }));
+        setDraftCategoryImages(prev => ({ ...prev, [categoryKey]: { ...prev[categoryKey], image: publicUrl } }));
       } catch (err) {
         console.error('Category image upload failed:', err);
       } finally {
@@ -1714,6 +1724,10 @@ function AdminPageInner() {
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  };
+
+  const handleCategoryLinkChange = (categoryKey: string, link: string) => {
+    setDraftCategoryImages(prev => ({ ...prev, [categoryKey]: { ...prev[categoryKey], link } }));
   };
 
   const handleSaveCategoryImages = async () => {
@@ -3680,17 +3694,17 @@ function AdminPageInner() {
                     <div key={cat.key} className="space-y-3">
                       <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">{cat.label}</p>
                       <div className="relative aspect-square rounded-xl overflow-hidden border border-zinc-200 bg-zinc-100">
-                        {draftCategoryImages[cat.key] ? (
-                          <img src={draftCategoryImages[cat.key]} alt={cat.label} className="w-full h-full object-cover" />
+                        {draftCategoryImages[cat.key]?.image ? (
+                          <img src={draftCategoryImages[cat.key]?.image} alt={cat.label} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-zinc-300">
                             <span className="text-3xl" role="img" aria-label={cat.label}>{cat.emoji}</span>
                             <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Fallback</span>
                           </div>
                         )}
-                        {draftCategoryImages[cat.key] && (
+                        {draftCategoryImages[cat.key]?.image && (
                           <button
-                            onClick={() => setDraftCategoryImages(prev => { const n = { ...prev }; delete n[cat.key]; return n; })}
+                            onClick={() => setDraftCategoryImages(prev => ({ ...prev, [cat.key]: { ...prev[cat.key], image: undefined } }))}
                             className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
                           >
                             <X size={12} />
@@ -3699,9 +3713,19 @@ function AdminPageInner() {
                       </div>
                       <label className={`flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-zinc-200 text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-zinc-50'}`}>
                         <Upload size={12} />
-                        {draftCategoryImages[cat.key] ? 'Replace' : 'Upload'}
+                        {draftCategoryImages[cat.key]?.image ? 'Replace' : 'Upload'}
                         <input type="file" className="hidden" accept="image/*" disabled={isUploading} onChange={e => handleCategoryTileImageUpload(cat.key, e)} />
                       </label>
+                      <div>
+                        <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-400 mb-1">Link</label>
+                        <input
+                          type="text"
+                          value={draftCategoryImages[cat.key]?.link ?? DEFAULT_CATEGORY_TILE_LINKS[cat.key] ?? ''}
+                          onChange={e => handleCategoryLinkChange(cat.key, e.target.value)}
+                          placeholder={DEFAULT_CATEGORY_TILE_LINKS[cat.key] || '/category/...'}
+                          className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 text-[11px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>

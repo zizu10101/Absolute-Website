@@ -4,7 +4,6 @@ import { useSettings } from '../context/SettingsContext';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProductCard } from '../components/ProductCard';
-import { BrandShowcase } from '../components/BrandShowcase';
 import { BrandBanners } from '../components/BrandBanners';
 import { CategoryQuickLinks } from '../components/CategoryQuickLinks';
 import { supabase } from '../supabase';
@@ -23,14 +22,14 @@ export function HomePage() {
         .select('*')
         .eq('is_online', true)
         .order('created_at', { ascending: false })
-        .limit(6);
+        .limit(4);
       if (error || !data || data.length === 0) {
         const res = await supabase
           .from('products')
           .select('*')
           .eq('is_online', true)
           .eq('isNewArrival', true)
-          .limit(6);
+          .limit(4);
         data = res.data;
       }
       if (data) setNewArrivals(data.map(mapProductFromDb));
@@ -43,7 +42,7 @@ export function HomePage() {
         .eq('is_online', true)
         .eq('isOnSale', true)
         .not('salePrice', 'is', null)
-        .limit(6);
+        .limit(4);
       if (data) setSaleProducts(data.map(mapProductFromDb));
     };
 
@@ -64,21 +63,26 @@ export function HomePage() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartX = useRef<number | null>(null);
 
-  // Center slide is wide with a modest peek so existing wide banner graphics don't get cropped tight
+  // Center slide is wide with a modest peek so existing wide banner graphics don't get cropped tight.
+  // Mobile gets no peek at all - full width slide, edge-to-edge, so the whole slide is visible.
   const [slideWidthVw, setSlideWidthVw] = useState(84);
-  const [heightVh, setHeightVh] = useState(68);
+  const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const updateDims = () => {
       const mobile = window.innerWidth < 768;
-      setSlideWidthVw(mobile ? 90 : 84);
-      setHeightVh(mobile ? 62 : 68);
+      setIsMobile(mobile);
+      setSlideWidthVw(mobile ? 100 : 84);
     };
     updateDims();
     window.addEventListener('resize', updateDims);
     return () => window.removeEventListener('resize', updateDims);
   }, []);
-  const gapVw = 2;
+  const gapVw = isMobile ? 0 : 2;
   const peekVw = (100 - slideWidthVw) / 2;
+  // Real banner images measure ~2.29-2.53:1 (landscape); tie frame height to width via
+  // aspect-ratio instead of a fixed vh so the full image fits with minimal letterboxing
+  // at any viewport size, rather than a height guessed independently of image proportions.
+  const slideAspectRatio = '12 / 5';
 
   useEffect(() => {
     if (sliderImages.length > 0 && (currentIndex < 0 || currentIndex > sliderImages.length + 1)) {
@@ -209,9 +213,9 @@ export function HomePage() {
   return (
     <div className="space-y-20">
       {sliderImages.length > 0 && (
-        <section className="relative w-full overflow-hidden bg-zinc-900" style={{ height: `${heightVh}vh` }}>
+        <section className="relative w-full overflow-hidden bg-zinc-900">
           <div
-            className="flex h-full"
+            className="flex"
             style={{
               transform: `translateX(calc(-${currentIndex * (slideWidthVw + gapVw)}vw + ${peekVw}vw))`,
               transition: loopTransitionEnabled ? 'transform 0.5s ease' : 'none',
@@ -228,7 +232,7 @@ export function HomePage() {
                   <img
                     src={slide.url}
                     alt={slide.title || 'Hero'}
-                    className="w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-contain object-center bg-black"
                     referrerPolicy="no-referrer"
                     draggable={false}
                     loading={index <= 2 ? 'eager' : 'lazy'}
@@ -269,8 +273,12 @@ export function HomePage() {
               return (
                 <div
                   key={index}
-                  className="relative flex-shrink-0 h-full"
-                  style={{ width: `${slideWidthVw}vw`, marginRight: index < infiniteSlides.length - 1 ? `${gapVw}vw` : 0 }}
+                  className={`relative flex-shrink-0 overflow-hidden ${isMobile ? '' : 'rounded-xl'}`}
+                  style={{
+                    width: `${slideWidthVw}vw`,
+                    aspectRatio: slideAspectRatio,
+                    marginRight: index < infiniteSlides.length - 1 ? `${gapVw}vw` : 0,
+                  }}
                   onClick={!isActive ? () => { setCurrentIndex(index); resetTimer(); } : undefined}
                 >
                   {isActive && slide.link ? (
@@ -369,7 +377,7 @@ export function HomePage() {
               View All New Arrivals &rarr;
             </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {newArrivals.map(product => (
               <ProductCard key={`new-${product.id}`} product={product} />
             ))}
@@ -391,15 +399,13 @@ export function HomePage() {
               View All Sale Items &rarr;
             </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {saleProducts.map(product => (
               <ProductCard key={`sale-${product.id}`} product={product} />
             ))}
           </div>
         </section>
       )}
-
-      <BrandShowcase />
 
       <section className="text-white py-20 px-8 border-t border-zinc-900" style={{ backgroundColor: 'var(--secondary-color)' }}>
         <div className="max-w-5xl mx-auto">

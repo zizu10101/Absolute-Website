@@ -65,7 +65,12 @@ export interface BrandImageData {
   image?: string;
 }
 export type BrandImages = Record<string, BrandImageData>;
-export type CategoryImages = Record<string, string>;
+
+export interface CategoryImageData {
+  image?: string;
+  link?: string;
+}
+export type CategoryImages = Record<string, CategoryImageData>;
 
 const DEFAULT_THEME: ThemeSettings = {
   storeName: 'Absolute Soccer Mississauga',
@@ -317,7 +322,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             }
             setBrandImagesState(normalizedBrandImages);
           }
-          if (categoryImagesData && typeof categoryImagesData === 'object') setCategoryImagesState(categoryImagesData);
+          if (categoryImagesData && typeof categoryImagesData === 'object') {
+            // Legacy rows stored a plain image URL string per category - normalize to { image, link }
+            const normalizedCategoryImages: CategoryImages = {};
+            for (const [categoryKey, value] of Object.entries(categoryImagesData)) {
+              normalizedCategoryImages[categoryKey] = typeof value === 'string' ? { image: value } : (value as CategoryImageData);
+            }
+            setCategoryImagesState(normalizedCategoryImages);
+          }
         }
       } catch (criticalErr) {
         console.error('Critical context collection fault:', criticalErr);

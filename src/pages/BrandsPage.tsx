@@ -2,6 +2,7 @@
 import { supabase } from '../supabase';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { ArrowRight } from 'lucide-react';
 
 interface BrandWithCount {
   name: string;
@@ -143,8 +144,9 @@ export function BrandsPage() {
                       {brand.productCount} {brand.productCount === 1 ? 'Product' : 'Products'}
                     </p>
                     <div className="pt-2 border-t border-zinc-100">
-                      <p className="text-[10px] font-bold text-[var(--primary-color)] uppercase tracking-widest group-hover:translate-x-1 transition-transform">
-                        Shop {brand.name} â†’
+                      <p className="flex items-center gap-1 text-[10px] font-bold text-[var(--primary-color)] uppercase tracking-widest group-hover:translate-x-1 transition-transform">
+                        <span>Shop {brand.name}</span>
+                        <ArrowRight size={12} />
                       </p>
                     </div>
                   </div>
