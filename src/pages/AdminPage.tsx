@@ -49,6 +49,16 @@ const DEFAULT_CATEGORY_TILE_LINKS: Record<string, string> = {
   accessories: '/category/accessories',
 };
 
+// Default labels for the homepage "Shop By Category" tiles - kept in sync with CategoryQuickLinks.tsx
+const DEFAULT_CATEGORY_TILE_TITLES: Record<string, string> = {
+  cleats: 'Cleats',
+  jerseys: 'Jerseys',
+  gloves: 'Gloves',
+  balls: 'Balls',
+  training: 'Training',
+  accessories: 'Accessories',
+};
+
 interface ErrorBoundaryProps {
   children: React.ReactNode;
 }
@@ -1728,6 +1738,10 @@ function AdminPageInner() {
 
   const handleCategoryLinkChange = (categoryKey: string, link: string) => {
     setDraftCategoryImages(prev => ({ ...prev, [categoryKey]: { ...prev[categoryKey], link } }));
+  };
+
+  const handleCategoryTitleChange = (categoryKey: string, title: string) => {
+    setDraftCategoryImages(prev => ({ ...prev, [categoryKey]: { ...prev[categoryKey], title } }));
   };
 
   const handleSaveCategoryImages = async () => {
@@ -3693,6 +3707,26 @@ function AdminPageInner() {
                   ] as const).map(cat => (
                     <div key={cat.key} className="space-y-3">
                       <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">{cat.label}</p>
+                      <div>
+                        <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-400 mb-1">Title</label>
+                        <input
+                          type="text"
+                          value={draftCategoryImages[cat.key]?.title ?? DEFAULT_CATEGORY_TILE_TITLES[cat.key] ?? ''}
+                          onChange={e => handleCategoryTitleChange(cat.key, e.target.value)}
+                          placeholder={DEFAULT_CATEGORY_TILE_TITLES[cat.key] || cat.label}
+                          className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 text-[11px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-400 mb-1">Link</label>
+                        <input
+                          type="text"
+                          value={draftCategoryImages[cat.key]?.link ?? DEFAULT_CATEGORY_TILE_LINKS[cat.key] ?? ''}
+                          onChange={e => handleCategoryLinkChange(cat.key, e.target.value)}
+                          placeholder={DEFAULT_CATEGORY_TILE_LINKS[cat.key] || '/category/...'}
+                          className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 text-[11px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
+                        />
+                      </div>
                       <div className="relative aspect-square rounded-xl overflow-hidden border border-zinc-200 bg-zinc-100">
                         {draftCategoryImages[cat.key]?.image ? (
                           <img src={draftCategoryImages[cat.key]?.image} alt={cat.label} className="w-full h-full object-cover" />
@@ -3716,16 +3750,6 @@ function AdminPageInner() {
                         {draftCategoryImages[cat.key]?.image ? 'Replace' : 'Upload'}
                         <input type="file" className="hidden" accept="image/*" disabled={isUploading} onChange={e => handleCategoryTileImageUpload(cat.key, e)} />
                       </label>
-                      <div>
-                        <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-400 mb-1">Link</label>
-                        <input
-                          type="text"
-                          value={draftCategoryImages[cat.key]?.link ?? DEFAULT_CATEGORY_TILE_LINKS[cat.key] ?? ''}
-                          onChange={e => handleCategoryLinkChange(cat.key, e.target.value)}
-                          placeholder={DEFAULT_CATEGORY_TILE_LINKS[cat.key] || '/category/...'}
-                          className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 text-[11px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
-                        />
-                      </div>
                     </div>
                   ))}
                 </div>

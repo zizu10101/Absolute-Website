@@ -26,6 +26,7 @@ export function CategoryQuickLinks() {
           const catData = categoryImages[cat.key];
           const imgUrl = catData?.image;
           const linkTo = catData?.link || cat.path;
+          const displayTitle = catData?.title || cat.label;
           return (
             <motion.div
               key={cat.label}
@@ -47,16 +48,16 @@ export function CategoryQuickLinks() {
                     />
                     <div className="absolute inset-0 bg-black/50 group-hover:bg-black/40 transition-colors" />
                     <span className="relative z-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-white text-center leading-tight">
-                      {cat.label}
+                      {displayTitle}
                     </span>
                   </>
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-2 w-full h-full p-4 bg-white">
-                    <span className="text-2xl sm:text-3xl leading-none" role="img" aria-label={cat.label}>
+                    <span className="text-2xl sm:text-3xl leading-none" role="img" aria-label={displayTitle}>
                       {cat.emoji}
                     </span>
                     <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-zinc-700 group-hover:text-[var(--primary-color)] transition-colors text-center leading-tight">
-                      {cat.label}
+                      {displayTitle}
                     </span>
                   </div>
                 )}

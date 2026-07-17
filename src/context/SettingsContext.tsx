@@ -69,6 +69,7 @@ export type BrandImages = Record<string, BrandImageData>;
 export interface CategoryImageData {
   image?: string;
   link?: string;
+  title?: string;
 }
 export type CategoryImages = Record<string, CategoryImageData>;
 
