@@ -6,6 +6,14 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (July 2026)
 
+**EDITABLE CATEGORY TILE TITLES (Session 42):**
+
+**Admin → Settings → Theme → Category Tile Images:**
+- `src/context/SettingsContext.tsx`: `CategoryImageData` gains an optional `title` field (`{ image?, link?, title? }`) alongside the session 41 `image`/`link` fields
+- `src/pages/AdminPage.tsx`: added `DEFAULT_CATEGORY_TILE_TITLES` map (Cleats/Jerseys/Gloves/Balls/Training/Accessories — kept in sync with `CategoryQuickLinks.tsx`'s hardcoded labels); added a `Title` text input per tile, pre-filled with the saved title or the default label; `handleCategoryTitleChange()`; card layout reordered to Title → Link → Image preview/Upload
+- `src/components/CategoryQuickLinks.tsx`: each tile displays `categoryImages[key]?.title || cat.label` — admins can rename any homepage category tile (e.g. "Cleats" → "Soccer Cleats") without a code change
+- Saved to `settings` key `category_images` as `{ "cleats": { "image": "...", "link": "...", "title": "..." }, ... }`
+
 **HERO SLIDER FIX + EDITABLE CATEGORY LINKS + HOMEPAGE CLEANUP (Session 41):**
 
 **Hero slider — full image visible, no cropping/overflow:**
@@ -115,7 +123,11 @@ Admin login: info@edgedbs.com
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
 ## CURRENT STATUS (Main Branch - July 16, 2026)
-**Latest:** Hero slider full-image-visible fix + fixed header/content overlap on desktop + editable category tile links + homepage cleanup (session 41)
+**Latest:** Editable category tile titles in Admin (session 42)
+
+**Session 42 improvements (Editable Category Tile Titles):**
+- ✅ Admin → Settings → Theme → Category Tile Images: added a per-tile `Title` field (pre-filled with the default label), saved alongside the session 41 image/link fields; `CategoryImageData` now `{ image?, link?, title? }`
+- ✅ Homepage `CategoryQuickLinks` tiles display the saved title with fallback to the hardcoded default label — admins can rename any tile (e.g. "Cleats" → "Soccer Cleats") without a code change
 
 **Session 41 improvements (Hero Slider Fix + Editable Category Links + Homepage Cleanup):**
 - ✅ Hero slider image is `object-contain` (full banner visible, black letterbox) sized via `aspect-ratio: 12/5` matching real measured banner proportions (~2.3–2.5:1) — replaces the fixed-vh height that cropped/overflowed images
@@ -569,7 +581,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ New Arrivals section on homepage: 4 most-recently-added online products (reduced from 6 in session 41); fallback to `isNewArrival=true` if `created_at` column absent
 ✅ On Sale section on homepage: up to 4 products with `isOnSale=true` (reduced from 6 in session 41); hidden when no sale items exist
 ✅ Admin → Theme tab: Brand Showcase Images — upload per-brand lifestyle image saved to `settings` key `brand_images`, stored in Supabase Storage `media/brand_images/`
-✅ Admin → Theme tab: Category Tile Images — upload per-category image saved to `settings` key `category_images`, stored in Supabase Storage `media/category_images/`; **session 41:** added a per-tile `Link` field (pre-filled with defaults) so each homepage category tile's destination is admin-editable
+✅ Admin → Theme tab: Category Tile Images — upload per-category image saved to `settings` key `category_images`, stored in Supabase Storage `media/category_images/`; **session 41:** added a per-tile `Link` field (pre-filled with defaults) so each homepage category tile's destination is admin-editable; **session 42:** added a per-tile `Title` field (pre-filled with defaults) so each tile's label is admin-editable
 ✅ SettingsContext: `brandImages`/`categoryImages` state + `BrandImages`/`CategoryImages` types + `setBrandImages`/`setCategoryImages` setters; auto-loaded from DB on mount
 ✅ Brand tiles on homepage: `BrandShowcase` links to `/brand/:brandName` (was broken `/products?brand=Nike`); `BrandPage` now calls `fetchProductsByCategory()` on mount so direct URL navigation shows products instead of "No products found"
 ✅ Sitemap: 181 URLs (4 main + 7 category + 168 product pages) — regenerated July 3, 2026
@@ -607,6 +619,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Homepage hero (session 41): `object-contain` + `aspect-ratio: 12/5` sizing — full banner always visible (black letterbox instead of cropping), no top/bottom/left/right overflow at any viewport size (verified mobile through 32"/4K)
 ✅ Fixed header/content overlap on desktop (session 41): `Layout.tsx` `<main>` padding-top is now responsive (`pt-[73px] md:pt-[113px]`) matching the fixed `<Header>`'s real height at each breakpoint — previously a static 80px under-reserved space for the 113px desktop header, covering the top ~33px of every page's content
 ✅ Category tile links (session 41): Admin → Theme → Category Tile Images has a per-tile `Link` field; `CategoryImages` is now `{ image, link }` per category; `CategoryQuickLinks` uses the saved link with fallback to its hardcoded default
+✅ Category tile titles (session 42): Admin → Theme → Category Tile Images has a per-tile `Title` field; `CategoryImages` is now `{ image, link, title }` per category; `CategoryQuickLinks` uses the saved title with fallback to its hardcoded default label
 ✅ Fixed corrupted arrow glyph on `/brands` (session 41): `Shop {brand} â†'` mojibake → lucide `ArrowRight` icon
 ✅ Homepage New Arrivals / On Sale reduced to 4 tiles each (session 41); duplicate `BrandShowcase` section removed from bottom of homepage
 
@@ -709,7 +722,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - gift_cards: id, card_number, initial_balance, current_balance, is_active
 - store_credits: id, card_number, customer_id, amount, remaining_balance, is_active
 - returns: id, transaction_id, customer_id, items, refund_amount, status, refund_payment_method (TEXT — run migration if missing)
-- settings: key, data (jsonb) — keys: global, slider, homeCategories, navigation, footer, seo, store_info, theme, brand_images ({title,image} per brand), category_images ({image,link} per category, session 41)
+- settings: key, data (jsonb) — keys: global, slider, homeCategories, navigation, footer, seo, store_info, theme, brand_images ({title,image} per brand), category_images ({image,link,title} per category, session 41-42)
 - navigation_menus: id, label, path, order_index, is_active
 - navigation_items: id, menu_id, label, path, logo_url, order_index, parent_id
 
