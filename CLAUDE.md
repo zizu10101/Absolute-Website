@@ -6,6 +6,30 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (July 2026)
 
+**HERO SLIDER FIX + EDITABLE CATEGORY LINKS + HOMEPAGE CLEANUP (Session 41):**
+
+**Hero slider — full image visible, no cropping/overflow:**
+- `src/pages/HomePage.tsx`: hero `<img>` changed from `object-cover` to `object-contain object-center bg-black` — shows the complete banner with black letterbox bars instead of cropping edges
+- Slide container height is no longer a fixed `vh` value (`heightVh` state removed). It's now `aspectRatio: '12 / 5'` (2.4:1) tied directly to the slide's `width`, chosen from the real measured banner dimensions (six live slider images ranged 2.29:1–2.53:1, averaging ~2.4:1 — not the 1920×600/3.2:1 initially assumed)
+- Image element is `absolute inset-0` anchored to the slide div (nearest `position: relative` ancestor) — fixes a prior vertical-overflow bug where `h-full` percentage heights cascading through the flex row / Link wrapper / img chain didn't reliably resolve against a `transform`-ed flex container
+- Verified via Playwright at 375px, 1366×768, 1440×900, 2560×1440, and 3840×2160: zero overflow on any edge at any size, image top/bottom/left/right pixel-match the slide container
+
+**Fixed header covering top of page content on desktop (root cause of the last reported "hero image cut off at top" — was not a hero/aspect-ratio bug):**
+- `src/components/Layout.tsx`: `<Header>` is `position: fixed`. Its own height is 73px on mobile (`py-4`) but 113px at `md:` and up (`py-6`) — `<main>` only ever reserved a static `pt-20` (80px), so on any screen ≥768px wide the fixed header physically covered the top ~33px of whatever content started the page (hero included, but really every page). Fixed: `pt-20` → `pt-[73px] md:pt-[113px]`, matching the header's real measured height at each breakpoint. Verified 0px gap / 0px overlap between header bottom and page content top at mobile, 17", 1440p, and 32" (2560×1440) viewports
+
+**Admin → Settings → Theme → Category Tile Images — per-tile link field:**
+- `src/context/SettingsContext.tsx`: `CategoryImages` type changed from `Record<string, string>` to `Record<string, { image?: string; link?: string }>` (`CategoryImageData` interface added); legacy flat-string rows normalized to `{ image: value }` on load, same pattern as the session 40 brand-images fix — no existing uploaded category images lost
+- `src/pages/AdminPage.tsx`: added a `DEFAULT_CATEGORY_TILE_LINKS` map (mirrors `CategoryQuickLinks.tsx`'s hardcoded defaults: cleats→`/category/footwear`, jerseys→`/category/national-teams`, gloves→`/category/equipment?type=goalkeeper`, balls→`/category/equipment?type=balls`, training→`/category/training-apparel`, accessories→`/category/accessories`); added a `Link` text input under each category's image upload, pre-filled with the saved link or the default path if none saved yet; `handleCategoryLinkChange()`; upload/clear now target the nested `image` field only so clearing an image doesn't wipe a saved link
+- `src/components/CategoryQuickLinks.tsx`: each tile now links to `categoryImages[key]?.link || cat.path` — admins can repoint any homepage category tile (e.g. to a brand page) without a code change
+
+**Homepage cleanup:**
+- `src/pages/HomePage.tsx`: New Arrivals and On Sale sections reduced from 6 to 4 products each (`.limit(4)`, grid `grid-cols-2 md:grid-cols-4` — clean 4-up row on desktop, 2×2 on mobile)
+- Removed the duplicate `<BrandShowcase />` section (logo grid) from the bottom of the homepage — the `BrandBanners` (Nike Futbol-style) section at the top already covers "Shop by Brand"; `BrandShowcase.tsx` the component file is left in place (still used nowhere else currently, kept in case it's wanted elsewhere) but no longer imported by HomePage
+- Homepage section order is now: Hero → Brand Banners (Shop By Brand) → Category Quick Links (Shop By Category) → SELECT YOUR SQUAD → New Arrivals (4) → On Sale (4) → Visit Us
+
+**Fixed corrupted arrow glyph on /brands:**
+- `src/pages/BrandsPage.tsx`: `Shop {brand.name} â†'` (mojibake) → `<span>Shop {brand.name}</span><ArrowRight size={12} />` using lucide-react's `ArrowRight`
+
 **HERO PEEK CAROUSEL + EDITABLE BRAND TITLES (Session 40):**
 
 **Admin → Settings → Theme → Brand Showcase Images:**
@@ -16,7 +40,8 @@ Admin login: info@edgedbs.com
 
 **Homepage hero — peek/carousel redesign:**
 - `src/pages/HomePage.tsx`: replaced the single full-width rounded hero card with a full-bleed peek carousel — center slide wide with partial slides visible on both edges, dark `opacity-50` overlay on non-active slides, only the active slide shows a title/CTA overlay
-- Desktop: center slide 84vw, height 68vh; mobile (<768px): 90vw / 62vh — widened from an initial 70vw/85vh spec after testing against real slide data showed banner headline text getting clipped at the edges (see below)
+- Desktop: center slide 84vw with peek; mobile (<768px): 100vw, no peek (edge-to-edge, full slide visible) — widened from an initial 70vw/85vh spec after testing against real slide data showed banner headline text getting clipped at the edges (see below)
+- **Session 41 update:** slide height is no longer a fixed `vh` value — it's `aspectRatio: '12 / 5'` (2.4:1) tied to the slide's width, matching the real banner images (measured 2.29:1–2.53:1). Image is `object-contain` (not `object-cover`) so the full banner is always visible with black letterbox bars, anchored `absolute inset-0` to the slide div directly (fixes a vertical-overflow bug where percentage `h-full` heights didn't reliably resolve through the flex row/Link wrapper chain)
 - Arrow buttons (`ChevronLeft`/`ChevronRight` in `bg-white/20` pills) + bottom dot indicators; auto-advances every 5s, resets timer on manual navigation; touch swipe support (`onTouchStart`/`onTouchEnd`, 50px threshold)
 - **Infinite loop:** `infiniteSlides = [lastSlide, ...realSlides, firstSlide]`, `currentIndex` starts at 1 (position into `infiniteSlides`, not the real array). Landing on a cloned edge slide lets the 0.5s transition play, then after 500ms silently snaps `currentIndex` to the matching real slide with the transition switched off for one frame (`loopTransitionEnabled` + double `requestAnimationFrame`) — the wrap-around is invisible instead of a visible snap-back. `nextSlide`/`prevSlide`/the auto-advance tick are clamped to `infiniteSlides` bounds so rapid clicking can't index past the clone array before the snap-back resolves
 - Dots reflect the real slide via `activeRealIndex = ((currentIndex - 1) % N + N) % N` — stays correct even while transiently sitting on a clone
@@ -90,7 +115,14 @@ Admin login: info@edgedbs.com
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
 ## CURRENT STATUS (Main Branch - July 16, 2026)
-**Latest:** Hero peek carousel with infinite loop + editable brand showcase titles in Admin (session 40)
+**Latest:** Hero slider full-image-visible fix + fixed header/content overlap on desktop + editable category tile links + homepage cleanup (session 41)
+
+**Session 41 improvements (Hero Slider Fix + Editable Category Links + Homepage Cleanup):**
+- ✅ Hero slider image is `object-contain` (full banner visible, black letterbox) sized via `aspect-ratio: 12/5` matching real measured banner proportions (~2.3–2.5:1) — replaces the fixed-vh height that cropped/overflowed images
+- ✅ Fixed a site-wide bug (not hero-specific): `Layout.tsx`'s `<main>` reserved a static `pt-20` (80px) for the fixed `<Header>`, but the header is actually 113px tall at `md:`+ (only 73px on mobile) — the header was covering the top ~33px of every page's content on desktop/large screens. Now responsive: `pt-[73px] md:pt-[113px]`
+- ✅ Admin → Settings → Theme → Category Tile Images: added a per-tile `Link` field (pre-filled with sensible defaults) so admins can repoint any homepage category tile without a code change; `CategoryImages` type now `{ image, link }` per category (was a flat image-URL string), legacy rows normalized on load
+- ✅ Homepage: New Arrivals / On Sale reduced from 6 to 4 tiles each (`grid-cols-2 md:grid-cols-4`); removed the duplicate Shop by Brand section (`BrandShowcase`) from the bottom of the homepage — `BrandBanners` at the top already covers it
+- ✅ Fixed corrupted arrow glyph on `/brands` (`Shop {brand} â†'` mojibake) → lucide `ArrowRight` icon
 
 **Session 40 improvements (Hero Peek Carousel + Editable Brand Titles):**
 - ✅ Admin → Settings → Theme → Brand Showcase Images: per-brand title input alongside the existing image upload; saved to `settings.brand_images` as `{ title, image }` per brand
@@ -531,13 +563,13 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Admin pre-fill from POS scan: React Router navigation state `{ openAddProduct, pendingBarcode }` → AdminPage detects on mount, pre-fills Add Product form, auto-navigates back to /pos after save
 ✅ UTF-8 encoding fix: site-wide mojibake repaired in 9 files (corrupted â€¢ â€" emoji sequences fixed to proper • – 💳 👕 ⚽ 🛡️ etc.)
 ✅ Font system: `applyFont()` in SettingsContext overrides `--font-sans` (Tailwind v4 variable) + sets inline `fontFamily` on `html` and `body`; `html, body { font-family: var(--font-family) !important }` in index.css; live preview loads Google Font on dropdown change before save
-✅ Homepage redesign: BrandBanners (Nike Futbol-style) → CategoryQuickLinks → SELECT YOUR SQUAD → New Arrivals → On Sale → BrandShowcase logos → Visit Us; Featured Products section removed
+✅ Homepage redesign: BrandBanners (Nike Futbol-style) → CategoryQuickLinks → SELECT YOUR SQUAD → New Arrivals → On Sale → Visit Us; Featured Products section removed. **Session 41:** duplicate BrandShowcase logo section removed from the bottom (BrandBanners at top already covers "Shop by Brand")
 ✅ BrandBanners component: 5 brand cards (Nike/Adidas/Puma/Joma/New Balance) with dark lifestyle images, hover zoom, product count badge, red CTA; 2-col featured + 3-col secondary layout; uses admin-uploaded image or Unsplash fallback
 ✅ CategoryQuickLinks component: 6 tiles with uploaded image (dark overlay) or emoji fallback; responsive 3-col mobile / 6-col desktop
-✅ New Arrivals section on homepage: 6 most-recently-added online products; fallback to `isNewArrival=true` if `created_at` column absent
-✅ On Sale section on homepage: up to 6 products with `isOnSale=true`; hidden when no sale items exist
+✅ New Arrivals section on homepage: 4 most-recently-added online products (reduced from 6 in session 41); fallback to `isNewArrival=true` if `created_at` column absent
+✅ On Sale section on homepage: up to 4 products with `isOnSale=true` (reduced from 6 in session 41); hidden when no sale items exist
 ✅ Admin → Theme tab: Brand Showcase Images — upload per-brand lifestyle image saved to `settings` key `brand_images`, stored in Supabase Storage `media/brand_images/`
-✅ Admin → Theme tab: Category Tile Images — upload per-category image saved to `settings` key `category_images`, stored in Supabase Storage `media/category_images/`
+✅ Admin → Theme tab: Category Tile Images — upload per-category image saved to `settings` key `category_images`, stored in Supabase Storage `media/category_images/`; **session 41:** added a per-tile `Link` field (pre-filled with defaults) so each homepage category tile's destination is admin-editable
 ✅ SettingsContext: `brandImages`/`categoryImages` state + `BrandImages`/`CategoryImages` types + `setBrandImages`/`setCategoryImages` setters; auto-loaded from DB on mount
 ✅ Brand tiles on homepage: `BrandShowcase` links to `/brand/:brandName` (was broken `/products?brand=Nike`); `BrandPage` now calls `fetchProductsByCategory()` on mount so direct URL navigation shows products instead of "No products found"
 ✅ Sitemap: 181 URLs (4 main + 7 category + 168 product pages) — regenerated July 3, 2026
@@ -572,6 +604,11 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Admin → Theme tab: Brand Showcase Images cards each have an editable title field (`settings.brand_images` → `{ title, image }` per brand) — homepage `BrandBanners` falls back to hardcoded labels when no title is set
 ✅ Homepage hero: full-bleed peek carousel (center slide + edge peeks, dark overlay on non-active slides) replaces the old single full-width rounded hero card; arrow/dot navigation, auto-advance, touch swipe
 ✅ Homepage hero: true infinite loop via cloned first/last slides + transition-less snap-back — peek on the first/last slide shows the wrap-around neighbor, not empty space
+✅ Homepage hero (session 41): `object-contain` + `aspect-ratio: 12/5` sizing — full banner always visible (black letterbox instead of cropping), no top/bottom/left/right overflow at any viewport size (verified mobile through 32"/4K)
+✅ Fixed header/content overlap on desktop (session 41): `Layout.tsx` `<main>` padding-top is now responsive (`pt-[73px] md:pt-[113px]`) matching the fixed `<Header>`'s real height at each breakpoint — previously a static 80px under-reserved space for the 113px desktop header, covering the top ~33px of every page's content
+✅ Category tile links (session 41): Admin → Theme → Category Tile Images has a per-tile `Link` field; `CategoryImages` is now `{ image, link }` per category; `CategoryQuickLinks` uses the saved link with fallback to its hardcoded default
+✅ Fixed corrupted arrow glyph on `/brands` (session 41): `Shop {brand} â†'` mojibake → lucide `ArrowRight` icon
+✅ Homepage New Arrivals / On Sale reduced to 4 tiles each (session 41); duplicate `BrandShowcase` section removed from bottom of homepage
 
 ## COMPLETED FEATURES
 
@@ -672,7 +709,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - gift_cards: id, card_number, initial_balance, current_balance, is_active
 - store_credits: id, card_number, customer_id, amount, remaining_balance, is_active
 - returns: id, transaction_id, customer_id, items, refund_amount, status, refund_payment_method (TEXT — run migration if missing)
-- settings: key, data (jsonb) — keys: global, slider, homeCategories, navigation, footer, seo, store_info, theme, brand_images ({title,image} per brand), category_images
+- settings: key, data (jsonb) — keys: global, slider, homeCategories, navigation, footer, seo, store_info, theme, brand_images ({title,image} per brand), category_images ({image,link} per category, session 41)
 - navigation_menus: id, label, path, order_index, is_active
 - navigation_items: id, menu_id, label, path, logo_url, order_index, parent_id
 
