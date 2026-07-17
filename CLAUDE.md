@@ -6,6 +6,11 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (July 2026)
 
+**CATEGORY TILE TITLE/GRADIENT REDESIGN (Session 43):**
+- `src/components/CategoryQuickLinks.tsx`: tiles with an uploaded image now show the title bottom-left with an `ArrowRight` icon (lucide-react) bottom-right, over a `bg-gradient-to-t from-black/70 via-transparent to-transparent` overlay — replaces the old centered title + flat `bg-black/50` dim
+- Emoji-fallback tiles (no image set for that category) are unchanged — centered emoji + title on white background, since a gradient over blank background has nothing to gradient
+- Verified on localhost at desktop (1440px) and mobile (390px, 3-col grid) — wrapping titles (e.g. "National Teams") still render correctly with the arrow icon aligned bottom-right
+
 **EDITABLE CATEGORY TILE TITLES (Session 42):**
 
 **Admin → Settings → Theme → Category Tile Images:**
@@ -122,8 +127,12 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-## CURRENT STATUS (Main Branch - July 16, 2026)
-**Latest:** Editable category tile titles in Admin (session 42)
+## CURRENT STATUS (Main Branch - July 17, 2026)
+**Latest:** Category tile title/gradient redesign — titles moved to bottom of tile with dark gradient + arrow icon (session 43)
+
+**Session 43 improvements (Category Tile Title/Gradient Redesign):**
+- ✅ `CategoryQuickLinks.tsx`: image tiles show title bottom-left + `ArrowRight` icon bottom-right over a `bg-gradient-to-t from-black/70 via-transparent to-transparent` overlay (was centered title + flat `bg-black/50` dim)
+- ✅ Verified on localhost desktop (1440px) and mobile (390px) — gradient, arrow alignment, and text wrapping all confirmed working
 
 **Session 42 improvements (Editable Category Tile Titles):**
 - ✅ Admin → Settings → Theme → Category Tile Images: added a per-tile `Title` field (pre-filled with the default label), saved alongside the session 41 image/link fields; `CategoryImageData` now `{ image?, link?, title? }`
