@@ -584,9 +584,11 @@ function AdminPageInner() {
   const [newVariantAgeGroup, setNewVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Sleeves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
   const [newVariantSize, setNewVariantSize] = useState<string>('');
   const [newVariantBarcode, setNewVariantBarcode] = useState<string>('');
+  const [newVariantColor, setNewVariantColor] = useState<string>('');
   const newVariantBarcodeRef = useRef<HTMLInputElement>(null);
   const [newVariantQuantity, setNewVariantQuantity] = useState<number>(30);
   const [editingProductHasNoSizes, setEditingProductHasNoSizes] = useState<boolean>(false);
+  const [justSavedVariantIds, setJustSavedVariantIds] = useState<Set<string>>(new Set());
 
   // --- States for newly created product pending size variants ---
   const [createdProductVariants, setCreatedProductVariants] = useState<any[]>([]);
@@ -639,6 +641,11 @@ function AdminPageInner() {
     if (editingProduct && editingProduct.id) {
       setVariantsLoading(true);
       setEditingProductHasNoSizes(false);
+      // Set default color to the first color if product has colors
+      const defaultColor = (editingProduct.colors || []).length > 0
+        ? editingProduct.colors[0].name
+        : '';
+      setNewVariantColor(defaultColor);
       (async () => {
         try {
           const { data, error } = await supabase
@@ -668,6 +675,7 @@ function AdminPageInner() {
     } else {
       setEditingProductVariants([]);
       setEditingProductHasNoSizes(false);
+      setNewVariantColor('');
     }
     return () => { active = false; };
   }, [editingProduct?.id]);
@@ -678,11 +686,11 @@ function AdminPageInner() {
       alert("Please enter a size or check 'No Sizes'.");
       return;
     }
+
+    // Color is optional for all variants - no validation needed
     const sizeLabel = editingProductHasNoSizes ? 'One Size' : newVariantSize;
     const barcodeValue = newVariantBarcode.trim() ||
       `${editingProduct.id.slice(0,8)}-${newVariantAgeGroup.slice(0,1)}-${sizeLabel.replace('.','_')}-${Date.now()}`.toUpperCase();
-
-    const colorMatch = newVariantBarcode.includes(' - ') ? newVariantBarcode.split(' - ')[0] : null;
 
     try {
       // Check if barcode already exists for a DIFFERENT product
@@ -703,7 +711,7 @@ function AdminPageInner() {
           product_id: editingProduct.id,
           age_group: newVariantAgeGroup,
           size: editingProductHasNoSizes ? null : newVariantSize.trim(),
-          color: colorMatch,
+          color: newVariantColor || null,
           barcode: barcodeValue,
           stock_quantity: newVariantQuantity
         }], { onConflict: 'barcode' });
@@ -716,7 +724,8 @@ function AdminPageInner() {
       setEditingProductVariants(fresh || []);
       setNewVariantSize('');
       setNewVariantBarcode('');
-      setNewVariantQuantity(0);
+      setNewVariantColor('');
+      setNewVariantQuantity(30);
       alert('Variant saved!');
     } catch (err: any) {
       alert('Error: ' + err.message);
@@ -5483,7 +5492,7 @@ function AdminPageInner() {
                           <span>This product has no sizes (one size only)</span>
                         </label>
                       </div>
-                      <div className={`grid gap-3 ${editingProductHasNoSizes ? 'grid-cols-1' : 'grid-cols-3'}`}>
+                      <div className="grid gap-3 grid-cols-2">
                         <div>
                           <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Age Group</label>
                           <select
@@ -5514,23 +5523,20 @@ function AdminPageInner() {
                             />
                           </div>
                         )}
+                        {editingProductHasNoSizes && (
+                          <div />
+                        )}
                         <div>
-                          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Color</label>
-                          <select
-                            value={newVariantBarcode.split(' - ')[0] || ''}
-                            onChange={(e) => {
-                              const color = e.target.value;
-                              if (color) {
-                                setNewVariantBarcode(`${color} - ${newVariantSize || 'One Size'}`);
-                              }
-                            }}
+                          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">
+                            Color (optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={newVariantColor}
+                            onChange={(e) => setNewVariantColor(e.target.value)}
+                            placeholder="e.g. White, Red, Blue"
                             className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
-                          >
-                            <option value="">None</option>
-                            {(editingProduct?.colors || []).map((c: any) => (
-                              <option key={c.name} value={c.name}>{c.name}</option>
-                            ))}
-                          </select>
+                          />
                         </div>
                         <div className="col-span-full">
                           <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Barcode</label>
@@ -5613,7 +5619,56 @@ function AdminPageInner() {
                       <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2.5">
                         Registered Master Variants ({editingProductVariants.length})
                       </label>
-                      
+
+                      {/* Bulk assign color to uncolored variants */}
+                      {editingProductVariants.length > 0 && editingProductVariants.some(v => !v.color || v.color === '') && (
+                        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-[9px] font-bold text-blue-900 uppercase tracking-widest mb-3">
+                            Assign color to {editingProductVariants.filter(v => !v.color || v.color === '').length} uncolored variant{editingProductVariants.filter(v => !v.color || v.color === '').length !== 1 ? 's' : ''}:
+                          </p>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              id="bulkColorInput"
+                              placeholder="e.g. White, Red, Blue"
+                              className="flex-1 p-2 bg-white border border-blue-300 rounded text-[10px] outline-none focus:ring-2 focus:ring-blue-400"
+                            />
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const colorInput = (document.getElementById('bulkColorInput') as HTMLInputElement)?.value.trim();
+                                if (!colorInput) {
+                                  alert('Please enter a color name');
+                                  return;
+                                }
+                                try {
+                                  const { error } = await supabase
+                                    .from('product_variants')
+                                    .update({ color: colorInput })
+                                    .eq('product_id', editingProduct.id)
+                                    .or('color.is.null,color.eq.""');
+                                  if (error) throw error;
+                                  // Reload variants
+                                  const { data: fresh } = await supabase
+                                    .from('product_variants')
+                                    .select('*')
+                                    .eq('product_id', editingProduct.id)
+                                    .order('age_group');
+                                  setEditingProductVariants(fresh || []);
+                                  (document.getElementById('bulkColorInput') as HTMLInputElement).value = '';
+                                  alert(`✓ Applied color "${colorInput}" to all uncolored variants`);
+                                } catch (err: any) {
+                                  alert('Error: ' + err.message);
+                                }
+                              }}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold uppercase tracking-widest transition-colors"
+                            >
+                              Apply to All
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {variantsLoading ? (
                         <div className="text-zinc-500 font-bold uppercase italic text-[10px] py-4">Loading variants database...</div>
                       ) : editingProductVariants.length === 0 ? (
@@ -5634,25 +5689,56 @@ function AdminPageInner() {
                               </tr>
                             </thead>
                             <tbody>
-                              {editingProductVariants.map((v) => (
-                                <tr key={v.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
+                              {editingProductVariants.map((v) => {
+                                const productHasColors = (editingProduct?.colors || []).length > 0;
+                                const variantMissingColor = productHasColors && !v.color;
+                                return (
+                                <tr key={v.id} className={`border-b border-zinc-100 hover:bg-zinc-50/50 ${variantMissingColor ? 'bg-amber-50' : ''}`}>
                                   <td className="p-3 font-bold uppercase text-zinc-900">{v.age_group}</td>
                                   <td className="p-3 font-mono font-bold text-zinc-700 bg-zinc-50">{v.size === null ? '(no size)' : v.size}</td>
                                   <td className="p-3">
-                                    <select
-                                      value={v.color || ''}
-                                      onChange={async (e) => {
-                                        const newColor = e.target.value || null;
-                                        await supabase.from('product_variants').update({ color: newColor }).eq('id', v.id);
-                                        setEditingProductVariants(prev => prev.map(x => x.id === v.id ? { ...x, color: newColor } : x));
-                                      }}
-                                      className="text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)]"
-                                    >
-                                      <option value="">- None -</option>
-                                      {(editingProduct.colors || []).map((c: any) => (
-                                        <option key={c.name} value={c.name}>{c.name}</option>
-                                      ))}
-                                    </select>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="text"
+                                        value={v.color || ''}
+                                        onChange={(e) => {
+                                          setEditingProductVariants(prev => prev.map(x => x.id === v.id ? { ...x, color: e.target.value } : x));
+                                        }}
+                                        onKeyDown={async (e) => {
+                                          if (e.key === 'Enter') {
+                                            const newColor = (e.target as HTMLInputElement).value || null;
+                                            await supabase.from('product_variants').update({ color: newColor }).eq('id', v.id);
+                                            setJustSavedVariantIds(prev => new Set([...prev, v.id]));
+                                            setTimeout(() => {
+                                              setJustSavedVariantIds(prev => {
+                                                const next = new Set(prev);
+                                                next.delete(v.id);
+                                                return next;
+                                              });
+                                            }, 1500);
+                                          }
+                                        }}
+                                        onBlur={async (e) => {
+                                          const newColor = e.target.value || null;
+                                          if (newColor !== (v.color || null)) {
+                                            await supabase.from('product_variants').update({ color: newColor }).eq('id', v.id);
+                                            setJustSavedVariantIds(prev => new Set([...prev, v.id]));
+                                            setTimeout(() => {
+                                              setJustSavedVariantIds(prev => {
+                                                const next = new Set(prev);
+                                                next.delete(v.id);
+                                                return next;
+                                              });
+                                            }, 1500);
+                                          }
+                                        }}
+                                        placeholder="Add color name..."
+                                        className="flex-1 text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)]"
+                                      />
+                                      {justSavedVariantIds.has(v.id) && (
+                                        <span className="text-green-600 font-bold text-sm animate-pulse">✓</span>
+                                      )}
+                                    </div>
                                   </td>
                                   <td className="p-3 font-mono font-bold text-[var(--primary-color)]">{v.barcode}</td>
                                   <td className="p-3">
@@ -5701,7 +5787,8 @@ function AdminPageInner() {
                                     </button>
                                   </td>
                                 </tr>
-                              ))}
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
