@@ -4,8 +4,71 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - August 1, 2026)
-**Latest:** Cost price field, transparent PNG fix, sleeve sizes, product image improvements (session 38)
+## CURRENT STATUS (Main Branch - August 1, 2026 - Session 44+)
+**Latest:** Split payments in POS, color variant naming, black logo for receipts, product image & branding fixes
+
+## PENDING FIXES (Session 44)
+- ⚠️ **Color field not showing for FIRST variant in Add Variant form** — Two separate form sections exist:
+  1. "Quick Add Size Variant" form (lines 5482-5577 in AdminPage.tsx) — color field is in code but may be hidden by layout
+  2. RapidScanIntakeMatrix component (separate form)
+  - **Issue:** Color field should always show for first variant, currently appears only for 2nd+ variants
+  - **Fix needed:** Investigate grid layout or conditional logic hiding the field, merge into unified form if needed
+  - **Root cause:** TBD — code shows color field at line 5526-5537 but not rendering on first variant
+  
+- ⚠️ **Live site showing uncolored variants mixed with colored ones** — Product detail page doesn't filter mixed variants correctly:
+  - Some variants have `color = NULL`, others have color names (e.g., White)
+  - Color selector needs to handle both or consistent naming required
+  - May affect user experience if variants can't be selected by color
+  
+- ✅ **Black logo uploaded for thermal receipts**
+  - File: `public/logo-black.png` (620 KB)
+  - Updated: `POSPage.tsx` lines 1295, 1340 to use black logo
+  - Need to test receipt printing on localhost to verify quality
+
+## COMPLETED THIS SESSION (Session 44)
+
+**SPLIT PAYMENTS IN POS:**
+- ✅ **Step-by-step split payment flow implemented**
+  - Payment method selection → Amount entry → Confirm → Repeat → Complete Sale
+  - "Full Amount" and "Remaining" quick buttons for easy input
+  - Real-time remaining balance display (orange when due, green when $0)
+  - Add/remove individual payment splits
+  - Prevents errors when adding partial payments
+  
+- ✅ **Split payment state management**
+  - `splitStep` state tracks: 'select-method' → 'enter-amount' → back to select-method
+  - `paymentSplits` array stores: `[{ method, amount, id }, ...]`
+  - Proper calculation of remaining balance after each addition
+  
+- ✅ **Database support for split payments**
+  - `payment_splits` JSONB column added to transactions table (requires SQL migration)
+  - Stores split data: `[{"method": "Cash", "amount": 60}, {"method": "Debit", "amount": 90}]`
+  - Saves to DB on transaction completion
+  
+- ✅ **Receipt display of split payments**
+  - Shows "Payment Breakdown:" section listing all payment splits
+  - Displays on thermal, gift, and store credit receipts
+  
+**COLOR VARIANT NAMING FOR 2ND+ VARIANTS:**
+- ✅ Made color field always optional (no asterisk, no "required" warning)
+- ✅ Removed validation forcing colors on subsequent variants
+- ✅ Simplified placeholder: "Color name (optional, e.g. White, Red, Blue)"
+- ✅ Color saves as NULL if blank, or color name if filled
+- ⚠️ **NOTE:** First variant still has issues — see Pending Fixes
+
+**SLEEVE SIZES:**
+- ✅ Added "Sleeves" age group with sizes ['S/M', 'L/XL']
+- ✅ Available in Admin product form and RapidScanIntakeMatrix
+- ✅ Consistent with other apparel size ranges
+
+**PRODUCT IMAGE & BRANDING FIXES:**
+- ✅ **Cost price field** — internal staff-only pricing for margin tracking (session 38)
+- ✅ **Transparent PNG fix** — white canvas background instead of black (session 38)
+- ✅ **White backgrounds** for all product images (ProductCard, ProductDetailPage, etc.)
+- ✅ **Brand page arrow** — fixed corrupted `â†'` mojibake with lucide ArrowRight icon
+- ✅ **New Arrivals/On Sale** — reduced from 6 to 4 tiles each for cleaner homepage layout
+
+## PREVIOUS SESSION STATUS (Session 38)
 
 **Session 38 improvements (Cost Price, Transparent PNG Fix, Sleeve Sizes):**
 - ✅ **Cost Price field added to products** — internal staff-only pricing for margin tracking
