@@ -346,24 +346,29 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
               <option value="Toddler">🧒 Toddler (2T, 3T, 4T)</option>
             </select>
           </div>
-          {productColors.length > 0 && (
-            <div className="flex items-center gap-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest hidden md:inline">
-                Color:
-              </label>
-              <select
+          <div className=”flex items-center gap-2”>
+            <label className=”text-[10px] font-bold text-zinc-400 uppercase tracking-widest hidden md:inline”>
+              Color (optional):
+            </label>
+            <div className=”flex-1 relative”>
+              <input
+                type=”text”
                 disabled={isScanningActive}
                 value={selectedColor}
                 onChange={(e) => setSelectedColor(e.target.value)}
-                className="p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)] disabled:opacity-50 cursor-pointer"
-              >
-                <option value="">â€” No Color â€”</option>
-                {productColors.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+                placeholder=”e.g. White, Red, Blue”
+                list=”color-suggestions”
+                className=”w-full p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)] disabled:opacity-50”
+              />
+              {productColors.length > 0 && (
+                <datalist id=”color-suggestions”>
+                  {productColors.map(c => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 
