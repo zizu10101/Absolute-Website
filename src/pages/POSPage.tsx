@@ -4,7 +4,7 @@ import {
   Moon, Sun, LogOut, Search, Users, Percent, FileText, Trash2,
   Barcode as BarcodeIcon, Archive, Home, AlertCircle, X, Check,
   Receipt, RotateCcw, RefreshCw, Plus, Printer, ScanLine, CheckCircle2, BarChart3, Undo2,
-  UserPlus, Gift, Tag, CreditCard, Ticket
+  UserPlus, Gift, Tag, CreditCard, Ticket, Clock, Package
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Barcode from 'react-barcode';
@@ -15,7 +15,9 @@ import { PosDiscountModal } from '../components/PosDiscountModal';
 import { GiftCardTab } from '../components/GiftCardTab';
 import { StoreCreditsTab } from '../components/StoreCreditsTab';
 import { ReturnsModal } from '../components/ReturnsModal';
-import { usePOSCart, CartItem } from '../hooks/usePOSCart';
+import { LayawayPayLaterModal } from '../components/LayawayPayLaterModal';
+import { PosLayawayTab } from '../components/PosLayawayTab';
+import { usePOSCart, CartItem, getItemUnitDiscount, getItemDiscountedPrice } from '../hooks/usePOSCart';
 import { useCustomers, Customer } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../supabase';
@@ -60,7 +62,7 @@ export function POSPage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   // Panels
-  const [posTab, setPosTab] = useState<'register' | 'history' | 'customers' | 'gc' | 'sc' | 'returns'>('register');
+  const [posTab, setPosTab] = useState<'register' | 'history' | 'customers' | 'gc' | 'sc' | 'returns' | 'layaway'>('register');
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -165,6 +167,7 @@ export function POSPage() {
     addItem,
     removeItem,
     updateItemQuantity,
+    updateItemDiscount,
     clearCart,
     subtotal,
     totalDiscount,
@@ -177,6 +180,34 @@ export function POSPage() {
     applyDiscount,
     removeDiscount,
   } = usePOSCart();
+
+  // Per-item discount editor (inline in cart row)
+  const [editingDiscountItemId, setEditingDiscountItemId] = useState<string | null>(null);
+  const [discountDraftType, setDiscountDraftType] = useState<'percent' | 'fixed'>('percent');
+  const [discountDraftValue, setDiscountDraftValue] = useState('');
+
+  const openItemDiscountEditor = (item: CartItem) => {
+    setEditingDiscountItemId(item.id);
+    setDiscountDraftType(item.discount?.type || 'percent');
+    setDiscountDraftValue(item.discount ? String(item.discount.value) : '');
+  };
+
+  const applyItemDiscountDraft = () => {
+    if (!editingDiscountItemId) return;
+    const value = parseFloat(discountDraftValue);
+    if (!isNaN(value) && value > 0) {
+      updateItemDiscount(editingDiscountItemId, { type: discountDraftType, value });
+    } else {
+      updateItemDiscount(editingDiscountItemId, null);
+    }
+    setEditingDiscountItemId(null);
+    setDiscountDraftValue('');
+  };
+
+  // Layaway / Pay Later
+  const [showLayawayModal, setShowLayawayModal] = useState(false);
+  const [showPayLaterModal, setShowPayLaterModal] = useState(false);
+  const [pendingSpecialCheckout, setPendingSpecialCheckout] = useState<'layaway' | 'pay_later' | null>(null);
 
   const { customers, fetchCustomers } = useCustomers();
   const { footerLogo } = useSettings();
@@ -1309,6 +1340,42 @@ export function POSPage() {
   const handleSelectCustomer = (customerId: string) => {
     setSelectedCustomerId(customerId);
     setPosTab('register');
+    if (pendingSpecialCheckout === 'layaway') {
+      setShowLayawayModal(true);
+      setPendingSpecialCheckout(null);
+    } else if (pendingSpecialCheckout === 'pay_later') {
+      setShowPayLaterModal(true);
+      setPendingSpecialCheckout(null);
+    }
+  };
+
+  const handleStartLayaway = () => {
+    if (cart.length === 0) return;
+    if (!selectedCustomerId) {
+      setPendingSpecialCheckout('layaway');
+      setPosTab('customers');
+      return;
+    }
+    setShowLayawayModal(true);
+  };
+
+  const handleStartPayLater = () => {
+    if (cart.length === 0) return;
+    if (!selectedCustomerId) {
+      setPendingSpecialCheckout('pay_later');
+      setPosTab('customers');
+      return;
+    }
+    setShowPayLaterModal(true);
+  };
+
+  const handleLayawayPayLaterComplete = () => {
+    setShowLayawayModal(false);
+    setShowPayLaterModal(false);
+    clearCart();
+    setSelectedCustomerId('');
+    setCustomerSearchTerm('');
+    setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
   if (!isAuthenticated) {
@@ -1607,7 +1674,70 @@ export function POSPage() {
                         <span className="text-xs font-bold w-5 text-center">{item.quantity}</span>
                         <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">+</button>
                       </div>
-                      <p className="text-xs font-bold text-[var(--primary-color)]">${(item.price * item.quantity).toFixed(2)}</p>
+
+                      {item.discount ? (
+                        <div className="text-[10px] space-y-0.5 mb-1">
+                          <div className="flex justify-between text-gray-500">
+                            <span>Price</span>
+                            <span className="line-through">${(item.price * item.quantity).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-yellow-400 font-semibold">
+                            <span>Discount: {item.discount.type === 'percent' ? `${item.discount.value}%` : `$${item.discount.value.toFixed(2)}`}</span>
+                            <span>−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-white font-bold">
+                            <span>Item Total</span>
+                            <span className="text-white">${(getItemDiscountedPrice(item) * item.quantity).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs font-bold text-[var(--primary-color)] mb-1">${(item.price * item.quantity).toFixed(2)}</p>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openItemDiscountEditor(item)}
+                          className="text-[9px] text-emerald-400 hover:text-emerald-300 font-bold uppercase flex items-center gap-1"
+                        >
+                          <Tag size={10} /> {item.discount ? 'Edit Discount' : 'Add Discount'}
+                        </button>
+                        {item.discount && (
+                          <button
+                            onClick={() => updateItemDiscount(item.id, null)}
+                            className="text-[9px] text-red-400 hover:text-red-300 font-bold uppercase"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      {editingDiscountItemId === item.id && (
+                        <div className="mt-2 p-2 bg-[#1a2236] rounded border border-[#2d3547] flex items-center gap-1">
+                          <select
+                            value={discountDraftType}
+                            onChange={e => setDiscountDraftType(e.target.value as 'percent' | 'fixed')}
+                            className="bg-[#0f1117] border border-[#2d3547] rounded text-[10px] text-white px-1 py-1"
+                          >
+                            <option value="percent">%</option>
+                            <option value="fixed">$</option>
+                          </select>
+                          <input
+                            type="number"
+                            autoFocus
+                            value={discountDraftValue}
+                            onChange={e => setDiscountDraftValue(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') applyItemDiscountDraft(); if (e.key === 'Escape') setEditingDiscountItemId(null); }}
+                            placeholder="0"
+                            className="w-16 bg-[#0f1117] border border-[#2d3547] rounded text-[10px] text-white px-2 py-1"
+                          />
+                          <button onClick={applyItemDiscountDraft} className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold uppercase">
+                            Apply
+                          </button>
+                          <button onClick={() => setEditingDiscountItemId(null)} className="px-2 py-1 border border-[#2d3547] text-gray-400 hover:text-white rounded text-[9px] font-bold uppercase">
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1623,13 +1753,13 @@ export function POSPage() {
                 <span>${subtotal.toFixed(2)}</span>
               </div>
               {totalDiscount > 0 && (
-                <div className="flex justify-between text-red-400">
+                <div className="flex justify-between text-yellow-400">
                   <span>Item Discount</span>
                   <span>−${totalDiscount.toFixed(2)}</span>
                 </div>
               )}
               {discountAmount > 0 && (
-                <div className="flex justify-between text-red-400">
+                <div className="flex justify-between text-yellow-400">
                   <span>Order Discount</span>
                   <span>−${discountAmount.toFixed(2)}</span>
                 </div>
@@ -1671,6 +1801,29 @@ export function POSPage() {
             >
               Checkout ({totalCartItems})
             </button>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleStartLayaway}
+                disabled={cart.length === 0}
+                className="py-2 border border-amber-600 text-amber-400 hover:bg-amber-600/10 disabled:opacity-40 disabled:cursor-not-allowed rounded text-[10px] font-bold uppercase flex items-center justify-center gap-1"
+              >
+                <Clock size={12} /> Layaway
+              </button>
+              <button
+                onClick={handleStartPayLater}
+                disabled={cart.length === 0}
+                className="py-2 border border-blue-500 text-blue-400 hover:bg-blue-500/10 disabled:opacity-40 disabled:cursor-not-allowed rounded text-[10px] font-bold uppercase flex items-center justify-center gap-1"
+              >
+                <Package size={12} /> Pay Later
+              </button>
+            </div>
+
+            {pendingSpecialCheckout && (
+              <div className="text-[10px] font-bold text-amber-300 bg-amber-900/30 border border-amber-700 rounded px-2 py-1.5 text-center">
+                Select or add a customer to continue with {pendingSpecialCheckout === 'layaway' ? 'Layaway' : 'Pay Later'}
+              </div>
+            )}
 
             <div className="grid grid-cols-4 gap-2">
               <button onClick={() => setShowVoidRefundModal(true)} className="py-2 bg-[var(--primary-color)] hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase">
@@ -1816,6 +1969,13 @@ export function POSPage() {
         </div>
       )}
 
+      {/* Layaway / Pay Later Management Tab */}
+      {posTab === 'layaway' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <PosLayawayTab />
+        </div>
+      )}
+
       {/* Size Selector Modal */}
       <AnimatePresence>
         {showSizeSelector && selectedProductForSize && (
@@ -1946,8 +2106,13 @@ export function POSPage() {
                               </p>
                             )}
                             <p className="text-zinc-600">Qty {item.quantity} Ã— ${Number(item.price).toFixed(2)}</p>
+                            {item.discount && (
+                              <p className="text-yellow-600 font-bold">
+                                Discount: {item.discount.type === 'percent' ? `${item.discount.value}%` : `$${item.discount.value.toFixed(2)}`} (−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)})
+                              </p>
+                            )}
                           </div>
-                          <p className="font-black text-black shrink-0">${(Number(item.price) * item.quantity).toFixed(2)}</p>
+                          <p className="font-black text-black shrink-0">${(getItemDiscountedPrice(item) * item.quantity).toFixed(2)}</p>
                         </div>
                       ))}
                     </div>
@@ -1955,7 +2120,7 @@ export function POSPage() {
                     <div className="border-t border-dashed border-zinc-300 pt-3 space-y-1 text-[10px] font-bold text-zinc-700">
                       <div className="flex justify-between"><span>Subtotal</span><span>${receipt.subtotal.toFixed(2)}</span></div>
                       {discountAmount > 0 && (
-                        <div className="flex justify-between text-red-600"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>
+                        <div className="flex justify-between text-yellow-600"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>
                       )}
                       <div className="flex justify-between"><span>HST {receipt.isTaxExempt ? '(Exempt)' : '(13%)'}</span><span>${receipt.hst.toFixed(2)}</span></div>
                       <div className="flex justify-between text-sm font-black text-black pt-1 border-t border-zinc-300">
@@ -2091,7 +2256,10 @@ export function POSPage() {
                       <div key={item.id} className="border border-[#2d3547] rounded p-2">
                         <p className="font-bold text-white">{item.name}</p>
                         <p className="text-gray-400">Qty {item.quantity} Ã— ${Number(item.price).toFixed(2)}</p>
-                        <p className="text-[var(--primary-color)] font-bold">${(Number(item.price) * item.quantity).toFixed(2)}</p>
+                        {item.discount && (
+                          <p className="text-yellow-400">Discount: {item.discount.type === 'percent' ? `${item.discount.value}%` : `$${item.discount.value.toFixed(2)}`} (−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)})</p>
+                        )}
+                        <p className={`font-bold ${item.discount ? 'text-white' : 'text-[var(--primary-color)]'}`}>${(getItemDiscountedPrice(item) * item.quantity).toFixed(2)}</p>
                       </div>
                     ))}
                   </div>
@@ -2099,7 +2267,7 @@ export function POSPage() {
                   <div className="p-4 border-t border-[#2d3547] space-y-3">
                     <div className="space-y-1 text-[10px]">
                       <div className="flex justify-between"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-                      {discountAmount > 0 && <div className="flex justify-between text-red-400"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>}
+                      {discountAmount > 0 && <div className="flex justify-between text-yellow-400"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>}
                       <div className="flex justify-between"><span>HST</span><span>${hst.toFixed(2)}</span></div>
                       <div className="flex justify-between font-bold text-sm border-t border-[#2d3547] pt-1"><span>Total Due</span><span>${grandTotal.toFixed(2)}</span></div>
                     </div>
@@ -2537,6 +2705,28 @@ export function POSPage() {
       {/* Discount Modal */}
       <PosDiscountModal isOpen={showDiscountModal} onClose={() => setShowDiscountModal(false)} onApply={applyDiscount} currentDiscount={discount} subtotal={subtotal} />
 
+      {/* Layaway / Pay Later Modals */}
+      <LayawayPayLaterModal
+        isOpen={showLayawayModal}
+        mode="layaway"
+        cart={cart}
+        totalAmount={grandTotal}
+        customer={selectedCustomer || null}
+        footerLogo={footerLogo}
+        onClose={() => setShowLayawayModal(false)}
+        onComplete={handleLayawayPayLaterComplete}
+      />
+      <LayawayPayLaterModal
+        isOpen={showPayLaterModal}
+        mode="pay_later"
+        cart={cart}
+        totalAmount={grandTotal}
+        customer={selectedCustomer || null}
+        footerLogo={footerLogo}
+        onClose={() => setShowPayLaterModal(false)}
+        onComplete={handleLayawayPayLaterComplete}
+      />
+
       {/* Customer Modal */}
       <AnimatePresence>
         {showCustomerModal && (
@@ -2901,6 +3091,16 @@ export function POSPage() {
           }`}
         >
           <Ticket size={14} className="inline mr-1" /> Store Credit
+        </button>
+        <button
+          onClick={() => setPosTab('layaway')}
+          className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${
+            posTab === 'layaway'
+              ? 'bg-[var(--primary-color)] text-white'
+              : 'bg-[#2d3547] text-gray-400 hover:text-white'
+          }`}
+        >
+          <Clock size={14} className="inline mr-1" /> Layaway
         </button>
       </div>
     </div>

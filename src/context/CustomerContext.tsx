@@ -66,11 +66,12 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         }
         return result || null;
       } else {
-        // No email provided: use regular INSERT
-        // This allows creating multiple customers with same name (email is optional)
+        // No email provided: use regular INSERT with email normalized to NULL.
+        // customers.email has a UNIQUE constraint - inserting '' would collide with
+        // any other customer that also has no email (NULL is exempt from uniqueness, '' is not).
         const { data: newData, error } = await supabase
           .from('customers')
-          .insert([data])
+          .insert([{ ...data, email: null }])
           .select()
           .single();
 
@@ -93,9 +94,13 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
 
   const updateCustomer = async (id: string, data: Partial<Customer>): Promise<Customer | null> => {
     try {
+      // Same UNIQUE(email) collision risk as addCustomer - normalize a cleared email to NULL.
+      const normalized = 'email' in data && (!data.email || !data.email.trim())
+        ? { ...data, email: null }
+        : data;
       const { data: updated, error } = await supabase
         .from('customers')
-        .update(data)
+        .update(normalized)
         .eq('id', id)
         .select()
         .single();

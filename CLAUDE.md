@@ -4,7 +4,38 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## RECENT CHANGES (July 2026)
+## RECENT CHANGES (August 2026)
+
+**LAYAWAY, PAY LATER, ITEM DISCOUNTS, UNVOID + BUG FIXES (Session 44):**
+
+**Item-level discounts in POS cart:**
+- `src/hooks/usePOSCart.ts`: `CartItem.discountPercent` (dead field, never wired to UI) replaced with `CartItem.discount?: { type: 'percent' | 'fixed'; value: number }`; added `getItemUnitDiscount()` / `getItemDiscountedPrice()` helpers (exported, used everywhere a discounted line total is shown); `updateItemDiscount(id, discount | null)` signature changed to take the discount object; `totalDiscount`/`subtotal`/`taxableSubtotal` all now use the new per-item discount instead of the old unused percent field
+- `src/pages/POSPage.tsx`: each cart row has an "Add Discount"/"Edit Discount" control — inline `%`/`$` type selector + value input — showing struck-through original price, the discount line, and the discounted "Item Total"; wired into the checkout-form item list and the post-sale on-screen receipt view too
+- `src/utils/thermalReceipt.ts`: `ReceiptData.items[].discount` optional field added; printed thermal receipt itemizes the per-item discount and prints the discounted line total
+- Colors iterated twice this session per feedback: item discount text/labels are now `text-yellow-400` (dark POS backgrounds) / `text-yellow-600` (white receipt view + `PosDiscountModal` preview) — was red, then emerald, before landing on yellow. The discounted "Item Total" value is `text-white font-bold` (was the red `var(--primary-color)` brand color) in the cart row and — only when a discount is actually applied — in the checkout-form item list; undiscounted items keep the normal brand-color price display
+
+**Layaway:**
+- New Supabase table `layaways` (see `docs/layaway-paylater-migration.sql` — **must be run manually in the Supabase SQL editor**, same as every other migration in this project; no DDL execution path exists from the app/scripts)
+- `src/components/LayawayPayLaterModal.tsx` (NEW): shared modal for both Layaway and Pay Later creation (`mode` prop). Layaway requires a deposit amount; on confirm it inserts into `layaways`, deducts stock for held items (same loop as a normal sale), and offers a Print Receipt button
+- POS register: "Layaway" button next to Checkout — requires a selected customer first; if none is selected it switches to the Customers tab and auto-resumes the Layaway modal once a customer is picked/created (`pendingSpecialCheckout` state + `handleSelectCustomer`)
+- `src/components/PosLayawayTab.tsx` (NEW): combined Layaway + Pay Later management screen — lists both types (joined with `customers`), search by name, take a full/partial payment against the balance (auto-prints a completion receipt at $0 balance), reprint any receipt, and **Cancel** (sets `status='cancelled'`, restocks the held items' variant quantities, hidden once paid off). Reachable from a new POS bottom-nav "Layaway" tab and a new Admin "Layaways" tab (`AdminPage.tsx` — same component reused, no duplicate code)
+- `src/utils/thermalReceipt.ts`: added `generateLayawayReceiptHTML()` — items on hold, total/deposit/balance, "Items held for 30 days" + computed pickup-by date
+
+**Pay Later:**
+- New Supabase table `pay_later` (same migration file as layaways)
+- Same modal/flow as Layaway minus the deposit step — full amount saved as owed, `status='unpaid'`
+- `src/utils/thermalReceipt.ts`: added `generatePayLaterReceiptHTML()` — items, amount owed, "Payment due upon next visit"
+- Managed (pay balance / cancel) through the same `PosLayawayTab.tsx` screen as Layaway
+
+**Unvoid transaction:**
+- `src/components/PosTransactionHistory.tsx`: voided transactions now show `[Voided] [Unvoid]` — confirms, sets `status` back to `'completed'`, refreshes the list, flashes success (mirrors the existing `handleVoid`)
+
+**"Walk-in" removed from receipts:**
+- `src/utils/thermalReceipt.ts`: the Customer/"For" row is now omitted entirely (not printed as "Walk-in") in all three receipt generators whenever there's no real customer name
+
+**Customer creation bug fix (was blocking Layaway/Pay Later, not RLS):**
+- `customers.email` has a UNIQUE constraint; `src/context/CustomerContext.tsx`'s `addCustomer()` was inserting a literal `''` for a blank email instead of `null` — Postgres unique constraints reject duplicate `''` values (only `NULL` is exempt), so creating a second customer with no email always failed with `23505 duplicate key value violates unique constraint "customers_email_key"`. Diagnosed by inserting directly against the live DB with both the anon key and the service-role key (both failed identically, which is what ruled out RLS). Fixed in both `addCustomer()` and `updateCustomer()` (normalizes a blank/cleared email to `null`)
+- `src/components/PosCustomerManager.tsx`: New/Edit Customer form relabeled Phone/Email as "(Optional)", reordered Phone before Email, removed `type="email"` (was not blocking submission — no `<form>` wrapper — but could trigger native browser invalid-styling on a blank value)
 
 **CATEGORY TILE TITLE/GRADIENT REDESIGN (Session 43):**
 - `src/components/CategoryQuickLinks.tsx`: tiles with an uploaded image now show the title bottom-left with an `ArrowRight` icon (lucide-react) bottom-right, over a `bg-gradient-to-t from-black/70 via-transparent to-transparent` overlay — replaces the old centered title + flat `bg-black/50` dim
@@ -127,8 +158,17 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-## CURRENT STATUS (Main Branch - July 17, 2026)
-**Latest:** Category tile title/gradient redesign — titles moved to bottom of tile with dark gradient + arrow icon (session 43)
+## CURRENT STATUS (Main Branch - August 1, 2026)
+**Latest:** POS Layaway + Pay Later + item-level discounts + Unvoid + customer-creation bug fix (session 44)
+
+**Session 44 improvements (Layaway, Pay Later, Item Discounts, Unvoid, Bug Fixes) — ⚠️ requires `docs/layaway-paylater-migration.sql` run manually in Supabase before Layaway/Pay Later work:**
+- ✅ Item-level discounts: each POS cart row can carry its own `%` or `$` discount (`CartItem.discount`), shown as struck-through original price / discount line / white bold "Item Total", flows through to checkout, on-screen receipt, and the printed thermal receipt
+- ✅ Layaway: customer-required flow, deposit entry, stock deducted on hold, layaway receipt ("held for 30 days" + pickup date); managed (take payment / cancel+restock / reprint) from a POS "Layaway" tab and an Admin "Layaways" tab
+- ✅ Pay Later: same flow minus deposit — full amount saved as owed, "payment due upon next visit" receipt; managed through the same Layaway/Pay Later screen
+- ✅ Unvoid: voided transactions in POS History get an `[Unvoid]` button restoring `status='completed'`
+- ✅ "Walk-in" no longer printed on receipts — the Customer row is omitted entirely when there's no real customer
+- ✅ Fixed a real (not RLS) customer-creation bug: `customers.email` UNIQUE constraint was rejecting every 2nd+ customer created with a blank email because blank was being inserted as `''` instead of `NULL`; fixed in `CustomerContext.tsx`'s `addCustomer`/`updateCustomer`
+- ✅ Verified via `npm run build` + `tsc --noEmit` (zero new errors) and live DB inserts against Supabase (both anon and service-role keys) to confirm the email fix; no browser automation available this session so UI flows were not click-tested — user asked to review on localhost before this push
 
 **Session 43 improvements (Category Tile Title/Gradient Redesign):**
 - ✅ `CategoryQuickLinks.tsx`: image tiles show title bottom-left + `ArrowRight` icon bottom-right over a `bg-gradient-to-t from-black/70 via-transparent to-transparent` overlay (was centered title + flat `bg-black/50` dim)
@@ -631,6 +671,12 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ✅ Category tile titles (session 42): Admin → Theme → Category Tile Images has a per-tile `Title` field; `CategoryImages` is now `{ image, link, title }` per category; `CategoryQuickLinks` uses the saved title with fallback to its hardcoded default label
 ✅ Fixed corrupted arrow glyph on `/brands` (session 41): `Shop {brand} â†'` mojibake → lucide `ArrowRight` icon
 ✅ Homepage New Arrivals / On Sale reduced to 4 tiles each (session 41); duplicate `BrandShowcase` section removed from bottom of homepage
+✅ Item-level POS discounts (session 44): per-cart-item `%`/`$` discount, flows into cart totals, checkout, on-screen receipt, and printed thermal receipt
+✅ Layaway (session 44): customer-required deposit flow, stock deducted on hold, managed (payment/cancel+restock/reprint) from a POS tab and an Admin tab — requires `docs/layaway-paylater-migration.sql` run in Supabase first
+✅ Pay Later (session 44): same flow as Layaway without a deposit — requires the same pending migration
+✅ Unvoid transaction (session 44): `PosTransactionHistory.tsx` — restores a voided transaction back to `status='completed'`
+✅ "Walk-in" no longer printed on receipts (session 44) — Customer row omitted entirely when there's no real customer
+✅ Fixed customer creation failing on a blank email (session 44) — was a `customers.email` UNIQUE constraint collision (blank inserted as `''` not `NULL`), not RLS; fixed in `CustomerContext.tsx`
 
 ## COMPLETED FEATURES
 
@@ -734,6 +780,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - settings: key, data (jsonb) — keys: global, slider, homeCategories, navigation, footer, seo, store_info, theme, brand_images ({title,image} per brand), category_images ({image,link,title} per category, session 41-42)
 - navigation_menus: id, label, path, order_index, is_active
 - navigation_items: id, menu_id, label, path, logo_url, order_index, parent_id
+- layaways: id, customer_id, items(jsonb), total_amount, deposit_paid, balance_due, status ('active'/'completed'/'cancelled'), notes, created_at, updated_at — **NOT YET CREATED**, run `docs/layaway-paylater-migration.sql` (session 44)
+- pay_later: id, customer_id, items(jsonb), total_amount, amount_paid, balance_due, status ('unpaid'/'paid'/'cancelled'), notes, created_at — **NOT YET CREATED**, run `docs/layaway-paylater-migration.sql` (session 44)
 
 **E-Commerce (ecommerce-dev branch):**
 - online_orders: id, customer_id, items(jsonb), subtotal, tax, total, shipping_method, shipping_cost, status, created_at
@@ -748,10 +796,12 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - src/context/SettingsContext.tsx - Site settings defaults (canonical URL, SEO)
 - src/components/ReturnsModal.tsx - Returns/Refund modal (mode="return" or mode="refund"); handles both flows with payment method selection
 - src/components/GiftReceiptModal.tsx - Gift receipt generation with barcode
-- src/components/PosTransactionHistory.tsx - Transaction history tab with Refund/Return/Void/Reprint
-- src/utils/thermalReceipt.ts - Receipt generation (thermal, gift, store credit) with shared SHARED_STYLES
+- src/components/PosTransactionHistory.tsx - Transaction history tab with Refund/Return/Void/Unvoid/Reprint
+- src/components/PosLayawayTab.tsx - Layaway + Pay Later management (list, take payment, cancel+restock, reprint); used from both a POS tab and an Admin tab (session 44)
+- src/components/LayawayPayLaterModal.tsx - Creates a new Layaway or Pay Later from the current POS cart (session 44)
+- src/utils/thermalReceipt.ts - Receipt generation (thermal, gift, store credit, layaway, pay later)
 - src/hooks/useSEO.tsx - JSON-LD SportingGoodsStore schema (homepage only); accepts storeInfo and builds openingHoursSpecification dynamically
-- src/hooks/usePOSCart.ts - Cart state management with color variant support
+- src/hooks/usePOSCart.ts - Cart state management with color variant support + per-item `%`/`$` discounts (session 44)
 - public/sitemap.xml - SEO sitemap
 - data/settings_exported.json - Supabase settings seed data
 
@@ -790,13 +840,16 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 Run these once in Supabase SQL editor if not already done:
 ```sql
 ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_payment_method TEXT;
-ALTER TABLE customers ALTER COLUMN email DROP NOT NULL;
 ```
+
+Run `docs/layaway-paylater-migration.sql` in the Supabase SQL editor before Layaway/Pay Later will work (session 44) — creates the `layaways` and `pay_later` tables. No DDL execution path exists from the app or its scripts (all use the anon/service-role REST keys, not a Postgres connection), so this always has to be run manually.
 
 Already run (no action needed):
 ```sql
 -- ✅ Done (session 11):
 ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS color TEXT;
+-- ✅ Confirmed already applied (verified via live insert during session 44 debugging):
+ALTER TABLE customers ALTER COLUMN email DROP NOT NULL;
 ```
 
 ## KNOWN ISSUES

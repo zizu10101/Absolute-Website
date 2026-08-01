@@ -138,6 +138,23 @@ export const PosTransactionHistory: React.FC = () => {
     }
   };
 
+  const handleUnvoid = async (tx: Transaction) => {
+    if (!confirm('Restore this transaction?')) return;
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ status: 'completed' })
+        .eq('id', tx.id);
+
+      if (error) throw error;
+      flash('Transaction restored');
+      await fetchTransactions();
+    } catch (e: any) {
+      console.error('Unvoid error:', e.message);
+      flash(e.message, true);
+    }
+  };
+
   const handleRefundComplete = () => {
     setRefundTx(null);
     fetchTransactions();
@@ -504,7 +521,15 @@ export const PosTransactionHistory: React.FC = () => {
                       </button>
                     )}
                     {tx.status === 'voided' && (
-                      <span className="text-[10px] text-red-500 font-bold self-center">Voided — no further action</span>
+                      <>
+                        <span className="text-[10px] text-red-500 font-bold self-center">Voided</span>
+                        <button
+                          onClick={() => handleUnvoid(tx)}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wide hover:bg-emerald-700 transition-colors"
+                        >
+                          <RefreshCw size={12} /> Unvoid
+                        </button>
+                      </>
                     )}
                     {tx.status === 'refunded' && (
                       <span className="text-[10px] text-amber-600 font-bold self-center">Already refunded</span>

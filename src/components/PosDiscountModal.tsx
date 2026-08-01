@@ -133,7 +133,7 @@ export const PosDiscountModal: React.FC<PosDiscountModalProps> = ({
               <div className="bg-zinc-50 p-3 rounded-lg space-y-1">
                 <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Preview</p>
                 <p className="text-sm font-bold text-zinc-900">Subtotal: ${subtotal.toFixed(2)}</p>
-                <p className="text-xs font-bold text-red-600">−Discount: ${discountPreview.discountAmount.toFixed(2)}</p>
+                <p className="text-xs font-bold text-yellow-600">−Discount: ${discountPreview.discountAmount.toFixed(2)}</p>
                 <p className="text-sm font-black text-zinc-950 pt-1 border-t border-zinc-200">
                   Total: ${discountPreview.finalTotal.toFixed(2)}
                 </p>
@@ -169,7 +169,7 @@ export const PosDiscountModal: React.FC<PosDiscountModalProps> = ({
                 <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Preview</p>
                 <p className="text-sm font-bold text-black">Original Total: ${subtotal.toFixed(2)}</p>
                 {discountPreview.discountAmount > 0 && (
-                  <p className="text-xs font-bold text-red-600">−Discount: ${discountPreview.discountAmount.toFixed(2)}</p>
+                  <p className="text-xs font-bold text-yellow-600">−Discount: ${discountPreview.discountAmount.toFixed(2)}</p>
                 )}
                 <p className="text-sm font-black text-black pt-1 border-t border-zinc-200">
                   New Total: ${discountPreview.finalTotal.toFixed(2)}

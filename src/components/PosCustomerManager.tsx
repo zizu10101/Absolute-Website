@@ -179,15 +179,15 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
             {[
               { key: 'first_name', label: 'First Name *', half: true },
               { key: 'last_name', label: 'Last Name *', half: true },
-              { key: 'email', label: 'Email', half: false },
-              { key: 'phone', label: 'Phone', half: false },
+              { key: 'phone', label: 'Phone (Optional)', half: false },
+              { key: 'email', label: 'Email (Optional)', half: false },
               { key: 'boot_size', label: 'Boot Size', half: true },
               { key: 'club_affinity', label: 'Club', half: true },
             ].map(({ key, label, half }) => (
               <div key={key} className={half ? '' : 'col-span-2'}>
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{label}</label>
                 <input
-                  type={key === 'email' ? 'email' : 'text'}
+                  type="text"
                   value={(form as any)[key]}
                   onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
                   className="w-full text-xs text-zinc-900 border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-800"

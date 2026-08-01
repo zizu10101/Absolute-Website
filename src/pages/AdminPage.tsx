@@ -4,7 +4,7 @@ import { useProducts, Product } from '../context/ProductContext';
 import { useSettings, NavMenu, SEO, ThemeSettings, BrandImages, CategoryImages, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, ChevronRight, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical, Palette } from 'lucide-react';
+import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, ChevronRight, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical, Palette, Barcode, Clock } from 'lucide-react';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -15,8 +15,10 @@ import { uploadImage, supabase } from '../supabase';
 import { RapidScanIntakeMatrix } from '../components/RapidScanIntakeMatrix';
 import { GiftCardsAdmin } from '../components/GiftCardsAdmin';
 import { ReportsPage } from '../components/ReportsPage';
+import { PosLayawayTab } from '../components/PosLayawayTab';
+import BarcodePreview from 'react-barcode';
 
-type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports' | 'theme';
+type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports' | 'theme' | 'layaways';
 
 const CATEGORIES = [
   'Footwear',
@@ -415,6 +417,8 @@ function AdminPageInner() {
   const [confirmMarkAllOnline, setConfirmMarkAllOnline] = useState(false);
   const [isMarkingAllOnline, setIsMarkingAllOnline] = useState(false);
   const [markAllOnlineStatus, setMarkAllOnlineStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [missingBarcodeCount, setMissingBarcodeCount] = useState<number | null>(null);
+  const [isGeneratingBarcodes, setIsGeneratingBarcodes] = useState(false);
   const [isSyncingLocal, setIsSyncingLocal] = useState(false);
   const [localSyncStatus, setLocalSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isRestoringLocal, setIsRestoringLocal] = useState(false);
@@ -585,6 +589,8 @@ function AdminPageInner() {
   const [newVariantBarcode, setNewVariantBarcode] = useState<string>('');
   const newVariantBarcodeRef = useRef<HTMLInputElement>(null);
   const [newVariantQuantity, setNewVariantQuantity] = useState<number>(30);
+  const [isGeneratingEditVariantBarcode, setIsGeneratingEditVariantBarcode] = useState(false);
+  const [isGeneratingAddVariantBarcode, setIsGeneratingAddVariantBarcode] = useState(false);
   const [editingProductHasNoSizes, setEditingProductHasNoSizes] = useState<boolean>(false);
 
   // --- States for newly created product pending size variants ---
@@ -601,6 +607,58 @@ function AdminPageInner() {
     const cleanSize = (sizeName || 'M').replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     const randomSuffix = Math.floor(100 + Math.random() * 900);
     return `${cleanName}-${cleanAge}-${cleanSize}-${randomSuffix}`;
+  };
+
+  // Finds the highest existing ABS-###### barcode (checking the DB plus any barcodes
+  // already queued locally but not yet saved) and returns the next one in sequence.
+  // Checking local barcodes too matters for the Add Product flow, where several variants
+  // can be queued in memory before "Save Product" ever writes any of them to the DB.
+  const getNextSequentialBarcode = async (localBarcodes: (string | undefined)[] = []): Promise<string> => {
+    let maxNumber = 100000;
+    const ABS_PATTERN = /^ABS-(\d+)$/;
+    try {
+      const { data } = await supabase
+        .from('product_variants')
+        .select('barcode')
+        .like('barcode', 'ABS-%');
+      (data || []).forEach(row => {
+        const match = row.barcode?.match(ABS_PATTERN);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNumber) maxNumber = num;
+        }
+      });
+    } catch (err) {
+      console.error('Error checking existing barcodes:', err);
+    }
+    localBarcodes.forEach(barcode => {
+      const match = barcode?.match(ABS_PATTERN);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNumber) maxNumber = num;
+      }
+    });
+    return `ABS-${String(maxNumber + 1).padStart(6, '0')}`;
+  };
+
+  const handleGenerateAddVariantBarcode = async () => {
+    setIsGeneratingAddVariantBarcode(true);
+    try {
+      const barcode = await getNextSequentialBarcode(createdProductVariants.map(v => v.barcode));
+      setNewProductVariantBarcode(barcode);
+    } finally {
+      setIsGeneratingAddVariantBarcode(false);
+    }
+  };
+
+  const handleGenerateEditVariantBarcode = async () => {
+    setIsGeneratingEditVariantBarcode(true);
+    try {
+      const barcode = await getNextSequentialBarcode(editingProductVariants.map((v: any) => v.barcode));
+      setNewVariantBarcode(barcode);
+    } finally {
+      setIsGeneratingEditVariantBarcode(false);
+    }
   };
 
   const handleAddCreatedProductVariant = () => {
@@ -1230,6 +1288,83 @@ function AdminPageInner() {
       }
     } catch (error) {
       console.error('AdminPage: Failed to clear all products', error);
+    }
+  };
+
+  const fetchMissingBarcodeCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('product_variants')
+        .select('id', { count: 'exact', head: true })
+        .or('barcode.is.null,barcode.eq.');
+      if (!error) setMissingBarcodeCount(count ?? 0);
+    } catch (err) {
+      console.error('Error fetching missing barcode count:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchMissingBarcodeCount();
+  }, []);
+
+  const generateMissingBarcodes = async () => {
+    setIsGeneratingBarcodes(true);
+    try {
+      // Paginate - product_variants can exceed Supabase's 1000-row cap
+      const variants: { id: string }[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from('product_variants')
+          .select('id')
+          .or('barcode.is.null,barcode.eq.')
+          .range(from, from + batchSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        variants.push(...data);
+        if (data.length < batchSize) break;
+        from += batchSize;
+      }
+
+      if (variants.length === 0) {
+        alert('All variants already have barcodes!');
+        return;
+      }
+
+      // Continue from the highest existing ABS-###### barcode already in use, so
+      // re-running this after new products are added never re-issues a number that
+      // collides with a barcode assigned on a previous run.
+      const { data: existingAbs } = await supabase
+        .from('product_variants')
+        .select('barcode')
+        .like('barcode', 'ABS-%');
+      let nextNumber = 100001;
+      (existingAbs || []).forEach(row => {
+        const match = row.barcode?.match(/^ABS-(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num >= nextNumber) nextNumber = num + 1;
+        }
+      });
+
+      let count = 0;
+      for (const variant of variants) {
+        const barcode = `ABS-${String(nextNumber).padStart(6, '0')}`;
+        const { error: updateError } = await supabase
+          .from('product_variants')
+          .update({ barcode })
+          .eq('id', variant.id);
+        if (!updateError) count++;
+        nextNumber++;
+      }
+
+      alert(`Generated ${count} barcode${count === 1 ? '' : 's'} successfully!`);
+      await fetchMissingBarcodeCount();
+    } catch (err: any) {
+      alert('Error generating barcodes: ' + (err.message || err));
+    } finally {
+      setIsGeneratingBarcodes(false);
     }
   };
 
@@ -2617,6 +2752,12 @@ function AdminPageInner() {
             >
               <BarChart3 size={14} /> Reports
             </button>
+            <button
+              onClick={() => setActiveTab('layaways')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'layaways' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+            >
+              <Clock size={14} /> Layaways
+            </button>
           </div>
         </div>
 
@@ -3829,6 +3970,38 @@ function AdminPageInner() {
                 ))}
               </div>
 
+              <div className={`rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border ${missingBarcodeCount ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
+                <div className="flex items-center gap-3">
+                  <Barcode size={20} className={missingBarcodeCount ? 'text-amber-600 shrink-0' : 'text-green-600 shrink-0'} />
+                  <div>
+                    <p className={`text-sm font-bold ${missingBarcodeCount ? 'text-amber-900' : 'text-green-900'}`}>
+                      {missingBarcodeCount === null
+                        ? 'Checking variant barcodes...'
+                        : missingBarcodeCount === 0
+                          ? 'All variants have barcodes'
+                          : `${missingBarcodeCount} variant${missingBarcodeCount === 1 ? '' : 's'} missing a barcode`}
+                    </p>
+                    <p className={`text-xs ${missingBarcodeCount ? 'text-amber-700' : 'text-green-700'}`}>
+                      Auto-generates unique ABS-###### barcodes so every variant can be scanned in POS.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={generateMissingBarcodes}
+                  disabled={isGeneratingBarcodes || !missingBarcodeCount}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary-color)] text-white rounded-lg font-bold uppercase tracking-widest text-[11px] hover:bg-zinc-900 transition-all disabled:opacity-50 shadow-sm whitespace-nowrap shrink-0"
+                >
+                  <Barcode size={14} className={isGeneratingBarcodes ? 'animate-pulse' : ''} />
+                  {isGeneratingBarcodes
+                    ? 'Generating...'
+                    : missingBarcodeCount === null
+                      ? 'Checking...'
+                      : missingBarcodeCount === 0
+                        ? 'All Barcodes Set'
+                        : `Generate Missing Barcodes (${missingBarcodeCount} missing)`}
+                </button>
+              </div>
+
               {productSubTab === 'bulk' && (
                 <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-8">
                   <h2 className="text-xl font-bold text-zinc-900 mb-6 flex items-center gap-2">
@@ -4368,13 +4541,28 @@ function AdminPageInner() {
                             </div>
                             <div>
                               <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Barcode</label>
-                              <input
-                                type="text"
-                                value={newProductVariantBarcode}
-                                onChange={e => setNewProductVariantBarcode(e.target.value)}
-                                placeholder="Unique barcode"
-                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
-                              />
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={newProductVariantBarcode}
+                                  onChange={e => setNewProductVariantBarcode(e.target.value)}
+                                  placeholder="Unique barcode"
+                                  className="flex-1 p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleGenerateAddVariantBarcode}
+                                  disabled={isGeneratingAddVariantBarcode}
+                                  className="px-3 py-2 bg-zinc-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[var(--primary-color)] transition-colors disabled:opacity-50 whitespace-nowrap"
+                                >
+                                  {isGeneratingAddVariantBarcode ? '...' : 'Generate'}
+                                </button>
+                              </div>
+                              {newProductVariantBarcode.trim() && (
+                                <div className="mt-2 p-2 bg-white border border-zinc-200 rounded-lg flex justify-center">
+                                  <BarcodePreview value={newProductVariantBarcode.trim()} width={1.3} height={32} fontSize={11} margin={2} />
+                                </div>
+                              )}
                             </div>
                             <div>
                               <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Stock Qty</label>
@@ -4609,7 +4797,7 @@ function AdminPageInner() {
                           )}
                         </button>
                         <div className="relative">
-                          <button 
+                          <button
                             onClick={() => setConfirmMarkAllOnline(true)}
                             disabled={isMarkingAllOnline}
                             className="text-[10px] font-bold text-zinc-400 hover:text-[var(--primary-color)] uppercase tracking-widest disabled:opacity-50"
@@ -5523,6 +5711,14 @@ function AdminPageInner() {
                             />
                             <button
                               type="button"
+                              onClick={handleGenerateEditVariantBarcode}
+                              disabled={isGeneratingEditVariantBarcode}
+                              className="px-3 py-2 bg-zinc-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[var(--primary-color)] transition-colors disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {isGeneratingEditVariantBarcode ? '...' : 'Generate'}
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => newVariantBarcodeRef.current?.focus()}
                               className="px-3 py-2 bg-zinc-900 text-white rounded-lg flex items-center gap-1 text-[10px] font-black uppercase tracking-widest hover:bg-[var(--primary-color)] transition-colors"
                               title="Focus barcode input to scan"
@@ -5530,6 +5726,11 @@ function AdminPageInner() {
                               <ScanLine size={14} />
                             </button>
                           </div>
+                          {newVariantBarcode.trim() && (
+                            <div className="mt-2 p-2 bg-white border border-zinc-200 rounded-lg flex justify-center">
+                              <BarcodePreview value={newVariantBarcode.trim()} width={1.3} height={32} fontSize={11} margin={2} />
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Stock Qty</label>
@@ -5750,6 +5951,19 @@ function AdminPageInner() {
               exit={{ opacity: 0, y: -10 }}
             >
               <ReportsPage />
+            </motion.div>
+          )}
+
+          {activeTab === 'layaways' && (
+            <motion.div
+              key="layaways"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden"
+              style={{ height: '75vh' }}
+            >
+              <PosLayawayTab />
             </motion.div>
           )}
         </AnimatePresence>

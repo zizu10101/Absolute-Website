@@ -1,5 +1,10 @@
 import { useState, useMemo } from 'react';
 
+export interface ItemDiscount {
+  type: 'percent' | 'fixed';
+  value: number; // percent (0-100) or a flat $ amount off the unit price
+}
+
 export interface CartItem {
   id: string;
   name: string;
@@ -7,7 +12,7 @@ export interface CartItem {
   originalPrice: number;
   quantity: number;
   category: string;
-  discountPercent?: number;
+  discount?: ItemDiscount; // per-item discount, applied to this line only
   isOnSale?: boolean;
   salePrice?: number;
   variantId?: string;
@@ -20,6 +25,20 @@ export interface CartItem {
   type?: string; // 'product' | 'gift_card'
   taxable?: boolean; // if false, excluded from HST calculation
 }
+
+// Per-unit $ amount removed by an item's discount (never exceeds the unit price)
+export const getItemUnitDiscount = (item: CartItem): number => {
+  if (!item.discount || !item.discount.value) return 0;
+  const raw =
+    item.discount.type === 'percent'
+      ? item.price * (item.discount.value / 100)
+      : item.discount.value;
+  return Math.max(0, Math.min(item.price, raw));
+};
+
+// Final per-unit price after the item's discount is applied
+export const getItemDiscountedPrice = (item: CartItem): number =>
+  Math.max(0, item.price - getItemUnitDiscount(item));
 
 export interface Discount {
   type: 'percentage' | 'custom';
@@ -71,7 +90,7 @@ export function usePOSCart() {
         originalPrice: product.originalPrice || product.price,
         quantity: 1,
         category: product.category || '',
-        discountPercent: 0,
+        discount: undefined,
         isOnSale: product.isOnSale,
         salePrice: product.salePrice,
         size: product.size,
@@ -97,13 +116,17 @@ export function usePOSCart() {
     );
   };
 
-  const updateItemDiscount = (id: string, discountPercent: number) => {
+  const updateItemDiscount = (id: string, itemDiscount: ItemDiscount | null) => {
     setCart(prev =>
-      prev.map(item =>
-        item.id === id
-          ? { ...item, discountPercent: Math.max(0, Math.min(100, discountPercent)) }
-          : item
-      )
+      prev.map(item => {
+        if (item.id !== id) return item;
+        if (!itemDiscount) return { ...item, discount: undefined };
+        const value =
+          itemDiscount.type === 'percent'
+            ? Math.max(0, Math.min(100, itemDiscount.value))
+            : Math.max(0, itemDiscount.value);
+        return { ...item, discount: { type: itemDiscount.type, value } };
+      })
     );
   };
 
@@ -131,19 +154,13 @@ export function usePOSCart() {
 
   const totalDiscount = useMemo(
     () =>
-      cart.reduce((sum, item) => {
-        const discount = (item.price * (item.discountPercent || 0) / 100) * item.quantity;
-        return sum + discount;
-      }, 0),
+      cart.reduce((sum, item) => sum + getItemUnitDiscount(item) * item.quantity, 0),
     [cart]
   );
 
   const subtotal = useMemo(
     () =>
-      cart.reduce((sum, item) => {
-        const discountedPrice = item.price * (1 - (item.discountPercent || 0) / 100);
-        return sum + discountedPrice * item.quantity;
-      }, 0),
+      cart.reduce((sum, item) => sum + getItemDiscountedPrice(item) * item.quantity, 0),
     [cart]
   );
 
@@ -167,8 +184,7 @@ export function usePOSCart() {
       return cart.reduce((sum, item) => {
         const isTaxable = item.taxable !== false; // Default to taxable if not specified
         if (!isTaxable) return sum; // Skip non-taxable items
-        const discountedPrice = item.price * (1 - (item.discountPercent || 0) / 100);
-        return sum + discountedPrice * item.quantity;
+        return sum + getItemDiscountedPrice(item) * item.quantity;
       }, 0);
     },
     [cart]
