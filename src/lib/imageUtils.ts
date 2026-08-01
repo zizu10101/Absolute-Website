@@ -31,6 +31,10 @@ export async function resizeImage(base64Str: string, maxWidth: number = 1200, ma
         return;
       }
 
+      // Fill canvas with white background for transparent PNGs
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
       ctx.drawImage(img, 0, 0, width, height);
       
       // Determine output format: preserve transparency for PNG/SVG

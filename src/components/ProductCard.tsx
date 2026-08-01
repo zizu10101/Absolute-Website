@@ -11,7 +11,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
   const [isHovered, setIsHovered] = React.useState(false);
   const [activeImage, setActiveImage] = React.useState<string | null>(null);
   const [activeColorIdx, setActiveColorIdx] = React.useState<number | null>(null);
-  
+
   if (product.colors && product.colors.length > 0) {
   }
 
@@ -37,7 +37,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
             FEATURED
           </div>
         )}
-        <div className="aspect-[4/5] overflow-hidden bg-white relative flex items-center justify-center">
+        <div className="aspect-[4/5] overflow-hidden relative flex items-center justify-center bg-white">
           {displayImage ? (
             <img
               src={displayImage}
@@ -62,7 +62,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
       {/* Color Thumbnails */}
       {product.colors && product.colors.length > 0 && typeof product.colors[0] === 'object' && (
         <div className="px-6 pb-4 flex gap-2 overflow-x-auto no-scrollbar relative z-20">
-          <button 
+          <button
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -72,7 +72,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
             onMouseEnter={() => setActiveImage(null)}
             className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === null ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
           >
-            <img src={product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt="Default" />
+            <img src={product.image} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt="Default" />
           </button>
           {product.colors.map((color, idx) => (
             <button
@@ -88,7 +88,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
               title={color.name}
             >
               {color.images[0] ? (
-                <img src={color.images[0]} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt={color.name} />
+                <img src={color.images[0]} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt={color.name} />
               ) : (
                 <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-[8px] text-zinc-400 uppercase">N/A</div>
               )}

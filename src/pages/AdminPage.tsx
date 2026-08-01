@@ -240,6 +240,7 @@ function AdminPageInner() {
   const [newProduct, setNewProduct] = useState<Omit<Product, 'id'>>({
     name: '',
     price: 0,
+    cost_price: 0,
     category: 'Uncategorized',
     brand: '',
     product_code: '',
@@ -552,7 +553,7 @@ function AdminPageInner() {
   // --- Sizing Variant States & Handlers ---
   const [editingProductVariants, setEditingProductVariants] = useState<any[]>([]);
   const [variantsLoading, setVariantsLoading] = useState(false);
-  const [newVariantAgeGroup, setNewVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
+  const [newVariantAgeGroup, setNewVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Sleeves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
   const [newVariantSize, setNewVariantSize] = useState<string>('');
   const [newVariantBarcode, setNewVariantBarcode] = useState<string>('');
   const newVariantBarcodeRef = useRef<HTMLInputElement>(null);
@@ -561,7 +562,7 @@ function AdminPageInner() {
 
   // --- States for newly created product pending size variants ---
   const [createdProductVariants, setCreatedProductVariants] = useState<any[]>([]);
-  const [newProductVariantAgeGroup, setNewProductVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
+  const [newProductVariantAgeGroup, setNewProductVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Sleeves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
   const [newProductVariantSize, setNewProductVariantSize] = useState<string>('');
   const [newProductVariantBarcode, setNewProductVariantBarcode] = useState<string>('');
   const [newProductVariantQuantity, setNewProductVariantQuantity] = useState<number>(30);
@@ -710,13 +711,17 @@ function AdminPageInner() {
     }
   };
 
-  const getSuggestedSizes = (category: string = '', productName: string = '', ageGroup: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size') => {
+  const getSuggestedSizes = (category: string = '', productName: string = '', ageGroup: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Sleeves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size') => {
     if (ageGroup === 'Balls') {
       return ['Size 1', 'Size 2', 'Size 3', 'Size 4', 'Size 5'];
     }
 
     if (ageGroup === 'Gloves') {
       return ['3', '4', '5', '6', '7', '8', '9', '10', '11'];
+    }
+
+    if (ageGroup === 'Sleeves') {
+      return ['S/M', 'L/XL'];
     }
 
     if (ageGroup === 'One Size') {
@@ -3695,9 +3700,9 @@ function AdminPageInner() {
                         <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Product Image (1000x1250)</label>
                           <div className="flex gap-4 items-start">
-                            <div className="w-24 h-32 rounded-lg bg-white border border-zinc-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                            <div className="w-24 h-32 rounded-lg border border-zinc-200 overflow-hidden flex-shrink-0 flex items-center justify-center bg-white">
                               {newProduct.image ? (
-                                <img src={newProduct.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                <img src={newProduct.image} className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
                               ) : (
                                 <ImageIcon size={32} className="text-zinc-300" />
                               )}
@@ -3818,6 +3823,22 @@ function AdminPageInner() {
                                 />
                               </motion.div>
                             )}
+                            <div>
+                              <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">🔒 Cost Price (Internal Only)</label>
+                              <input
+                                className="w-full p-3 bg-zinc-100 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none"
+                                placeholder="e.g. 45.00"
+                                type="number"
+                                step="0.01"
+                                value={newProduct.cost_price || ''}
+                                onChange={e => setNewProduct({...newProduct, cost_price: parseFloat(e.target.value) || 0})}
+                              />
+                              {newProduct.cost_price && newProduct.price > 0 && (
+                                <p className="text-[8px] text-zinc-500 mt-1">
+                                  Margin: ${(newProduct.price - newProduct.cost_price).toFixed(2)} ({(((newProduct.price - newProduct.cost_price) / newProduct.price) * 100).toFixed(0)}%)
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -4113,6 +4134,7 @@ function AdminPageInner() {
                                 <option value="Youth">Youth</option>
                                 <option value="Balls">Balls</option>
                                 <option value="Gloves">Gloves</option>
+                                <option value="Sleeves">Sleeves</option>
                                 <option value="One Size">One Size</option>
                                 <option value="Adult Footwear">Adult Footwear</option>
                                 <option value="Youth Footwear">Youth Footwear</option>
@@ -5226,6 +5248,7 @@ function AdminPageInner() {
                             <option value="Youth">Youth</option>
                             <option value="Balls">Balls</option>
                             <option value="Gloves">Gloves</option>
+                            <option value="Sleeves">Sleeves</option>
                             <option value="One Size">One Size</option>
                             <option value="Adult Footwear">Adult Footwear</option>
                             <option value="Youth Footwear">Youth Footwear</option>

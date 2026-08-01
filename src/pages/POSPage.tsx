@@ -1533,7 +1533,7 @@ export function POSPage() {
                       }`}
                     >
                       {product.image && (
-                        <img src={product.image} alt={product.name} className="h-24 w-auto object-cover rounded bg-[#0f1117]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <img src={product.image} alt={product.name} className="h-24 w-auto object-contain rounded bg-white" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       )}
                       <span className="text-xs font-semibold text-gray-300 group-hover:text-white line-clamp-2">
                         {product.name}
@@ -1587,7 +1587,7 @@ export function POSPage() {
               cart.map((item) => (
                 <div key={item.id} className="bg-[#0f1117] rounded-lg p-3 border border-[#2d3547] group">
                   <div className="flex gap-3">
-                    {item.image && <img src={item.image} alt={item.name} className="w-12 h-12 rounded object-cover bg-[#2d3547]" />}
+                    {item.image && <img src={item.image} alt={item.name} className="w-12 h-12 rounded object-contain bg-white" />}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-1">
                         <div className="flex-1">

@@ -12,6 +12,7 @@ export interface Product {
   id: string;
   name: string;
   price: number;
+  cost_price?: number;
   category: string;
   brand?: string;
   product_code?: string;

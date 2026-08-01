@@ -8,7 +8,7 @@ interface RapidScanIntakeMatrixProps {
   category: string;
   existingVariants?: any[];
   productColors?: string[];
-  onRegisterVariant: (ageGroup: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size', size: string, barcode: string, quantity: number, color?: string) => Promise<void>;
+  onRegisterVariant: (ageGroup: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Sleeves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size', size: string, barcode: string, quantity: number, color?: string) => Promise<void>;
   onSuccessFinished: () => void;
 }
 
@@ -22,7 +22,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
   onSuccessFinished
 }) => {
   // Main states
-  const [ageGroup, setAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
+  const [ageGroup, setAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Sleeves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [customSizes, setCustomSizes] = useState<string[]>([]);
@@ -43,13 +43,17 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   // Suggested sizes mapping
-  const getSuggestedSizes = (catName: string = '', productName: string = '', age: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size') => {
+  const getSuggestedSizes = (catName: string = '', productName: string = '', age: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Sleeves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size') => {
     if (age === 'Balls') {
       return ['Size 1', 'Size 2', 'Size 3', 'Size 4', 'Size 5'];
     }
 
     if (age === 'Gloves') {
       return ['3', '4', '5', '6', '7', '8', '9', '10', '11'];
+    }
+
+    if (age === 'Sleeves') {
+      return ['S/M', 'L/XL'];
     }
 
     if (age === 'One Size') {
@@ -335,6 +339,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
               <option value="Youth">👦 Youth (YXXS–YXL)</option>
               <option value="Balls">⚽ Balls (Size 1–5)</option>
               <option value="Gloves">🧤 Gloves (3–11)</option>
+              <option value="Sleeves">Sleeves (S/M, L/XL)</option>
               <option value="One Size">One Size (Accessories)</option>
               <option value="Adult Footwear">👟 Adult Footwear (3–13)</option>
               <option value="Youth Footwear">👟 Youth Footwear (1Y–6Y)</option>

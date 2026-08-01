@@ -1,6 +1,6 @@
 ﻿import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '../supabase';
 import { ShoppingBag, ChevronRight, ChevronLeft, ShieldCheck, Truck, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -382,7 +382,7 @@ export function ProductDetailPage() {
         {/* Left: Image Gallery */}
         <div className="lg:col-span-12 xl:col-span-7 space-y-4">
           <div
-            className="relative h-[400px] md:h-[500px] overflow-hidden rounded-xl bg-zinc-50 border border-zinc-100 group cursor-zoom-in"
+            className="relative h-[400px] md:h-[500px] overflow-hidden rounded-xl border border-zinc-100 group cursor-zoom-in bg-white"
             onMouseEnter={() => setIsImageHovered(true)}
             onMouseLeave={() => setIsImageHovered(false)}
             onMouseMove={handleImageMouseMove}
@@ -426,10 +426,10 @@ export function ProductDetailPage() {
                 <button 
                   key={idx}
                   onClick={() => setSelectedImage(idx)}
-                  className={`aspect-[4/5] bg-zinc-50 overflow-hidden border-2 transition-all ${selectedImage === idx ? 'border-[var(--primary-color)]' : 'border-transparent hover:border-zinc-200'}`}
+                  className={`aspect-[4/5] overflow-hidden border-2 transition-all bg-white ${selectedImage === idx ? 'border-[var(--primary-color)]' : 'border-transparent hover:border-zinc-200'}`}
                 >
                   {img ? (
-                    <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <img src={img} alt="" className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
                   ) : (
                     <div className="w-full h-full bg-zinc-200" />
                   )}

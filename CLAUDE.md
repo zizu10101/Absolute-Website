@@ -4,8 +4,35 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Main Branch - July 12, 2026)
-**Latest:** Complete emoji removal from POS, UTF-8 quote corruption fix (sessions 34–37)
+## CURRENT STATUS (Main Branch - August 1, 2026)
+**Latest:** Cost price field, transparent PNG fix, sleeve sizes, product image improvements (session 38)
+
+**Session 38 improvements (Cost Price, Transparent PNG Fix, Sleeve Sizes):**
+- ✅ **Cost Price field added to products** — internal staff-only pricing for margin tracking
+  - Added `cost_price?: number` to Product interface (`src/context/ProductContext.tsx`)
+  - Admin form field with margin calculation: `margin = price - cost_price` and `marginPercent = ((margin / price) * 100)`
+  - Displayed on POS product cards in gray text: `Cost: $X.XX | Margin: X%`
+  - Never visible to customers (site-facing components excluded)
+  - Database migration: `ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price DECIMAL(10,2);`
+  
+- ✅ **Transparent PNG image backgrounds fixed** — root cause was canvas drawing on black background
+  - **Root cause**: `resizeImage()` in `src/lib/imageUtils.ts` was drawing images on black canvas (HTML5 canvas default)
+  - When transparent PNGs were drawn, transparency showed black instead of white
+  - **Fix**: Added white canvas fill before drawing: `ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);`
+  - Affects all image uploads: admin product images, gallery images, color variants
+  - All product images now display with white backgrounds, not black
+
+- ✅ **Product image containers set to white permanently**
+  - Removed image background toggle buttons (White/Grey)
+  - All image containers: `bg-white` (ProductCard, ProductDetailPage, AdminPage, POSPage)
+  - Changed `object-cover` → `object-contain` + `p-1` for transparent PNG support
+  - Files updated: ProductCard.tsx, ProductDetailPage.tsx, POSPage.tsx, AdminPage.tsx
+
+- ✅ **Sleeve sizes added to getSuggestedSizes()**
+  - New age group: "Sleeves" with sizes ['S/M', 'L/XL']
+  - Updated in: AdminPage.tsx, RapidScanIntakeMatrix.tsx
+  - Added to all age group dropdowns
+  - Type definitions updated in both files
 
 **Session 37 improvements (Complete Emoji Removal & UTF-8 Fixes):**
 - ✅ **All emoji removed from POS and related files** — replaced corrupted emoji (ðŸ'³ → 💳) and valid emoji with plain text labels
