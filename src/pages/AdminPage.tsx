@@ -595,6 +595,7 @@ function AdminPageInner() {
   const [newProductVariantAgeGroup, setNewProductVariantAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Sleeves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
   const [newProductVariantSize, setNewProductVariantSize] = useState<string>('');
   const [newProductVariantBarcode, setNewProductVariantBarcode] = useState<string>('');
+  const [newProductVariantColor, setNewProductVariantColor] = useState<string>('');
   const [newProductVariantQuantity, setNewProductVariantQuantity] = useState<number>(30);
   const [newProductHasNoSizes, setNewProductHasNoSizes] = useState<boolean>(false);
 
@@ -624,12 +625,14 @@ function AdminPageInner() {
       age_group: newProductVariantAgeGroup,
       size: newProductHasNoSizes ? null : newProductVariantSize,
       barcode: barcode.toUpperCase(),
-      stock_quantity: newProductVariantQuantity
+      stock_quantity: newProductVariantQuantity,
+      color: newProductVariantColor || null
     };
 
     setCreatedProductVariants([...createdProductVariants, payload]);
     setNewProductVariantSize('');
     setNewProductVariantBarcode('');
+    setNewProductVariantColor('');
   };
 
   const handleDeleteCreatedProductVariant = (tempId: string) => {
@@ -4404,6 +4407,16 @@ function AdminPageInner() {
                                 value={newProductVariantBarcode}
                                 onChange={e => setNewProductVariantBarcode(e.target.value)}
                                 placeholder="Unique barcode"
+                                className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Color (optional)</label>
+                              <input
+                                type="text"
+                                value={newProductVariantColor}
+                                onChange={(e) => setNewProductVariantColor(e.target.value)}
+                                placeholder="e.g. White, Red, Blue"
                                 className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
                               />
                             </div>
