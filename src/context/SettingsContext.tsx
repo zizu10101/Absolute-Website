@@ -60,6 +60,19 @@ export interface ThemeSettings {
   fontFamily: string;
 }
 
+export interface BrandImageData {
+  title?: string;
+  image?: string;
+}
+export type BrandImages = Record<string, BrandImageData>;
+
+export interface CategoryImageData {
+  image?: string;
+  link?: string;
+  title?: string;
+}
+export type CategoryImages = Record<string, CategoryImageData>;
+
 const DEFAULT_THEME: ThemeSettings = {
   storeName: 'Absolute Soccer Mississauga',
   primaryColor: '#b90014',
@@ -111,6 +124,10 @@ interface SettingsContextType {
   setShowSizesOnline: (show: boolean) => Promise<void>;
   themeSettings: ThemeSettings;
   setThemeSettings: (theme: ThemeSettings) => Promise<void>;
+  brandImages: BrandImages;
+  setBrandImages: (images: BrandImages) => Promise<void>;
+  categoryImages: CategoryImages;
+  setCategoryImages: (images: CategoryImages) => Promise<void>;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -136,6 +153,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   });
   const [storeInfo, setStoreInfoState] = useState<StoreInfo>(DEFAULT_STORE_INFO);
   const [themeSettings, setThemeSettingsState] = useState<ThemeSettings>(DEFAULT_THEME);
+  const [brandImages, setBrandImagesState] = useState<BrandImages>({});
+  const [categoryImages, setCategoryImagesState] = useState<CategoryImages>({});
   const [showSizesOnline, setShowSizesOnlineState] = useState<boolean>(() => {
     const cached = localStorage.getItem('show_sizes_online');
     return cached !== null ? cached === 'true' : false;
@@ -238,6 +257,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           const seoData = results.seo;
           const storeInfoData = results.store_info;
           const themeData = results.theme;
+          const brandImagesData = results.brand_images;
+          const categoryImagesData = results.category_images;
 
           if (global?.logo) {
             setLogoState(global.logo);
@@ -293,6 +314,22 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           if (themeData && Object.keys(themeData).length > 0) {
             // Always force fontFamily to 'default' regardless of what's stored — font feature disabled
             setThemeSettingsState(prev => ({ ...DEFAULT_THEME, ...prev, ...themeData, fontFamily: 'default' }));
+          }
+          if (brandImagesData && typeof brandImagesData === 'object') {
+            // Legacy rows stored a plain image URL string per brand — normalize to { title, image }
+            const normalizedBrandImages: BrandImages = {};
+            for (const [brandName, value] of Object.entries(brandImagesData)) {
+              normalizedBrandImages[brandName] = typeof value === 'string' ? { image: value } : (value as BrandImageData);
+            }
+            setBrandImagesState(normalizedBrandImages);
+          }
+          if (categoryImagesData && typeof categoryImagesData === 'object') {
+            // Legacy rows stored a plain image URL string per category - normalize to { image, link }
+            const normalizedCategoryImages: CategoryImages = {};
+            for (const [categoryKey, value] of Object.entries(categoryImagesData)) {
+              normalizedCategoryImages[categoryKey] = typeof value === 'string' ? { image: value } : (value as CategoryImageData);
+            }
+            setCategoryImagesState(normalizedCategoryImages);
           }
         }
       } catch (criticalErr) {
@@ -461,6 +498,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setStoreInfoState(prev => ({ ...prev, ...updates, hours: { ...prev.hours, ...(updates.hours || {}) } }));
     } else if (key === 'theme') {
       setThemeSettingsState(prev => ({ ...prev, ...updates }));
+    } else if (key === 'brand_images') {
+      setBrandImagesState(prev => ({ ...prev, ...updates }));
+    } else if (key === 'category_images') {
+      setCategoryImagesState(prev => ({ ...prev, ...updates }));
     }
   };
 
@@ -664,6 +705,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     await updateSettings('theme', theme);
   };
 
+  const setBrandImages = async (images: BrandImages) => {
+    await updateSettings('brand_images', images);
+  };
+
+  const setCategoryImages = async (images: CategoryImages) => {
+    await updateSettings('category_images', images);
+  };
+
   const resetSettings = async () => {
     window.location.reload(); 
   };
@@ -696,8 +745,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     showSizesOnline,
     setShowSizesOnline,
     themeSettings,
-    setThemeSettings
-  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, storeInfo, isLoading, showSizesOnline, themeSettings]);
+    setThemeSettings,
+    brandImages,
+    setBrandImages,
+    categoryImages,
+    setCategoryImages,
+  }), [sliderImages, logo, landingLogo, labBackgroundImage, footerLogo, homeCategories, navigationMenus, footerLinks, seoSettings, storeInfo, isLoading, showSizesOnline, themeSettings, brandImages, categoryImages]);
 
   return (
     <SettingsContext.Provider value={value}>

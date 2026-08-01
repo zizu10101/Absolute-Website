@@ -11,7 +11,7 @@ export function Layout() {
     <div className="min-h-screen flex flex-col">
       <Header onMenuClick={() => setIsDrawerOpen(true)} />
       <NavigationDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
-      <main className="flex-grow pt-20">
+      <main className="flex-grow pt-[73px] md:pt-[113px]">
         <Outlet />
       </main>
       <Footer />

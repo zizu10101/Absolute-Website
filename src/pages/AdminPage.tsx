@@ -1,7 +1,7 @@
-﻿import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
+import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useProducts, Product } from '../context/ProductContext';
-import { useSettings, NavMenu, SEO, ThemeSettings, forceManualNavigationMigration } from '../context/SettingsContext';
+import { useSettings, NavMenu, SEO, ThemeSettings, BrandImages, CategoryImages, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
 import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, ChevronRight, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical, Palette } from 'lucide-react';
@@ -37,6 +37,26 @@ const getCategoryPath = (name: string) => {
   if (name === 'Custom Lab') return '/customization';
   if (name === 'Kit Orders') return '/kit-orders';
   return `/${name.toLowerCase().replace(/\s+/g, '-')}`;
+};
+
+// Default destinations for the homepage "Shop By Category" tiles - kept in sync with CategoryQuickLinks.tsx
+const DEFAULT_CATEGORY_TILE_LINKS: Record<string, string> = {
+  cleats: '/category/footwear',
+  jerseys: '/category/national-teams',
+  gloves: '/category/equipment?type=goalkeeper',
+  balls: '/category/equipment?type=balls',
+  training: '/category/training-apparel',
+  accessories: '/category/accessories',
+};
+
+// Default labels for the homepage "Shop By Category" tiles - kept in sync with CategoryQuickLinks.tsx
+const DEFAULT_CATEGORY_TILE_TITLES: Record<string, string> = {
+  cleats: 'Cleats',
+  jerseys: 'Jerseys',
+  gloves: 'Gloves',
+  balls: 'Balls',
+  training: 'Training',
+  accessories: 'Accessories',
 };
 
 interface ErrorBoundaryProps {
@@ -187,7 +207,7 @@ function AdminPageInner() {
     products, addProduct, deleteProduct, updateProduct, resetProducts, markAllProductsOnline,
     fetchAdminProducts, loadMoreAdminProducts, hasMoreProducts, isLoading, fetchProductById
   } = useProducts();
-  const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, storeInfo, setStoreInfo, setGlobalSettings, resetSettings, showSizesOnline, setShowSizesOnline, themeSettings, setThemeSettings } = useSettings();
+  const { sliderImages: contextSliderImages, setSliderImages: setContextSliderImages, logo, setLogo, landingLogo, setLandingLogo, labBackgroundImage, setLabBackgroundImage, footerLogo, setFooterLogo, homeCategories, setHomeCategories, navigationMenus, updateNavigationItem, saveNavigation, footerLinks, setFooterLinks, seoSettings, setSeoSettings, storeInfo, setStoreInfo, setGlobalSettings, resetSettings, showSizesOnline, setShowSizesOnline, themeSettings, setThemeSettings, brandImages, setBrandImages, categoryImages, setCategoryImages } = useSettings();
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -369,6 +389,14 @@ function AdminPageInner() {
   const [draftTheme, setDraftTheme] = useState<ThemeSettings>(themeSettings || DEFAULT_THEME_DRAFT);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [themeSaveSuccess, setThemeSaveSuccess] = useState(false);
+
+  const [draftBrandImages, setDraftBrandImages] = useState<BrandImages>({});
+  const [isSavingBrandImages, setIsSavingBrandImages] = useState(false);
+  const [brandImagesSaveSuccess, setBrandImagesSaveSuccess] = useState(false);
+
+  const [draftCategoryImages, setDraftCategoryImages] = useState<CategoryImages>({});
+  const [isSavingCategoryImages, setIsSavingCategoryImages] = useState(false);
+  const [categoryImagesSaveSuccess, setCategoryImagesSaveSuccess] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -818,6 +846,14 @@ function AdminPageInner() {
   useEffect(() => {
     if (themeSettings) setDraftTheme(themeSettings);
   }, [themeSettings]);
+
+  useEffect(() => {
+    if (brandImages && Object.keys(brandImages).length > 0) setDraftBrandImages(brandImages);
+  }, [brandImages]);
+
+  useEffect(() => {
+    if (categoryImages && Object.keys(categoryImages).length > 0) setDraftCategoryImages(categoryImages);
+  }, [categoryImages]);
 
   useEffect(() => {
     const fetchStoreInfo = async () => {
@@ -1645,6 +1681,87 @@ function AdminPageInner() {
     }
   };
 
+  const handleBrandImageUpload = (brandName: string, e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const resized = await resizeImage(reader.result as string, 1200, 800, 0.85);
+        const safeName = brandName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const path = `brand_images/${safeName}_${Date.now()}.jpg`;
+        const publicUrl = await uploadImage(resized, path);
+        setDraftBrandImages(prev => ({ ...prev, [brandName]: { ...prev[brandName], image: publicUrl } }));
+      } catch (err) {
+        console.error('Brand image upload failed:', err);
+      } finally {
+        setIsUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleBrandTitleChange = (brandName: string, title: string) => {
+    setDraftBrandImages(prev => ({ ...prev, [brandName]: { ...prev[brandName], title } }));
+  };
+
+  const handleSaveBrandImages = async () => {
+    setIsSavingBrandImages(true);
+    try {
+      await setBrandImages(draftBrandImages);
+      setBrandImagesSaveSuccess(true);
+      setTimeout(() => setBrandImagesSaveSuccess(false), 3000);
+    } catch (err: any) {
+      alert(err.message || 'Failed to save brand images.');
+    } finally {
+      setIsSavingBrandImages(false);
+    }
+  };
+
+  const handleCategoryTileImageUpload = (categoryKey: string, e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const resized = await resizeImage(reader.result as string, 800, 800, 0.85);
+        const path = `category_images/${categoryKey}_${Date.now()}.jpg`;
+        const publicUrl = await uploadImage(resized, path);
+        setDraftCategoryImages(prev => ({ ...prev, [categoryKey]: { ...prev[categoryKey], image: publicUrl } }));
+      } catch (err) {
+        console.error('Category image upload failed:', err);
+      } finally {
+        setIsUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleCategoryLinkChange = (categoryKey: string, link: string) => {
+    setDraftCategoryImages(prev => ({ ...prev, [categoryKey]: { ...prev[categoryKey], link } }));
+  };
+
+  const handleCategoryTitleChange = (categoryKey: string, title: string) => {
+    setDraftCategoryImages(prev => ({ ...prev, [categoryKey]: { ...prev[categoryKey], title } }));
+  };
+
+  const handleSaveCategoryImages = async () => {
+    setIsSavingCategoryImages(true);
+    try {
+      await setCategoryImages(draftCategoryImages);
+      setCategoryImagesSaveSuccess(true);
+      setTimeout(() => setCategoryImagesSaveSuccess(false), 3000);
+    } catch (err: any) {
+      alert(err.message || 'Failed to save category images.');
+    } finally {
+      setIsSavingCategoryImages(false);
+    }
+  };
+
   const containsBase64 = (obj: any): boolean => {
     try {
       const str = JSON.stringify(obj);
@@ -2386,11 +2503,11 @@ function AdminPageInner() {
               }} 
               className="px-4 py-2 bg-zinc-700 text-white font-bold text-[10px] uppercase tracking-widest rounded hover:bg-zinc-600 transition-colors flex items-center gap-2"
             >
-              🛠️ Standardize Database & Assets
+              Standardize Database & Assets
             </button>
           </div>
           <button onClick={(e) => { e.preventDefault(); forceManualNavigationMigration(); }} className="px-4 py-2 bg-blue-600 text-white font-bold text-[10px] uppercase tracking-widest rounded hover:bg-blue-700 transition-colors">
-            🚀 Force Manual Database Migration
+            Force Manual Database Migration
           </button>
         </div>
         <div className="mb-8 flex items-center justify-between">
@@ -2856,7 +2973,7 @@ function AdminPageInner() {
                         Reset to Defaults
                       </button>
                       <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest flex items-center">
-                        â† Apply default club/brand logos to your menus
+                         Apply default club/brand logos to your menus
                       </p>
                     </div>
                     {saveErrorMessage && (
@@ -3513,12 +3630,142 @@ function AdminPageInner() {
                 </div>
               </div>
 
+              {/* Brand Images */}
+              <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
+                <div className="p-8 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-zinc-900">Brand Showcase Images</h2>
+                    <p className="text-sm text-zinc-500 mt-1">Upload lifestyle images for each brand banner on the homepage. Falls back to Unsplash placeholder if not set.</p>
+                  </div>
+                  <button
+                    onClick={handleSaveBrandImages}
+                    disabled={isSavingBrandImages || isUploading}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all whitespace-nowrap ${brandImagesSaveSuccess ? 'bg-green-600 text-white' : 'bg-[var(--primary-color)] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSavingBrandImages || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {brandImagesSaveSuccess ? <Check size={14} /> : <Save size={14} />}
+                    {isSavingBrandImages ? 'Saving...' : brandImagesSaveSuccess ? 'Saved!' : 'Save Brand Images'}
+                  </button>
+                </div>
+                <div className="p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+                  {(['Nike', 'Adidas', 'Puma', 'Joma', 'New Balance'] as const).map(brand => (
+                    <div key={brand} className="space-y-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">{brand}</p>
+                      <input
+                        type="text"
+                        value={draftBrandImages[brand]?.title ?? ''}
+                        onChange={e => handleBrandTitleChange(brand, e.target.value)}
+                        placeholder={`${brand} Futbol`}
+                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
+                      />
+                      <div className="relative aspect-[4/3] rounded-xl overflow-hidden border border-zinc-200 bg-zinc-100">
+                        {draftBrandImages[brand]?.image ? (
+                          <img src={draftBrandImages[brand]?.image} alt={brand} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-zinc-300">
+                            <ImageIcon size={28} />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">No image</span>
+                          </div>
+                        )}
+                        {draftBrandImages[brand]?.image && (
+                          <button
+                            onClick={() => setDraftBrandImages(prev => ({ ...prev, [brand]: { ...prev[brand], image: undefined } }))}
+                            className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                      <label className={`flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-zinc-200 text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-zinc-50'}`}>
+                        <Upload size={12} />
+                        {draftBrandImages[brand]?.image ? 'Replace' : 'Upload'}
+                        <input type="file" className="hidden" accept="image/*" disabled={isUploading} onChange={e => handleBrandImageUpload(brand, e)} />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Category Images */}
+              <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
+                <div className="p-8 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-zinc-900">Category Tile Images</h2>
+                    <p className="text-sm text-zinc-500 mt-1">Upload images for the category quick-links row. The emoji icon is used as a fallback when no image is set.</p>
+                  </div>
+                  <button
+                    onClick={handleSaveCategoryImages}
+                    disabled={isSavingCategoryImages || isUploading}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all whitespace-nowrap ${categoryImagesSaveSuccess ? 'bg-green-600 text-white' : 'bg-[var(--primary-color)] text-white hover:bg-zinc-900 shadow-lg shadow-red-900/20'} ${(isSavingCategoryImages || isUploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {categoryImagesSaveSuccess ? <Check size={14} /> : <Save size={14} />}
+                    {isSavingCategoryImages ? 'Saving...' : categoryImagesSaveSuccess ? 'Saved!' : 'Save Category Images'}
+                  </button>
+                </div>
+                <div className="p-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
+                  {([
+                    { key: 'cleats', label: 'Cleats', emoji: '⚽' },
+                    { key: 'jerseys', label: 'Jerseys', emoji: '👕' },
+                    { key: 'gloves', label: 'Gloves', emoji: '🥊' },
+                    { key: 'balls', label: 'Balls', emoji: '⚽' },
+                    { key: 'training', label: 'Training', emoji: '💪' },
+                    { key: 'accessories', label: 'Accessories', emoji: '🎽' },
+                  ] as const).map(cat => (
+                    <div key={cat.key} className="space-y-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">{cat.label}</p>
+                      <div>
+                        <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-400 mb-1">Title</label>
+                        <input
+                          type="text"
+                          value={draftCategoryImages[cat.key]?.title ?? DEFAULT_CATEGORY_TILE_TITLES[cat.key] ?? ''}
+                          onChange={e => handleCategoryTitleChange(cat.key, e.target.value)}
+                          placeholder={DEFAULT_CATEGORY_TILE_TITLES[cat.key] || cat.label}
+                          className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 text-[11px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-400 mb-1">Link</label>
+                        <input
+                          type="text"
+                          value={draftCategoryImages[cat.key]?.link ?? DEFAULT_CATEGORY_TILE_LINKS[cat.key] ?? ''}
+                          onChange={e => handleCategoryLinkChange(cat.key, e.target.value)}
+                          placeholder={DEFAULT_CATEGORY_TILE_LINKS[cat.key] || '/category/...'}
+                          className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 text-[11px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
+                        />
+                      </div>
+                      <div className="relative aspect-square rounded-xl overflow-hidden border border-zinc-200 bg-zinc-100">
+                        {draftCategoryImages[cat.key]?.image ? (
+                          <img src={draftCategoryImages[cat.key]?.image} alt={cat.label} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-zinc-300">
+                            <span className="text-3xl" role="img" aria-label={cat.label}>{cat.emoji}</span>
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Fallback</span>
+                          </div>
+                        )}
+                        {draftCategoryImages[cat.key]?.image && (
+                          <button
+                            onClick={() => setDraftCategoryImages(prev => ({ ...prev, [cat.key]: { ...prev[cat.key], image: undefined } }))}
+                            className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                      <label className={`flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-zinc-200 text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-zinc-50'}`}>
+                        <Upload size={12} />
+                        {draftCategoryImages[cat.key]?.image ? 'Replace' : 'Upload'}
+                        <input type="file" className="hidden" accept="image/*" disabled={isUploading} onChange={e => handleCategoryTileImageUpload(cat.key, e)} />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Logos (mirrors Slider tab Brand Identity) */}
               <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
                 <div className="p-8 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-bold text-zinc-900">Logos</h2>
-                    <p className="text-sm text-zinc-500 mt-1">Upload your store's logos (recommended 500Ã—300, transparent SVG/PNG). Also editable in the Slider tab.</p>
+                    <p className="text-sm text-zinc-500 mt-1">Upload your store's logos (recommended 500x300, transparent SVG/PNG). Also editable in the Slider tab.</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <label className="flex items-center gap-2 px-4 py-2.5 bg-zinc-100 text-zinc-900 rounded-lg font-bold uppercase tracking-widest text-[10px] cursor-pointer hover:bg-zinc-200 transition-colors">
@@ -3737,8 +3984,8 @@ function AdminPageInner() {
                                       [imgs[idx - 1], imgs[idx]] = [imgs[idx], imgs[idx - 1]];
                                       setNewProduct({...newProduct, images: imgs});
                                     }}
-                                    className="w-5 h-5 bg-zinc-200 hover:bg-zinc-300 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                  >â–²</button>
+                                    className="w-5 h-5 bg-zinc-200 hover:bg-zinc-300 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  ><ChevronUp size={12} /></button>
                                   <button
                                     type="button"
                                     disabled={idx === (newProduct.images || []).length - 1}
@@ -3747,8 +3994,8 @@ function AdminPageInner() {
                                       [imgs[idx + 1], imgs[idx]] = [imgs[idx], imgs[idx + 1]];
                                       setNewProduct({...newProduct, images: imgs});
                                     }}
-                                    className="w-5 h-5 bg-zinc-200 hover:bg-zinc-300 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                  >â–¼</button>
+                                    className="w-5 h-5 bg-zinc-200 hover:bg-zinc-300 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  ><ChevronDown size={12} /></button>
                                 </div>
                                 <div className="w-10 h-10 rounded bg-white border border-zinc-200 overflow-hidden flex-shrink-0">
                                   {img ? (
@@ -4230,7 +4477,7 @@ function AdminPageInner() {
                                         }}
                                         className="text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)]"
                                       >
-                                        <option value="">â€” None â€”</option>
+                                        <option value="">- None -</option>
                                         {(newProduct.colors || []).map((c: any) => (
                                           <option key={c.name} value={c.name}>{c.name}</option>
                                         ))}
@@ -4309,7 +4556,7 @@ function AdminPageInner() {
                         </div>
                         
                         <div className="text-[10px] space-y-2 text-red-950 font-bold leading-normal uppercase tracking-wider pl-6 select-all">
-                          <p className="text-[var(--primary-color)] font-black underline">ðŸ’¡ Fix: Check Supabase RLS Policy</p>
+                          <p className="text-[var(--primary-color)] font-black underline">Tip: Fix: Check Supabase RLS Policy</p>
                           <ol className="list-decimal pl-4 space-y-1 text-[9.5px]">
                             <li>Go to your <span className="font-extrabold text-[var(--primary-color)]">Supabase Dashboard</span> and navigate to the products table.</li>
                             <li>Check the <span className="underline font-black text-[var(--primary-color)]">RLS (Row Level Security)</span> policies.</li>
@@ -4389,7 +4636,7 @@ function AdminPageInner() {
                             disabled={isMarkingAllOnline}
                             className="text-[10px] font-bold text-zinc-400 hover:text-[var(--primary-color)] uppercase tracking-widest disabled:opacity-50"
                           >
-                            {isMarkingAllOnline ? 'Marking...' : markAllOnlineStatus === 'success' ? 'All Online âœ“' : 'Mark All Online'}
+                            {isMarkingAllOnline ? 'Marking...' : markAllOnlineStatus === 'success' ? 'All Online' : 'Mark All Online'}
                           </button>
                           {confirmMarkAllOnline && (
                             <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-zinc-200 rounded-lg shadow-xl p-4 z-50">
@@ -4677,7 +4924,7 @@ function AdminPageInner() {
                           onClick={() => setAdminCurrentPage(prev => Math.max(1, prev - 1))}
                           className="px-4 py-2 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 disabled:opacity-40 disabled:hover:bg-white rounded-lg font-bold uppercase tracking-wider text-[10px] transition-all cursor-pointer"
                         >
-                          â—€ Previous
+                          Previous
                         </button>
                         <span className="font-bold text-zinc-650 bg-white border border-zinc-200 px-3.5 py-2 rounded-lg text-[10px]">
                           Page <span className="text-zinc-900">{adminCurrentPage}</span> of {Math.ceil(filteredProducts.length / adminItemsPerPage)}
@@ -4688,7 +4935,7 @@ function AdminPageInner() {
                           onClick={() => setAdminCurrentPage(prev => Math.min(Math.ceil(filteredProducts.length / adminItemsPerPage), prev + 1))}
                           className="px-4 py-2 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 disabled:opacity-40 disabled:hover:bg-white rounded-lg font-bold uppercase tracking-wider text-[10px] transition-all cursor-pointer"
                         >
-                          Next â–¶
+                          Next
                         </button>
                       </div>
                     </div>
@@ -4979,7 +5226,7 @@ function AdminPageInner() {
                       </div>
                       <div className="pt-2">
                         <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
-                          Release Date (optional â€” hides sizes until this date)
+                          Release Date (optional - hides sizes until this date)
                         </label>
                         <input
                           type="datetime-local"
@@ -5022,8 +5269,8 @@ function AdminPageInner() {
                                     [imgs[idx - 1], imgs[idx]] = [imgs[idx], imgs[idx - 1]];
                                     setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
                                   }}
-                                  className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                >â–²</button>
+                                  className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                                ><ChevronUp size={12} /></button>
                                 <button
                                   type="button"
                                   disabled={idx === allImgs.length - 1}
@@ -5032,8 +5279,8 @@ function AdminPageInner() {
                                     [imgs[idx + 1], imgs[idx]] = [imgs[idx], imgs[idx + 1]];
                                     setEditingProduct({...editingProduct, image: imgs[0], images: imgs.slice(1)});
                                   }}
-                                  className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed text-[10px]"
-                                >â–¼</button>
+                                  className="w-5 h-5 bg-zinc-100 hover:bg-zinc-200 rounded flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                                ><ChevronDown size={12} /></button>
                               </div>
                               <div className="relative w-10 h-10 rounded bg-zinc-100 border border-zinc-200 overflow-hidden flex-shrink-0">
                                 {img_safe ? (
@@ -5401,7 +5648,7 @@ function AdminPageInner() {
                                       }}
                                       className="text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)]"
                                     >
-                                      <option value="">â€” None â€”</option>
+                                      <option value="">- None -</option>
                                       {(editingProduct.colors || []).map((c: any) => (
                                         <option key={c.name} value={c.name}>{c.name}</option>
                                       ))}
@@ -5418,7 +5665,7 @@ function AdminPageInner() {
                                           setEditingProductVariants(prev => prev.map(x => x.id === v.id ? { ...x, stock_quantity: newQty } : x));
                                         }}
                                         className="w-6 h-6 bg-zinc-200 hover:bg-zinc-300 rounded font-bold text-zinc-700 flex items-center justify-center text-sm cursor-pointer"
-                                      >−</button>
+                                      >-</button>
                                       <input
                                         type="number"
                                         value={v.stock_quantity || 0}
@@ -5472,7 +5719,7 @@ function AdminPageInner() {
                     )}
                     {editStatus === 'success' && (
                       <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">
-                        âœ¨ Product updated successfully!
+                        Product updated successfully!
                       </p>
                     )}
                   </div>

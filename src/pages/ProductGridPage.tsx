@@ -699,6 +699,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: (idx % ITEMS_PER_PAGE) * 0.05 }}
+                    className="h-full"
                   >
                     <ProductCard product={product} isSoldOut={soldOutProductIds.has(product.id)} />
                   </motion.div>
