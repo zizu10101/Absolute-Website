@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { supabase } from '../../supabase';
 import { Download, RefreshCw } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
+import { getTodayEastern, shiftEasternDate, getEasternRangeUTC, formatEasternDate } from '../../utils/timezoneUtils';
 
 interface GiftCardReportProps {
   logo?: string;
@@ -19,25 +20,22 @@ interface GiftCard {
 }
 
 export const GiftCardReport: React.FC<GiftCardReportProps> = ({ logo }) => {
-  const [dateFrom, setDateFrom] = useState<string>(
-    new Date(new Date().setDate(new Date().getDate() - 90)).toISOString().split('T')[0]
-  );
-  const [dateTo, setDateTo] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [dateFrom, setDateFrom] = useState<string>(shiftEasternDate(getTodayEastern(), -90));
+  const [dateTo, setDateTo] = useState<string>(getTodayEastern());
   const [giftCards, setGiftCards] = useState<GiftCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Use UTC date range for timezone-independent filtering
-      const startUTC = `${dateFrom}T00:00:00.000Z`;
-      const endUTC = `${dateTo}T23:59:59.999Z`;
+      // Convert the Eastern calendar range to UTC for the Supabase query
+      const { start, end } = getEasternRangeUTC(dateFrom, dateTo);
 
       const { data, error } = await supabase
         .from('gift_cards')
         .select('*, customers(first_name, last_name)')
-        .gte('created_at', startUTC)
-        .lte('created_at', endUTC)
+        .gte('created_at', start)
+        .lte('created_at', end)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -93,7 +91,7 @@ export const GiftCardReport: React.FC<GiftCardReportProps> = ({ logo }) => {
       ...giftCards.map(gc => [
         gc.card_number,
         getCustomerName(gc),
-        gc.created_at.split('T')[0],
+        formatEasternDate(gc.created_at),
         `$${(gc.initial_balance || 0).toFixed(2)}`,
         `$${(gc.current_balance || 0).toFixed(2)}`,
         `$${((gc.initial_balance || 0) - (gc.current_balance || 0)).toFixed(2)}`,
@@ -124,7 +122,7 @@ export const GiftCardReport: React.FC<GiftCardReportProps> = ({ logo }) => {
           rows: giftCards.map(gc => [
             gc.card_number.slice(-8),
             getCustomerName(gc),
-            gc.created_at.split('T')[0],
+            formatEasternDate(gc.created_at),
             `$${(gc.initial_balance || 0).toFixed(2)}`,
             `$${(gc.current_balance || 0).toFixed(2)}`,
             `$${((gc.initial_balance || 0) - (gc.current_balance || 0)).toFixed(2)}`,
@@ -223,7 +221,7 @@ export const GiftCardReport: React.FC<GiftCardReportProps> = ({ logo }) => {
                   <tr key={gc.id} className={idx % 2 === 0 ? 'bg-zinc-50' : ''}>
                     <td className="py-2 px-3 font-mono text-zinc-600">{gc.card_number.slice(-8)}</td>
                     <td className="py-2 px-3 text-zinc-900">{getCustomerName(gc)}</td>
-                    <td className="py-2 px-3 text-zinc-600">{gc.created_at.split('T')[0]}</td>
+                    <td className="py-2 px-3 text-zinc-600">{formatEasternDate(gc.created_at)}</td>
                     <td className="text-right py-2 px-3 font-bold text-zinc-900">
                       ${(gc.initial_balance || 0).toFixed(2)}
                     </td>

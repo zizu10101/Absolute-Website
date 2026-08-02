@@ -108,10 +108,12 @@ export const LayawayPayLaterModal: React.FC<LayawayPayLaterModalProps> = ({
   const handlePrint = () => {
     if (!savedRecord) return;
     const customerName = customer ? `${customer.first_name} ${customer.last_name}` : 'Walk-in';
+    const customerPhone = customer?.phone || undefined;
     const html = mode === 'layaway'
       ? generateLayawayReceiptHTML({
           layawayId: savedRecord.id,
           customerName,
+          customerPhone,
           items: itemsPayload,
           totalAmount,
           depositPaid: savedRecord.deposit,
@@ -122,6 +124,7 @@ export const LayawayPayLaterModal: React.FC<LayawayPayLaterModalProps> = ({
       : generatePayLaterReceiptHTML({
           payLaterId: savedRecord.id,
           customerName,
+          customerPhone,
           items: itemsPayload,
           totalAmount,
           createdAt: savedRecord.createdAt,
@@ -225,7 +228,7 @@ export const LayawayPayLaterModal: React.FC<LayawayPayLaterModalProps> = ({
             ) : (
               <div className="text-center space-y-3 py-2">
                 <CheckCircle2 size={32} className="mx-auto text-emerald-500" />
-                <p className="text-sm font-bold text-white">{title} Saved</p>
+                <p className="text-sm font-bold text-white">{title} saved successfully!</p>
                 <p className="text-[11px] text-gray-400">
                   {mode === 'layaway'
                     ? `Deposit $${savedRecord.deposit.toFixed(2)} collected. Balance due $${savedRecord.balanceDue.toFixed(2)}. Items held for 30 days.`

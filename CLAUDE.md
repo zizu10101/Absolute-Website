@@ -6,6 +6,25 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
+**LAYAWAY/PAY LATER PAYMENT RECEIPTS, REPRINT BUTTONS, TEXT-COLOR FIX, SALES REPORT DATE PICKER + TIMEZONE FIX (Session 46):**
+
+**Layaway/Pay Later payment receipts:**
+- `src/utils/thermalReceipt.ts`: new `generateLayawayPaymentReceiptHTML()` — a dedicated "LAYAWAY PAYMENT RECEIPT" / "PAY LATER PAYMENT RECEIPT" printed after a payment is taken against an existing balance (separate from the original hold receipt). Shows ref #, customer + phone, an items summary (name/qty only, no prices), Payment Made / Previous Balance / New Balance Remaining, and a "PAID IN FULL — READY FOR PICKUP" banner when the balance hits $0
+- `generateLayawayReceiptHTML()`/`generatePayLaterReceiptHTML()` (from session 45) also gained: a visible `Ref #` row (previously barcode-only), customer phone, item color in the detail line (was captured but not displayed), and a Subtotal/HST(13%) breakdown reverse-calculated from the stored tax-inclusive total (these tables only persist one `total_amount`, not a subtotal/tax split — reuses the same reversal approach the gift-receipt code already used); layaway receipt also gained an exchange-policy footer line
+- `src/components/PosLayawayTab.tsx`: `handleTakePayment` no longer silently auto-prints on full payment — every payment (partial or full) now shows a confirmation screen ("Payment recorded successfully!" + Payment Made/Previous/New Balance + `[Print Payment Receipt] [Done]`) before returning to the record
+- **Reprint buttons**: every row in the combined Layaway/Pay Later list (POS tab + Admin tab, same shared component) now shows `[View] [Payment/Pay] [Reprint] [Cancel]` inline — Reprint calls the original receipt generator directly with the record's *current* balance, no need to open the record first; Cancel/Payment are disabled once a record is completed or cancelled. Fixed a related bug: clicking Cancel from the list was force-navigating into the detail view afterward even when nothing was previously selected — now only updates the list in place unless that record was already open
+- **Text-color bug**: `POSPage.tsx` wraps the whole POS app in `text-white` (page-wide dark theme); `PosLayawayTab.tsx` renders white cards inside it, so two buttons without an explicit dark override ("Print Payment Receipt", "Print Receipt") were invisible white-on-white. Fixed with `text-zinc-900`. Every other text element in the file already had an explicit color class
+
+**Sales Report date range picker:**
+- `src/components/reports/SalesReport.tsx`: "Daily" filter now shows a single date input (defaults to today Eastern, max today — no future dates) instead of being hardcoded to always show today; filter buttons relabeled to match spec (`Custom Range` instead of `custom`). "Custom Range" (From/To) already existed but was silently broken — see timezone fix below
+
+**Timezone fix — root cause was NOT "server uses UTC", it was `timezoneUtils.ts` itself:**
+- The old `getEasternDayRange`/`getEasternRangeUTC` detected EDT-vs-EST by checking `new Date().getTimezoneOffset()` — the *host machine's* configured timezone, not Toronto's actual DST status. Wrong whenever the code runs somewhere not itself set to Eastern. Rewrote `src/utils/timezoneUtils.ts` to determine the Eastern UTC offset via `Intl`/`toLocaleString` with an explicit `America/Toronto` timezone (diffing the same instant formatted in UTC vs Eastern — cancels out the host's own timezone), computed per-date rather than "now" (a January report run in August was previously using August's EDT offset for a January date). Verified against both an EDT date (Aug) and EST date (Jan), and against the literal reported bug (a transaction at 10:30 PM Eastern Aug 1 = 2:30 AM UTC Aug 2 now correctly reports as Aug 1)
+- New exports: `getTodayEastern()`, `shiftEasternDate()`, `shiftEasternMonths()`, `formatEasternDate()`, `formatEasternDateTime()`, `formatEasternTime()` (existing `getEasternDayRange`/`getEasternRangeUTC` kept, same signatures, fixed internals)
+- The underlying bug was systemic, not Sales-only: every one of the 7 report files (`SalesReport`, `EndOfDayReport`, `CustomerReport`, `ProductReport`, `VoidRefundReport`, `GiftCardReport`, `StoreCreditReport`) independently defaulted its date-range inputs via `new Date().toISOString().split('T')[0]` (a UTC calendar day — wrong for hours where Eastern and UTC disagree on the date) and/or displayed row timestamps via `created_at.split('T')[0]` or bare `.toLocaleDateString()` (raw UTC substring / browser-local time, no Eastern conversion at all). Fixed all of them to use the corrected shared utility. `GiftCardReport.tsx` additionally had its own bespoke UTC-string query-range construction bypassing the shared utility entirely — switched to `getEasternRangeUTC()`
+- `SalesReport.tsx` also had two standalone bugs found along the way: (1) CSV export / PDF print were reading `.from`/`.to` off `getDateRange()`'s return value, which only has `.start`/`.end` — an actual crash bug, present since it was written (this matches a `tsc` error that had been showing up unrelated to earlier sessions' work); (2) the Daily Breakdown table and sales chart bucketed transactions by UTC calendar day (`new Date(t.created_at).toISOString().split('T')[0]`) instead of Eastern, which would split one Eastern business day's sales across two rows near midnight
+- Verified via a standalone script exercising the utility directly (EDT/EST auto-detection, day-boundary reproduction of the exact reported bug) plus `npm run build` + `tsc --noEmit` (clean, and silently fixed two pre-existing TS errors that had been present for several sessions)
+
 **LAYAWAY, PAY LATER, ITEM DISCOUNTS, UNVOID + BUG FIXES (Session 45):**
 
 **Item-level discounts in POS cart:**
@@ -168,7 +187,15 @@ Admin login: info@edgedbs.com
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
 ## CURRENT STATUS (Main Branch - August 1, 2026)
-**Latest:** POS Layaway + Pay Later + item-level discounts + Unvoid + customer-creation bug fix (session 45), merged with a concurrent session's split payments + color variant + sleeve sizes + cost price work (session 44)
+**Latest:** Layaway/Pay Later payment receipts + Reprint buttons + Sales Report date picker + reports-wide Eastern timezone fix (session 46)
+
+**Session 46 improvements (Payment Receipts, Reprint, Sales Report Date Picker, Timezone Fix):**
+- ✅ New "LAYAWAY/PAY LATER PAYMENT RECEIPT" printed after taking a payment against an existing balance — ref #, customer + phone, item summary, Payment Made/Previous/New Balance, "PAID IN FULL — READY FOR PICKUP" banner at $0; every payment (not just full payoff) now shows a `[Print Payment Receipt] [Done]` confirmation instead of silently auto-printing
+- ✅ Original layaway/pay-later receipts gained a visible Ref #, customer phone, item color, and a Subtotal/HST breakdown
+- ✅ `[View] [Payment/Pay] [Reprint] [Cancel]` inline buttons on every row of the combined Layaway/Pay Later list (POS + Admin); Reprint always reflects the record's current balance
+- ✅ Fixed invisible white-on-white text on two buttons in the Layaway/Pay Later screens (page-wide dark-theme `text-white` leaking onto white cards with no override)
+- ✅ Sales Report "Daily" filter now has a real single-date picker (was hardcoded to today)
+- ✅ Reports-wide Eastern timezone fix: `timezoneUtils.ts` no longer relies on the host machine's own timezone to detect EDT/EST — now uses `Intl`/`America/Toronto` directly, computed per-date. Applied across all 7 report files (Sales, EOD, Customer, Product, Void/Refund, Gift Card, Store Credit); also fixed a real crash bug in `SalesReport.tsx`'s CSV/PDF export (`.from`/`.to` didn't exist on the date-range object) and a UTC-vs-Eastern day-bucketing bug in its Daily Breakdown table/chart
 
 **Session 45 improvements (Layaway, Pay Later, Item Discounts, Unvoid, Bug Fixes) — ⚠️ requires `docs/layaway-paylater-migration.sql` run manually in Supabase before Layaway/Pay Later work:**
 - ✅ Item-level discounts: each POS cart row can carry its own `%` or `$` discount (`CartItem.discount`), shown as struck-through original price / discount line / white bold "Item Total", flows through to checkout, on-screen receipt, and the printed thermal receipt
@@ -812,11 +839,12 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - src/components/ReturnsModal.tsx - Returns/Refund modal (mode="return" or mode="refund"); handles both flows with payment method selection
 - src/components/GiftReceiptModal.tsx - Gift receipt generation with barcode
 - src/components/PosTransactionHistory.tsx - Transaction history tab with Refund/Return/Void/Unvoid/Reprint
-- src/components/PosLayawayTab.tsx - Layaway + Pay Later management (list, take payment, cancel+restock, reprint); used from both a POS tab and an Admin tab (session 44)
-- src/components/LayawayPayLaterModal.tsx - Creates a new Layaway or Pay Later from the current POS cart (session 44)
-- src/utils/thermalReceipt.ts - Receipt generation (thermal, gift, store credit, layaway, pay later)
+- src/components/PosLayawayTab.tsx - Layaway + Pay Later management (list with View/Payment/Reprint/Cancel per row, take payment with a dedicated payment receipt, cancel+restock); used from both a POS tab and an Admin tab (session 45-46)
+- src/components/LayawayPayLaterModal.tsx - Creates a new Layaway or Pay Later from the current POS cart (session 45)
+- src/utils/thermalReceipt.ts - Receipt generation (thermal, gift, store credit, layaway, pay later, layaway/pay-later payment receipt)
+- src/utils/timezoneUtils.ts - Eastern time (America/Toronto) helpers for all report date filtering/display; Intl-based, not host-machine-timezone-based (session 46)
 - src/hooks/useSEO.tsx - JSON-LD SportingGoodsStore schema (homepage only); accepts storeInfo and builds openingHoursSpecification dynamically
-- src/hooks/usePOSCart.ts - Cart state management with color variant support + per-item `%`/`$` discounts (session 44)
+- src/hooks/usePOSCart.ts - Cart state management with color variant support + per-item `%`/`$` discounts (session 45)
 - public/sitemap.xml - SEO sitemap
 - data/settings_exported.json - Supabase settings seed data
 

@@ -3,7 +3,7 @@ import { CreditCard, Download, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
 import { supabase } from '../../supabase';
-import { getEasternRangeUTC } from '../../utils/timezoneUtils';
+import { getTodayEastern, shiftEasternDate, getEasternRangeUTC, formatEasternDate, formatEasternTime } from '../../utils/timezoneUtils';
 
 interface StoreCredit {
   id: string;
@@ -32,8 +32,8 @@ export function StoreCreditReport() {
   const [storeCredits, setStoreCredits] = useState<StoreCredit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
-    start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0],
+    start: shiftEasternDate(getTodayEastern(), -90),
+    end: getTodayEastern(),
   });
   const [expandedCreditId, setExpandedCreditId] = useState<string | null>(null);
 
@@ -122,7 +122,7 @@ export function StoreCreditReport() {
       Customer: credit.customers
         ? `${credit.customers.first_name} ${credit.customers.last_name}`
         : 'Unknown',
-      'Issued Date': new Date(credit.created_at).toLocaleDateString(),
+      'Issued Date': formatEasternDate(credit.created_at),
       'Amount': credit.amount.toFixed(2),
       'Redeemed': (credit.amount - credit.remaining_balance).toFixed(2),
       'Remaining': credit.remaining_balance.toFixed(2),
@@ -159,7 +159,7 @@ export function StoreCreditReport() {
         <body>
           <div class="header">
             <h1>Store Credit Report</h1>
-            <p>Generated: ${new Date().toLocaleDateString()}</p>
+            <p>Generated: ${formatEasternDate(new Date().toISOString())}</p>
             <p>Date Range: ${dateRange.start} to ${dateRange.end}</p>
           </div>
 
@@ -199,7 +199,7 @@ export function StoreCreditReport() {
                       ? `${credit.customers.first_name} ${credit.customers.last_name}`
                       : 'Unknown'
                   }</td>
-                  <td>${new Date(credit.created_at).toLocaleDateString()}</td>
+                  <td>${formatEasternDate(credit.created_at)}</td>
                   <td>$${credit.amount.toFixed(2)}</td>
                   <td>$${credit.remaining_balance.toFixed(2)}</td>
                   <td>${credit.is_active ? 'Active' : 'Depleted'}</td>
@@ -343,7 +343,7 @@ export function StoreCreditReport() {
                     </td>
                     <td className="px-6 py-3">{credit.reason}</td>
                     <td className="px-6 py-3 text-xs text-zinc-600">
-                      {new Date(credit.created_at).toLocaleDateString()}
+                      {formatEasternDate(credit.created_at)}
                     </td>
                     <td className="px-6 py-3 text-center">
                       <span
@@ -395,8 +395,8 @@ export function StoreCreditReport() {
                           {tx.transaction_type === 'redeemed' ? 'Redeemed' : 'Issued'}
                         </p>
                         <p className="text-xs text-zinc-600">
-                          {new Date(tx.created_at).toLocaleDateString()}{' '}
-                          {new Date(tx.created_at).toLocaleTimeString()}
+                          {formatEasternDate(tx.created_at)}{' '}
+                          {formatEasternTime(tx.created_at)}
                         </p>
                       </div>
                       <p

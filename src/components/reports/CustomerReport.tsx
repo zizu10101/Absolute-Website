@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { supabase } from '../../supabase';
 import { Download, RefreshCw } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
-import { getEasternRangeUTC } from '../../utils/timezoneUtils';
+import { getTodayEastern, shiftEasternDate, getEasternRangeUTC, formatEasternDate } from '../../utils/timezoneUtils';
 
 interface CustomerReportProps {
   logo?: string;
@@ -22,10 +22,8 @@ interface Customer {
 }
 
 export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
-  const [dateFrom, setDateFrom] = useState<string>(
-    new Date(new Date().setDate(new Date().getDate() - 90)).toISOString().split('T')[0]
-  );
-  const [dateTo, setDateTo] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [dateFrom, setDateFrom] = useState<string>(shiftEasternDate(getTodayEastern(), -90));
+  const [dateTo, setDateTo] = useState<string>(getTodayEastern());
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -154,7 +152,7 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
         c.phone,
         c.totalPurchases,
         `$${c.totalSpent.toFixed(2)}`,
-        c.lastVisit ? c.lastVisit.split('T')[0] : 'N/A',
+        c.lastVisit ? formatEasternDate(c.lastVisit) : 'N/A',
         c.preferredPayment,
       ]),
     ];
@@ -183,7 +181,7 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
             c.email,
             c.totalPurchases.toString(),
             `$${c.totalSpent.toFixed(2)}`,
-            c.lastVisit ? c.lastVisit.split('T')[0] : 'N/A',
+            c.lastVisit ? formatEasternDate(c.lastVisit) : 'N/A',
             c.preferredPayment,
           ]),
         },
@@ -269,7 +267,7 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
                       ${customer.totalSpent.toFixed(2)}
                     </td>
                     <td className="py-2 px-3 text-zinc-600">
-                      {customer.lastVisit ? customer.lastVisit.split('T')[0] : '-'}
+                      {customer.lastVisit ? formatEasternDate(customer.lastVisit) : '-'}
                     </td>
                     <td className="py-2 px-3 text-zinc-600">{customer.preferredPayment}</td>
                   </tr>

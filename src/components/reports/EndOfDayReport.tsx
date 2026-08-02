@@ -4,7 +4,7 @@ import { Download, RefreshCw } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
 import { useSettings } from '../../context/SettingsContext';
 import { generateThermalReceiptHTML } from '../../utils/thermalReceipt';
-import { getEasternDayRange } from '../../utils/timezoneUtils';
+import { getEasternDayRange, getTodayEastern } from '../../utils/timezoneUtils';
 
 interface EndOfDayReportProps {
   logo?: string;
@@ -30,9 +30,7 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
   const { logo: logoFromSettings } = useSettings();
   const logo = logoFromProps || logoFromSettings;
 
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayEastern());
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [giftCardData, setGiftCardData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);

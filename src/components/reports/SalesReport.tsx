@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { supabase } from '../../supabase';
-import { Download, RefreshCw, Printer } from 'lucide-react';
+import { Download, RefreshCw, Printer, Calendar } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
-import { getEasternDayRange, getEasternRangeUTC } from '../../utils/timezoneUtils';
+import { getTodayEastern, shiftEasternDate, shiftEasternMonths, getEasternRangeUTC, formatEasternDate } from '../../utils/timezoneUtils';
 
 interface SalesReportProps {
   logo?: string;
@@ -27,53 +27,43 @@ type FilterType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 
 export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
   const [filterType, setFilterType] = useState<FilterType>('monthly');
+  const [selectedDay, setSelectedDay] = useState<string>(getTodayEastern());
   const [customFrom, setCustomFrom] = useState<string>(
-    new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]
+    shiftEasternDate(getTodayEastern(), -30)
   );
-  const [customTo, setCustomTo] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
+  const [customTo, setCustomTo] = useState<string>(getTodayEastern());
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const getDateRange = () => {
-    // Convert Eastern time dates to UTC for queries
-    const today = new Date().toISOString().split('T')[0];
+    const todayEastern = getTodayEastern();
 
     let fromDate: string;
-    let toDate = today;
+    let toDate = todayEastern;
 
     switch (filterType) {
       case 'daily':
-        fromDate = today;
+        fromDate = selectedDay;
+        toDate = selectedDay;
         break;
-      case 'weekly': {
-        const d = new Date();
-        d.setDate(d.getDate() - 7);
-        fromDate = d.toISOString().split('T')[0];
+      case 'weekly':
+        fromDate = shiftEasternDate(todayEastern, -7);
         break;
-      }
-      case 'monthly': {
-        const d = new Date();
-        d.setMonth(d.getMonth() - 1);
-        fromDate = d.toISOString().split('T')[0];
+      case 'monthly':
+        fromDate = shiftEasternMonths(todayEastern, -1);
         break;
-      }
-      case 'yearly': {
-        const d = new Date();
-        d.setFullYear(d.getFullYear() - 1);
-        fromDate = d.toISOString().split('T')[0];
+      case 'yearly':
+        fromDate = shiftEasternMonths(todayEastern, -12);
         break;
-      }
       case 'custom':
         fromDate = customFrom;
         toDate = customTo;
         break;
       default:
-        fromDate = today;
+        fromDate = todayEastern;
     }
 
-    // Convert Eastern time range to UTC
+    // Convert the Eastern calendar range to UTC for the Supabase query
     return getEasternRangeUTC(fromDate, toDate);
   };
 
@@ -99,7 +89,7 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
 
   React.useEffect(() => {
     fetchData();
-  }, [filterType, customFrom, customTo]);
+  }, [filterType, selectedDay, customFrom, customTo]);
 
   // Calculate metrics
   const metrics = useMemo(() => {
@@ -149,7 +139,7 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
     transactions
       .filter(t => t.status === 'completed')
       .forEach(t => {
-        const date = new Date(t.created_at).toISOString().split('T')[0];
+        const date = formatEasternDate(t.created_at);
         if (!breakdown[date]) {
           breakdown[date] = {
             transactions: 0,
@@ -174,7 +164,7 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
     transactions
       .filter(t => t.status === 'completed')
       .forEach(t => {
-        const date = new Date(t.created_at).toISOString().split('T')[0];
+        const date = formatEasternDate(t.created_at);
         data[date] = (data[date] || 0) + Math.abs(Number(t.total_amount));
       });
 
@@ -185,8 +175,9 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
   }, [transactions]);
 
   const handleExportCSV = () => {
+    const { start: exportStart, end: exportEnd } = getDateRange();
     const data = [
-      ['Sales Report', getDateRange().from.split('T')[0], 'to', getDateRange().to.split('T')[0]],
+      ['Sales Report', formatEasternDate(exportStart), 'to', formatEasternDate(exportEnd)],
       [],
       ['Summary'],
       ['Total Revenue', `$${metrics.totalRevenue.toFixed(2)}`],
@@ -219,13 +210,13 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
       ]),
     ];
 
-    downloadCSV(data, `sales-report-${getDateRange().from.split('T')[0]}.csv`);
+    downloadCSV(data, `sales-report-${formatEasternDate(exportStart)}.csv`);
   };
 
   const handlePrint = () => {
-    const { from, to } = getDateRange();
+    const { start: printStart, end: printEnd } = getDateRange();
     generatePDF({
-      title: `Sales Report - ${from.split('T')[0]} to ${to.split('T')[0]}`,
+      title: `Sales Report - ${formatEasternDate(printStart)} to ${formatEasternDate(printEnd)}`,
       sections: [
         {
           type: 'summary-cards',
@@ -284,16 +275,33 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
                     : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                 }`}
               >
-                {f}
+                {f === 'custom' ? 'Custom Range' : f}
               </button>
             ))}
           </div>
         </div>
 
+        {filterType === 'daily' && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-2 flex items-center gap-1">
+              <Calendar size={11} /> Date
+            </label>
+            <input
+              type="date"
+              value={selectedDay}
+              max={getTodayEastern()}
+              onChange={e => setSelectedDay(e.target.value)}
+              className="px-3 py-1.5 border border-zinc-200 rounded text-sm"
+            />
+          </div>
+        )}
+
         {filterType === 'custom' && (
           <>
             <div>
-              <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-2">From</label>
+              <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-2 flex items-center gap-1">
+                <Calendar size={11} /> From
+              </label>
               <input
                 type="date"
                 value={customFrom}
@@ -302,7 +310,9 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-2">To</label>
+              <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-2 flex items-center gap-1">
+                <Calendar size={11} /> To
+              </label>
               <input
                 type="date"
                 value={customTo}

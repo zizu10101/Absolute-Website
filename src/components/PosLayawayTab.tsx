@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Clock, Package, Printer, ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
+import { Search, Clock, Package, Printer, ArrowLeft, CheckCircle2, XCircle, Eye, DollarSign } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useSettings } from '../context/SettingsContext';
-import { generateLayawayReceiptHTML, generatePayLaterReceiptHTML } from '../utils/thermalReceipt';
+import { generateLayawayReceiptHTML, generatePayLaterReceiptHTML, generateLayawayPaymentReceiptHTML } from '../utils/thermalReceipt';
 
 type RecordType = 'layaway' | 'pay_later';
 
@@ -11,7 +11,7 @@ interface LayawayPayLaterRecord {
   type: RecordType;
   customer_id: string | null;
   customers?: { first_name: string; last_name: string; email?: string; phone?: string } | null;
-  items: Array<{ name: string; quantity: number; price: number; size?: string; ageGroup?: string; variantId?: string; barcode?: string }>;
+  items: Array<{ name: string; quantity: number; price: number; size?: string; ageGroup?: string; color?: string; variantId?: string; barcode?: string }>;
   total_amount: number;
   deposit_paid?: number; // layaway
   amount_paid?: number; // pay_later
@@ -33,6 +33,14 @@ export const PosLayawayTab: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [paymentReceiptData, setPaymentReceiptData] = useState<{
+    record: LayawayPayLaterRecord;
+    paymentAmount: number;
+    previousBalance: number;
+    newBalance: number;
+    isFullyPaid: boolean;
+    createdAt: Date;
+  } | null>(null);
 
   const loadRecords = async () => {
     setIsLoading(true);
@@ -79,6 +87,7 @@ export const PosLayawayTab: React.FC = () => {
     setIsSaving(true);
     setError(null);
     try {
+      const previousBalance = selected.balance_due;
       const newPaid = paidField(selected) + amount;
       const newBalance = Math.max(0, Number((selected.total_amount - newPaid).toFixed(2)));
       const isFullyPaid = newBalance <= 0.001;
@@ -107,10 +116,14 @@ export const PosLayawayTab: React.FC = () => {
       setSelected(updatedRecord);
       setRecords(prev => prev.map(r => (r.id === selected.id && r.type === selected.type ? updatedRecord : r)));
       setPaymentAmount('');
-
-      if (isFullyPaid) {
-        printReceipt(updatedRecord);
-      }
+      setPaymentReceiptData({
+        record: updatedRecord,
+        paymentAmount: amount,
+        previousBalance,
+        newBalance,
+        isFullyPaid,
+        createdAt: new Date(),
+      });
     } catch (e: any) {
       setError(e.message || 'Failed to record payment.');
     } finally {
@@ -154,7 +167,7 @@ export const PosLayawayTab: React.FC = () => {
       }
 
       const updatedRecord: LayawayPayLaterRecord = { ...r, status: 'cancelled', notes: updatedNotes };
-      setSelected(updatedRecord);
+      setSelected(prev => (prev && prev.id === r.id && prev.type === r.type ? updatedRecord : prev));
       setRecords(prev => prev.map(rec => (rec.id === r.id && rec.type === r.type ? updatedRecord : rec)));
     } catch (e: any) {
       setError(e.message || 'Failed to cancel.');
@@ -163,28 +176,7 @@ export const PosLayawayTab: React.FC = () => {
     }
   };
 
-  const printReceipt = (r: LayawayPayLaterRecord) => {
-    const customerName = r.customers ? `${r.customers.first_name} ${r.customers.last_name}` : 'Walk-in';
-    const html = r.type === 'layaway'
-      ? generateLayawayReceiptHTML({
-          layawayId: r.id,
-          customerName,
-          items: r.items,
-          totalAmount: r.total_amount,
-          depositPaid: r.deposit_paid || 0,
-          balanceDue: r.balance_due,
-          createdAt: new Date(r.created_at),
-          logoUrl: footerLogo || '/logo.svg',
-        })
-      : generatePayLaterReceiptHTML({
-          payLaterId: r.id,
-          customerName,
-          items: r.items,
-          totalAmount: r.total_amount,
-          createdAt: new Date(r.created_at),
-          logoUrl: footerLogo || '/logo.svg',
-        });
-
+  const openPrintWindow = (html: string) => {
     const printWindow = window.open('', '_blank', 'width=300,height=600');
     if (printWindow) {
       printWindow.document.write(html);
@@ -198,6 +190,91 @@ export const PosLayawayTab: React.FC = () => {
       };
     }
   };
+
+  // Reprints the original layaway/pay-later receipt with the record's current balance
+  const printReceipt = (r: LayawayPayLaterRecord) => {
+    const customerName = r.customers ? `${r.customers.first_name} ${r.customers.last_name}` : 'Walk-in';
+    const customerPhone = r.customers?.phone || undefined;
+    const html = r.type === 'layaway'
+      ? generateLayawayReceiptHTML({
+          layawayId: r.id,
+          customerName,
+          customerPhone,
+          items: r.items,
+          totalAmount: r.total_amount,
+          depositPaid: r.deposit_paid || 0,
+          balanceDue: r.balance_due,
+          createdAt: new Date(r.created_at),
+          logoUrl: footerLogo || '/logo.svg',
+        })
+      : generatePayLaterReceiptHTML({
+          payLaterId: r.id,
+          customerName,
+          customerPhone,
+          items: r.items,
+          totalAmount: r.total_amount,
+          createdAt: new Date(r.created_at),
+          logoUrl: footerLogo || '/logo.svg',
+        });
+
+    openPrintWindow(html);
+  };
+
+  const printPaymentReceipt = () => {
+    if (!paymentReceiptData) return;
+    const { record, paymentAmount, previousBalance, newBalance, isFullyPaid, createdAt } = paymentReceiptData;
+    const customerName = record.customers ? `${record.customers.first_name} ${record.customers.last_name}` : 'Walk-in';
+    const customerPhone = record.customers?.phone || undefined;
+    const html = generateLayawayPaymentReceiptHTML({
+      recordType: record.type,
+      recordId: record.id,
+      customerName,
+      customerPhone,
+      items: record.items,
+      paymentAmount,
+      previousBalance,
+      newBalance,
+      isFullyPaid,
+      createdAt,
+      logoUrl: footerLogo || '/logo.svg',
+    });
+
+    openPrintWindow(html);
+  };
+
+  if (paymentReceiptData) {
+    const { record, paymentAmount, previousBalance, newBalance, isFullyPaid } = paymentReceiptData;
+    const title = record.type === 'layaway' ? 'Layaway' : 'Pay Later';
+    return (
+      <div className="flex flex-col h-full bg-zinc-50">
+        <div className="bg-white border-b border-zinc-200 p-5">
+          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-900">{title} Payment</h2>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5">
+          <div className="bg-white rounded-xl border border-zinc-100 p-6 text-center space-y-3">
+            <CheckCircle2 size={32} className="mx-auto text-emerald-500" />
+            <p className="text-sm font-black text-zinc-900">Payment recorded successfully!</p>
+            <div className="text-left text-[11px] space-y-1.5 bg-zinc-50 rounded-lg p-4 mt-2">
+              <div className="flex justify-between"><span className="text-zinc-500">Payment Made</span><span className="font-black text-emerald-600">${paymentAmount.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-zinc-500">Previous Balance</span><span className="font-bold text-zinc-700">${previousBalance.toFixed(2)}</span></div>
+              <div className="flex justify-between border-t border-zinc-200 pt-1.5"><span className="text-zinc-500 font-bold">New Balance</span><span className="font-black text-[var(--primary-color)]">${newBalance.toFixed(2)}</span></div>
+            </div>
+            {isFullyPaid && (
+              <p className="text-[11px] font-black uppercase text-emerald-600 flex items-center justify-center gap-1"><CheckCircle2 size={12} /> Paid in Full — Ready for Pickup</p>
+            )}
+            <div className="flex gap-2 pt-2">
+              <button onClick={printPaymentReceipt} className="flex-1 flex items-center justify-center gap-2 py-3 border border-zinc-200 rounded-xl text-[11px] font-black uppercase text-zinc-900 hover:bg-zinc-50">
+                <Printer size={13} /> Print Payment Receipt
+              </button>
+              <button onClick={() => setPaymentReceiptData(null)} className="flex-1 bg-zinc-950 text-white rounded-xl text-[11px] font-black uppercase hover:bg-[var(--primary-color)] transition-colors py-3">
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (selected) {
     const paid = paidField(selected);
@@ -270,7 +347,7 @@ export const PosLayawayTab: React.FC = () => {
 
           <button
             onClick={() => printReceipt(selected)}
-            className="w-full flex items-center justify-center gap-2 py-3 border border-zinc-200 rounded-xl text-[11px] font-black uppercase hover:bg-zinc-50"
+            className="w-full flex items-center justify-center gap-2 py-3 border border-zinc-200 rounded-xl text-[11px] font-black uppercase text-zinc-900 hover:bg-zinc-50"
           >
             <Printer size={13} /> Print Receipt
           </button>
@@ -319,31 +396,63 @@ export const PosLayawayTab: React.FC = () => {
             <Clock size={32} className="mx-auto mb-3 opacity-30" />
             <p className="text-xs font-bold uppercase tracking-widest">No records found</p>
           </div>
-        ) : filtered.map(r => (
-          <div
-            key={`${r.type}-${r.id}`}
-            onClick={() => openRecord(r)}
-            className="bg-white rounded-xl border border-zinc-100 p-4 flex items-center gap-3 cursor-pointer hover:border-zinc-300 hover:shadow-sm transition-all"
-          >
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 ${r.type === 'layaway' ? 'bg-amber-500' : 'bg-blue-500'}`}>
-              {r.type === 'layaway' ? <Clock size={16} /> : <Package size={16} />}
+        ) : filtered.map(r => {
+          const rowDone = r.status === 'completed' || r.status === 'paid';
+          const rowCancelled = r.status === 'cancelled';
+          const payLabel = r.type === 'layaway' ? 'Payment' : 'Pay';
+          return (
+            <div key={`${r.type}-${r.id}`} className="bg-white rounded-xl border border-zinc-100 p-4 hover:border-zinc-300 hover:shadow-sm transition-all">
+              <div className="flex items-center gap-3 cursor-pointer" onClick={() => openRecord(r)}>
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 ${r.type === 'layaway' ? 'bg-amber-500' : 'bg-blue-500'}`}>
+                  {r.type === 'layaway' ? <Clock size={16} /> : <Package size={16} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black text-zinc-900 truncate">{r.customers ? `${r.customers.first_name} ${r.customers.last_name}` : 'Unknown customer'}</p>
+                  <p className="text-[10px] text-zinc-400 truncate">{r.type === 'layaway' ? 'Layaway' : 'Pay Later'} · {new Date(r.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-xs font-black text-[var(--primary-color)]">${r.balance_due.toFixed(2)} due</p>
+                  <p className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                    rowDone ? 'bg-emerald-100 text-emerald-600' :
+                    rowCancelled ? 'bg-zinc-200 text-zinc-500' :
+                    'bg-amber-100 text-amber-600'
+                  }`}>
+                    {r.status}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-1.5 mt-3 pt-3 border-t border-zinc-100">
+                <button
+                  onClick={() => openRecord(r)}
+                  className="flex items-center justify-center gap-1 py-2 border border-zinc-200 rounded-lg text-[9px] font-black uppercase text-zinc-600 hover:bg-zinc-50"
+                >
+                  <Eye size={11} /> View
+                </button>
+                <button
+                  onClick={() => openRecord(r)}
+                  disabled={rowDone || rowCancelled}
+                  className="flex items-center justify-center gap-1 py-2 border border-zinc-200 rounded-lg text-[9px] font-black uppercase text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <DollarSign size={11} /> {payLabel}
+                </button>
+                <button
+                  onClick={() => printReceipt(r)}
+                  className="flex items-center justify-center gap-1 py-2 border border-zinc-200 rounded-lg text-[9px] font-black uppercase text-zinc-600 hover:bg-zinc-50"
+                >
+                  <Printer size={11} /> Reprint
+                </button>
+                <button
+                  onClick={() => handleCancel(r)}
+                  disabled={rowDone || rowCancelled || isSaving}
+                  className="flex items-center justify-center gap-1 py-2 border border-red-200 rounded-lg text-[9px] font-black uppercase text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <XCircle size={11} /> Cancel
+                </button>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-black text-zinc-900 truncate">{r.customers ? `${r.customers.first_name} ${r.customers.last_name}` : 'Unknown customer'}</p>
-              <p className="text-[10px] text-zinc-400 truncate">{r.type === 'layaway' ? 'Layaway' : 'Pay Later'} · {new Date(r.created_at).toLocaleDateString()}</p>
-            </div>
-            <div className="text-right shrink-0">
-              <p className="text-xs font-black text-[var(--primary-color)]">${r.balance_due.toFixed(2)} due</p>
-              <p className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
-                r.status === 'completed' || r.status === 'paid' ? 'bg-emerald-100 text-emerald-600' :
-                r.status === 'cancelled' ? 'bg-zinc-200 text-zinc-500' :
-                'bg-amber-100 text-amber-600'
-              }`}>
-                {r.status}
-              </p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

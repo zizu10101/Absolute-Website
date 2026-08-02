@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { supabase } from '../../supabase';
 import { Download, RefreshCw } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
-import { getEasternRangeUTC } from '../../utils/timezoneUtils';
+import { getTodayEastern, shiftEasternDate, getEasternRangeUTC } from '../../utils/timezoneUtils';
 
 interface ProductReportProps {
   logo?: string;
@@ -11,10 +11,8 @@ interface ProductReportProps {
 type SortBy = 'revenue' | 'quantity' | 'name';
 
 export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
-  const [dateFrom, setDateFrom] = useState<string>(
-    new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]
-  );
-  const [dateTo, setDateTo] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [dateFrom, setDateFrom] = useState<string>(shiftEasternDate(getTodayEastern(), -30));
+  const [dateTo, setDateTo] = useState<string>(getTodayEastern());
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<SortBy>('revenue');
   const [transactions, setTransactions] = useState<any[]>([]);

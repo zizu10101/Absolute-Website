@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { supabase } from '../../supabase';
 import { Download, RefreshCw } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
-import { getEasternRangeUTC } from '../../utils/timezoneUtils';
+import { getTodayEastern, shiftEasternDate, getEasternRangeUTC, formatEasternDate } from '../../utils/timezoneUtils';
 
 interface VoidRefundReportProps {
   logo?: string;
@@ -20,10 +20,8 @@ interface Transaction {
 }
 
 export const VoidRefundReport: React.FC<VoidRefundReportProps> = ({ logo }) => {
-  const [dateFrom, setDateFrom] = useState<string>(
-    new Date(new Date().setDate(new Date().getDate() - 90)).toISOString().split('T')[0]
-  );
-  const [dateTo, setDateTo] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [dateFrom, setDateFrom] = useState<string>(shiftEasternDate(getTodayEastern(), -90));
+  const [dateTo, setDateTo] = useState<string>(getTodayEastern());
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -85,7 +83,7 @@ export const VoidRefundReport: React.FC<VoidRefundReportProps> = ({ logo }) => {
       ['Transactions'],
       ['Date', 'Customer', 'Amount', 'Status', 'Items', 'Payment Method'],
       ...transactions.map(t => [
-        t.created_at.split('T')[0],
+        formatEasternDate(t.created_at),
         getCustomerName(t),
         `$${Math.abs(Number(t.total_amount)).toFixed(2)}`,
         t.status.toUpperCase(),
@@ -112,7 +110,7 @@ export const VoidRefundReport: React.FC<VoidRefundReportProps> = ({ logo }) => {
           title: 'Void & Refund Transactions',
           headers: ['Date', 'Customer', 'Amount', 'Status', 'Items', 'Method'],
           rows: transactions.map(t => [
-            t.created_at.split('T')[0],
+            formatEasternDate(t.created_at),
             getCustomerName(t),
             `$${Math.abs(Number(t.total_amount)).toFixed(2)}`,
             t.status.toUpperCase(),
@@ -205,7 +203,7 @@ export const VoidRefundReport: React.FC<VoidRefundReportProps> = ({ logo }) => {
               ) : (
                 transactions.map((tx, idx) => (
                   <tr key={tx.id} className={idx % 2 === 0 ? 'bg-zinc-50' : ''}>
-                    <td className="py-2 px-3 font-bold text-zinc-900">{tx.created_at.split('T')[0]}</td>
+                    <td className="py-2 px-3 font-bold text-zinc-900">{formatEasternDate(tx.created_at)}</td>
                     <td className="py-2 px-3 text-zinc-600">{getCustomerName(tx)}</td>
                     <td className="text-right py-2 px-3 font-bold text-zinc-900">
                       ${Math.abs(Number(tx.total_amount)).toFixed(2)}

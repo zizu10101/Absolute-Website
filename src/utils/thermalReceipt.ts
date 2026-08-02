@@ -1116,11 +1116,20 @@ interface LayawayPayLaterItem {
   price: number;
   size?: string;
   ageGroup?: string;
+  color?: string;
 }
+
+// Reverses a tax-inclusive total into its subtotal/HST parts (HST = 13%, Ontario)
+const splitOutHst = (totalAmount: number) => {
+  const subtotal = totalAmount / 1.13;
+  const hst = totalAmount - subtotal;
+  return { subtotal, hst };
+};
 
 export interface LayawayReceiptData {
   layawayId?: string;
   customerName: string;
+  customerPhone?: string;
   items: LayawayPayLaterItem[];
   totalAmount: number;
   depositPaid: number;
@@ -1182,7 +1191,8 @@ const layawayPayLaterItemsHtml = (items: LayawayPayLaterItem[]): string =>
       const lineTotal = item.price * item.quantity;
       const sizeText = item.size ? `Size ${item.size}` : '';
       const ageText = item.ageGroup ? `${item.ageGroup}` : '';
-      const detailText = [sizeText, ageText].filter(Boolean).join(' · ');
+      const colorText = item.color ? `${item.color}` : '';
+      const detailText = [colorText, sizeText, ageText].filter(Boolean).join(' · ');
       return `
         <div class="item">
           <div class="item-row">
@@ -1201,6 +1211,8 @@ export const generateLayawayReceiptHTML = (data: LayawayReceiptData): string => 
   const timeStr = data.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   const heldUntil = new Date(data.createdAt.getTime() + 30 * 24 * 60 * 60 * 1000);
   const heldUntilStr = heldUntil.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+  const refNumber = (data.layawayId || '').slice(0, 8).toUpperCase();
+  const { subtotal, hst } = splitOutHst(data.totalAmount);
 
   return `
 <!DOCTYPE html>
@@ -1228,9 +1240,11 @@ export const generateLayawayReceiptHTML = (data: LayawayReceiptData): string => 
     <div class="divider"></div>
 
     <div class="transaction-info">
+      ${refNumber ? `<div class="tx-row"><span>Ref #</span><span class="tx-value">LAY-${refNumber}</span></div>` : ''}
       <div class="tx-row"><span>Date</span><span class="tx-value">${dateStr}</span></div>
       <div class="tx-row"><span>Time</span><span class="tx-value">${timeStr}</span></div>
       <div class="tx-row"><span>Customer</span><span class="tx-value">${data.customerName}</span></div>
+      ${data.customerPhone ? `<div class="tx-row"><span>Phone</span><span class="tx-value">${data.customerPhone}</span></div>` : ''}
     </div>
 
     <div class="divider"></div>
@@ -1241,6 +1255,8 @@ export const generateLayawayReceiptHTML = (data: LayawayReceiptData): string => 
     <div class="divider"></div>
 
     <div class="totals">
+      <div class="total-row"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
+      <div class="total-row"><span>HST (13%)</span><span>$${hst.toFixed(2)}</span></div>
       <div class="total-row"><span>Total Amount</span><span>$${data.totalAmount.toFixed(2)}</span></div>
       <div class="total-row"><span>Deposit Paid</span><span>-$${data.depositPaid.toFixed(2)}</span></div>
       <div class="total-row emphasis"><span>Balance Due</span><span>$${data.balanceDue.toFixed(2)}</span></div>
@@ -1249,8 +1265,10 @@ export const generateLayawayReceiptHTML = (data: LayawayReceiptData): string => 
     <div class="divider"></div>
 
     <div class="footer">
-      <div class="footer-policy">Items held for 30 days</div>
+      <div class="footer-policy">Items held for 30 days from date of deposit</div>
       <div class="footer-policy">Pickup by ${heldUntilStr}</div>
+      <div class="footer-social">Exchanges within 30 days of pickup with this receipt.</div>
+      <div class="footer-social">Deposits are non-refundable.</div>
       <div class="footer-text" style="margin-top: 4px;">Absolute Soccer</div>
       <div class="footer-social">Mississauga, Ontario</div>
       <div class="footer-social">@absolutemississauga</div>
@@ -1276,6 +1294,7 @@ export const generateLayawayReceiptHTML = (data: LayawayReceiptData): string => 
 export interface PayLaterReceiptData {
   payLaterId?: string;
   customerName: string;
+  customerPhone?: string;
   items: LayawayPayLaterItem[];
   totalAmount: number;
   createdAt: Date;
@@ -1285,6 +1304,8 @@ export interface PayLaterReceiptData {
 export const generatePayLaterReceiptHTML = (data: PayLaterReceiptData): string => {
   const dateStr = data.createdAt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
   const timeStr = data.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const refNumber = (data.payLaterId || '').slice(0, 8).toUpperCase();
+  const { subtotal, hst } = splitOutHst(data.totalAmount);
 
   return `
 <!DOCTYPE html>
@@ -1312,9 +1333,11 @@ export const generatePayLaterReceiptHTML = (data: PayLaterReceiptData): string =
     <div class="divider"></div>
 
     <div class="transaction-info">
+      ${refNumber ? `<div class="tx-row"><span>Ref #</span><span class="tx-value">PL-${refNumber}</span></div>` : ''}
       <div class="tx-row"><span>Date</span><span class="tx-value">${dateStr}</span></div>
       <div class="tx-row"><span>Time</span><span class="tx-value">${timeStr}</span></div>
       <div class="tx-row"><span>Customer</span><span class="tx-value">${data.customerName}</span></div>
+      ${data.customerPhone ? `<div class="tx-row"><span>Phone</span><span class="tx-value">${data.customerPhone}</span></div>` : ''}
     </div>
 
     <div class="divider"></div>
@@ -1325,7 +1348,9 @@ export const generatePayLaterReceiptHTML = (data: PayLaterReceiptData): string =
     <div class="divider"></div>
 
     <div class="totals">
-      <div class="total-row emphasis"><span>Amount Owed</span><span>$${data.totalAmount.toFixed(2)}</span></div>
+      <div class="total-row"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
+      <div class="total-row"><span>HST (13%)</span><span>$${hst.toFixed(2)}</span></div>
+      <div class="total-row emphasis"><span>Total Amount Owed</span><span>$${data.totalAmount.toFixed(2)}</span></div>
     </div>
 
     <div class="divider"></div>
@@ -1343,6 +1368,105 @@ export const generatePayLaterReceiptHTML = (data: PayLaterReceiptData): string =
     window.addEventListener('load', () => {
       try {
         const barcodeValue = "${data.payLaterId || 'N/A'}";
+        if (typeof JsBarcode !== 'undefined' && document.getElementById('barcode')) {
+          JsBarcode("#barcode", barcodeValue, { format: "CODE128", width: 1.5, height: 40, displayValue: false, margin: 0 });
+        }
+      } catch (e) { console.error('Barcode generation failed:', e); }
+    });
+  </script>
+</body>
+</html>
+  `;
+};
+
+export interface LayawayPaymentReceiptData {
+  recordType: 'layaway' | 'pay_later';
+  recordId?: string;
+  customerName: string;
+  customerPhone?: string;
+  items: LayawayPayLaterItem[];
+  paymentAmount: number;
+  previousBalance: number;
+  newBalance: number;
+  isFullyPaid: boolean;
+  createdAt: Date;
+  logoUrl?: string;
+}
+
+export const generateLayawayPaymentReceiptHTML = (data: LayawayPaymentReceiptData): string => {
+  const dateStr = data.createdAt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+  const timeStr = data.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const isLayaway = data.recordType === 'layaway';
+  const refPrefix = isLayaway ? 'LAY' : 'PL';
+  const refNumber = (data.recordId || '').slice(0, 8).toUpperCase();
+  const headerTitle = isLayaway ? 'LAYAWAY PAYMENT RECEIPT' : 'PAY LATER PAYMENT RECEIPT';
+  const itemsSummaryHtml = data.items
+    .map((item) => `<div class="item-qty">${item.name} x${item.quantity}</div>`)
+    .join('');
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${headerTitle}</title>
+  <style>${layawayPayLaterStyles}</style>
+</head>
+<body>
+  <div class="receipt">
+    <div class="header">
+      ${data.logoUrl ? `<img src="${data.logoUrl}" alt="Logo" class="logo">` : ''}
+      <div class="store-name">ABSOLUTE SOCCER MISSISSAUGA</div>
+      <div class="store-info"><div>Phone: 905-593-3600</div></div>
+      <div class="header-divider"></div>
+    </div>
+
+    <div class="gift-header">${headerTitle}</div>
+
+    ${refNumber ? `
+    <div class="barcode-container"><svg id="barcode"></svg></div>
+    ` : ''}
+
+    <div class="divider"></div>
+
+    <div class="transaction-info">
+      ${refNumber ? `<div class="tx-row"><span>Ref #</span><span class="tx-value">${refPrefix}-${refNumber}</span></div>` : ''}
+      <div class="tx-row"><span>Date</span><span class="tx-value">${dateStr}</span></div>
+      <div class="tx-row"><span>Time</span><span class="tx-value">${timeStr}</span></div>
+      <div class="tx-row"><span>Customer</span><span class="tx-value">${data.customerName}</span></div>
+      ${data.customerPhone ? `<div class="tx-row"><span>Phone</span><span class="tx-value">${data.customerPhone}</span></div>` : ''}
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-header">${isLayaway ? 'ITEMS ON HOLD' : 'ITEMS'} (SUMMARY)</div>
+    <div class="items-section">${itemsSummaryHtml}</div>
+
+    <div class="divider"></div>
+
+    <div class="totals">
+      <div class="total-row"><span>Payment Made</span><span>$${data.paymentAmount.toFixed(2)}</span></div>
+      <div class="total-row"><span>Previous Balance</span><span>$${data.previousBalance.toFixed(2)}</span></div>
+      <div class="total-row emphasis"><span>New Balance Remaining</span><span>$${data.newBalance.toFixed(2)}</span></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="footer">
+      ${data.isFullyPaid
+        ? '<div class="gift-header" style="margin: 6px 0;">PAID IN FULL<br>READY FOR PICKUP</div>'
+        : `<div class="footer-policy">Remaining balance due on pickup</div>`}
+      <div class="footer-text" style="margin-top: 4px;">Absolute Soccer</div>
+      <div class="footer-social">Mississauga, Ontario</div>
+      <div class="footer-social">@absolutemississauga</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script>
+    window.addEventListener('load', () => {
+      try {
+        const barcodeValue = "${data.recordId || 'N/A'}";
         if (typeof JsBarcode !== 'undefined' && document.getElementById('barcode')) {
           JsBarcode("#barcode", barcodeValue, { format: "CODE128", width: 1.5, height: 40, displayValue: false, margin: 0 });
         }
