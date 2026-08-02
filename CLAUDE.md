@@ -6,6 +6,11 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
+**ACCESSIBILITY + SEO: HAMBURGER MENU ARIA-LABEL, llms.txt (Session 47):**
+- `src/components/Header.tsx`: mobile hamburger menu `<button>` (opens `NavigationDrawer`) had no accessible name — icon-only button read as unlabeled to screen readers. Added `aria-label="Open Navigation Menu"`
+- `public/llms.txt` (NEW): llms.txt file for LLM crawlers/AI search — store summary, key page links (home, footwear, national teams, clubs, custom apparel, Brampton/Mississauga landing pages, equipment, accessories), contact info, hours. Not referenced by any route/build step — static file served directly from `public/` at `torontosoccershop.com/llms.txt`
+- Verified via `npm run build` (clean) — pre-existing unrelated `tsc --noEmit` errors in `BrandBanners.tsx`, `PosTransactionHistory.tsx`, `AdminPage.tsx`, and scratch root-level scripts (`audit_germany_images.ts` etc.) left untouched, not introduced by this session
+
 **LAYAWAY/PAY LATER PAYMENT RECEIPTS, REPRINT BUTTONS, TEXT-COLOR FIX, SALES REPORT DATE PICKER + TIMEZONE FIX (Session 46):**
 
 **Layaway/Pay Later payment receipts:**
@@ -187,7 +192,11 @@ Admin login: info@edgedbs.com
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
 ## CURRENT STATUS (Main Branch - August 1, 2026)
-**Latest:** Layaway/Pay Later payment receipts + Reprint buttons + Sales Report date picker + reports-wide Eastern timezone fix (session 46)
+**Latest:** Hamburger menu aria-label + llms.txt for SEO/AI crawlers (session 47)
+
+**Session 47 improvements (Accessibility + SEO):**
+- ✅ Mobile hamburger menu button (`Header.tsx`) now has `aria-label="Open Navigation Menu"` — was an unlabeled icon-only button
+- ✅ `public/llms.txt` added — LLM-crawler-facing summary of the store, key pages, contact info, and hours
 
 **Session 46 improvements (Payment Receipts, Reprint, Sales Report Date Picker, Timezone Fix):**
 - ✅ New "LAYAWAY/PAY LATER PAYMENT RECEIPT" printed after taking a payment against an existing balance — ref #, customer + phone, item summary, Payment Made/Previous/New Balance, "PAID IN FULL — READY FOR PICKUP" banner at $0; every payment (not just full payoff) now shows a `[Print Payment Receipt] [Done]` confirmation instead of silently auto-printing
