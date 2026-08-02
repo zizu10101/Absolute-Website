@@ -1,8 +1,10 @@
 /**
- * Resizes an image to a maximum width and height while maintaining aspect ratio.
- * Returns a base64 encoded string of the resized image.
+ * Resizes an image to a maximum width/height, flattens it onto a white background
+ * (fixes transparent PNGs turning black), and encodes it as compressed WebP.
+ * Returns a base64 encoded WebP data URL. Browsers without WebP encoding support
+ * fall back to PNG automatically (native `canvas.toDataURL` behavior).
  */
-export async function resizeImage(base64Str: string, maxWidth: number = 1200, maxHeight: number = 1200, quality: number = 0.7): Promise<string> {
+export async function compressToWebP(base64Str: string, maxWidth: number = 1200, maxHeight: number = 1200, quality: number = 0.85): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.src = base64Str;
@@ -36,12 +38,8 @@ export async function resizeImage(base64Str: string, maxWidth: number = 1200, ma
       ctx.fillRect(0, 0, width, height);
 
       ctx.drawImage(img, 0, 0, width, height);
-      
-      // Determine output format: preserve transparency for PNG/SVG
-      const isTransparent = base64Str.startsWith('data:image/png') || base64Str.startsWith('data:image/svg');
-      const format = isTransparent ? 'image/png' : 'image/jpeg';
-      
-      resolve(canvas.toDataURL(format, isTransparent ? undefined : quality));
+
+      resolve(canvas.toDataURL('image/webp', quality));
     };
     img.onerror = (error) => reject(error);
   });

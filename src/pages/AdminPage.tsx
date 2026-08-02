@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, ChangeEvent, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useProducts, Product } from '../context/ProductContext';
 import { useSettings, NavMenu, SEO, ThemeSettings, BrandImages, CategoryImages, forceManualNavigationMigration } from '../context/SettingsContext';
@@ -10,7 +10,7 @@ import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@d
 import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
-import { resizeImage } from '../lib/imageUtils';
+import { compressToWebP } from '../lib/imageUtils';
 import { uploadImage, supabase } from '../supabase';
 import { RapidScanIntakeMatrix } from '../components/RapidScanIntakeMatrix';
 import { GiftCardsAdmin } from '../components/GiftCardsAdmin';
@@ -1224,7 +1224,7 @@ function AdminPageInner() {
         const uploadedImages = await Promise.all(allImages.map(async (img) => {
           if (img && img.startsWith('data:')) {
             try {
-              const resized = await resizeImage(img, 1000, 1250, 0.8);
+              const resized = await compressToWebP(img, 800, 800, 0.85);
               const path = `products/${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
               return await uploadImage(resized, path);
             } catch (err) {
@@ -1425,7 +1425,7 @@ function AdminPageInner() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         try {
-          const resized = await resizeImage(reader.result as string, 1000, 1250, 0.8);
+          const resized = await compressToWebP(reader.result as string, 800, 800, 0.85);
           // Upload to Supabase instead of storing base64
           const path = `products/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
           const publicUrl = await uploadImage(resized, path);
@@ -1453,7 +1453,7 @@ function AdminPageInner() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         try {
-          const resized = await resizeImage(reader.result as string, 1000, 1250, 0.8);
+          const resized = await compressToWebP(reader.result as string, 800, 800, 0.85);
           const path = `products/gallery_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
           const publicUrl = await uploadImage(resized, path);
 
@@ -1668,7 +1668,7 @@ function AdminPageInner() {
         reader.onloadend = async () => {
           try {
             // STEP 1 - UPLOAD THE FILE (resized to save storage space and bandwidth)
-            const resized = await resizeImage(reader.result as string, 1920, 1080, 0.8);
+            const resized = await compressToWebP(reader.result as string, 1600, 640, 0.85);
             const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
             const path = `slider/${fileName}`;
             const publicUrl = await uploadImage(resized, path);
@@ -1726,7 +1726,7 @@ function AdminPageInner() {
       setUploading(true);
       setIsUploading(true);
       try {
-        const resized = await resizeImage(value, 1920, 1080, 0.8);
+        const resized = await compressToWebP(value, 1600, 640, 0.85);
         const path = `slider/${Date.now()}_pasted`;
         finalValue = await uploadImage(resized, path);
       } catch (err) {
@@ -1751,7 +1751,7 @@ function AdminPageInner() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         try {
-          const resized = await resizeImage(reader.result as string, 800, 800, 0.9);
+          const resized = await compressToWebP(reader.result as string, 400, 200, 0.9);
           const path = `logos/main_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
           const publicUrl = await uploadImage(resized, path);
           setDraftLogo(publicUrl);
@@ -1772,7 +1772,7 @@ function AdminPageInner() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         try {
-          const resized = await resizeImage(reader.result as string, 800, 800, 0.9);
+          const resized = await compressToWebP(reader.result as string, 400, 200, 0.9);
           const path = `logos/landing_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
           const publicUrl = await uploadImage(resized, path);
           setDraftLandingLogo(publicUrl);
@@ -1793,7 +1793,7 @@ function AdminPageInner() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         try {
-          const resized = await resizeImage(reader.result as string, 1920, 1080, 0.8);
+          const resized = await compressToWebP(reader.result as string, 1920, 1080, 0.8);
           const path = `backgrounds/lab_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
           const publicUrl = await uploadImage(resized, path);
           setDraftLabBackgroundImage(publicUrl);
@@ -1814,7 +1814,7 @@ function AdminPageInner() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         try {
-          const resized = await resizeImage(reader.result as string, 800, 800, 0.9);
+          const resized = await compressToWebP(reader.result as string, 400, 200, 0.9);
           const path = `logos/footer_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
           const publicUrl = await uploadImage(resized, path);
           setDraftFooterLogo(publicUrl);
@@ -1835,7 +1835,7 @@ function AdminPageInner() {
     const reader = new FileReader();
     reader.onloadend = async () => {
       try {
-        const resized = await resizeImage(reader.result as string, 1200, 800, 0.85);
+        const resized = await compressToWebP(reader.result as string, 1200, 600, 0.85);
         const safeName = brandName.toLowerCase().replace(/[^a-z0-9]/g, '_');
         const path = `brand_images/${safeName}_${Date.now()}.jpg`;
         const publicUrl = await uploadImage(resized, path);
@@ -1874,7 +1874,7 @@ function AdminPageInner() {
     const reader = new FileReader();
     reader.onloadend = async () => {
       try {
-        const resized = await resizeImage(reader.result as string, 800, 800, 0.85);
+        const resized = await compressToWebP(reader.result as string, 800, 800, 0.85);
         const path = `category_images/${categoryKey}_${Date.now()}.jpg`;
         const publicUrl = await uploadImage(resized, path);
         setDraftCategoryImages(prev => ({ ...prev, [categoryKey]: { ...prev[categoryKey], image: publicUrl } }));
@@ -1923,7 +1923,7 @@ function AdminPageInner() {
       const sanitizedSubmenus = await Promise.all(menu.submenus.map(async (submenu) => {
         let sanitizedLogo = submenu.logo;
         if (sanitizedLogo?.startsWith('data:')) {
-          const resized = await resizeImage(sanitizedLogo, 200, 200, 0.8);
+          const resized = await compressToWebP(sanitizedLogo, 200, 200, 0.8);
           const path = `nav/submenu_${Date.now()}_sanitized`;
           sanitizedLogo = await uploadImage(resized, path);
         }
@@ -1931,7 +1931,7 @@ function AdminPageInner() {
         const sanitizedItems = await Promise.all(submenu.items.map(async (item) => {
           let itemLogo = item.logo;
           if (itemLogo?.startsWith('data:')) {
-            const resized = await resizeImage(itemLogo, 200, 200, 0.8);
+            const resized = await compressToWebP(itemLogo, 200, 200, 0.8);
             const path = `nav/item_${Date.now()}_sanitized`;
             itemLogo = await uploadImage(resized, path);
           }
@@ -1952,7 +1952,7 @@ function AdminPageInner() {
       if (obj.startsWith('data:')) {
         const path = `sanitized/${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
         // For navigation logos, we want smaller sizes
-        const resized = await resizeImage(obj, 800, 800, 0.7);
+        const resized = await compressToWebP(obj, 800, 800, 0.7);
         return await uploadImage(resized, path);
       }
       return obj;
@@ -2082,7 +2082,7 @@ function AdminPageInner() {
   const handleSaveTheme = async () => {
     setIsSavingTheme(true);
     try {
-      // Always force fontFamily to 'default' — font feature is disabled
+      // Always force fontFamily to 'default' â€” font feature is disabled
       await setThemeSettings({ ...draftTheme, fontFamily: 'default' });
       setThemeSaveSuccess(true);
       setTimeout(() => setThemeSaveSuccess(false), 3000);
@@ -2134,7 +2134,7 @@ function AdminPageInner() {
     if (field === 'ogImage' && value.startsWith('data:')) {
       setIsUploading(true);
       try {
-        const resized = await resizeImage(value, 1200, 630, 0.8);
+        const resized = await compressToWebP(value, 1200, 630, 0.8);
         const path = `seo/${Date.now()}_og`;
         finalValue = await uploadImage(resized, path);
       } catch (err) {
@@ -2153,7 +2153,7 @@ function AdminPageInner() {
     if (value.startsWith('data:')) {
       setIsUploading(true);
       try {
-        const resized = await resizeImage(value, 1000, 1250, 0.8);
+        const resized = await compressToWebP(value, 800, 800, 0.85);
         const path = `products/${Date.now()}_pasted`;
         finalValue = await uploadImage(resized, path);
       } catch (err) {
@@ -2199,7 +2199,7 @@ function AdminPageInner() {
       if (!isOriginalValue) {
         setIsUploading(true);
         try {
-          const resized = await resizeImage(value, 1000, 1250, 0.8);
+          const resized = await compressToWebP(value, 800, 800, 0.85);
           const path = `products/${Date.now()}_pasted`;
           finalValue = await uploadImage(resized, path);
         } catch (err) {
@@ -2302,7 +2302,7 @@ function AdminPageInner() {
     if (logo.startsWith('data:')) {
       setIsUploading(true);
       try {
-        const resized = await resizeImage(logo, 200, 200, 0.8);
+        const resized = await compressToWebP(logo, 200, 200, 0.8);
         const path = `nav/submenu_${Date.now()}_pasted`;
         const publicUrl = await uploadImage(resized, path);
         const newMenus = [...draftNavigationMenus];
@@ -2328,7 +2328,7 @@ function AdminPageInner() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         try {
-          const resized = await resizeImage(reader.result as string, 1000, 1250, 0.8);
+          const resized = await compressToWebP(reader.result as string, 800, 800, 0.85);
           const path = `products/color_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
           const publicUrl = await uploadImage(resized, path);
 
@@ -2398,7 +2398,7 @@ function AdminPageInner() {
     if (field === 'logo' && value.startsWith('data:')) {
       setIsUploading(true);
       try {
-        const resized = await resizeImage(value, 120, 120, 0.8);
+        const resized = await compressToWebP(value, 120, 120, 0.8);
         const path = `nav/item_${Date.now()}_pasted`;
         const publicUrl = await uploadImage(resized, path);
         const newMenus = [...draftNavigationMenus];
@@ -2549,7 +2549,7 @@ function AdminPageInner() {
     if (field === 'image' && value.startsWith('data:')) {
       setIsUploading(true);
       try {
-        const resized = await resizeImage(value, 900, 1200, 0.8);
+        const resized = await compressToWebP(value, 900, 1200, 0.8);
         const path = `categories/${Date.now()}_pasted`;
         finalValue = await uploadImage(resized, path);
       } catch (err) {
@@ -2573,7 +2573,7 @@ function AdminPageInner() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         try {
-          const resized = await resizeImage(reader.result as string, 900, 1200, 0.8);
+          const resized = await compressToWebP(reader.result as string, 900, 1200, 0.8);
           const path = `categories/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
           const publicUrl = await uploadImage(resized, path);
           updateCategory(index, 'image', publicUrl);
@@ -3775,7 +3775,7 @@ function AdminPageInner() {
                       </div>
                       {/* Footer strip */}
                       <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: draftTheme.secondaryColor }}>
-                        <span className="text-white/80 text-[10px] font-bold uppercase tracking-widest">Footer · Dark Sections</span>
+                        <span className="text-white/80 text-[10px] font-bold uppercase tracking-widest">Footer Â· Dark Sections</span>
                         <span className="text-white/50 text-[10px]">torontosoccershop.com</span>
                       </div>
                     </div>
@@ -3856,12 +3856,12 @@ function AdminPageInner() {
                 </div>
                 <div className="p-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
                   {([
-                    { key: 'cleats', label: 'Cleats', emoji: '⚽' },
-                    { key: 'jerseys', label: 'Jerseys', emoji: '👕' },
-                    { key: 'gloves', label: 'Gloves', emoji: '🥊' },
-                    { key: 'balls', label: 'Balls', emoji: '⚽' },
-                    { key: 'training', label: 'Training', emoji: '💪' },
-                    { key: 'accessories', label: 'Accessories', emoji: '🎽' },
+                    { key: 'cleats', label: 'Cleats', emoji: 'âš½' },
+                    { key: 'jerseys', label: 'Jerseys', emoji: 'ðŸ‘•' },
+                    { key: 'gloves', label: 'Gloves', emoji: 'ðŸ¥Š' },
+                    { key: 'balls', label: 'Balls', emoji: 'âš½' },
+                    { key: 'training', label: 'Training', emoji: 'ðŸ’ª' },
+                    { key: 'accessories', label: 'Accessories', emoji: 'ðŸŽ½' },
                   ] as const).map(cat => (
                     <div key={cat.key} className="space-y-3">
                       <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">{cat.label}</p>
@@ -4256,7 +4256,7 @@ function AdminPageInner() {
                               </motion.div>
                             )}
                             <div>
-                              <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">🔒 Cost Price (Internal Only)</label>
+                              <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">ðŸ”’ Cost Price (Internal Only)</label>
                               <input
                                 className="w-full p-3 bg-zinc-100 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] outline-none"
                                 placeholder="e.g. 45.00"
@@ -5514,7 +5514,7 @@ function AdminPageInner() {
                                     const reader = new FileReader();
                                     reader.onloadend = async () => {
                                       try {
-                                        const resized = await resizeImage(reader.result as string, 1000, 1250, 0.8);
+                                        const resized = await compressToWebP(reader.result as string, 800, 800, 0.85);
                                         const path = `products/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
                                         const publicUrl = await uploadImage(resized, path);
                                         const imgs = [editingProduct.image, ...(editingProduct.images || [])];
@@ -5870,7 +5870,7 @@ function AdminPageInner() {
                                     .order('age_group');
                                   setEditingProductVariants(fresh || []);
                                   (document.getElementById('bulkColorInput') as HTMLInputElement).value = '';
-                                  alert(`✓ Applied color "${colorInput}" to all uncolored variants`);
+                                  alert(`âœ“ Applied color "${colorInput}" to all uncolored variants`);
                                 } catch (err: any) {
                                   alert('Error: ' + err.message);
                                 }
@@ -5950,7 +5950,7 @@ function AdminPageInner() {
                                         className="flex-1 text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)]"
                                       />
                                       {justSavedVariantIds.has(v.id) && (
-                                        <span className="text-green-600 font-bold text-sm animate-pulse">✓</span>
+                                        <span className="text-green-600 font-bold text-sm animate-pulse">âœ“</span>
                                       )}
                                     </div>
                                   </td>

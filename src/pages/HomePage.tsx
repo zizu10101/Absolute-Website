@@ -212,6 +212,9 @@ export function HomePage() {
 
   return (
     <div className="space-y-20">
+      <h1 className="sr-only">
+        Absolute Soccer - Premier Soccer Store in Mississauga & GTA
+      </h1>
       {sliderImages.length > 0 && (
         <section className="relative w-full overflow-hidden bg-zinc-900">
           <div

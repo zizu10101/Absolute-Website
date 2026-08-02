@@ -3,7 +3,7 @@ import { Facebook, Instagram, Twitter, Youtube } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 
 export function Footer() {
-  const { footerLogo, footerLinks } = useSettings();
+  const { footerLogo, footerLinks, storeInfo } = useSettings();
 
   // Group links into categories for the footer columns
   const shopLabels = ['FOOTWEAR', 'APPAREL', 'EQUIPMENT', 'TEAMS'];
@@ -34,6 +34,11 @@ export function Footer() {
             <Twitter size={20} className="text-zinc-400 hover:text-[var(--primary-color)] cursor-pointer transition-colors" />
             <Youtube size={20} className="text-zinc-400 hover:text-[var(--primary-color)] cursor-pointer transition-colors" />
           </div>
+          <address className="text-zinc-400 text-sm leading-relaxed not-italic">
+            <p className="font-bold text-white">{storeInfo.name} Mississauga</p>
+            <p>{storeInfo.address}</p>
+            <p>Tel: {storeInfo.phone}</p>
+          </address>
         </div>
         
         <div>
