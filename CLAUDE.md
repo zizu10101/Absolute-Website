@@ -6,6 +6,13 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
+**WEBP IMAGE COMPRESSION, HOMEPAGE H1, FOOTER ADDRESS (Session 48):**
+- `src/lib/imageUtils.ts`: `resizeImage()` renamed to `compressToWebP()` — same base64-in/base64-out signature, now always encodes the output as WebP (`canvas.toDataURL('image/webp', quality)`) instead of PNG/JPEG; white-background canvas fill (transparent-PNG fix from session 44) kept. Browsers without WebP encode support fall back to PNG automatically (native `toDataURL` behavior) — no crash risk
+- `src/pages/AdminPage.tsx`: all 23 call sites renamed to `compressToWebP()`; dimensions/quality retuned per upload category — product images (main/gallery/color-variant/edit) 1000×1250→**800×800 q0.85**, hero/slider images 1920×1080→**1600×640 q0.85**, site logos (main/landing/footer) 800×800→**400×200 q0.90**, brand showcase images 1200×800→**1200×600 q0.85**, category tile images already 800×800 q0.85 (unchanged). Upload types not covered by the spec (nav menu/submenu icon logos, SEO OG share image, custom-apparel lab background, homepage "Select Your Squad" category cards) kept their existing dimensions but now also get WebP conversion for free since they funnel through the same function — `uploadImage()` already derives Supabase Storage `contentType` from the data URL's mime prefix, so no upload-path changes were needed
+- `src/pages/HomePage.tsx`: added a visually-hidden `<h1 className="sr-only">Absolute Soccer - Premier Soccer Store in Mississauga & GTA</h1>` at the top of the page — the homepage previously had no `<h1>` at all (hero slider has no heading text baked into markup)
+- `src/components/Footer.tsx`: added a visible `<address>` block (store name, full address, phone) reading from the existing `storeInfo` context — same data source as the HomePage "Visit Us" section (session 9), so it stays in sync with Admin → SEO → Store Information instead of being hardcoded
+- Verified via `npm run build` (clean); could not click-test the actual upload flow in a browser this session (user declined the Chrome extension) — logic verified by code review only, user asked to spot-check on localhost
+
 **ACCESSIBILITY + SEO: HAMBURGER MENU ARIA-LABEL, llms.txt (Session 47):**
 - `src/components/Header.tsx`: mobile hamburger menu `<button>` (opens `NavigationDrawer`) had no accessible name — icon-only button read as unlabeled to screen readers. Added `aria-label="Open Navigation Menu"`
 - `public/llms.txt` (NEW): llms.txt file for LLM crawlers/AI search — store summary, key page links (home, footwear, national teams, clubs, custom apparel, Brampton/Mississauga landing pages, equipment, accessories), contact info, hours. Not referenced by any route/build step — static file served directly from `public/` at `torontosoccershop.com/llms.txt`
@@ -192,7 +199,35 @@ Admin login: info@edgedbs.com
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
 ## CURRENT STATUS (Main Branch - August 1, 2026)
-**Latest:** Hamburger menu aria-label + llms.txt for SEO/AI crawlers (session 47)
+**Latest:** WebP auto-compression on all image uploads + homepage H1 + footer address (session 48)
+
+**COMPLETED TODAY (August 1, 2026):**
+- ✅ POS went live!
+- ✅ Layaway system with receipt printing
+- ✅ Pay Later system with receipt printing
+- ✅ Split payments working
+- ✅ Item-level discounts
+- ✅ Unvoid transaction button
+- ✅ WebP auto compression on all image uploads
+- ✅ H1 hidden tag added to homepage
+- ✅ Footer address added
+- ✅ llms.txt created for AI discoverability
+- ✅ Hamburger menu aria-label added
+- ✅ Reports timezone fixed to Eastern Time
+- ✅ Date range picker added to reports
+- ✅ Reprint button for layaway payments
+
+**PENDING:**
+- Receipt width still needs testing on Epson TM-T88V
+- Exchange policy text on receipt
+- Color variant naming for first variant (in progress)
+- Image compression for existing hero banners (use squoosh.app — session 48's WebP work only applies going forward to new uploads, does not retroactively recompress already-uploaded images)
+
+**Session 48 improvements (WebP Compression, Homepage H1, Footer Address):**
+- ✅ All 23 image upload call sites in `AdminPage.tsx` now convert to WebP + compress (white-background canvas fill also fixes transparent PNGs); product images/hero-slider/logos/brand images retuned to spec'd dimensions, other upload types keep their existing dimensions but still gain WebP compression
+- ✅ Homepage gained a visually-hidden `<h1>` (previously had none)
+- ✅ Footer now shows a visible store address block, sourced from the same `storeInfo` settings context as the homepage "Visit Us" section
+- ⚠️ Not click-tested in a live browser this session (Chrome extension declined) — build verified clean, logic reviewed; user asked to spot-check the upload flow on localhost
 
 **Session 47 improvements (Accessibility + SEO):**
 - ✅ Mobile hamburger menu button (`Header.tsx`) now has `aria-label="Open Navigation Menu"` — was an unlabeled icon-only button
