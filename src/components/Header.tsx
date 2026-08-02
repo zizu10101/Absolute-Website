@@ -70,6 +70,7 @@ export function Header({ onMenuClick }: Props) {
           <button
             onClick={onMenuClick}
             className="lg:hidden p-1 text-zinc-900 hover:text-[var(--primary-color)] transition-colors"
+            aria-label="Open Navigation Menu"
           >
             <Menu size={24} strokeWidth={1.5} />
           </button>
