@@ -54,6 +54,7 @@ interface Receipt {
   storeCreditNewBalance?: number;
   storeCreditCardNumber?: string; // SC card number for barcode on SC receipts
   barcodeValue?: string; // What to encode in barcode (transaction ID or SC card number)
+  paymentSplits?: Array<{ method: string; amount: number }>; // For split payments
 }
 
 export function POSPage() {
@@ -139,6 +140,13 @@ export function POSPage() {
   const [showCashCalculator, setShowCashCalculator] = useState(false);
   const [cashTendered, setCashTendered] = useState<number | ''>('');
   const [pendingPaymentMethod, setPendingPaymentMethod] = useState<string | null>(null);
+
+  // Split Payment - Step-by-step flow
+  const [useSplitPayment, setUseSplitPayment] = useState(false);
+  const [paymentSplits, setPaymentSplits] = useState<Array<{ method: string; amount: number; id: string }>>([]);
+  const [splitStep, setSplitStep] = useState<'select-method' | 'enter-amount' | 'confirm'>('select-method');
+  const [splitPaymentMethod, setSplitPaymentMethod] = useState<string>('');
+  const [splitPaymentAmount, setSplitPaymentAmount] = useState<number | ''>('');
 
   // Void/Refund
   const [showVoidRefundModal, setShowVoidRefundModal] = useState(false);
@@ -790,10 +798,77 @@ export function POSPage() {
     }
   };
 
+  // Split Payment Handlers - Step-by-step flow
+  const handleSelectSplitMethod = (method: string) => {
+    setSplitPaymentMethod(method);
+    setSplitPaymentAmount('');
+    setSplitStep('enter-amount');
+  };
+
+  const handleSetSplitAmount = (useRemaining: boolean) => {
+    const currentRemaining = grandTotal - paymentSplits.reduce((sum, p) => sum + p.amount, 0);
+    if (useRemaining) {
+      setSplitPaymentAmount(currentRemaining);
+    } else {
+      setSplitPaymentAmount(grandTotal);
+    }
+  };
+
+  const handleConfirmSplitAmount = () => {
+    const amount = typeof splitPaymentAmount === 'string' ? parseFloat(splitPaymentAmount) : splitPaymentAmount;
+
+    if (!amount || amount <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    const currentRemaining = grandTotal - paymentSplits.reduce((sum, p) => sum + p.amount, 0);
+
+    // Only allow cash to exceed remaining (for change)
+    if (splitPaymentMethod !== 'Cash' && amount > currentRemaining + 0.01) {
+      alert(`Amount cannot exceed remaining balance of $${currentRemaining.toFixed(2)}`);
+      return;
+    }
+
+    // Add the payment split
+    const newSplit = {
+      method: splitPaymentMethod,
+      amount: Number(amount.toFixed(2)),
+      id: `${Date.now()}-${Math.random()}`
+    };
+    setPaymentSplits([...paymentSplits, newSplit]);
+
+    // Reset for next payment
+    setSplitPaymentMethod('');
+    setSplitPaymentAmount('');
+    setSplitStep('select-method');
+  };
+
+  const handleRemoveSplitPayment = (id: string) => {
+    setPaymentSplits(paymentSplits.filter(p => p.id !== id));
+  };
+
+  const handleCompleteSplitPayment = async () => {
+    const totalPaid = paymentSplits.reduce((sum, p) => sum + p.amount, 0);
+    if (Math.abs(totalPaid - grandTotal) > 0.01) {
+      alert(`Total paid ($${totalPaid.toFixed(2)}) does not equal total due ($${grandTotal.toFixed(2)})`);
+      return;
+    }
+    // Process the split payment as a single transaction
+    await handleConfirmSale('Split');
+  };
+
+  const currentRemaining = grandTotal - paymentSplits.reduce((sum, p) => sum + p.amount, 0);
+
   // Checkout handler
   const handleConfirmSale = async (method: string) => {
+    // Handle split payments
+    if (method === 'Split') {
+      method = paymentSplits.map(p => `${p.method} $${p.amount.toFixed(2)}`).join(' + ');
+    }
+
     // For cash, show calculator instead of confirming immediately
-    if (method === 'Cash') {
+    if (method === 'Cash' && !useSplitPayment) {
       setShowCashCalculator(true);
       setPendingPaymentMethod(method);
       setCashTendered('');
@@ -1057,6 +1132,14 @@ export function POSPage() {
         payload.change_given = Number((tenderedAmount - amountAfterStoreCredit).toFixed(2));
       }
 
+      // Add split payment data
+      if (useSplitPayment && paymentSplits.length > 0) {
+        payload.payment_splits = paymentSplits.map(s => ({
+          method: s.method,
+          amount: Number(s.amount.toFixed(2))
+        }));
+      }
+
       const { data, error } = await supabase
         .from('transactions')
         .insert([payload])
@@ -1152,6 +1235,7 @@ export function POSPage() {
         storeCreditAmount: capturedStoreCredit?.amount,
         storeCreditId: capturedStoreCredit?.id,
         storeCreditNewBalance: storeCreditNewBalance,
+        paymentSplits: useSplitPayment ? paymentSplits : undefined,
       });
 
       // Close cash calculator if it was open
@@ -1201,6 +1285,11 @@ export function POSPage() {
     setSelectedGiftCard(null);
     setSelectedStoreCredit(null);
     setShowStoreCreditModal(false);
+    setUseSplitPayment(false);
+    setPaymentSplits([]);
+    setSplitPaymentMethod('');
+    setSplitPaymentAmount('');
+    setSplitStep('select-method');
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
@@ -1234,7 +1323,7 @@ export function POSPage() {
       total: receipt.total,
       paymentMethod: receipt.method,
       createdAt: new Date(),
-      logoUrl: footerLogo || '/logo.svg',
+      logoUrl: '/logo-black.png',
       barcodeValue: barcodeValue,
       copies,
     });
@@ -1279,7 +1368,7 @@ export function POSPage() {
       total: receipt.total,
       paymentMethod: receipt.method,
       createdAt: new Date(),
-      logoUrl: footerLogo || '/logo.svg',
+      logoUrl: '/logo-black.png',
       barcodeValue: receipt.invoiceNumber || receipt.transactionId || 'N/A',
     });
 
@@ -1600,7 +1689,7 @@ export function POSPage() {
                       }`}
                     >
                       {product.image && (
-                        <img src={product.image} alt={product.name} className="h-24 w-auto object-cover rounded bg-[#0f1117]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <img src={product.image} alt={product.name} className="h-24 w-auto object-contain rounded bg-white" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       )}
                       <span className="text-xs font-semibold text-gray-300 group-hover:text-white line-clamp-2">
                         {product.name}
@@ -1654,7 +1743,7 @@ export function POSPage() {
               cart.map((item) => (
                 <div key={item.id} className="bg-[#0f1117] rounded-lg p-3 border border-[#2d3547] group">
                   <div className="flex gap-3">
-                    {item.image && <img src={item.image} alt={item.name} className="w-12 h-12 rounded object-cover bg-[#2d3547]" />}
+                    {item.image && <img src={item.image} alt={item.name} className="w-12 h-12 rounded object-contain bg-white" />}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-1">
                         <div className="flex-1">
@@ -2147,6 +2236,17 @@ export function POSPage() {
                           )}
                         </>
                       )}
+                      {receipt.paymentSplits && receipt.paymentSplits.length > 0 && (
+                        <div className="pt-2 border-t border-dashed border-zinc-300">
+                          <p className="text-[9px] font-bold text-zinc-600 mb-1 uppercase">Payment Breakdown:</p>
+                          {receipt.paymentSplits.map((split, i) => (
+                            <div key={i} className="flex justify-between text-[9px] text-zinc-700">
+                              <span>{split.method}</span>
+                              <span>${split.amount.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {receipt.method === 'Cash' && receipt.tenderedAmount !== undefined && (
                         <>
                           <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300"><span>Cash Received</span><span>${receipt.tenderedAmount.toFixed(2)}</span></div>
@@ -2349,19 +2449,167 @@ export function POSPage() {
                         âœ… Complete Sale (Store Credit)
                       </button>
                     ) : (
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Store Credit'].map(method => (
-                          <button
-                            key={method}
-                            disabled={isConfirming || (selectedStoreCredit && method === 'Store Credit')}
-                            onClick={() => handleConfirmSale(method)}
-                            className="bg-[var(--primary-color)] hover:bg-red-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
-                            title={selectedStoreCredit && method === 'Store Credit' ? 'SC already applied' : ''}
-                          >
-                            {method}
-                          </button>
-                        ))}
-                      </div>
+                      <>
+                        {/* Split Payment Toggle */}
+                        <div className="mb-3 p-2 bg-[#2d3547] rounded flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={useSplitPayment}
+                            onChange={(e) => {
+                              setUseSplitPayment(e.target.checked);
+                              if (!e.target.checked) {
+                                setPaymentSplits([]);
+                                setSplitPaymentMethod('');
+                                setSplitPaymentAmount('');
+                                setSplitStep('select-method');
+                              }
+                            }}
+                            className="w-4 h-4 cursor-pointer"
+                          />
+                          <span className="text-[9px] font-bold text-white uppercase">Split Payment</span>
+                        </div>
+
+                        {/* Split Payment UI - Step-by-Step Flow */}
+                        {useSplitPayment ? (
+                          <div className="space-y-3 mb-3 p-3 bg-[#0f1117] rounded border border-[#2d3547]">
+                            {/* Header: Total and Remaining */}
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-[10px]">
+                                <span className="text-gray-400">Total:</span>
+                                <span className="text-white font-bold">${grandTotal.toFixed(2)}</span>
+                              </div>
+                              <div className={`flex justify-between text-[10px] font-bold ${currentRemaining > 0.01 ? 'text-orange-400' : 'text-green-400'}`}>
+                                <span>Remaining:</span>
+                                <span>${Math.max(0, currentRemaining).toFixed(2)}</span>
+                              </div>
+                            </div>
+
+                            {/* Payment Splits List (Confirmed) */}
+                            {paymentSplits.length > 0 && (
+                              <div className="space-y-1 p-2 bg-[#1a2236] rounded border border-[#2d3547]">
+                                {paymentSplits.map(split => (
+                                  <div key={split.id} className="flex justify-between items-center text-[9px]">
+                                    <span className="text-gray-300">{split.method}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-white font-bold">${split.amount.toFixed(2)}</span>
+                                      <span className="text-green-400">✓</span>
+                                      <button
+                                        onClick={() => handleRemoveSplitPayment(split.id)}
+                                        className="text-red-400 hover:text-red-300 font-bold ml-1"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Step 1: Select Payment Method */}
+                            {splitStep === 'select-method' ? (
+                              <div className="space-y-2">
+                                <p className="text-[9px] font-bold text-gray-300 uppercase">Select Payment Method:</p>
+                                <div className="grid grid-cols-2 gap-1">
+                                  {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Gift Card'].map(method => (
+                                    <button
+                                      key={method}
+                                      onClick={() => handleSelectSplitMethod(method)}
+                                      className="p-1.5 bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[var(--primary-color)] rounded text-[8px] font-bold text-white uppercase transition-colors"
+                                    >
+                                      {method}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {/* Step 2: Enter Amount */}
+                            {splitStep === 'enter-amount' && splitPaymentMethod ? (
+                              <div className="space-y-2 p-2 bg-[#1a2236] rounded border border-[#2d3547]">
+                                <p className="text-[9px] font-bold text-gray-300 uppercase">Payment Method: {splitPaymentMethod}</p>
+                                <input
+                                  type="number"
+                                  value={splitPaymentAmount}
+                                  onChange={(e) => setSplitPaymentAmount(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                                  placeholder="0.00"
+                                  step="0.01"
+                                  autoFocus
+                                  className="w-full p-1.5 text-[10px] bg-[#0f1117] border border-[#2d3547] rounded text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--primary-color)] font-bold text-center"
+                                />
+
+                                {/* Quick Amount Buttons */}
+                                <div className="flex gap-1.5">
+                                  <button
+                                    onClick={() => handleSetSplitAmount(false)}
+                                    className="flex-1 p-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[8px] font-bold rounded uppercase"
+                                  >
+                                    Full ({grandTotal.toFixed(2)})
+                                  </button>
+                                  <button
+                                    onClick={() => handleSetSplitAmount(true)}
+                                    className="flex-1 p-1.5 bg-purple-600 hover:bg-purple-700 text-white text-[8px] font-bold rounded uppercase"
+                                  >
+                                    Rem ({currentRemaining.toFixed(2)})
+                                  </button>
+                                </div>
+
+                                {/* Confirm and Back Buttons */}
+                                <div className="flex gap-1.5">
+                                  <button
+                                    onClick={handleConfirmSplitAmount}
+                                    className="flex-1 p-1.5 bg-green-600 hover:bg-green-700 text-white text-[9px] font-bold rounded uppercase"
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSplitStep('select-method');
+                                      setSplitPaymentMethod('');
+                                      setSplitPaymentAmount('');
+                                    }}
+                                    className="flex-1 p-1.5 bg-gray-600 hover:bg-gray-700 text-white text-[9px] font-bold rounded uppercase"
+                                  >
+                                    Back
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {/* Add Another Payment Button */}
+                            {splitStep === 'select-method' && currentRemaining > 0.01 && (
+                              <button
+                                onClick={() => setSplitStep('select-method')}
+                                className="w-full p-1.5 border-2 border-dashed border-[var(--primary-color)] text-[var(--primary-color)] text-[9px] font-bold rounded uppercase hover:bg-[#1a2236]"
+                              >
+                                + Add Another Payment
+                              </button>
+                            )}
+
+                            {/* Complete Split Payment */}
+                            <button
+                              onClick={handleCompleteSplitPayment}
+                              disabled={isConfirming || currentRemaining > 0.01}
+                              className="w-full p-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded font-bold text-[9px] uppercase"
+                            >
+                              ✓ Complete Sale
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Store Credit'].map(method => (
+                              <button
+                                key={method}
+                                disabled={isConfirming || (selectedStoreCredit && method === 'Store Credit')}
+                                onClick={() => handleConfirmSale(method)}
+                                className="bg-[var(--primary-color)] hover:bg-red-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
+                                title={selectedStoreCredit && method === 'Store Credit' ? 'SC already applied' : ''}
+                              >
+                                {method}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
 
                     <button

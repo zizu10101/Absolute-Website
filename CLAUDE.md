@@ -6,7 +6,7 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**LAYAWAY, PAY LATER, ITEM DISCOUNTS, UNVOID + BUG FIXES (Session 44):**
+**LAYAWAY, PAY LATER, ITEM DISCOUNTS, UNVOID + BUG FIXES (Session 45):**
 
 **Item-level discounts in POS cart:**
 - `src/hooks/usePOSCart.ts`: `CartItem.discountPercent` (dead field, never wired to UI) replaced with `CartItem.discount?: { type: 'percent' | 'fixed'; value: number }`; added `getItemUnitDiscount()` / `getItemDiscountedPrice()` helpers (exported, used everywhere a discounted line total is shown); `updateItemDiscount(id, discount | null)` signature changed to take the discount object; `totalDiscount`/`subtotal`/`taxableSubtotal` all now use the new per-item discount instead of the old unused percent field
@@ -36,6 +36,15 @@ Admin login: info@edgedbs.com
 **Customer creation bug fix (was blocking Layaway/Pay Later, not RLS):**
 - `customers.email` has a UNIQUE constraint; `src/context/CustomerContext.tsx`'s `addCustomer()` was inserting a literal `''` for a blank email instead of `null` — Postgres unique constraints reject duplicate `''` values (only `NULL` is exempt), so creating a second customer with no email always failed with `23505 duplicate key value violates unique constraint "customers_email_key"`. Diagnosed by inserting directly against the live DB with both the anon key and the service-role key (both failed identically, which is what ruled out RLS). Fixed in both `addCustomer()` and `updateCustomer()` (normalizes a blank/cleared email to `null`)
 - `src/components/PosCustomerManager.tsx`: New/Edit Customer form relabeled Phone/Email as "(Optional)", reordered Phone before Email, removed `type="email"` (was not blocking submission — no `<form>` wrapper — but could trigger native browser invalid-styling on a blank value)
+**SPLIT PAYMENTS, COLOR VARIANT FIELD, SLEEVE SIZES, COST PRICE (Session 44 — merged from a concurrent session, see Build Notes below):**
+- ✅ Split payments in POS: step-by-step flow (select method → enter amount → confirm → repeat → Complete Sale), "Full Amount"/"Remaining" quick buttons, live remaining-balance display, add/remove individual splits; `splitStep` + `paymentSplits` state; `payment_splits` JSONB column on `transactions` (requires SQL migration — see Pending DB Migrations); receipts (thermal/gift/store credit) show a "Payment Breakdown" section
+- ✅ Color variant field made always-optional (no asterisk/required warning) on 2nd+ variants; placeholder "Color name (optional, e.g. White, Red, Blue)"; saves NULL if blank
+- ✅ "Sleeves" age group added (sizes `['S/M', 'L/XL']`) to Admin product form and `RapidScanIntakeMatrix`
+- ✅ Cost price field on products (`cost_price`, staff-only, POS shows `Cost: $X.XX | Margin: X%`, never customer-facing) — `ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price DECIMAL(10,2);`
+- ✅ Transparent PNG fix: `resizeImage()` in `src/lib/imageUtils.ts` now fills a white canvas background before drawing, so transparent PNGs no longer show black; all product image containers standardized to `bg-white` + `object-contain`
+- **Build Notes:** inline `<style>` in `index.html` moved to `src/print-styles.css` (Vite v6.4.3 failed on inline style tags in the html-proxy build step); a smart-quote character in `RapidScanIntakeMatrix.tsx` that broke esbuild parsing was replaced with an ASCII quote
+
+## RECENT CHANGES (July 2026)
 
 **CATEGORY TILE TITLE/GRADIENT REDESIGN (Session 43):**
 - `src/components/CategoryQuickLinks.tsx`: tiles with an uploaded image now show the title bottom-left with an `ArrowRight` icon (lucide-react) bottom-right, over a `bg-gradient-to-t from-black/70 via-transparent to-transparent` overlay — replaces the old centered title + flat `bg-black/50` dim
@@ -159,9 +168,9 @@ Admin login: info@edgedbs.com
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
 ## CURRENT STATUS (Main Branch - August 1, 2026)
-**Latest:** POS Layaway + Pay Later + item-level discounts + Unvoid + customer-creation bug fix (session 44)
+**Latest:** POS Layaway + Pay Later + item-level discounts + Unvoid + customer-creation bug fix (session 45), merged with a concurrent session's split payments + color variant + sleeve sizes + cost price work (session 44)
 
-**Session 44 improvements (Layaway, Pay Later, Item Discounts, Unvoid, Bug Fixes) — ⚠️ requires `docs/layaway-paylater-migration.sql` run manually in Supabase before Layaway/Pay Later work:**
+**Session 45 improvements (Layaway, Pay Later, Item Discounts, Unvoid, Bug Fixes) — ⚠️ requires `docs/layaway-paylater-migration.sql` run manually in Supabase before Layaway/Pay Later work:**
 - ✅ Item-level discounts: each POS cart row can carry its own `%` or `$` discount (`CartItem.discount`), shown as struck-through original price / discount line / white bold "Item Total", flows through to checkout, on-screen receipt, and the printed thermal receipt
 - ✅ Layaway: customer-required flow, deposit entry, stock deducted on hold, layaway receipt ("held for 30 days" + pickup date); managed (take payment / cancel+restock / reprint) from a POS "Layaway" tab and an Admin "Layaways" tab
 - ✅ Pay Later: same flow minus deposit — full amount saved as owed, "payment due upon next visit" receipt; managed through the same Layaway/Pay Later screen
@@ -169,6 +178,12 @@ Admin login: info@edgedbs.com
 - ✅ "Walk-in" no longer printed on receipts — the Customer row is omitted entirely when there's no real customer
 - ✅ Fixed a real (not RLS) customer-creation bug: `customers.email` UNIQUE constraint was rejecting every 2nd+ customer created with a blank email because blank was being inserted as `''` instead of `NULL`; fixed in `CustomerContext.tsx`'s `addCustomer`/`updateCustomer`
 - ✅ Verified via `npm run build` + `tsc --noEmit` (zero new errors) and live DB inserts against Supabase (both anon and service-role keys) to confirm the email fix; no browser automation available this session so UI flows were not click-tested — user asked to review on localhost before this push
+- ✅ Merged with 8 commits pushed to `main` by a separate concurrent session in between (split payments, color variant field, sleeve sizes, cost price, transparent PNG, build fixes — see Session 44 below); `AdminPage.tsx` and `POSPage.tsx` merged cleanly with no textual conflicts, only `CLAUDE.md` needed manual reconciliation (also cleaned up a stray unresolved conflict marker left in `CLAUDE.md` from that session's own earlier merge, and renumbered this entry from a colliding "Session 44" to 45)
+
+**Session 44 improvements (Split Payments, Color Variant Field, Sleeve Sizes, Cost Price — from a concurrent session):**
+- ✅ Split payments in POS: step-by-step method → amount → confirm flow, live remaining-balance display, add/remove splits; needs the `payment_splits` JSONB column on `transactions` (see Pending DB Migrations); shown on all receipt types as a "Payment Breakdown" section
+- ✅ Color variant field always-optional on 2nd+ variants (no required warning); "Sleeves" age group (`S/M`, `L/XL`) added to Admin + `RapidScanIntakeMatrix`
+- ✅ Cost price field on products (staff-only, POS shows margin) + transparent PNG fix (white canvas fill in `resizeImage()`) + build fixes (moved inline CSS out of `index.html`, fixed a smart-quote parse error)
 
 **Session 43 improvements (Category Tile Title/Gradient Redesign):**
 - ✅ `CategoryQuickLinks.tsx`: image tiles show title bottom-left + `ArrowRight` icon bottom-right over a `bg-gradient-to-t from-black/70 via-transparent to-transparent` overlay (was centered title + flat `bg-black/50` dim)
@@ -770,9 +785,9 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 
 ## DATABASE TABLES
 **Core POS:**
-- products: id, name, price, category, brand, product_code, image, description, is_online, show_sizes, colors (jsonb)
+- products: id, name, price, category, brand, product_code, image, description, is_online, show_sizes, colors (jsonb), cost_price (DECIMAL, session 44 — run migration if missing)
 - product_variants: id, product_id, size, barcode, stock_quantity, sku, age_group, color (text, nullable)
-- transactions: id, invoice_number, customer_id, total_amount, method, items(jsonb), created_at, status
+- transactions: id, invoice_number, customer_id, total_amount, method, items(jsonb), created_at, status, payment_splits (jsonb, session 44 — run migration if missing)
 - customers: id, first_name, last_name, email, phone, boot_size, club_affinity
 - gift_cards: id, card_number, initial_balance, current_balance, is_active
 - store_credits: id, card_number, customer_id, amount, remaining_balance, is_active
@@ -840,15 +855,17 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 Run these once in Supabase SQL editor if not already done:
 ```sql
 ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_payment_method TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price DECIMAL(10,2);
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_splits JSONB;
 ```
 
-Run `docs/layaway-paylater-migration.sql` in the Supabase SQL editor before Layaway/Pay Later will work (session 44) — creates the `layaways` and `pay_later` tables. No DDL execution path exists from the app or its scripts (all use the anon/service-role REST keys, not a Postgres connection), so this always has to be run manually.
+Run `docs/layaway-paylater-migration.sql` in the Supabase SQL editor before Layaway/Pay Later will work (session 45) — creates the `layaways` and `pay_later` tables. No DDL execution path exists from the app or its scripts (all use the anon/service-role REST keys, not a Postgres connection), so this always has to be run manually.
 
 Already run (no action needed):
 ```sql
 -- ✅ Done (session 11):
 ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS color TEXT;
--- ✅ Confirmed already applied (verified via live insert during session 44 debugging):
+-- ✅ Confirmed already applied (verified via live insert during session 45 debugging):
 ALTER TABLE customers ALTER COLUMN email DROP NOT NULL;
 ```
 

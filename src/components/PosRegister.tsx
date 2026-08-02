@@ -636,16 +636,23 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                     className="h-full w-full object-contain p-1.5 group-hover:scale-105 transition-transform duration-300"
                     referrerPolicy="no-referrer"
                   />
-                  {p.isOnSale && p.salePrice ? (
-                    <div className="absolute top-1 right-1 bg-red-600 text-white rounded px-1.5 py-0.5 text-[9px] font-black tracking-wide leading-none select-none shadow-xs border border-red-500">
-                      <span className="line-through text-white/75 text-[7.5px]">${p.price?.toFixed(2)}</span>
-                      {' '}${p.salePrice?.toFixed(2)}
-                    </div>
-                  ) : (
-                    <div className="absolute top-1 right-1 bg-zinc-900/90 text-white rounded px-1.5 py-0.5 text-[9px] font-black tracking-wide leading-none select-none">
-                      ${p.price?.toFixed(2)}
-                    </div>
-                  )}
+                  <div className="absolute top-1 right-1 space-y-1">
+                    {p.isOnSale && p.salePrice ? (
+                      <div className="bg-red-600 text-white rounded px-1.5 py-0.5 text-[9px] font-black tracking-wide leading-none select-none shadow-xs border border-red-500">
+                        <span className="line-through text-white/75 text-[7.5px]">${p.price?.toFixed(2)}</span>
+                        {' '}${p.salePrice?.toFixed(2)}
+                      </div>
+                    ) : (
+                      <div className="bg-zinc-900/90 text-white rounded px-1.5 py-0.5 text-[9px] font-black tracking-wide leading-none select-none">
+                        ${p.price?.toFixed(2)}
+                      </div>
+                    )}
+                    {p.cost_price && (
+                      <div className="bg-zinc-700/80 text-zinc-100 rounded px-1 py-0.5 text-[7px] font-bold tracking-wide leading-none select-none">
+                        Cost: ${p.cost_price.toFixed(2)} | Margin: {(((p.price - p.cost_price) / p.price) * 100).toFixed(0)}%
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="p-2.5 flex-1 flex flex-col justify-between bg-zinc-50/50">
                   <div className="space-y-1">

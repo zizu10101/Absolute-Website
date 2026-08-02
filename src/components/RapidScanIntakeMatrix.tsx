@@ -8,7 +8,7 @@ interface RapidScanIntakeMatrixProps {
   category: string;
   existingVariants?: any[];
   productColors?: string[];
-  onRegisterVariant: (ageGroup: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size', size: string, barcode: string, quantity: number, color?: string) => Promise<void>;
+  onRegisterVariant: (ageGroup: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Sleeves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size', size: string, barcode: string, quantity: number, color?: string) => Promise<void>;
   onSuccessFinished: () => void;
 }
 
@@ -22,7 +22,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
   onSuccessFinished
 }) => {
   // Main states
-  const [ageGroup, setAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
+  const [ageGroup, setAgeGroup] = useState<'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Sleeves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size'>('Adult');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [customSizes, setCustomSizes] = useState<string[]>([]);
@@ -43,13 +43,17 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   // Suggested sizes mapping
-  const getSuggestedSizes = (catName: string = '', productName: string = '', age: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size') => {
+  const getSuggestedSizes = (catName: string = '', productName: string = '', age: 'Toddler' | 'Youth' | 'Adult' | 'Balls' | 'Gloves' | 'Sleeves' | 'Adult Footwear' | 'Youth Footwear' | 'One Size') => {
     if (age === 'Balls') {
       return ['Size 1', 'Size 2', 'Size 3', 'Size 4', 'Size 5'];
     }
 
     if (age === 'Gloves') {
       return ['3', '4', '5', '6', '7', '8', '9', '10', '11'];
+    }
+
+    if (age === 'Sleeves') {
+      return ['S/M', 'L/XL'];
     }
 
     if (age === 'One Size') {
@@ -335,30 +339,36 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
               <option value="Youth">👦 Youth (YXXS–YXL)</option>
               <option value="Balls">⚽ Balls (Size 1–5)</option>
               <option value="Gloves">🧤 Gloves (3–11)</option>
+              <option value="Sleeves">Sleeves (S/M, L/XL)</option>
               <option value="One Size">One Size (Accessories)</option>
               <option value="Adult Footwear">👟 Adult Footwear (3–13)</option>
               <option value="Youth Footwear">👟 Youth Footwear (1Y–6Y)</option>
               <option value="Toddler">🧒 Toddler (2T, 3T, 4T)</option>
             </select>
           </div>
-          {productColors.length > 0 && (
-            <div className="flex items-center gap-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest hidden md:inline">
-                Color:
-              </label>
-              <select
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest hidden md:inline">
+              Color (optional):
+            </label>
+            <div className="flex-1 relative">
+              <input
+                type="text"
                 disabled={isScanningActive}
                 value={selectedColor}
                 onChange={(e) => setSelectedColor(e.target.value)}
-                className="p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)] disabled:opacity-50 cursor-pointer"
-              >
-                <option value="">â€” No Color â€”</option>
-                {productColors.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+                placeholder="e.g. White, Red, Blue"
+                list="color-suggestions"
+                className="w-full p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)] disabled:opacity-50"
+              />
+              {productColors.length > 0 && (
+                <datalist id="color-suggestions">
+                  {productColors.map(c => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -445,7 +455,7 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
 
                   {isFinishedInQueue && (
                     <span className="absolute -top-2 -right-1 bg-green-500 text-white rounded-full p-0.5 text-[8px] font-bold shadow-xs">
-                      âœ”
+                      âœ"
                     </span>
                   )}
                 </motion.div>
