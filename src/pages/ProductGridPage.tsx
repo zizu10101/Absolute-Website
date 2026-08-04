@@ -559,6 +559,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
               <button
                 onClick={() => { setSortBy('newest'); setVisibleCount(ITEMS_PER_PAGE); }}
                 className="hover:opacity-70 transition-opacity"
+                aria-label="Remove sort filter"
               >
                 <X size={11} />
               </button>
@@ -570,6 +571,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
               <button
                 onClick={() => { setSelectedBrands(prev => prev.filter(b => b !== brand)); setVisibleCount(ITEMS_PER_PAGE); }}
                 className="hover:opacity-70 transition-opacity"
+                aria-label={`Remove ${brand} filter`}
               >
                 <X size={11} />
               </button>
@@ -581,6 +583,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
               <button
                 onClick={() => { setPriceRange('all'); setVisibleCount(ITEMS_PER_PAGE); }}
                 className="hover:opacity-70 transition-opacity"
+                aria-label="Remove price filter"
               >
                 <X size={11} />
               </button>
@@ -592,6 +595,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
               <button
                 onClick={() => { setSelectedSizes(prev => prev.filter(s => s !== size)); setVisibleCount(ITEMS_PER_PAGE); }}
                 className="hover:opacity-70 transition-opacity"
+                aria-label={`Remove size ${size} filter`}
               >
                 <X size={11} />
               </button>
@@ -603,6 +607,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
               <button
                 onClick={() => { setOnSaleOnly(false); setVisibleCount(ITEMS_PER_PAGE); }}
                 className="hover:opacity-70 transition-opacity"
+                aria-label="Remove on sale filter"
               >
                 <X size={11} />
               </button>
@@ -778,6 +783,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
               <button
                 onClick={() => setShowSidebar(false)}
                 className="w-9 h-9 rounded-full bg-zinc-100 flex items-center justify-center hover:bg-zinc-200 transition-colors"
+                aria-label="Close filters"
               >
                 <X size={16} />
               </button>

@@ -156,7 +156,7 @@ function SortableSlideCard({ id, img, index, onDelete, onUpdate }: SortableSlide
         >
           <GripVertical size={16} />
         </div>
-        <img src={img.url} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+        <img src={img.url} alt={img.title || `Slide ${index + 1}`} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <button
             onClick={() => onDelete(index)}
@@ -4134,7 +4134,7 @@ function AdminPageInner() {
                           <div className="flex gap-4 items-start">
                             <div className="w-24 h-32 rounded-lg border border-zinc-200 overflow-hidden flex-shrink-0 flex items-center justify-center bg-white">
                               {newProduct.image ? (
-                                <img src={newProduct.image} className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
+                                <img src={newProduct.image} alt="New product image preview" className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
                               ) : (
                                 <ImageIcon size={32} className="text-zinc-300" />
                               )}
@@ -4184,7 +4184,7 @@ function AdminPageInner() {
                                 </div>
                                 <div className="w-10 h-10 rounded bg-white border border-zinc-200 overflow-hidden flex-shrink-0">
                                   {img ? (
-                                    <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                    <img src={img} alt={`Additional image ${idx + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                   ) : (
                                     <div className="w-full h-full flex items-center justify-center text-zinc-300">
                                       <ImageIcon size={14} />
@@ -4469,7 +4469,7 @@ function AdminPageInner() {
                                     const newColors = [...(newProduct.colors || [])];
                                     newColors[colorIdx] = {...newColors[colorIdx], price: e.target.value ? parseFloat(e.target.value) : undefined};
                                     setNewProduct({...newProduct, colors: newColors});
-                                  }} 
+                                  }}
                                 />
                               </div>
                             </div>
@@ -4480,7 +4480,7 @@ function AdminPageInner() {
                                   <div key={imgIdx} className="flex gap-2 items-center">
                                     <div className="w-8 h-8 rounded bg-zinc-100 border border-zinc-200 overflow-hidden flex-shrink-0">
                                       {img ? (
-                                        <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                        <img src={img} alt={`${color.name || 'Color'} image ${imgIdx + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                       ) : (
                                         <div className="w-full h-full flex items-center justify-center text-zinc-300">
                                           <ImageIcon size={12} />
@@ -5050,7 +5050,7 @@ function AdminPageInner() {
                             className="w-5 h-5 rounded border-zinc-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)] cursor-pointer flex-shrink-0"
                           />
                           <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg overflow-hidden bg-zinc-100 border border-zinc-200 flex-shrink-0">
-                            <img src={product.image || `https://picsum.photos/seed/${product.id}/80`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            <img src={product.image || `https://picsum.photos/seed/${product.id}/80`} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
@@ -5494,7 +5494,7 @@ function AdminPageInner() {
                               </div>
                               <div className="relative w-10 h-10 rounded bg-zinc-100 border border-zinc-200 overflow-hidden flex-shrink-0">
                                 {img_safe ? (
-                                  <img src={img_safe} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                  <img src={img_safe} alt={isMain ? 'Main product image' : `Additional image ${idx + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-zinc-300">
                                     <ImageIcon size={14} />
@@ -5601,7 +5601,7 @@ function AdminPageInner() {
                                   const newColors = [...(editingProduct.colors || [])];
                                   newColors[colorIdx] = {...newColors[colorIdx], price: e.target.value ? parseFloat(e.target.value) : undefined};
                                   setEditingProduct({...editingProduct, colors: newColors});
-                                }} 
+                                }}
                               />
                             </div>
                           </div>
@@ -5612,7 +5612,7 @@ function AdminPageInner() {
                                 <div key={imgIdx} className="flex gap-2 items-center">
                                   <div className="w-8 h-8 rounded bg-zinc-100 border border-zinc-200 overflow-hidden flex-shrink-0">
                                     {img ? (
-                                      <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                      <img src={img} alt={`${color.name || 'Color'} image ${imgIdx + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center text-zinc-300">
                                         <ImageIcon size={12} />

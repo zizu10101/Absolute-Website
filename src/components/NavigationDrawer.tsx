@@ -46,7 +46,7 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                 <Link to="/" onClick={onClose} className="flex items-center">
                   <img src={logo} alt="ABSOLUTE SOCCER" className="h-12 w-auto" />
                 </Link>
-                <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-full transition-colors">
+                <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-full transition-colors" aria-label="Close menu">
                   <X size={24} className="text-zinc-500" />
                 </button>
               </div>
@@ -82,9 +82,10 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                         {menu.label}
                       </Link>
                       {menu.submenus.length > 0 && (
-                        <button 
+                        <button
                           onClick={() => toggleMenu(menu.label)}
                           className="p-2 text-zinc-400 hover:text-[var(--primary-color)]"
+                          aria-label={expandedMenus[menu.label] ? `Collapse ${menu.label} menu` : `Expand ${menu.label} menu`}
                         >
                           <ChevronDown size={18} className={`transition-transform duration-300 ${expandedMenus[menu.label] ? 'rotate-180' : ''}`} />
                         </button>

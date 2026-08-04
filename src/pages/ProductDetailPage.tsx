@@ -409,12 +409,14 @@ export function ProductDetailPage() {
                 <button
                   onClick={() => setSelectedImage(prev => (prev - 1 + allImages.length) % allImages.length)}
                   className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-zinc-900 border border-zinc-100"
+                  aria-label="Previous image"
                 >
                   <ChevronLeft size={24} />
                 </button>
                 <button
                   onClick={() => setSelectedImage(prev => (prev + 1) % allImages.length)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-zinc-900 border border-zinc-100"
+                  aria-label="Next image"
                 >
                   <ChevronRight size={24} />
                 </button>
@@ -425,10 +427,11 @@ export function ProductDetailPage() {
           {allImages.length > 1 && (
             <div className="grid grid-cols-5 gap-4">
               {allImages.map((img, idx) => (
-                <button 
+                <button
                   key={idx}
                   onClick={() => setSelectedImage(idx)}
                   className={`aspect-[4/5] overflow-hidden border-2 transition-all bg-white ${selectedImage === idx ? 'border-[var(--primary-color)]' : 'border-transparent hover:border-zinc-200'}`}
+                  aria-label={`View image ${idx + 1} of ${allImages.length}`}
                 >
                   {img ? (
                     <img src={img} alt="" className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />

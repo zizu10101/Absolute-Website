@@ -109,13 +109,14 @@ export function Header({ onMenuClick }: Props) {
 
         {/* Right Section: Icons */}
         <div className="flex items-center gap-6 shrink-0">
-          <button className="p-1 text-zinc-900 hover:text-[var(--primary-color)] transition-colors relative">
+          <button className="p-1 text-zinc-900 hover:text-[var(--primary-color)] transition-colors relative" aria-label="Add to wishlist">
             <Heart size={24} strokeWidth={1.5} />
             <span className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">0</span>
           </button>
-          <button 
+          <button
             onClick={() => setIsSearchOpen(true)}
             className="p-1 text-zinc-900 hover:text-[var(--primary-color)] transition-colors"
+            aria-label="Search store"
           >
             <Search size={24} strokeWidth={1.5} />
           </button>
@@ -143,9 +144,10 @@ export function Header({ onMenuClick }: Props) {
                   className="flex-1 bg-transparent border-none focus:ring-0 text-xl font-medium placeholder:text-zinc-300"
                 />
               </form>
-              <button 
+              <button
                 onClick={() => setIsSearchOpen(false)}
                 className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
+                aria-label="Close search"
               >
                 <X size={24} className="text-zinc-900" />
               </button>

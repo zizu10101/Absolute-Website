@@ -54,6 +54,7 @@ export function BrandNavigation({ onNavigate }: Props) {
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className="p-2 text-zinc-400 hover:text-[var(--primary-color)]"
+          aria-label={isExpanded ? 'Collapse Shop by Brand menu' : 'Expand Shop by Brand menu'}
         >
           <ChevronDown size={18} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
         </button>

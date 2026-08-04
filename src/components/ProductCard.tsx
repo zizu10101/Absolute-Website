@@ -71,6 +71,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
             }}
             onMouseEnter={() => setActiveImage(null)}
             className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === null ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
+            aria-label="Show default product image"
           >
             <img src={product.image} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt="Default" />
           </button>
@@ -86,6 +87,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
               onMouseEnter={() => setActiveImage(color.images[0] || null)}
               className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === (color.images[0] || '___none___') ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
               title={color.name}
+              aria-label={`Show ${color.name} color`}
             >
               {color.images[0] ? (
                 <img src={color.images[0]} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt={color.name} />
