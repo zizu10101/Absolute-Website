@@ -234,11 +234,15 @@ export function HomePage() {
                 <>
                   <img
                     src={slide.url}
-                    alt={slide.title || 'Hero'}
+                    alt={slide.title || 'Absolute Soccer Mississauga'}
                     className="absolute inset-0 w-full h-full object-contain object-center bg-black"
                     referrerPolicy="no-referrer"
                     draggable={false}
-                    loading={index <= 2 ? 'eager' : 'lazy'}
+                    /* infiniteSlides[0] is a cloned copy of the last slide (off-screen, not
+                       the LCP element) — the real, visible first slide sits at index 1 since
+                       currentIndex starts at 1. Only that one gets eager/high priority. */
+                    loading={index === 1 ? 'eager' : 'lazy'}
+                    fetchPriority={index === 1 ? 'high' : 'low'}
                   />
                   <div
                     className={`absolute inset-0 bg-black transition-opacity duration-500 ${
@@ -347,15 +351,14 @@ export function HomePage() {
             homeCategories.length === 4 ? 'md:grid-cols-2 lg:grid-cols-4' :
             'md:grid-cols-3'
           } gap-8`}>
-            {homeCategories.map((category, index) => (
+            {homeCategories.map((category) => (
               <Link key={category.name} to={category.path} className="group relative block aspect-[3/4] overflow-hidden bg-zinc-100">
                 <img
                   src={category.image}
                   alt={category.name}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   referrerPolicy="no-referrer"
-                  loading={index < 2 ? "eager" : "lazy"}
-                  fetchPriority={index < 2 ? "high" : "auto"}
+                  loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-8">
                   <h3 className="text-white text-4xl font-black uppercase tracking-widest font-headline italic leading-none">{category.name}</h3>
