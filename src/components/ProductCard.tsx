@@ -45,6 +45,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
               className={`w-full h-full object-contain transition-all duration-500 group-hover:scale-105 p-2${isSoldOut ? ' grayscale' : ''}`}
               referrerPolicy="no-referrer"
               loading="lazy"
+              decoding="async"
             />
           ) : (
             <div className="w-full h-full bg-zinc-200" />
