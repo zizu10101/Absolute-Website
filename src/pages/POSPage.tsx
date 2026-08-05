@@ -60,7 +60,10 @@ interface Receipt {
 export function POSPage() {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('pos_dark_mode');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
 
   // Panels
   const [posTab, setPosTab] = useState<'register' | 'history' | 'customers' | 'gc' | 'sc' | 'returns' | 'layaway'>('register');
@@ -218,8 +221,9 @@ export function POSPage() {
   const [pendingSpecialCheckout, setPendingSpecialCheckout] = useState<'layaway' | 'pay_later' | null>(null);
 
   const { customers, fetchCustomers } = useCustomers();
-  const { footerLogo } = useSettings();
+  const { logo, footerLogo } = useSettings();
   const safeCustomers = Array.isArray(customers) ? customers : [];
+  const displayLogo = isDarkMode ? footerLogo : logo;
 
   // Auth
   useEffect(() => {
@@ -1471,35 +1475,35 @@ export function POSPage() {
   const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-[#0f1117] text-white font-sans">
+    <div className={`fixed inset-0 flex flex-col font-sans transition-colors ${isDarkMode ? 'bg-[#0f1117] text-white' : 'bg-white text-black'}`}>
       {/* Top Bar */}
-      <div className="bg-[#1a2236] border-b border-[#2d3547] px-6 py-3 flex items-center justify-between h-16">
+      <div className={`border-b px-6 py-3 flex items-center justify-between h-16 transition-colors ${isDarkMode ? 'bg-[#1a2236] border-[#2d3547]' : 'bg-gray-100 border-gray-300'}`}>
         <div className="flex items-center gap-3">
-          <img src={footerLogo || '/logo.svg'} alt="Absolute Soccer" className="h-8 w-auto object-contain" />
+          <img src={displayLogo || '/logo.svg'} alt="Absolute Soccer" className="h-8 w-auto object-contain" />
           <div>
-            <h1 className="text-sm font-bold text-white">Absolute Soccer</h1>
-            <p className="text-[10px] text-gray-400">Mississauga</p>
+            <h1 className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>Absolute Soccer</h1>
+            <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Mississauga</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-300">{cashierName}</span>
+          <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{cashierName}</span>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span className="text-[10px] text-gray-400">Online</span>
+            <span className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Online</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.open('/reports', '_blank')}
-            className="p-1.5 hover:bg-[#2d3547] rounded transition-colors text-amber-400 hover:text-amber-300"
+            className={`p-1.5 rounded transition-colors text-amber-400 hover:text-amber-300 ${isDarkMode ? 'hover:bg-[#2d3547]' : 'hover:bg-gray-200'}`}
             title="Open Reports (new tab)"
           >
             <BarChart3 size={16} />
           </button>
-          <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 hover:bg-[#2d3547] rounded transition-colors">
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-1.5 rounded transition-colors ${isDarkMode ? 'hover:bg-[#2d3547] text-white' : 'hover:bg-gray-200 text-black'}`}>
             {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-          <button onClick={() => { sessionStorage.removeItem('pos_authenticated'); setIsAuthenticated(false); }} className="p-1.5 hover:bg-[#2d3547] rounded transition-colors text-red-400">
+          <button onClick={() => { sessionStorage.removeItem('pos_authenticated'); setIsAuthenticated(false); }} className={`p-1.5 rounded transition-colors text-red-400 ${isDarkMode ? 'hover:bg-[#2d3547]' : 'hover:bg-gray-200'}`}>
             <LogOut size={16} />
           </button>
         </div>
@@ -1509,13 +1513,13 @@ export function POSPage() {
       {posTab === 'register' && (
         <>
           {/* Barcode Scanner */}
-          <div className="bg-[#1a2236] border-b border-[#2d3547] px-6 py-3">
+          <div className={`border-b px-6 py-3 transition-colors ${isDarkMode ? 'bg-[#1a2236] border-[#2d3547]' : 'bg-gray-50 border-gray-200'}`}>
         <div className={`flex items-center gap-3 rounded-lg border-2 px-4 py-2 transition-all ${
           barcodeError ? 'border-red-500 bg-red-50/10' :
           barcodeSuccess ? 'border-green-500 bg-green-50/10' :
-          'border-[#2d3547] bg-[#0f1117]'
+          isDarkMode ? 'border-[#2d3547] bg-[#0f1117]' : 'border-gray-300 bg-white'
         }`}>
-          <ScanLine size={16} className={barcodeError ? 'text-red-400' : barcodeSuccess ? 'text-green-400' : 'text-gray-500'} />
+          <ScanLine size={16} className={barcodeError ? 'text-red-400' : barcodeSuccess ? 'text-green-400' : isDarkMode ? 'text-gray-500' : 'text-gray-400'} />
           <input
             ref={barcodeInputRef}
             type="text"
@@ -1527,8 +1531,8 @@ export function POSPage() {
               }
             }}
             placeholder="SCAN BARCODE OR TYPE AND PRESS ENTER..."
-            className={`flex-1 bg-transparent text-sm font-bold uppercase focus:outline-none placeholder:text-gray-500 ${
-              barcodeError ? 'text-red-400' : barcodeSuccess ? 'text-green-400' : 'text-white'
+            className={`flex-1 text-sm font-bold uppercase focus:outline-none placeholder:text-gray-500 bg-transparent ${
+              barcodeError ? 'text-red-400' : barcodeSuccess ? 'text-green-400' : isDarkMode ? 'text-white' : 'text-black placeholder:text-gray-400'
             }`}
           />
           {barcodeError && <span className="text-red-400 text-xs font-bold">{barcodeError}</span>}
@@ -1539,17 +1543,17 @@ export function POSPage() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden gap-0">
         {/* LEFT PANEL */}
-        <div className="w-1/2 bg-[#0f1117] border-r border-[#2d3547] flex flex-col overflow-hidden">
+        <div className={`w-1/2 border-r flex flex-col overflow-hidden transition-colors ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547]' : 'bg-white border-gray-200'}`}>
           {/* Search */}
-          <div className="p-4 border-b border-[#2d3547] space-y-3">
+          <div className={`p-4 border-b space-y-3 transition-colors ${isDarkMode ? 'border-[#2d3547]' : 'border-gray-200'}`}>
             <div className="relative">
-              <Search size={16} className="absolute left-3 top-3 text-gray-500" />
+              <Search size={16} className={`absolute left-3 top-3 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
               <input
                 type="text"
                 placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[#1a2236] border border-[#2d3547] rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--primary-color)]"
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:border-[var(--primary-color)] transition-colors ${isDarkMode ? 'bg-[#1a2236] border-[#2d3547] text-white placeholder-gray-500' : 'bg-gray-50 border-gray-300 text-black placeholder-gray-400'}`}
               />
             </div>
 
@@ -1570,7 +1574,7 @@ export function POSPage() {
                   className={`px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap transition-colors ${
                     activeCategory === tab.id
                       ? 'bg-[var(--primary-color)] text-white'
-                      : 'bg-[#1a2236] text-gray-400 hover:text-white'
+                      : isDarkMode ? 'bg-[#1a2236] text-gray-400 hover:text-white' : 'bg-gray-100 text-gray-600 hover:text-black'
                   }`}
                 >
                   {tab.icon} {tab.label}
@@ -1579,88 +1583,88 @@ export function POSPage() {
             </div>
 
             {/* Online Items Toggle */}
-            <label className="flex items-center gap-2 cursor-pointer bg-[#1a2236] p-2 rounded">
+            <label className={`flex items-center gap-2 cursor-pointer p-2 rounded transition-colors ${isDarkMode ? 'bg-[#1a2236]' : 'bg-gray-100'}`}>
               <input
                 type="checkbox"
                 checked={showOnlineOnly}
                 onChange={e => setShowOnlineOnly(e.target.checked)}
                 className="w-4 h-4 cursor-pointer"
               />
-              <span className="text-xs font-bold text-gray-300">Show Online Items Only</span>
+              <span className={`text-xs font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Show Online Items Only</span>
             </label>
           </div>
 
           {/* Action Tiles */}
-          <div className="px-2 py-1.5 border-b border-[#2d3547]">
+          <div className={`px-2 py-1.5 border-b transition-colors ${isDarkMode ? 'border-[#2d3547]' : 'border-gray-200'}`}>
             <div className="grid grid-cols-3 gap-1.5">
               {/* Add Customer */}
               <button
                 onClick={() => setShowCustomerModal(true)}
-                className="bg-[#1e2d45] hover:bg-[#2a3954] rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14"
+                className={`rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14 ${isDarkMode ? 'bg-[#1e2d45] hover:bg-[#2a3954]' : 'bg-gray-200 hover:bg-gray-300'}`}
                 title="Add customer to transaction"
               >
                 <UserPlus size={16} className="text-blue-400" />
-                <span className="text-xs font-semibold text-white leading-none">Add Customer</span>
+                <span className={`text-xs font-semibold leading-none ${isDarkMode ? 'text-white' : 'text-black'}`}>Add Customer</span>
               </button>
 
               {/* Gift Card */}
               <button
                 onClick={() => setPosTab('gc')}
-                className="bg-[#1e2d45] hover:bg-[#2a3954] rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14"
+                className={`rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14 ${isDarkMode ? 'bg-[#1e2d45] hover:bg-[#2a3954]' : 'bg-gray-200 hover:bg-gray-300'}`}
                 title="Issue or redeem gift card"
               >
                 <Gift size={16} className="text-purple-400" />
-                <span className="text-xs font-semibold text-white leading-none">Gift Card</span>
+                <span className={`text-xs font-semibold leading-none ${isDarkMode ? 'text-white' : 'text-black'}`}>Gift Card</span>
               </button>
 
               {/* Add Discount */}
               <button
                 onClick={() => setShowDiscountModal(true)}
-                className="bg-[#1e2d45] hover:bg-[#2a3954] rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14"
+                className={`rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14 ${isDarkMode ? 'bg-[#1e2d45] hover:bg-[#2a3954]' : 'bg-gray-200 hover:bg-gray-300'}`}
                 title="Apply discount to cart"
               >
                 <Tag size={16} className="text-emerald-500" />
-                <span className="text-xs font-semibold text-white leading-none">Add Discount</span>
+                <span className={`text-xs font-semibold leading-none ${isDarkMode ? 'text-white' : 'text-black'}`}>Add Discount</span>
               </button>
 
               {/* Store Credit */}
               <button
                 onClick={() => setPosTab('sc')}
-                className="bg-[#1e2d45] hover:bg-[#2a3954] rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14"
+                className={`rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14 ${isDarkMode ? 'bg-[#1e2d45] hover:bg-[#2a3954]' : 'bg-gray-200 hover:bg-gray-300'}`}
                 title="Issue or redeem store credit"
               >
                 <CreditCard size={16} className="text-amber-400" />
-                <span className="text-xs font-semibold text-white leading-none">Store Credit</span>
+                <span className={`text-xs font-semibold leading-none ${isDarkMode ? 'text-white' : 'text-black'}`}>Store Credit</span>
               </button>
 
               {/* Returns */}
               <button
                 onClick={() => setShowReturnsModal(true)}
-                className="bg-[#1e2d45] hover:bg-[#2a3954] rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14"
+                className={`rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14 ${isDarkMode ? 'bg-[#1e2d45] hover:bg-[#2a3954]' : 'bg-gray-200 hover:bg-gray-300'}`}
                 title="Process product return"
               >
                 <RotateCcw size={16} className="text-orange-400" />
-                <span className="text-xs font-semibold text-white leading-none">Returns</span>
+                <span className={`text-xs font-semibold leading-none ${isDarkMode ? 'text-white' : 'text-black'}`}>Returns</span>
               </button>
 
               {/* Clear Cart */}
               <button
                 onClick={() => clearCart()}
-                className="bg-[#1e2d45] hover:bg-[#2a3954] rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14"
+                className={`rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14 ${isDarkMode ? 'bg-[#1e2d45] hover:bg-[#2a3954]' : 'bg-gray-200 hover:bg-gray-300'}`}
                 title="Remove all items from cart"
               >
                 <Trash2 size={16} className="text-red-400" />
-                <span className="text-xs font-semibold text-white leading-none">Clear Cart</span>
+                <span className={`text-xs font-semibold leading-none ${isDarkMode ? 'text-white' : 'text-black'}`}>Clear Cart</span>
               </button>
             </div>
           </div>
 
           {/* Products Grid */}
-          <div className="flex-1 overflow-y-auto p-2">
+          <div className={`flex-1 overflow-y-auto p-2 ${isDarkMode ? '' : 'bg-gray-100'}`}>
             {productsLoading ? (
-              <div className="text-center py-4 text-gray-500 text-xs">Loading products...</div>
+              <div className={`text-center py-4 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Loading products...</div>
             ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-4 text-gray-500 text-xs">No products found</div>
+              <div className={`text-center py-4 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>No products found</div>
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 {filteredProducts.map((product) => {
@@ -1680,14 +1684,14 @@ export function POSPage() {
                       disabled={stockStatus.isDisabled}
                       className={`rounded p-2 flex flex-col items-center justify-center gap-1 transition-colors group text-center ${
                         stockStatus.isDisabled
-                          ? 'bg-[#0d1117] border border-[#1a1a1a] opacity-50 cursor-not-allowed'
-                          : 'bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[var(--primary-color)]'
+                          ? isDarkMode ? 'bg-[#0d1117] border border-[#1a1a1a] opacity-50 cursor-not-allowed' : 'bg-gray-300 border border-gray-400 opacity-50 cursor-not-allowed'
+                          : isDarkMode ? 'bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[var(--primary-color)]' : 'bg-white hover:bg-gray-50 border border-gray-300 hover:border-[var(--primary-color)]'
                       }`}
                     >
                       {product.image && (
                         <img src={product.image} alt={product.name} className="h-24 w-auto object-contain rounded bg-white" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       )}
-                      <span className="text-xs font-semibold text-gray-300 group-hover:text-white line-clamp-2">
+                      <span className={`text-xs font-semibold line-clamp-2 ${isDarkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-700 group-hover:text-black'}`}>
                         {product.name}
                       </span>
                       <span className="text-sm font-bold text-[var(--primary-color)]">${product.price?.toFixed(2) || '0.00'}</span>
@@ -1705,21 +1709,21 @@ export function POSPage() {
         </div>
 
         {/* RIGHT PANEL - Cart */}
-        <div className="w-1/2 bg-[#1a2236] flex flex-col overflow-hidden">
+        <div className={`w-1/2 flex flex-col overflow-hidden transition-colors ${isDarkMode ? 'bg-[#1a2236]' : 'bg-gray-50'}`}>
           {/* Customer Tag */}
           {selectedCustomer && (
-            <div className="px-4 py-3 border-b border-[#2d3547] bg-[#2d3547]">
+            <div className={`px-4 py-3 border-b transition-colors ${isDarkMode ? 'border-[#2d3547] bg-[#2d3547]' : 'border-gray-200 bg-gray-100'}`}>
               <div className="flex items-center gap-2 justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-[var(--primary-color)] rounded-full"></div>
                   <div>
-                    <p className="text-sm font-semibold">{selectedCustomer.first_name} {selectedCustomer.last_name}</p>
-                    <p className="text-xs text-gray-400">Returning customer</p>
+                    <p className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-black'}`}>{selectedCustomer.first_name} {selectedCustomer.last_name}</p>
+                    <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Returning customer</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setSelectedCustomerId('')}
-                  className="p-1 hover:bg-[#1a2236] rounded transition-colors text-gray-400 hover:text-red-400"
+                  className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-[#1a2236] text-gray-400 hover:text-red-400' : 'hover:bg-gray-200 text-gray-600 hover:text-red-400'}`}
                   title="Remove customer from transaction"
                 >
                   <X size={16} />
@@ -1731,44 +1735,44 @@ export function POSPage() {
           {/* Cart Items */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
             {cart.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500">
+              <div className={`flex flex-col items-center justify-center h-full ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
                 <AlertCircle size={32} className="mb-2" />
                 <p className="text-sm">No items in cart</p>
               </div>
             ) : (
               cart.map((item) => (
-                <div key={item.id} className="bg-[#0f1117] rounded-lg p-3 border border-[#2d3547] group">
+                <div key={item.id} className={`rounded-lg p-3 border group ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547]' : 'bg-white border-gray-300'}`}>
                   <div className="flex gap-3">
                     {item.image && <img src={item.image} alt={item.name} className="w-12 h-12 rounded object-contain bg-white" />}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-1">
                         <div className="flex-1">
-                          <p className="text-sm font-semibold truncate">{item.name}</p>
+                          <p className={`text-sm font-semibold truncate ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.name}</p>
                           {(item.color || item.size) && (
-                            <p className="text-xs text-gray-400">
+                            <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                               {item.color}{item.color && item.size ? ' - ' : ''}{item.size && `Size ${item.size}`}
                             </p>
                           )}
                         </div>
-                        <button onClick={() => removeItem(item.id)} className="text-gray-500 hover:text-red-400 p-1 shrink-0">
+                        <button onClick={() => removeItem(item.id)} className={`hover:text-red-400 p-1 shrink-0 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
                           <X size={14} />
                         </button>
                       </div>
                       <div className="flex items-center gap-2 mb-1">
-                        <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">−</button>
+                        <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className={`w-5 h-5 rounded border text-xs flex items-center justify-center ${isDarkMode ? 'border-[#2d3547] hover:bg-[#2d3547] text-white' : 'border-gray-300 hover:bg-gray-100 text-black'}`}>−</button>
                         <input
                           type="number"
                           min={1}
                           value={item.quantity}
                           onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value) || 1)}
-                          className="w-10 text-xs font-bold text-center bg-transparent border border-[#2d3547] rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className={`w-10 text-xs font-bold text-center border rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isDarkMode ? 'bg-transparent border-[#2d3547] text-white' : 'bg-white border-gray-300 text-black'}`}
                         />
-                        <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">+</button>
+                        <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className={`w-5 h-5 rounded border text-xs flex items-center justify-center ${isDarkMode ? 'border-[#2d3547] hover:bg-[#2d3547] text-white' : 'border-gray-300 hover:bg-gray-100 text-black'}`}>+</button>
                       </div>
 
                       {item.discount ? (
                         <div className="text-[10px] space-y-0.5 mb-1">
-                          <div className="flex justify-between text-gray-500">
+                          <div className={`flex justify-between ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
                             <span>Price</span>
                             <span className="line-through">${(item.price * item.quantity).toFixed(2)}</span>
                           </div>
@@ -1776,9 +1780,9 @@ export function POSPage() {
                             <span>Discount: {item.discount.type === 'percent' ? `${item.discount.value}%` : `$${item.discount.value.toFixed(2)}`}</span>
                             <span>−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between text-white font-bold">
+                          <div className={`flex justify-between font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
                             <span>Item Total</span>
-                            <span className="text-white">${(getItemDiscountedPrice(item) * item.quantity).toFixed(2)}</span>
+                            <span>${(getItemDiscountedPrice(item) * item.quantity).toFixed(2)}</span>
                           </div>
                         </div>
                       ) : (
@@ -1803,11 +1807,11 @@ export function POSPage() {
                       </div>
 
                       {editingDiscountItemId === item.id && (
-                        <div className="mt-2 p-2 bg-[#1a2236] rounded border border-[#2d3547] flex items-center gap-1">
+                        <div className={`mt-2 p-2 rounded border flex items-center gap-1 ${isDarkMode ? 'bg-[#1a2236] border-[#2d3547]' : 'bg-gray-100 border-gray-300'}`}>
                           <select
                             value={discountDraftType}
                             onChange={e => setDiscountDraftType(e.target.value as 'percent' | 'fixed')}
-                            className="bg-[#0f1117] border border-[#2d3547] rounded text-[10px] text-white px-1 py-1"
+                            className={`border rounded text-[10px] px-1 py-1 ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547] text-white' : 'bg-white border-gray-300 text-black'}`}
                           >
                             <option value="percent">%</option>
                             <option value="fixed">$</option>
@@ -1819,12 +1823,12 @@ export function POSPage() {
                             onChange={e => setDiscountDraftValue(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') applyItemDiscountDraft(); if (e.key === 'Escape') setEditingDiscountItemId(null); }}
                             placeholder="0"
-                            className="w-16 bg-[#0f1117] border border-[#2d3547] rounded text-[10px] text-white px-2 py-1"
+                            className={`w-16 border rounded text-[10px] px-2 py-1 ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547] text-white' : 'bg-white border-gray-300 text-black'}`}
                           />
                           <button onClick={applyItemDiscountDraft} className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold uppercase">
                             Apply
                           </button>
-                          <button onClick={() => setEditingDiscountItemId(null)} className="px-2 py-1 border border-[#2d3547] text-gray-400 hover:text-white rounded text-[9px] font-bold uppercase">
+                          <button onClick={() => setEditingDiscountItemId(null)} className={`px-2 py-1 border rounded text-[9px] font-bold uppercase ${isDarkMode ? 'border-[#2d3547] text-gray-400 hover:text-white' : 'border-gray-300 text-gray-600 hover:text-black'}`}>
                             Cancel
                           </button>
                         </div>
@@ -1837,9 +1841,9 @@ export function POSPage() {
           </div>
 
           {/* Totals & Buttons */}
-          <div className="border-t border-[#2d3547] p-4 space-y-3 bg-[#0f1117]">
+          <div className={`border-t p-4 space-y-3 transition-colors ${isDarkMode ? 'border-[#2d3547] bg-[#0f1117]' : 'border-gray-200 bg-white'}`}>
             <div className="space-y-1.5 text-xs">
-              <div className="flex justify-between text-gray-400">
+              <div className={`flex justify-between ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 <span>Subtotal</span>
                 <span>${subtotal.toFixed(2)}</span>
               </div>
@@ -1855,34 +1859,34 @@ export function POSPage() {
                   <span>−${discountAmount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-gray-400">
+              <div className={`flex justify-between ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 <span>HST {isTaxExempt ? '(Exempt)' : '(13%)'}</span>
                 <span>${hst.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between font-bold text-base pt-2 border-t border-[#2d3547]">
-                <span>Total Due</span>
+              <div className={`flex justify-between font-bold text-base pt-2 border-t ${isDarkMode ? 'border-[#2d3547]' : 'border-gray-200'}`}>
+                <span className={isDarkMode ? '' : 'text-black'}>Total Due</span>
                 <span className="text-lg text-[var(--primary-color)]">${grandTotal.toFixed(2)}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-4 gap-2">
-              <button onClick={() => setPosTab('gc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
+              <button onClick={() => setPosTab('gc')} className={`px-3 py-2 border rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-colors ${isDarkMode ? 'bg-[#2d3547] hover:bg-[#3d4557] border-[#2d3547] text-white' : 'bg-gray-200 hover:bg-gray-300 border-gray-300 text-black'}`}>
                 <CreditCard size={14} className="inline mr-1" /> GC
               </button>
-              <button onClick={() => setPosTab('sc')} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
+              <button onClick={() => setPosTab('sc')} className={`px-3 py-2 border rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-colors ${isDarkMode ? 'bg-[#2d3547] hover:bg-[#3d4557] border-[#2d3547] text-white' : 'bg-gray-200 hover:bg-gray-300 border-gray-300 text-black'}`}>
                 <Ticket size={14} /> SC
               </button>
-              <button onClick={() => setShowDiscountModal(true)} className="px-3 py-2 bg-[#2d3547] hover:bg-[#3d4557] border border-[#2d3547] rounded text-[10px] font-bold text-white flex items-center justify-center gap-1">
+              <button onClick={() => setShowDiscountModal(true)} className={`px-3 py-2 border rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-colors ${isDarkMode ? 'bg-[#2d3547] hover:bg-[#3d4557] border-[#2d3547] text-white' : 'bg-gray-200 hover:bg-gray-300 border-gray-300 text-black'}`}>
                 <Percent size={14} /> Disc
               </button>
-              <button onClick={() => { if (confirm('Clear all items?')) clearCart(); }} disabled={cart.length === 0} className="px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 rounded text-[10px] font-bold text-white">
+              <button onClick={() => { if (confirm('Clear all items?')) clearCart(); }} disabled={cart.length === 0} className={`px-3 py-2 rounded text-[10px] font-bold text-white ${isDarkMode ? 'bg-red-600 hover:bg-red-700 disabled:bg-gray-700' : 'bg-red-500 hover:bg-red-600 disabled:bg-gray-400'}`}>
                 Clear
               </button>
             </div>
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={isTaxExempt} onChange={e => setIsTaxExempt(e.target.checked)} />
-              <span className="text-[10px] font-bold text-gray-400">Tax Exempt</span>
+              <span className={`text-[10px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Tax Exempt</span>
             </label>
 
             <button
@@ -1923,15 +1927,15 @@ export function POSPage() {
               <button onClick={() => setPosTab('returns')} className="py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold uppercase flex items-center justify-center gap-1">
                 <Undo2 size={12} /> Return
               </button>
-              <button onClick={() => setPosTab('history')} className="py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
+              <button onClick={() => setPosTab('history')} className={`py-2 border rounded text-[10px] font-bold uppercase transition-colors ${isDarkMode ? 'border-[#2d3547] text-gray-300 hover:text-white' : 'border-gray-300 text-gray-700 hover:text-black'}`}>
                 History
               </button>
-              <button onClick={openCashDrawer} className="py-2 border border-[#2d3547] text-amber-400 hover:text-amber-300 hover:border-amber-500 rounded text-[10px] font-bold uppercase flex items-center justify-center gap-1">
+              <button onClick={openCashDrawer} className={`py-2 border rounded text-[10px] font-bold uppercase flex items-center justify-center gap-1 transition-colors ${isDarkMode ? 'border-[#2d3547] text-amber-400 hover:text-amber-300 hover:border-amber-500' : 'border-amber-300 text-amber-600 hover:text-amber-700 hover:border-amber-600'}`}>
                 <Archive size={12} /> Drawer
               </button>
             </div>
 
-            <button onClick={() => setPosTab('customers')} className="w-full py-2 border border-[#2d3547] text-gray-300 hover:text-white rounded text-[10px] font-bold uppercase">
+            <button onClick={() => setPosTab('customers')} className={`w-full py-2 border rounded text-[10px] font-bold uppercase transition-colors ${isDarkMode ? 'border-[#2d3547] text-gray-300 hover:text-white' : 'border-gray-300 text-gray-700 hover:text-black'}`}>
               Customers
             </button>
 
@@ -1953,8 +1957,8 @@ export function POSPage() {
       {/* History Tab Content */}
       {posTab === 'history' && (
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-[#2d3547] bg-[#0f1117]">
-            <h2 className="text-sm font-bold text-white">Transaction History</h2>
+          <div className={`p-4 border-b ${isDarkMode ? 'border-[#2d3547] bg-[#0f1117]' : 'border-gray-200 bg-gray-50'}`}>
+            <h2 className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>Transaction History</h2>
           </div>
           <div className="flex-1 overflow-hidden">
             <PosTransactionHistory />
@@ -1964,15 +1968,15 @@ export function POSPage() {
 
       {/* Returns Tab Content */}
       {posTab === 'returns' && (
-        <div className="flex-1 flex flex-col overflow-hidden bg-[#0f1117]">
-          <div className="p-4 border-b border-[#2d3547] bg-[#0f1117]">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+        <div className={`flex-1 flex flex-col overflow-hidden ${isDarkMode ? 'bg-[#0f1117]' : 'bg-white'}`}>
+          <div className={`p-4 border-b ${isDarkMode ? 'border-[#2d3547] bg-[#0f1117]' : 'border-gray-200 bg-gray-50'}`}>
+            <h2 className={`text-sm font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
               <Undo2 size={16} /> Process Return
             </h2>
           </div>
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             <div className="space-y-3">
-              <label className="block text-sm font-bold text-gray-300">
+              <label className={`block text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Enter Invoice Number or Scan Barcode
               </label>
               <div className="flex gap-2">
@@ -1987,7 +1991,7 @@ export function POSPage() {
                       handleReturnsInvoiceLookup(returnsInvoiceInput);
                     }
                   }}
-                  className="flex-1 px-4 py-3 bg-[#1a2236] border border-[#2d3547] rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                  className={`flex-1 px-4 py-3 border rounded focus:outline-none focus:border-blue-500 placeholder-gray-500 ${isDarkMode ? 'bg-[#1a2236] border-[#2d3547] text-white' : 'bg-white border-gray-300 text-black'}`}
                 />
                 <button
                   onClick={() => handleReturnsInvoiceLookup(returnsInvoiceInput)}
@@ -2028,8 +2032,8 @@ export function POSPage() {
       {/* Customers Tab Content */}
       {posTab === 'customers' && (
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-[#2d3547] bg-[#0f1117]">
-            <h2 className="text-sm font-bold text-white">Customers</h2>
+          <div className={`p-4 border-b ${isDarkMode ? 'border-[#2d3547] bg-[#0f1117]' : 'border-gray-200 bg-gray-50'}`}>
+            <h2 className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>Customers</h2>
           </div>
           <div className="flex-1 overflow-hidden">
             <PosCustomerManager onSelectCustomer={handleSelectCustomer} />
@@ -2075,15 +2079,15 @@ export function POSPage() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-[#1a2236] rounded-lg shadow-xl max-w-md w-full mx-4 border border-[#2d3547]"
+              className={`rounded-lg shadow-xl max-w-md w-full mx-4 border ${isDarkMode ? 'bg-[#1a2236] border-[#2d3547]' : 'bg-white border-gray-300'}`}
             >
-              <div className="p-4 border-b border-[#2d3547] flex items-center justify-between bg-[#0f1117]">
-                <h2 className="text-sm font-bold">
+              <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-[#2d3547] bg-[#0f1117]' : 'border-gray-200 bg-gray-50'}`}>
+                <h2 className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
                   {selectedProductForSize.name} - Select Size
                 </h2>
                 <button
                   onClick={() => setShowSizeSelector(false)}
-                  className="text-gray-400 hover:text-white"
+                  className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'}
                 >
                   <X size={18} />
                 </button>
@@ -2115,8 +2119,8 @@ export function POSPage() {
                       disabled={variant.stock_quantity <= 0}
                       className={`w-full p-3 rounded flex items-center justify-between transition-colors ${
                         variant.stock_quantity <= 0
-                          ? 'bg-[#0d1117] text-gray-500 opacity-50 cursor-not-allowed'
-                          : 'bg-[#2d3547] hover:bg-[var(--primary-color)] hover:text-white text-gray-300'
+                          ? isDarkMode ? 'bg-[#0d1117] text-gray-500 opacity-50 cursor-not-allowed' : 'bg-gray-200 text-gray-500 opacity-50 cursor-not-allowed'
+                          : isDarkMode ? 'bg-[#2d3547] hover:bg-[var(--primary-color)] hover:text-white text-gray-300' : 'bg-gray-100 hover:bg-gray-200 hover:text-black text-gray-700'
                       }`}
                     >
                       <span className="font-semibold">
@@ -2148,12 +2152,12 @@ export function POSPage() {
         {showCheckout && (
           <div className="absolute inset-0 bg-black/60 z-50 flex justify-end">
             <div className="flex-1" onClick={() => { if (!receipt) setShowCheckout(false); }} />
-            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="w-96 bg-[#1a2236] h-full flex flex-col border-l border-[#2d3547]">
-              <div className="p-4 border-b border-[#2d3547] flex items-center justify-between bg-[#0f1117]">
-                <h2 className="text-sm font-bold flex items-center gap-2">
+            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className={`w-96 h-full flex flex-col border-l transition-colors ${isDarkMode ? 'bg-[#1a2236] border-[#2d3547]' : 'bg-gray-50 border-gray-300'}`}>
+              <div className={`p-4 border-b flex items-center justify-between transition-colors ${isDarkMode ? 'border-[#2d3547] bg-[#0f1117]' : 'border-gray-200 bg-white'}`}>
+                <h2 className={`text-sm font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
                   <Receipt size={16} /> {receipt ? 'RECEIPT' : 'CHECKOUT'}
                 </h2>
-                {!receipt && <button onClick={() => setShowCheckout(false)} className="text-gray-400 hover:text-white"><X size={18} /></button>}
+                {!receipt && <button onClick={() => setShowCheckout(false)} className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'}><X size={18} /></button>}
               </div>
 
               {receipt ? (
@@ -2453,7 +2457,7 @@ export function POSPage() {
                     ) : (
                       <>
                         {/* Split Payment Toggle */}
-                        <div className="mb-3 p-2 bg-[#2d3547] rounded flex items-center gap-2">
+                        <div className={`mb-3 p-2 rounded flex items-center gap-2 ${isDarkMode ? 'bg-[#2d3547]' : 'bg-gray-200'}`}>
                           <input
                             type="checkbox"
                             checked={useSplitPayment}
@@ -2468,12 +2472,12 @@ export function POSPage() {
                             }}
                             className="w-4 h-4 cursor-pointer"
                           />
-                          <span className="text-[9px] font-bold text-white uppercase">Split Payment</span>
+                          <span className={`text-[9px] font-bold uppercase ${isDarkMode ? 'text-white' : 'text-black'}`}>Split Payment</span>
                         </div>
 
                         {/* Split Payment UI - Step-by-Step Flow */}
                         {useSplitPayment ? (
-                          <div className="space-y-3 mb-3 p-3 bg-[#0f1117] rounded border border-[#2d3547]">
+                          <div className={`space-y-3 mb-3 p-3 rounded border ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547]' : 'bg-gray-50 border-gray-300'}`}>
                             {/* Header: Total and Remaining */}
                             <div className="space-y-1">
                               <div className="flex justify-between text-[10px]">
@@ -2488,12 +2492,12 @@ export function POSPage() {
 
                             {/* Payment Splits List (Confirmed) */}
                             {paymentSplits.length > 0 && (
-                              <div className="space-y-1 p-2 bg-[#1a2236] rounded border border-[#2d3547]">
+                              <div className={`space-y-1 p-2 rounded border ${isDarkMode ? 'bg-[#1a2236] border-[#2d3547]' : 'bg-gray-100 border-gray-300'}`}>
                                 {paymentSplits.map(split => (
                                   <div key={split.id} className="flex justify-between items-center text-[9px]">
-                                    <span className="text-gray-300">{split.method}</span>
+                                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{split.method}</span>
                                     <div className="flex items-center gap-2">
-                                      <span className="text-white font-bold">${split.amount.toFixed(2)}</span>
+                                      <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>${split.amount.toFixed(2)}</span>
                                       <span className="text-green-400">✓</span>
                                       <button
                                         onClick={() => handleRemoveSplitPayment(split.id)}
@@ -2510,13 +2514,13 @@ export function POSPage() {
                             {/* Step 1: Select Payment Method */}
                             {splitStep === 'select-method' ? (
                               <div className="space-y-2">
-                                <p className="text-[9px] font-bold text-gray-300 uppercase">Select Payment Method:</p>
+                                <p className={`text-[9px] font-bold uppercase ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Select Payment Method:</p>
                                 <div className="grid grid-cols-2 gap-1">
                                   {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Gift Card'].map(method => (
                                     <button
                                       key={method}
                                       onClick={() => handleSelectSplitMethod(method)}
-                                      className="p-1.5 bg-[#1a2236] hover:bg-[#2d3547] border border-[#2d3547] hover:border-[var(--primary-color)] rounded text-[8px] font-bold text-white uppercase transition-colors"
+                                      className={`p-1.5 border rounded text-[8px] font-bold uppercase transition-colors ${isDarkMode ? 'bg-[#1a2236] hover:bg-[#2d3547] border-[#2d3547] hover:border-[var(--primary-color)] text-white' : 'bg-gray-100 hover:bg-gray-200 border-gray-300 hover:border-[var(--primary-color)] text-black'}`}
                                     >
                                       {method}
                                     </button>
@@ -2527,8 +2531,8 @@ export function POSPage() {
 
                             {/* Step 2: Enter Amount */}
                             {splitStep === 'enter-amount' && splitPaymentMethod ? (
-                              <div className="space-y-2 p-2 bg-[#1a2236] rounded border border-[#2d3547]">
-                                <p className="text-[9px] font-bold text-gray-300 uppercase">Payment Method: {splitPaymentMethod}</p>
+                              <div className={`space-y-2 p-2 rounded border ${isDarkMode ? 'bg-[#1a2236] border-[#2d3547]' : 'bg-gray-100 border-gray-300'}`}>
+                                <p className={`text-[9px] font-bold uppercase ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Payment Method: {splitPaymentMethod}</p>
                                 <input
                                   type="number"
                                   value={splitPaymentAmount}
@@ -2536,7 +2540,7 @@ export function POSPage() {
                                   placeholder="0.00"
                                   step="0.01"
                                   autoFocus
-                                  className="w-full p-1.5 text-[10px] bg-[#0f1117] border border-[#2d3547] rounded text-white placeholder-gray-500 focus:ring-2 focus:ring-[var(--primary-color)] font-bold text-center"
+                                  className={`w-full p-1.5 text-[10px] border rounded focus:ring-2 focus:ring-[var(--primary-color)] font-bold text-center placeholder-gray-500 ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547] text-white' : 'bg-white border-gray-300 text-black'}`}
                                 />
 
                                 {/* Quick Amount Buttons */}
