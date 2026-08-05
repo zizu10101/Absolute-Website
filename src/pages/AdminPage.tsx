@@ -595,6 +595,7 @@ function AdminPageInner() {
   const [isGeneratingAddVariantBarcode, setIsGeneratingAddVariantBarcode] = useState(false);
   const [editingProductHasNoSizes, setEditingProductHasNoSizes] = useState<boolean>(false);
   const [justSavedVariantIds, setJustSavedVariantIds] = useState<Set<string>>(new Set());
+  const [masterVariantColor, setMasterVariantColor] = useState<string>('');
 
   // --- States for newly created product pending size variants ---
   const [createdProductVariants, setCreatedProductVariants] = useState<any[]>([]);
@@ -799,9 +800,9 @@ function AdminPageInner() {
         .from('product_variants')
         .delete()
         .eq('id', variantId);
-      
+
       if (error) throw error;
-      
+
       setEditingProductVariants(prev => prev.filter(v => v.id !== variantId));
     } catch (err: any) {
       console.error(err);
@@ -1261,12 +1262,34 @@ function AdminPageInner() {
           throw new Error('Product not found in database after update');
         }
 
+        // Update master variant colors if masterVariantColor is set
+        if (masterVariantColor.trim() && editingProduct.id) {
+          const { error: variantError } = await supabase
+            .from('product_variants')
+            .update({ color: masterVariantColor.trim() })
+            .eq('product_id', editingProduct.id)
+            .or('color.is.null,color.eq.');
+          if (variantError) {
+            console.error('Error updating master variant colors:', variantError);
+          } else {
+            // Refresh the variants list
+            const { data: freshVariants } = await supabase
+              .from('product_variants')
+              .select('*')
+              .eq('product_id', editingProduct.id)
+              .order('age_group');
+            setEditingProductVariants(freshVariants || []);
+            setMasterVariantColor('');
+          }
+        }
+
         setEditStatus('success');
         setTimeout(() => {
           setEditingProduct(null);
           setOriginalProduct(null);
           setEditStatus('idle');
           setEditErrorMessage(null);
+          setMasterVariantColor('');
         }, 1200);
       } catch (error: any) {
         console.error('AdminPage: Failed to update product', error);
@@ -5454,6 +5477,22 @@ function AdminPageInner() {
                           </button>
                         )}
                       </div>
+
+                      <div className="pt-4">
+                        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
+                          Master Variant Color Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Black, White, Red"
+                          value={masterVariantColor}
+                          onChange={(e) => setMasterVariantColor(e.target.value)}
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
+                        />
+                        <p className="text-[9px] text-zinc-400 mt-1.5">
+                          This names all original variants (shown as 'none')
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -5834,64 +5873,6 @@ function AdminPageInner() {
                         Registered Master Variants ({editingProductVariants.length})
                       </label>
 
-                      {/* Bulk assign color to uncolored variants */}
-                      {editingProductVariants.length > 0 && editingProductVariants.some(v => !v.color || v.color === '') && (
-                        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                          <p className="text-[9px] font-bold text-blue-900 uppercase tracking-widest mb-3">
-                            Assign color to {editingProductVariants.filter(v => !v.color || v.color === '').length} uncolored variant{editingProductVariants.filter(v => !v.color || v.color === '').length !== 1 ? 's' : ''}:
-                          </p>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              id="bulkColorInput"
-                              placeholder="e.g. White, Red, Blue"
-                              className="flex-1 p-2 bg-white border border-blue-300 rounded text-[10px] outline-none focus:ring-2 focus:ring-blue-400"
-                            />
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                const colorInput = (document.getElementById('bulkColorInput') as HTMLInputElement)?.value.trim();
-                                if (!colorInput) {
-                                  alert('Please enter a color name');
-                                  return;
-                                }
-                                try {
-                                  // Target exact IDs from already-loaded state rather than a server-side
-                                  // .or() filter string, which can silently fail to match empty-string
-                                  // colors depending on how PostgREST parses the quoted empty value.
-                                  const uncoloredIds = editingProductVariants
-                                    .filter(v => !v.color || v.color === '')
-                                    .map(v => v.id);
-                                  if (uncoloredIds.length === 0) {
-                                    alert('No uncolored variants to update.');
-                                    return;
-                                  }
-                                  const { error } = await supabase
-                                    .from('product_variants')
-                                    .update({ color: colorInput })
-                                    .in('id', uncoloredIds);
-                                  if (error) throw error;
-                                  // Reload variants
-                                  const { data: fresh } = await supabase
-                                    .from('product_variants')
-                                    .select('*')
-                                    .eq('product_id', editingProduct.id)
-                                    .order('age_group');
-                                  setEditingProductVariants(fresh || []);
-                                  (document.getElementById('bulkColorInput') as HTMLInputElement).value = '';
-                                  alert(`Applied color "${colorInput}" to ${uncoloredIds.length} variant${uncoloredIds.length !== 1 ? 's' : ''}`);
-                                } catch (err: any) {
-                                  alert('Error: ' + err.message);
-                                }
-                              }}
-                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold uppercase tracking-widest transition-colors"
-                            >
-                              Apply to All
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
                       {variantsLoading ? (
                         <div className="text-zinc-500 font-bold uppercase italic text-[10px] py-4">Loading variants database...</div>
                       ) : editingProductVariants.length === 0 ? (
@@ -5955,7 +5936,7 @@ function AdminPageInner() {
                                             }, 1500);
                                           }
                                         }}
-                                        placeholder="Add color name..."
+                                        placeholder="e.g. White, Black, Red"
                                         className="flex-1 text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)]"
                                       />
                                       {justSavedVariantIds.has(v.id) && (
@@ -6034,8 +6015,8 @@ function AdminPageInner() {
                     )}
                   </div>
                   <div className="flex items-center gap-4 justify-end">
-                    <button 
-                      onClick={() => { setEditingProduct(null); setOriginalProduct(null); setEditStatus('idle'); setEditErrorMessage(null); }}
+                    <button
+                      onClick={() => { setEditingProduct(null); setOriginalProduct(null); setEditStatus('idle'); setEditErrorMessage(null); setMasterVariantColor(''); }}
                       className="px-6 py-3 text-zinc-500 font-bold uppercase tracking-widest text-xs hover:text-zinc-900 transition-colors"
                     >
                       Cancel

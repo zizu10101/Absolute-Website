@@ -462,65 +462,25 @@ export function ProductDetailPage() {
           {/* Color Selection */}
           {allColorNames.length > 0 && (
             <div className="space-y-4">
-              {/* Only show "Default" button if product.colors is NOT defined (legacy products without colors) */}
-              {(!product?.colors || product.colors.length === 0) ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Select Color</span>
-                    {selectedColor && (
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--primary-color)] animate-pulse">
-                        {selectedColor}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      onClick={() => setSelectedColor(null)}
-                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === null ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-600 hover:border-zinc-200'}`}
-                    >
-                      Default
-                    </button>
-                    {variantColorNames.map((colorName: string) => (
-                      <button
-                        key={colorName}
-                        onClick={() => setSelectedColor(colorName)}
-                        className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === colorName ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-600 hover:border-zinc-200'}`}
-                      >
-                        {colorName}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Select Color</span>
-                    {selectedColor && (
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--primary-color)] animate-pulse">
-                        {selectedColor}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    {/* "All Colors" button to deselect current color */}
-                    <button
-                      onClick={() => setSelectedColor(null)}
-                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === null ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-600 hover:border-zinc-200'}`}
-                    >
-                      All Colors
-                    </button>
-                    {product.colors.map((color: any) => (
-                      <button
-                        key={color.name}
-                        onClick={() => setSelectedColor(selectedColor === color.name ? null : color.name)}
-                        className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === color.name ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-600 hover:border-zinc-200'}`}
-                      >
-                        {color.name}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Select Color</span>
+                {selectedColor && (
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--primary-color)] animate-pulse">
+                    {selectedColor}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {allColorNames.map((colorName: string) => (
+                  <button
+                    key={colorName}
+                    onClick={() => setSelectedColor(selectedColor === colorName ? null : colorName)}
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === colorName ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-600 hover:border-zinc-200'}`}
+                  >
+                    {colorName}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
