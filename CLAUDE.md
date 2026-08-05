@@ -6,6 +6,22 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
+**MASTER VARIANT COLOR NAMING, COLOR SELECTOR REFINEMENT (Session 50 - CURRENT):**
+- `src/pages/AdminPage.tsx`: Added "Master Variant Color Name" field in Edit Product form, positioned right after Release Date field
+  - When saved with a value, auto-updates all uncolored variants (`color IS NULL OR color = ''`) in `product_variants` table to that name
+  - Field is cleared after successful save and when closing the edit modal
+  - State: `masterVariantColor`, handler integrated into existing `handleUpdate()` function
+- `src/pages/ProductDetailPage.tsx`: Removed "All Colors" button from color selector
+  - Simplified from conditional rendering (different UI for variants vs product.colors) to unified `allColorNames` list
+  - Now shows only actual color buttons — no "Default"/"All Colors" deselect button
+  - Clicking a color toggles it (click again to deselect)
+  - Works correctly whether colors come from master variants (`v.color`) or product color ways (`product.colors[].name`)
+- `src/pages/AdminPage.tsx`: Variant table inline color editing (already existed, re-verified working)
+  - All variants now show editable color input field (no conditional hiding)
+  - Empty color fields render with placeholder text, saving via Enter/blur
+  - Green checkmark animates briefly on save, auto-clears after 1.5s
+- Result: Product detail page now shows `[Black] [Green]` instead of `[All Colors] [Green]` when master variants are named
+
 **THERMAL RECEIPT REDESIGN, MOBILE PERFORMANCE, ACCESSIBILITY, VARIANT COLOR UX, POS FIXES (Session 49):**
 
 **Thermal receipts — full redesign to a unified black-logo layout:**
