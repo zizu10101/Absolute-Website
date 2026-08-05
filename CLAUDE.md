@@ -6,6 +6,44 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
+**THERMAL RECEIPT REDESIGN, MOBILE PERFORMANCE, ACCESSIBILITY, VARIANT COLOR UX, POS FIXES (Session 49):**
+
+**Thermal receipts — full redesign to a unified black-logo layout:**
+- `src/utils/thermalReceipt.ts`: rewrote all 6 receipt generators (`generateThermalReceiptHTML`, `generateGiftReceiptHTML`, `generateStoreCreditReceiptHTML`, `generateLayawayReceiptHTML`, `generatePayLaterReceiptHTML`, `generateLayawayPaymentReceiptHTML`) onto one shared CSS block + composable HTML builders (header, metadata, barcode, payment-methods, footer) instead of 6 near-duplicate style blocks
+- Every receipt: black logo only (`/logo-black.png`, no "ABSOLUTE SOCCER" text), 80mm paper / 72mm centered content column (4mm gutter each side), a 2-column Transaction/Ref#/Date/Cashier/Time metadata block, real split-payment breakdown ("Paid Cash / Paid Debit / ...") wired through from `POSPage.tsx`'s `paymentSplits` instead of a joined string, barcode + ref# at the bottom, standard footer ("Thank you for shopping with Absolute Soccer! / Exchange or refund within 14 days...")
+- Footers no longer reference layaway hold periods or pickup timing (removed "Items held for 30 days", "Pickup by [date]", "Ready For Pickup" banner, "Remaining balance due on pickup" — kept non-pickup operational lines like "Deposits are non-refundable")
+- Fixed a real pre-existing double-print-dialog bug: `generateGiftReceiptHTML` no longer auto-prints internally now that all 3 callers already trigger print themselves via `window.onload` (kept the internal auto-print on `generateStoreCreditReceiptHTML` since its sole caller, `ReturnsModal.tsx`, doesn't self-print)
+- Fixed 2 pre-existing `tsc` errors: `POSPage.tsx`/`PosTransactionHistory.tsx` were passing `subtotal`/`hst`/`total`/`paymentMethod` into a gift-receipt type that never had those fields (gift receipts show no prices)
+
+**Mobile performance / PageSpeed:**
+- Hero carousel: only the real first slide (`infiniteSlides` index 1 — index 0 is an off-screen clone used for the carousel's infinite loop, not the LCP element) gets `loading="eager"` + `fetchPriority="high"`; everything else lazy/low
+- `index.html`: added Supabase `preconnect`/`dns-prefetch`, Google Analytics gtag.js (already async)
+- `decoding="async"` added across hero, brand banners, category tiles, product cards
+- First brand banner image and first category tile image get eager/high priority (matching the hero); everything else stays lazy
+- Google Maps iframe in the "Visit Us" section now mounts only when scrolled into view (`IntersectionObserver`), instead of loading its ~400KB embed script upfront
+- `SettingsContext.tsx`: the `settings` table read now selects only `key, data` filtered to the 10 keys actually used (`global`, `slider`, `homeCategories`, `navigation`, `footer`, `seo`, `store_info`, `theme`, `brand_images`, `category_images`) instead of `select('*')` — cut the initial payload substantially. Note: had to expand a proposed 7-key list to the full 10; the missing 3 (`global`, `homeCategories`, `footer`) would have silently broken the header logo, the homepage "Select Your Squad" section, and footer links
+- Header logo: added `width`/`height` attributes (CLS hint only — the existing responsive `h-10 md:h-16 w-auto` Tailwind sizing still controls actual rendered size, CSS always wins over HTML width/height attributes)
+
+**Accessibility — contrast, touch targets, heading hierarchy:**
+- Color contrast: darkened `text-zinc-400`/`text-gray-400` → `zinc-600` and `text-zinc-300` → `zinc-700` everywhere they sat on a light background, checked individually per component (not blind find-replace) — left every dark-background instance untouched (Footer, hero overlays, "Visit Us" sections, the dark "Available In Store" boxes on the product page). Scoped to public-facing pages only; POS/Admin/reports UI is staff-only and not part of the audited public site
+- Touch targets bumped to 48×48 min: hero carousel arrows + dot indicators (dots restructured so the larger hit area doesn't visually bloat the small pill — outer button is the 48px hit target, a small inner `<span>` is the visible dot), header hamburger/wishlist/search/search-close, nav drawer close + menu-toggle chevrons + top-level nav rows, product image prev/next arrows, filter sidebar close button
+- Heading hierarchy fixes: `ProductCard`'s product name was `<h4>` directly under an `<h2>` section (New Arrivals/On Sale) with no `<h3>` — now `<h3>`. `ProductGridPage` had a real h1→h3 skip on any plain category page with no logo-grid submenu (the "All Products" h2 only rendered inside that block) — hoisted it to render whenever the product grid does. `ProductDetailPage`'s "Product Not Found" state was an `<h2>` with no `<h1>` anywhere in that render branch — promoted to `<h1>`. `MississaugaSoccerPage`'s "Visit Us" section used `<h3>` where every sibling section (and the same section on the Brampton/CustomApparel sister pages) uses `<h2>` — fixed for consistency. Known pre-existing gap left alone: `BrandPage.tsx` has an h1→h3 skip, wasn't in the requested file list
+
+**Logo transparency fix (root cause was the WebP compression pipeline, not CSS):**
+- A reported "white box around the footer logo" had no matching CSS anywhere in `Footer.tsx` — no `bg-white`, no wrapping div, nothing. Root cause: `compressToWebP()` in `src/lib/imageUtils.ts` unconditionally painted an opaque white rectangle onto the canvas before drawing the uploaded image, then flattened to WebP — correct for product photos (stops transparent PNGs turning black) but wrong for logos, which need to keep working on any background color
+- Added an opt-in `preserveTransparency` parameter (skips the white-fill when true); the three logo upload handlers (header/landing/footer logo) in `AdminPage.tsx` now pass `true`. WebP itself supports an alpha channel same as PNG, so output format stayed WebP rather than falling back to PNG
+- This only fixes *future* uploads — the currently-live footer logo already has white baked into its pixels from before this fix existed and needs to be re-uploaded once through Admin → Settings → Theme to pick up real transparency
+
+**Variant color UX + robustness:**
+- `RapidScanIntakeMatrix.tsx`: color field is a dropdown of the product's named colorways (with a `(none)` option so color stays optional) when any exist, falling back to today's free-text input when the product has none — never blocks scanning/intake for products without predefined colors
+- `AdminPage.tsx`: the "Apply to All" bulk uncolored-variant color update now targets exact variant IDs from already-loaded state instead of a server-side `.or('color.is.null,color.eq."")')` filter string, which could plausibly fail to match empty-string colors depending on how PostgREST parses the quoted empty value
+- Per-row inline color editing in the "Registered Master Variants" table (click a variant's color cell, type a name, blur or press Enter, saves directly to `product_variants` — already existed from an earlier session, was thoroughly re-verified this session since it kept getting reported as missing; it was never actually broken)
+- Fixed a mojibake checkmark (corrupted bytes containing an invisible control character) in the per-row save-confirmation indicator
+
+**POS corrupted characters + typeable cart quantity:**
+- Fixed remaining mojibake across `POSPage.tsx`, `PosRegister.tsx`, `PosCustomerManager.tsx`: a cross-mark emoji whose corrupted form contained an invisible control character between the visible glyphs (had to fix by exact codepoint match — hand-typing the replacement string couldn't reproduce the invisible character, so several `Edit` attempts silently failed to match), plus em-dash/middot/multiplication-sign mojibake, replaced with ASCII equivalents. Left real, correctly-encoded characters alone (emoji category icons, real em-dashes, real × and · characters, real U+2212 minus signs) and skipped invisible box-drawing comment dividers — not part of what's rendered on screen
+- Cart quantity is now a typeable `<input type="number">` between the existing −/+ buttons instead of a read-only `<span>`, styled to match the dark POS theme; native spinner arrows hidden since −/+ already cover that; wired to the existing `updateItemQuantity`, which already clamps to a minimum of 1
+
 **WEBP IMAGE COMPRESSION, HOMEPAGE H1, FOOTER ADDRESS (Session 48):**
 - `src/lib/imageUtils.ts`: `resizeImage()` renamed to `compressToWebP()` — same base64-in/base64-out signature, now always encodes the output as WebP (`canvas.toDataURL('image/webp', quality)`) instead of PNG/JPEG; white-background canvas fill (transparent-PNG fix from session 44) kept. Browsers without WebP encode support fall back to PNG automatically (native `toDataURL` behavior) — no crash risk
 - `src/pages/AdminPage.tsx`: all 23 call sites renamed to `compressToWebP()`; dimensions/quality retuned per upload category — product images (main/gallery/color-variant/edit) 1000×1250→**800×800 q0.85**, hero/slider images 1920×1080→**1600×640 q0.85**, site logos (main/landing/footer) 800×800→**400×200 q0.90**, brand showcase images 1200×800→**1200×600 q0.85**, category tile images already 800×800 q0.85 (unchanged). Upload types not covered by the spec (nav menu/submenu icon logos, SEO OG share image, custom-apparel lab background, homepage "Select Your Squad" category cards) kept their existing dimensions but now also get WebP conversion for free since they funnel through the same function — `uploadImage()` already derives Supabase Storage `contentType` from the data URL's mime prefix, so no upload-path changes were needed
@@ -198,30 +236,22 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-## CURRENT STATUS (Main Branch - August 1, 2026)
-**Latest:** WebP auto-compression on all image uploads + homepage H1 + footer address (session 48)
+## CURRENT STATUS (Main Branch - August 5, 2026)
+**Latest:** Thermal receipt redesign, mobile performance fixes, accessibility (contrast/touch-targets/headings), logo transparency fix, variant color UX, POS corrupted-character + quantity-input fixes (session 49)
 
-**COMPLETED TODAY (August 1, 2026):**
-- ✅ POS went live!
-- ✅ Layaway system with receipt printing
-- ✅ Pay Later system with receipt printing
-- ✅ Split payments working
-- ✅ Item-level discounts
-- ✅ Unvoid transaction button
-- ✅ WebP auto compression on all image uploads
-- ✅ H1 hidden tag added to homepage
-- ✅ Footer address added
-- ✅ llms.txt created for AI discoverability
-- ✅ Hamburger menu aria-label added
-- ✅ Reports timezone fixed to Eastern Time
-- ✅ Date range picker added to reports
-- ✅ Reprint button for layaway payments
+**COMPLETED (August 5, 2026):**
+- ✅ All 6 thermal receipt types redesigned to a unified black-logo layout with real split-payment breakdown
+- ✅ Mobile PageSpeed: hero LCP fix, preconnect, deferred Google Maps, trimmed Supabase settings query, decoding=async
+- ✅ Accessibility: color contrast (zinc-400→600, zinc-300→700 on light backgrounds), 48×48 touch targets, 4 real heading-hierarchy skip bugs fixed
+- ✅ Fixed root cause of the "white box" footer logo — WebP compression pipeline was flattening logo transparency to white; future logo uploads now preserve alpha
+- ✅ Variant color field: hybrid dropdown-or-free-text in Rapid Scan; more robust bulk "Apply to All" using exact variant IDs instead of a fragile `.or()` filter string
+- ✅ Fixed remaining POS mojibake (cross-mark emoji with a hidden control character, em-dash/middot/×) across POSPage/PosRegister/PosCustomerManager
+- ✅ POS cart quantity is now directly typeable, not just +/- only
 
 **PENDING:**
-- Receipt width still needs testing on Epson TM-T88V
-- Exchange policy text on receipt
-- Color variant naming for first variant (in progress)
-- Image compression for existing hero banners (use squoosh.app — session 48's WebP work only applies going forward to new uploads, does not retroactively recompress already-uploaded images)
+- Receipt width still needs testing on Epson TM-T88V (real hardware, not yet verified against actual printer)
+- Re-upload the header/landing/footer logo through Admin → Settings → Theme so the transparency fix actually takes effect on the live site (code fix alone doesn't retroactively fix already-uploaded files)
+- Image compression for existing hero banners (use squoosh.app — the WebP compression work only applies going forward to new uploads, does not retroactively recompress already-uploaded images)
 
 **Session 48 improvements (WebP Compression, Homepage H1, Footer Address):**
 - ✅ All 23 image upload call sites in `AdminPage.tsx` now convert to WebP + compress (white-background canvas fill also fixes transparent PNGs); product images/hero-slider/logos/brand images retuned to spec'd dimensions, other upload types keep their existing dimensions but still gain WebP compression
