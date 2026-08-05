@@ -350,22 +350,28 @@ export const RapidScanIntakeMatrix: React.FC<RapidScanIntakeMatrixProps> = ({
             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest hidden md:inline">
               Color (optional):
             </label>
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                disabled={isScanningActive}
-                value={selectedColor}
-                onChange={(e) => setSelectedColor(e.target.value)}
-                placeholder="e.g. White, Red, Blue"
-                list="color-suggestions"
-                className="w-full p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)] disabled:opacity-50"
-              />
-              {productColors.length > 0 && (
-                <datalist id="color-suggestions">
+            <div className="flex-1">
+              {productColors.length > 0 ? (
+                <select
+                  disabled={isScanningActive}
+                  value={selectedColor}
+                  onChange={(e) => setSelectedColor(e.target.value)}
+                  className="w-full p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)] disabled:opacity-50 cursor-pointer"
+                >
+                  <option value="">(none)</option>
                   {productColors.map(c => (
-                    <option key={c} value={c} />
+                    <option key={c} value={c}>{c}</option>
                   ))}
-                </datalist>
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  disabled={isScanningActive}
+                  value={selectedColor}
+                  onChange={(e) => setSelectedColor(e.target.value)}
+                  placeholder="e.g. White, Red, Blue"
+                  className="w-full p-2 bg-zinc-800 border border-zinc-700 text-white rounded-lg text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)] disabled:opacity-50"
+                />
               )}
             </div>
           </div>

@@ -5856,11 +5856,20 @@ function AdminPageInner() {
                                   return;
                                 }
                                 try {
+                                  // Target exact IDs from already-loaded state rather than a server-side
+                                  // .or() filter string, which can silently fail to match empty-string
+                                  // colors depending on how PostgREST parses the quoted empty value.
+                                  const uncoloredIds = editingProductVariants
+                                    .filter(v => !v.color || v.color === '')
+                                    .map(v => v.id);
+                                  if (uncoloredIds.length === 0) {
+                                    alert('No uncolored variants to update.');
+                                    return;
+                                  }
                                   const { error } = await supabase
                                     .from('product_variants')
                                     .update({ color: colorInput })
-                                    .eq('product_id', editingProduct.id)
-                                    .or('color.is.null,color.eq.""');
+                                    .in('id', uncoloredIds);
                                   if (error) throw error;
                                   // Reload variants
                                   const { data: fresh } = await supabase
@@ -5870,7 +5879,7 @@ function AdminPageInner() {
                                     .order('age_group');
                                   setEditingProductVariants(fresh || []);
                                   (document.getElementById('bulkColorInput') as HTMLInputElement).value = '';
-                                  alert(`âœ“ Applied color "${colorInput}" to all uncolored variants`);
+                                  alert(`Applied color "${colorInput}" to ${uncoloredIds.length} variant${uncoloredIds.length !== 1 ? 's' : ''}`);
                                 } catch (err: any) {
                                   alert('Error: ' + err.message);
                                 }
@@ -5950,7 +5959,7 @@ function AdminPageInner() {
                                         className="flex-1 text-[10px] font-bold border border-zinc-200 rounded p-1 bg-white text-zinc-700 focus:outline-none focus:ring-1 focus:ring-[var(--primary-color)]"
                                       />
                                       {justSavedVariantIds.has(v.id) && (
-                                        <span className="text-green-600 font-bold text-sm animate-pulse">âœ“</span>
+                                        <span className="text-green-600 font-bold text-sm animate-pulse">✓</span>
                                       )}
                                     </div>
                                   </td>
