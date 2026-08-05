@@ -6,7 +6,21 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**MASTER VARIANT COLOR NAMING, COLOR SELECTOR REFINEMENT (Session 50 - CURRENT):**
+**POS DARK/LIGHT MODE TOGGLE (Session 51 - CURRENT):**
+- `src/pages/POSPage.tsx`: Implemented fully functional dark/light mode toggle for POS system
+  - `isDarkMode` state with localStorage persistence (defaults to dark mode if no saved preference)
+  - Toggle button with Sun/Moon icon in top bar, smooth transitions between modes
+  - Conditional styling applied throughout entire POS: top bar, left panel (search/categories/products), right panel (cart/totals), all buttons, modals, forms, tabs
+  - **Text color fixes**: eliminated all hardcoded `text-white` in light mode and hardcoded dark text in dark mode
+    - Dark mode: white/light gray text on dark backgrounds
+    - Light mode: black/dark gray text on light backgrounds
+  - **Logo switching**: uses header logo in light mode, footer logo in dark mode (via `displayLogo` computed from `isDarkMode` state)
+  - Preference persists across page reloads via localStorage key `pos_dark_mode`
+  - All interactive elements support both modes: action tiles, payment methods, discount editor, split payment UI, size selector modal, checkout panel
+  - Receipt section intentionally remains light-colored (mimics printed receipt on white paper)
+  - Build passes without errors, all sections properly themed
+
+**MASTER VARIANT COLOR NAMING, COLOR SELECTOR REFINEMENT (Session 50):**
 - `src/pages/AdminPage.tsx`: Added "Master Variant Color Name" field in Edit Product form, positioned right after Release Date field
   - When saved with a value, auto-updates all uncolored variants (`color IS NULL OR color = ''`) in `product_variants` table to that name
   - Field is cleared after successful save and when closing the edit modal
@@ -253,16 +267,23 @@ Admin login: info@edgedbs.com
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
 ## CURRENT STATUS (Main Branch - August 5, 2026)
-**Latest:** Thermal receipt redesign, mobile performance fixes, accessibility (contrast/touch-targets/headings), logo transparency fix, variant color UX, POS corrupted-character + quantity-input fixes (session 49)
+**Latest:** POS dark/light mode toggle with full theme-aware styling, logo switching, localStorage persistence (session 51)
 
 **COMPLETED (August 5, 2026):**
-- ✅ All 6 thermal receipt types redesigned to a unified black-logo layout with real split-payment breakdown
-- ✅ Mobile PageSpeed: hero LCP fix, preconnect, deferred Google Maps, trimmed Supabase settings query, decoding=async
-- ✅ Accessibility: color contrast (zinc-400→600, zinc-300→700 on light backgrounds), 48×48 touch targets, 4 real heading-hierarchy skip bugs fixed
-- ✅ Fixed root cause of the "white box" footer logo — WebP compression pipeline was flattening logo transparency to white; future logo uploads now preserve alpha
-- ✅ Variant color field: hybrid dropdown-or-free-text in Rapid Scan; more robust bulk "Apply to All" using exact variant IDs instead of a fragile `.or()` filter string
-- ✅ Fixed remaining POS mojibake (cross-mark emoji with a hidden control character, em-dash/middot/×) across POSPage/PosRegister/PosCustomerManager
-- ✅ POS cart quantity is now directly typeable, not just +/- only
+- ✅ **Session 51:** POS dark/light mode toggle fully implemented
+  - isDarkMode state with localStorage persistence (defaults to dark)
+  - Conditional styling throughout entire POS: all text, buttons, panels, modals, forms
+  - Fixed all text colors to prevent white-on-white (light mode) and dark-on-dark (dark mode)
+  - Logo switches: header logo (light mode) ↔ footer logo (dark mode)
+  - Smooth transitions, toggle button with Sun/Moon icon in top bar
+  - Build passes without errors
+- ✅ Session 49: All 6 thermal receipt types redesigned to a unified black-logo layout with real split-payment breakdown
+- ✅ Session 49: Mobile PageSpeed: hero LCP fix, preconnect, deferred Google Maps, trimmed Supabase settings query, decoding=async
+- ✅ Session 49: Accessibility: color contrast (zinc-400→600, zinc-300→700 on light backgrounds), 48×48 touch targets, 4 real heading-hierarchy skip bugs fixed
+- ✅ Session 49: Fixed root cause of the "white box" footer logo — WebP compression pipeline was flattening logo transparency to white; future logo uploads now preserve alpha
+- ✅ Session 49: Variant color field: hybrid dropdown-or-free-text in Rapid Scan; more robust bulk "Apply to All" using exact variant IDs
+- ✅ Session 49: Fixed remaining POS mojibake (cross-mark emoji with hidden control character, em-dash/middot/×) across POSPage/PosRegister/PosCustomerManager
+- ✅ Session 49: POS cart quantity is now directly typeable, not just +/- only
 
 **PENDING:**
 - Receipt width still needs testing on Epson TM-T88V (real hardware, not yet verified against actual printer)
