@@ -1751,7 +1751,7 @@ function AdminPageInner() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         try {
-          const resized = await compressToWebP(reader.result as string, 400, 200, 0.9);
+          const resized = await compressToWebP(reader.result as string, 400, 200, 0.9, true);
           const path = `logos/main_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
           const publicUrl = await uploadImage(resized, path);
           setDraftLogo(publicUrl);
@@ -1772,7 +1772,7 @@ function AdminPageInner() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         try {
-          const resized = await compressToWebP(reader.result as string, 400, 200, 0.9);
+          const resized = await compressToWebP(reader.result as string, 400, 200, 0.9, true);
           const path = `logos/landing_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
           const publicUrl = await uploadImage(resized, path);
           setDraftLandingLogo(publicUrl);
@@ -1814,7 +1814,7 @@ function AdminPageInner() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         try {
-          const resized = await compressToWebP(reader.result as string, 400, 200, 0.9);
+          const resized = await compressToWebP(reader.result as string, 400, 200, 0.9, true);
           const path = `logos/footer_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
           const publicUrl = await uploadImage(resized, path);
           setDraftFooterLogo(publicUrl);
