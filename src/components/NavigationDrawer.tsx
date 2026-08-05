@@ -46,7 +46,7 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                 <Link to="/" onClick={onClose} className="flex items-center">
                   <img src={logo} alt="ABSOLUTE SOCCER" className="h-12 w-auto" />
                 </Link>
-                <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-full transition-colors" aria-label="Close menu">
+                <button onClick={onClose} className="min-w-[48px] min-h-[48px] flex items-center justify-center hover:bg-zinc-100 rounded-full transition-colors" aria-label="Close menu">
                   <X size={24} className="text-zinc-500" />
                 </button>
               </div>
@@ -55,7 +55,7 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                 <Link
                   to="/"
                   onClick={onClose}
-                  className="flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
+                  className="flex items-center gap-4 px-4 py-3 min-h-[48px] text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
                 >
                   Home
                 </Link>
@@ -63,7 +63,7 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                 <Link
                   to="/custom-apparel"
                   onClick={onClose}
-                  className="flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
+                  className="flex items-center gap-4 px-4 py-3 min-h-[48px] text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
                 >
                   Custom Apparel
                 </Link>
@@ -77,14 +77,14 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                       <Link
                         to={menu.path}
                         onClick={onClose}
-                        className="flex-1 flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
+                        className="flex-1 flex items-center gap-4 px-4 py-3 min-h-[48px] text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
                       >
                         {menu.label}
                       </Link>
                       {menu.submenus.length > 0 && (
                         <button
                           onClick={() => toggleMenu(menu.label)}
-                          className="p-2 text-zinc-400 hover:text-[var(--primary-color)]"
+                          className="min-w-[48px] min-h-[48px] flex items-center justify-center text-zinc-600 hover:text-[var(--primary-color)]"
                           aria-label={expandedMenus[menu.label] ? `Collapse ${menu.label} menu` : `Expand ${menu.label} menu`}
                         >
                           <ChevronDown size={18} className={`transition-transform duration-300 ${expandedMenus[menu.label] ? 'rotate-180' : ''}`} />
@@ -104,7 +104,7 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                             <div key={sub.heading} className="flex flex-col">
                               <button 
                                 onClick={() => toggleSubmenu(sub.heading)}
-                                className="flex items-center justify-between px-8 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest hover:text-zinc-900 transition-colors"
+                                className="flex items-center justify-between px-8 py-3 text-[10px] font-black text-zinc-600 uppercase tracking-widest hover:text-zinc-900 transition-colors"
                               >
                                 <span>{sub.heading}</span>
                                 <ChevronRight size={14} className={`transition-transform duration-300 ${expandedSubmenus[sub.heading] ? 'rotate-90' : ''}`} />
@@ -140,7 +140,7 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                 ))}
               </nav>
             </div>
-            <div className="p-6 bg-zinc-50 text-zinc-400 text-[10px] font-bold uppercase tracking-widest border-t border-zinc-100">
+            <div className="p-6 bg-zinc-50 text-zinc-600 text-[10px] font-bold uppercase tracking-widest border-t border-zinc-100">
               Â© 2024 ABSOLUTE SOCCER. ALL RIGHTS RESERVED.
             </div>
           </motion.aside>

@@ -93,7 +93,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
               {color.images[0] ? (
                 <img src={color.images[0]} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt={color.name} />
               ) : (
-                <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-[8px] text-zinc-400 uppercase">N/A</div>
+                <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-[8px] text-zinc-600 uppercase">N/A</div>
               )}
             </button>
           ))}
@@ -102,16 +102,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
 
       <Link to={`/product/${product.id}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} className="flex flex-col flex-1 p-3">
         {product.brand && (
-          <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wide mb-1">
+          <span className="text-[10px] font-medium text-zinc-600 uppercase tracking-wide mb-1">
             {product.brand}
           </span>
         )}
-        <h4 className="text-[14px] font-semibold text-zinc-900 leading-tight flex-1">{product.name}</h4>
+        <h3 className="text-[14px] font-semibold text-zinc-900 leading-tight flex-1">{product.name}</h3>
         <div className="mt-auto pt-2 flex items-center gap-2">
           {product.isOnSale && product.salePrice ? (
             <>
               <span className="text-sm font-bold text-[var(--primary-color)]">${product.salePrice}</span>
-              <span className="text-[10px] text-zinc-400 line-through">${product.price}</span>
+              <span className="text-[10px] text-zinc-600 line-through">${product.price}</span>
             </>
           ) : (
             <span className="text-sm font-bold text-[var(--primary-color)]">${product.price}</span>

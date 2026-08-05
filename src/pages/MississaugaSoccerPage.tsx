@@ -236,10 +236,10 @@ export function MississaugaSoccerPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
               <div>
                 <p className="text-[var(--primary-color)] text-xs font-black uppercase tracking-widest mb-3">Visit Us</p>
-                <h3 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none mb-6">
+                <h2 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none mb-6">
                   Stop By and{' '}
                   <span className="text-[var(--primary-color)]">Gear Up Today</span>
-                </h3>
+                </h2>
                 <p className="text-zinc-500 text-lg leading-relaxed mb-8">
                   Conveniently located right in Mississauga, our store is fully stocked with the
                   latest drops in footwear, training apparel, and fan gear. Skip the shipping fees
@@ -258,7 +258,7 @@ export function MississaugaSoccerPage() {
                     <MapPin size={22} className="text-[var(--primary-color)] shrink-0 mt-0.5" />
                     <div>
                       <p>Mississauga, ON</p>
-                      <p className="text-sm text-zinc-400 mt-1">Mon–Fri: 1:00 PM – 7:00 PM &nbsp;|&nbsp; Sat–Sun: 11:00 AM – 4:00 PM</p>
+                      <p className="text-sm text-zinc-600 mt-1">Mon–Fri: 1:00 PM – 7:00 PM &nbsp;|&nbsp; Sat–Sun: 11:00 AM – 4:00 PM</p>
                     </div>
                   </div>
                 </div>
@@ -298,7 +298,7 @@ export function MississaugaSoccerPage() {
                 <CheckCircle size={48} className="text-[var(--primary-color)] mx-auto mb-4" />
                 <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Quote Request Sent</h3>
                 <p className="text-zinc-500">Your email client should have opened. We'll get back to you shortly.</p>
-                <p className="text-zinc-400 text-sm mt-2">
+                <p className="text-zinc-600 text-sm mt-2">
                   Or call us directly:{' '}
                   <a href="tel:9055933600" className="text-[var(--primary-color)] font-bold">905-593-3600</a>
                 </p>
@@ -395,7 +395,7 @@ export function MississaugaSoccerPage() {
                 >
                   Send My Quote Request
                 </button>
-                <p className="text-center text-zinc-400 text-xs">
+                <p className="text-center text-zinc-600 text-xs">
                   Prefer to call? Reach us at{' '}
                   <a href="tel:9055933600" className="text-[var(--primary-color)] font-bold">905-593-3600</a>
                 </p>

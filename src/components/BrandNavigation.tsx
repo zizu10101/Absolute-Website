@@ -47,13 +47,13 @@ export function BrandNavigation({ onNavigate }: Props) {
         <Link
           to="/brands"
           onClick={onNavigate}
-          className="flex-1 flex items-center gap-4 px-4 py-3 text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
+          className="flex-1 flex items-center gap-4 px-4 py-3 min-h-[48px] text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
         >
           Shop by Brand
         </Link>
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="p-2 text-zinc-400 hover:text-[var(--primary-color)]"
+          className="min-w-[48px] min-h-[48px] flex items-center justify-center text-zinc-600 hover:text-[var(--primary-color)]"
           aria-label={isExpanded ? 'Collapse Shop by Brand menu' : 'Expand Shop by Brand menu'}
         >
           <ChevronDown size={18} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />

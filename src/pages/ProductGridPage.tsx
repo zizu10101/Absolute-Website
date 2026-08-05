@@ -497,7 +497,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
           <h1 className="text-5xl md:text-7xl font-headline font-black uppercase italic tracking-tighter leading-none">
             {urlQuery ? `Results for "${urlQuery}"` : title}
           </h1>
-          <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs">
+          <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs">
             {shouldShowGrid
               ? `Showing ${Math.min(visibleCount, filteredProducts.length)} of ${filteredProducts.length} Products`
               : isHeadingLandingPage
@@ -510,7 +510,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
         <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
           <div className="relative group min-w-[280px]">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-[var(--primary-color)] transition-colors" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-[var(--primary-color)] transition-colors" size={18} />
             <input
               type="text"
               placeholder="Search in this category..."
@@ -654,7 +654,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                           referrerPolicy="no-referrer"
                         />
                       </div>
-                      <h3 className="text-[9px] font-black uppercase tracking-tight text-zinc-400 group-hover:text-zinc-900 transition-colors">
+                      <h3 className="text-[9px] font-black uppercase tracking-tight text-zinc-600 group-hover:text-zinc-900 transition-colors">
                         {item.label}
                       </h3>
                     </Link>
@@ -675,15 +675,20 @@ export function ProductGridPage({ title, category, submenu }: Props) {
             </div>
           )}
 
-          {shouldShowGrid && !isHeadingLandingPage && (
-            <div className="mt-16 flex items-center gap-4">
-              <div className="h-px flex-1 bg-zinc-100" />
-              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-300">
-                All {title} Products
-              </h2>
-              <div className="h-px flex-1 bg-zinc-100" />
-            </div>
-          )}
+        </div>
+      )}
+
+      {/* Heading that precedes the product grid — hoisted out of the submenu-logo-grid
+          block above so it renders whenever the grid does, even on plain category pages
+          with no logo grid (otherwise the h1 page title would be followed directly by
+          ProductCard's h3, skipping a level). */}
+      {shouldShowGrid && (
+        <div className="mt-16 flex items-center gap-4">
+          <div className="h-px flex-1 bg-zinc-100" />
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-700">
+            All {title} Products
+          </h2>
+          <div className="h-px flex-1 bg-zinc-100" />
         </div>
       )}
 
@@ -717,7 +722,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
             <div className="text-center py-32 bg-zinc-50 rounded-3xl border border-dashed border-zinc-200">
               <div className="max-w-xs mx-auto space-y-4">
                 <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto">
-                  <Search className="text-zinc-300" size={32} />
+                  <Search className="text-zinc-700" size={32} />
                 </div>
                 <h3 className="text-xl font-bold text-zinc-900">No products found</h3>
                 <p className="text-zinc-500 text-sm">Try adjusting your search or filters.</p>
@@ -739,7 +744,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
               >
                 Load More Products
               </button>
-              <p className="mt-4 text-zinc-400 text-[10px] font-bold uppercase tracking-widest">
+              <p className="mt-4 text-zinc-600 text-[10px] font-bold uppercase tracking-widest">
                 Showing {visibleCount} of {filteredProducts.length}
               </p>
             </div>
@@ -782,7 +787,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
               </div>
               <button
                 onClick={() => setShowSidebar(false)}
-                className="w-9 h-9 rounded-full bg-zinc-100 flex items-center justify-center hover:bg-zinc-200 transition-colors"
+                className="min-w-[48px] min-h-[48px] rounded-full bg-zinc-100 flex items-center justify-center hover:bg-zinc-200 transition-colors"
                 aria-label="Close filters"
               >
                 <X size={16} />
@@ -842,7 +847,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                             {brand}
                           </span>
                           {count > 0 && (
-                            <span className="text-[10px] font-bold text-zinc-400">{count}</span>
+                            <span className="text-[10px] font-bold text-zinc-600">{count}</span>
                           )}
                         </label>
                       );

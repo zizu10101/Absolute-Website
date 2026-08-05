@@ -323,28 +323,30 @@ export function HomePage() {
             <>
               <button
                 onClick={prevSlide}
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/40 rounded-full p-3 transition-colors"
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 min-w-[48px] min-h-[48px] flex items-center justify-center bg-white/20 hover:bg-white/40 rounded-full transition-colors"
                 aria-label="Previous slide"
               >
                 <ChevronLeft className="text-white" size={24} />
               </button>
               <button
                 onClick={nextSlide}
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/40 rounded-full p-3 transition-colors"
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 min-w-[48px] min-h-[48px] flex items-center justify-center bg-white/20 hover:bg-white/40 rounded-full transition-colors"
                 aria-label="Next slide"
               >
                 <ChevronRight className="text-white" size={24} />
               </button>
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex z-20">
                 {sliderImages.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => goToSlide(i)}
-                    className={`transition-all duration-300 rounded-full ${
-                      i === activeRealIndex ? 'w-8 h-2 bg-white' : 'w-2 h-2 bg-white/50 hover:bg-white/80'
-                    }`}
+                    className="min-w-[48px] min-h-[48px] flex items-center justify-center"
                     aria-label={`Go to slide ${i + 1}`}
-                  />
+                  >
+                    <span className={`block transition-all duration-300 rounded-full ${
+                      i === activeRealIndex ? 'w-8 h-2 bg-white' : 'w-2 h-2 bg-white/50 hover:bg-white/80'
+                    }`} />
+                  </button>
                 ))}
               </div>
             </>

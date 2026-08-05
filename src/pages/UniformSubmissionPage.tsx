@@ -40,20 +40,20 @@ export function UniformSubmissionPage() {
               <h2 className="font-headline font-bold text-2xl uppercase tracking-tight mb-8">Team Identity</h2>
               <div className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Team Name</label>
+                  <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Team Name</label>
                   <input className="w-full bg-zinc-50 border-none p-4 font-headline font-bold uppercase" placeholder="e.g. VANGUARD FC" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Contact Person</label>
+                  <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Contact Person</label>
                   <input className="w-full bg-zinc-50 border-none p-4 font-medium" placeholder="Full Legal Name" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Email</label>
+                    <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Email</label>
                     <input className="w-full bg-zinc-50 border-none p-4 font-medium" placeholder="official@team.com" />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Phone</label>
+                    <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Phone</label>
                     <input className="w-full bg-zinc-50 border-none p-4 font-medium" placeholder="+1 (000) 000-0000" />
                   </div>
                 </div>
@@ -66,11 +66,11 @@ export function UniformSubmissionPage() {
               <h2 className="font-headline font-bold text-2xl uppercase tracking-tight mb-8">Technical Specs</h2>
               <div className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Number of Players</label>
+                  <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Number of Players</label>
                   <input className="w-full bg-zinc-50 border-none p-4 font-bold" type="number" placeholder="Total Roster Count" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Style Preference</label>
+                  <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Style Preference</label>
                   <select className="w-full bg-zinc-50 border-none p-4 font-headline font-bold uppercase">
                     <option>Select Style</option>
                     <option>Pro-Fit Kinetic</option>
@@ -79,9 +79,9 @@ export function UniformSubmissionPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Logo Upload</label>
+                  <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Logo Upload</label>
                   <div className="w-full aspect-[4/1] bg-zinc-50 border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center cursor-pointer hover:bg-zinc-100 transition-colors">
-                    <UploadCloud className="text-zinc-400 mb-1" />
+                    <UploadCloud className="text-zinc-600 mb-1" />
                     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Drop Vector Files Here</span>
                   </div>
                 </div>
@@ -94,7 +94,7 @@ export function UniformSubmissionPage() {
               Complete Submission
               <ArrowRight />
             </button>
-            <p className="text-[10px] text-center mt-6 text-zinc-400 uppercase font-bold tracking-[0.2em]">
+            <p className="text-[10px] text-center mt-6 text-zinc-600 uppercase font-bold tracking-[0.2em]">
               By submitting, you agree to our elite performance standards and production timelines.
             </p>
           </div>

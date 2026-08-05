@@ -294,7 +294,7 @@ export function CustomApparelPage() {
               <CheckCircle size={48} className="text-[var(--primary-color)] mx-auto mb-4" />
               <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Quote Request Sent</h3>
               <p className="text-zinc-500">Your email client should have opened. We'll get back to you shortly.</p>
-              <p className="text-zinc-400 text-sm mt-2">Or call us directly: <a href="tel:9055933600" className="text-[var(--primary-color)] font-bold">905-593-3600</a></p>
+              <p className="text-zinc-600 text-sm mt-2">Or call us directly: <a href="tel:9055933600" className="text-[var(--primary-color)] font-bold">905-593-3600</a></p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-8 md:p-12 space-y-6">
@@ -388,7 +388,7 @@ export function CustomApparelPage() {
               >
                 Send My Quote Request
               </button>
-              <p className="text-center text-zinc-400 text-xs">
+              <p className="text-center text-zinc-600 text-xs">
                 Prefer to call? Reach us at{' '}
                 <a href="tel:9055933600" className="text-[var(--primary-color)] font-bold">905-593-3600</a>
               </p>

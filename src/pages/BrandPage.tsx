@@ -93,7 +93,7 @@ export function BrandPage() {
           <h1 className="text-5xl md:text-7xl font-headline font-black uppercase italic tracking-tighter leading-none">
             {displayBrand}
           </h1>
-          <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs">
+          <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs">
             {`Showing ${Math.min(visibleCount, filteredProducts.length)} of ${filteredProducts.length} Products`}
           </p>
         </div>
@@ -101,7 +101,7 @@ export function BrandPage() {
         <div className="flex flex-wrap items-center gap-4">
           {/* Search Input */}
           <div className="relative group min-w-[280px]">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-[var(--primary-color)] transition-colors" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-[var(--primary-color)] transition-colors" size={18} />
             <input
               type="text"
               placeholder="Search products..."
@@ -125,7 +125,7 @@ export function BrandPage() {
               <option value="price-low">Price: Low to High</option>
               <option value="price-high">Price: High to Low</option>
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={14} />
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" size={14} />
           </div>
         </div>
       </div>
@@ -209,11 +209,11 @@ export function BrandPage() {
       ) : isLoading ? (
         <div className="flex flex-col items-center justify-center py-24">
           <div className="w-10 h-10 border-4 border-[var(--primary-color)] border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs">Loading products...</p>
+          <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs">Loading products...</p>
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-24 bg-zinc-50 rounded-xl">
-          <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mb-2">No products found</p>
+          <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs mb-2">No products found</p>
           <p className="text-zinc-500 text-sm">Try adjusting your filters or search term.</p>
         </div>
       )}

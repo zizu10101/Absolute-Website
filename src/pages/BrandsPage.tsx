@@ -65,7 +65,7 @@ export function BrandsPage() {
         <h1 className="text-5xl md:text-7xl font-headline font-black uppercase italic tracking-tighter leading-none mb-4">
           Shop by Brand
         </h1>
-        <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs">
+        <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs">
           Browse {brands.length} brands and find your favorite soccer gear
         </p>
       </div>
@@ -120,7 +120,7 @@ export function BrandsPage() {
       {/* Brands Grid */}
       {isLoading ? (
         <div className="flex items-center justify-center py-24">
-          <div className="text-zinc-400 font-bold uppercase tracking-widest text-xs">Loading brands...</div>
+          <div className="text-zinc-600 font-bold uppercase tracking-widest text-xs">Loading brands...</div>
         </div>
       ) : filteredBrands.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -157,7 +157,7 @@ export function BrandsPage() {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-24 bg-zinc-50 rounded-xl">
-          <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mb-2">No brands found</p>
+          <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs mb-2">No brands found</p>
           <p className="text-zinc-500 text-sm">Try adjusting your filter.</p>
         </div>
       )}

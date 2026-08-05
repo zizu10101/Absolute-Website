@@ -253,7 +253,7 @@ export function ProductDetailPage() {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
         <div className="w-12 h-12 border-4 border-[var(--primary-color)] border-t-transparent rounded-full animate-spin" />
-        <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px]">Loading Squad Gear...</p>
+        <p className="text-zinc-600 font-bold uppercase tracking-widest text-[10px]">Loading Squad Gear...</p>
       </div>
     );
   }
@@ -261,7 +261,7 @@ export function ProductDetailPage() {
   if (!product) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
-        <h2 className="text-2xl font-black uppercase italic tracking-tighter">Product Not Found</h2>
+        <h1 className="text-2xl font-black uppercase italic tracking-tighter">Product Not Found</h1>
         <Link to="/" className="text-[var(--primary-color)] font-bold uppercase tracking-widest text-sm hover:underline">Back to Home</Link>
       </div>
     );
@@ -408,14 +408,14 @@ export function ProductDetailPage() {
               <>
                 <button
                   onClick={() => setSelectedImage(prev => (prev - 1 + allImages.length) % allImages.length)}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-zinc-900 border border-zinc-100"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 min-w-[48px] min-h-[48px] flex items-center justify-center bg-white/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-zinc-900 border border-zinc-100"
                   aria-label="Previous image"
                 >
                   <ChevronLeft size={24} />
                 </button>
                 <button
                   onClick={() => setSelectedImage(prev => (prev + 1) % allImages.length)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-zinc-900 border border-zinc-100"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 min-w-[48px] min-h-[48px] flex items-center justify-center bg-white/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-zinc-900 border border-zinc-100"
                   aria-label="Next image"
                 >
                   <ChevronRight size={24} />
@@ -447,14 +447,14 @@ export function ProductDetailPage() {
         {/* Right: Product Info & Buy Box */}
         <div className="lg:col-span-12 xl:col-span-5 space-y-8">
           <div>
-            <p className="text-zinc-400 text-xs font-black uppercase tracking-[0.2em] mb-2">{product.category}</p>
+            <p className="text-zinc-600 text-xs font-black uppercase tracking-[0.2em] mb-2">{product.category}</p>
             <h1 className="text-4xl font-black font-headline uppercase italic tracking-tighter text-zinc-900 leading-none mb-4">
               {product.name}
             </h1>
             <div className="flex items-baseline gap-4">
               <span className="text-3xl font-black font-headline text-zinc-900">${displayPrice.toFixed(2)}</span>
               {product.isOnSale && !selectedColorEntry?.price && (
-                <span className="text-xl text-zinc-400 line-through font-bold">${product.price.toFixed(2)}</span>
+                <span className="text-xl text-zinc-600 line-through font-bold">${product.price.toFixed(2)}</span>
               )}
             </div>
           </div>
@@ -466,7 +466,7 @@ export function ProductDetailPage() {
               {(!product?.colors || product.colors.length === 0) ? (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Select Color</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Select Color</span>
                     {selectedColor && (
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--primary-color)] animate-pulse">
                         {selectedColor}
@@ -476,7 +476,7 @@ export function ProductDetailPage() {
                   <div className="flex flex-wrap gap-3">
                     <button
                       onClick={() => setSelectedColor(null)}
-                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === null ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}
+                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === null ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-600 hover:border-zinc-200'}`}
                     >
                       Default
                     </button>
@@ -484,7 +484,7 @@ export function ProductDetailPage() {
                       <button
                         key={colorName}
                         onClick={() => setSelectedColor(colorName)}
-                        className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === colorName ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}
+                        className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === colorName ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-600 hover:border-zinc-200'}`}
                       >
                         {colorName}
                       </button>
@@ -494,7 +494,7 @@ export function ProductDetailPage() {
               ) : (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Select Color</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Select Color</span>
                     {selectedColor && (
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--primary-color)] animate-pulse">
                         {selectedColor}
@@ -505,7 +505,7 @@ export function ProductDetailPage() {
                     {/* "All Colors" button to deselect current color */}
                     <button
                       onClick={() => setSelectedColor(null)}
-                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === null ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}
+                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === null ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-600 hover:border-zinc-200'}`}
                     >
                       All Colors
                     </button>
@@ -513,7 +513,7 @@ export function ProductDetailPage() {
                       <button
                         key={color.name}
                         onClick={() => setSelectedColor(selectedColor === color.name ? null : color.name)}
-                        className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === color.name ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}
+                        className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === color.name ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-600 hover:border-zinc-200'}`}
                       >
                         {color.name}
                       </button>
@@ -527,7 +527,7 @@ export function ProductDetailPage() {
           {/* Age Tiers Selector (If variants has age groups defined) */}
           {uniqueAgeGroups.length > 0 && (
             <div className="space-y-3 pt-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Select Category Level</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 block">Select Category Level</span>
               <div className="flex gap-2.5">
                 {uniqueAgeGroups.map((group) => (
                   <button
@@ -590,7 +590,7 @@ export function ProductDetailPage() {
                     /* Dynamic Size Picker Grid (Disables SOLD OUT size variants) */
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Select Size</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Select Size</span>
                         {renderStockStatus()}
                       </div>
 
@@ -616,7 +616,7 @@ export function ProductDetailPage() {
                               onClick={() => setSelectedSize(isSelected ? null : size)}
                               className={`h-12 flex flex-col justify-center items-center border transition-all relative rounded-lg ${
                                 isItemOutOfStock
-                                  ? 'border-zinc-200 text-zinc-400 cursor-not-allowed bg-zinc-50'
+                                  ? 'border-zinc-200 text-zinc-600 cursor-not-allowed bg-zinc-50'
                                   : isSelected
                                     ? 'border-2 border-zinc-900 bg-zinc-900 text-white font-extrabold shadow-sm'
                                     : 'border-zinc-300 text-zinc-900 hover:border-zinc-900 font-bold bg-white'
@@ -661,21 +661,21 @@ export function ProductDetailPage() {
               <Truck size={18} className="text-[var(--primary-color)] flex-shrink-0" />
               <div className="leading-tight">
                 <p className="text-[10px] font-black uppercase tracking-wider text-zinc-800 leading-none mb-1">Free Delivery</p>
-                <p className="text-[9px] text-zinc-400 leading-none">On all club orders over $150</p>
+                <p className="text-[9px] text-zinc-600 leading-none">On all club orders over $150</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <RotateCcw size={18} className="text-[var(--primary-color)] flex-shrink-0" />
               <div className="leading-tight">
                 <p className="text-[10px] font-black uppercase tracking-wider text-zinc-800 leading-none mb-1">Easy Returns</p>
-                <p className="text-[9px] text-zinc-400 leading-none">30 days custom refund policy</p>
+                <p className="text-[9px] text-zinc-600 leading-none">30 days custom refund policy</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <ShieldCheck size={18} className="text-[var(--primary-color)] flex-shrink-0" />
               <div className="leading-tight">
                 <p className="text-[10px] font-black uppercase tracking-wider text-zinc-800 leading-none mb-1">100% Authentic</p>
-                <p className="text-[9px] text-zinc-400 leading-none">Official tournament licensed gear</p>
+                <p className="text-[9px] text-zinc-600 leading-none">Official tournament licensed gear</p>
               </div>
             </div>
           </div>

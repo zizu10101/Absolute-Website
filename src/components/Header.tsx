@@ -69,7 +69,7 @@ export function Header({ onMenuClick }: Props) {
         <div className="flex items-center shrink-0 gap-4">
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-1 text-zinc-900 hover:text-[var(--primary-color)] transition-colors"
+            className="lg:hidden min-w-[48px] min-h-[48px] flex items-center justify-center text-zinc-900 hover:text-[var(--primary-color)] transition-colors"
             aria-label="Open Navigation Menu"
           >
             <Menu size={24} strokeWidth={1.5} />
@@ -117,13 +117,13 @@ export function Header({ onMenuClick }: Props) {
 
         {/* Right Section: Icons */}
         <div className="flex items-center gap-6 shrink-0">
-          <button className="p-1 text-zinc-900 hover:text-[var(--primary-color)] transition-colors relative" aria-label="Add to wishlist">
+          <button className="min-w-[48px] min-h-[48px] flex items-center justify-center text-zinc-900 hover:text-[var(--primary-color)] transition-colors relative" aria-label="Add to wishlist">
             <Heart size={24} strokeWidth={1.5} />
-            <span className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">0</span>
+            <span className="absolute top-1 right-1 bg-black text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">0</span>
           </button>
           <button
             onClick={() => setIsSearchOpen(true)}
-            className="p-1 text-zinc-900 hover:text-[var(--primary-color)] transition-colors"
+            className="min-w-[48px] min-h-[48px] flex items-center justify-center text-zinc-900 hover:text-[var(--primary-color)] transition-colors"
             aria-label="Search store"
           >
             <Search size={24} strokeWidth={1.5} />
@@ -142,7 +142,7 @@ export function Header({ onMenuClick }: Props) {
           >
             <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-6 flex items-center gap-6">
               <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center gap-4">
-                <Search size={24} className="text-zinc-400" />
+                <Search size={24} className="text-zinc-600" />
                 <input 
                   ref={searchInputRef}
                   type="text" 
@@ -154,7 +154,7 @@ export function Header({ onMenuClick }: Props) {
               </form>
               <button
                 onClick={() => setIsSearchOpen(false)}
-                className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
+                className="min-w-[48px] min-h-[48px] flex items-center justify-center hover:bg-zinc-100 rounded-full transition-colors"
                 aria-label="Close search"
               >
                 <X size={24} className="text-zinc-900" />
