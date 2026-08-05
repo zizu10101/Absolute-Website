@@ -291,17 +291,12 @@ export const PosTransactionHistory: React.FC = () => {
     const selectedItems = allItems.filter((_, i) => giftSelected.has(i));
     if (selectedItems.length === 0) return;
 
-    const total = Math.abs(Number(giftTx.total_amount));
     const html = generateGiftReceiptHTML({
       transactionId: giftTx.id,
       invoiceNumber: giftTx.invoice_number,
       barcodeValue: giftTx.invoice_number || giftTx.id,
       customerName: getCustomerName(giftTx),
       items: selectedItems,
-      subtotal: total / 1.13,
-      hst: total - total / 1.13,
-      total,
-      paymentMethod: giftTx.method,
       createdAt: new Date(giftTx.created_at),
       logoUrl: logo,
     });

@@ -1,3 +1,196 @@
+// Shared thermal receipt layout: 80mm paper, 72mm centered content column (4mm gutter
+// each side), black logo header (no store-name text — the logo carries that), a
+// two-column metadata block, an items table, totals, a payment-methods breakdown, a
+// centered barcode, and a centered footer. Every generator below composes the same
+// building blocks so all receipt types stay visually consistent.
+
+const RECEIPT_LOGO = '/logo-black.png';
+const STORE_ADDRESS = '5600 Rose Cherry Place, Mississauga, ON L4Z 4B6';
+const STORE_PHONE = 'Tel: 905-593-3600';
+
+const formatReceiptDate = (d: Date): string =>
+  d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+
+const formatReceiptTime = (d: Date): string =>
+  d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+const money = (n: number): string => `$${n.toFixed(2)}`;
+
+const STANDARD_FOOTER = [
+  'Thank you for shopping with',
+  'Absolute Soccer!',
+  'Exchange or refund within 14 days of purchase.',
+  'Items must be unworn or unused, in their',
+  'original packaging, and accompanied by a receipt.',
+];
+
+const RECEIPT_STYLES = `
+    * { margin: 0; padding: 0; box-sizing: border-box; font-weight: 700 !important; }
+    @page { size: 80mm auto; margin: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      width: 80mm;
+      margin: 0;
+      padding: 0;
+      color: #000;
+    }
+    .receipt { width: 72mm; margin: 0 auto; padding: 4mm 0; }
+    .center { text-align: center; }
+    .divider { border-top: 1px solid #000; margin: 3mm 0; height: 0; }
+    .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 2mm; margin: 1mm 0; }
+
+    .logo { display: block; margin: 0 auto 3mm; max-width: 55mm; max-height: 20mm; width: auto; height: auto; object-fit: contain; }
+    .store-info { text-align: center; font-size: 10px; line-height: 1.5; margin-bottom: 2mm; }
+
+    .reprint-banner { text-align: center; font-size: 11px; letter-spacing: 1px; margin: 2mm 0; }
+
+    .metadata { font-size: 11px; margin: 2mm 0; }
+    .metadata .row { margin: 0.8mm 0; }
+
+    .items-head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding-bottom: 1.5mm; border-bottom: 1px solid #000; margin-bottom: 2mm; }
+    .item { margin-bottom: 2.5mm; }
+    .item-row { display: flex; justify-content: space-between; gap: 2mm; }
+    .item-name { flex: 1; font-size: 12px; }
+    .item-price { font-size: 12px; white-space: nowrap; }
+    .item-detail { font-size: 10px; margin: 0.5mm 0 0 2mm; }
+
+    .totals { font-size: 12px; margin: 2mm 0; }
+    .totals .row { margin: 1mm 0; }
+    .grand-total { font-size: 14px; border-top: 2px double #000; border-bottom: 2px double #000; padding: 1.5mm 0; margin: 1.5mm 0; }
+
+    .payments { font-size: 12px; margin: 2mm 0; }
+    .payments .row { margin: 1mm 0; }
+
+    .barcode-container { text-align: center; margin: 3mm 0; }
+    .barcode-container svg { max-width: 100%; height: auto; }
+    .barcode-ref { text-align: center; font-size: 10px; letter-spacing: 0.5px; margin-top: 1mm; }
+
+    .card-box { text-align: center; padding: 2mm; border: 1px solid #000; margin: 2mm 0; }
+    .card-box-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1mm; }
+    .card-box-number { font-size: 13px; font-family: monospace; letter-spacing: 1px; }
+    .amount-box { font-size: 16px; text-align: center; margin: 2mm 0; padding: 2mm; border: 2px double #000; }
+
+    .footer { text-align: center; font-size: 10px; line-height: 1.6; margin-top: 2mm; }
+    .footer-strong { text-align: center; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; padding: 1.5mm 0; border-top: 2px double #000; border-bottom: 2px double #000; margin: 2mm 0; }
+    .signature-line { margin-top: 3mm; border-top: 1px solid #000; padding-top: 2mm; font-size: 9px; text-align: left; }
+    .copy-label { text-align: center; font-size: 10px; letter-spacing: 0.5px; margin-top: 2mm; }
+
+    @media print {
+      @page { size: 80mm auto; margin: 0; }
+      body { width: 80mm; margin: 0; padding: 0; }
+      .receipt { width: 72mm; margin: 0 auto; padding: 4mm 0; page-break-inside: avoid; }
+      .receipt[data-page-break="true"] { page-break-after: always; -webkit-page-break-after: always; break-after: page; }
+      img { max-width: 55mm !important; max-height: 20mm !important; display: block !important; margin: 0 auto 3mm !important; }
+    }
+`;
+
+const buildHeader = (): string => `
+    <div class="header">
+      <img src="${RECEIPT_LOGO}" alt="Absolute Soccer" class="logo">
+      <div class="store-info">
+        <div>${STORE_ADDRESS}</div>
+        <div>${STORE_PHONE}</div>
+      </div>
+    </div>
+    <div class="divider"></div>`;
+
+const buildMetadata = (opts: {
+  transactionType: string;
+  ref: string;
+  dateStr: string;
+  timeStr: string;
+  cashier?: string;
+  customerName?: string;
+  phone?: string;
+}): string => {
+  const customerRow = opts.customerName && opts.customerName.toLowerCase() !== 'walk-in'
+    ? `<div class="row"><span>Customer: ${opts.customerName}</span></div>` : '';
+  const phoneRow = opts.phone ? `<div class="row"><span>Phone: ${opts.phone}</span></div>` : '';
+  return `
+    <div class="metadata">
+      <div class="row"><span>Transaction: ${opts.transactionType}</span></div>
+      <div class="row"><span>Ref #: ${opts.ref}</span><span>Date: ${opts.dateStr}</span></div>
+      <div class="row"><span>Cashier: ${opts.cashier || 'STAFF'}</span><span>Time: ${opts.timeStr}</span></div>
+      ${customerRow}
+      ${phoneRow}
+    </div>`;
+};
+
+const buildBarcodeSection = (refText?: string): string => `
+    <div class="barcode-container"><svg class="receipt-barcode"></svg></div>
+    ${refText ? `<div class="barcode-ref">${refText}</div>` : ''}`;
+
+// Renders one row per split payment method; falls back to parsing the legacy combined
+// "Cash $50.00 + Debit $30.00" string (still produced by POS split-payment checkout)
+// when a structured paymentSplits array isn't provided, so older callers keep working.
+const buildPaymentMethods = (paymentMethod: string, total: number, paymentSplits?: Array<{ method: string; amount: number }>): string => {
+  let rows: Array<{ label: string; amount: number }>;
+  if (paymentSplits && paymentSplits.length > 0) {
+    rows = paymentSplits.map((s) => ({ label: s.method, amount: s.amount }));
+  } else {
+    const parts = paymentMethod.split(' + ').map((p) => p.trim());
+    const parsed = parts.map((p) => {
+      const m = p.match(/^(.+?)\s+\$([\d,]+\.\d{2})$/);
+      return m ? { label: m[1].trim(), amount: parseFloat(m[2].replace(/,/g, '')) } : null;
+    });
+    rows = parsed.every(Boolean)
+      ? (parsed as Array<{ label: string; amount: number }>)
+      : [{ label: paymentMethod, amount: total }];
+  }
+  const balanceDue = Math.max(0, total - rows.reduce((sum, r) => sum + r.amount, 0));
+  const rowsHtml = rows.map((r) => `<div class="row"><span>Paid ${r.label}:</span><span>${money(r.amount)}</span></div>`).join('');
+  return `
+    <div class="payments">
+      ${rowsHtml}
+      <div class="row"><span>Balance Due:</span><span>${money(balanceDue)}</span></div>
+    </div>`;
+};
+
+const buildFooter = (lines: string[]): string => `
+    <div class="footer">
+      ${lines.map((l) => `<div>${l}</div>`).join('')}
+    </div>`;
+
+const buildBarcodeScript = (barcodeValue: string, autoPrint: boolean): string => `
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script>
+    window.addEventListener('load', function() {
+      try {
+        var barcodeValue = ${JSON.stringify(barcodeValue)};
+        if (typeof JsBarcode !== 'undefined') {
+          document.querySelectorAll('.receipt-barcode').forEach(function(svg) {
+            JsBarcode(svg, barcodeValue, {
+              format: "CODE128",
+              width: 1.5,
+              height: 40,
+              displayValue: false,
+              margin: 0
+            });
+          });
+        }
+      } catch (e) {
+        console.error('Barcode generation failed:', e);
+      }
+      ${autoPrint ? 'setTimeout(function() { window.print(); }, 100);' : ''}
+    });
+  </script>`;
+
+const wrapReceiptDocument = (opts: { title: string; bodyHtml: string; barcodeValue: string; autoPrint: boolean }): string => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${opts.title}</title>
+  <style>${RECEIPT_STYLES}</style>
+</head>
+<body>
+  ${opts.bodyHtml}
+${buildBarcodeScript(opts.barcodeValue, opts.autoPrint)}
+</body>
+</html>`;
+
 export interface ReceiptData {
   transactionId: string;
   invoiceNumber?: string; // Short invoice number (INV-01000)
@@ -14,9 +207,11 @@ export interface ReceiptData {
   hst: number;
   total: number;
   paymentMethod: string;
+  paymentSplits?: Array<{ method: string; amount: number }>; // Structured split-payment breakdown
+  cashier?: string;
   createdAt: Date;
   status?: string;
-  logoUrl?: string;
+  logoUrl?: string; // Deprecated — every receipt now always prints the black logo
   barcodeValue?: string; // What to encode in barcode (defaults to invoiceNumber or transactionId)
   isReprint?: boolean; // Add "*** REPRINT ***" header
   copyLabel?: string; // "CUSTOMER COPY", "MERCHANT COPY", or undefined
@@ -32,18 +227,12 @@ export interface ReceiptData {
 }
 
 export const generateThermalReceiptHTML = (data: ReceiptData): string => {
-  const dateStr = data.createdAt.toLocaleDateString('en-US', {
-    month: '2-digit',
-    day: '2-digit',
-    year: 'numeric',
-  });
-  const timeStr = data.createdAt.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
+  const dateStr = formatReceiptDate(data.createdAt);
+  const timeStr = formatReceiptTime(data.createdAt);
+  const ref = data.invoiceNumber || data.transactionId.slice(0, 8).toUpperCase();
+  const transactionType = data.status && data.status.toUpperCase() !== 'COMPLETED' ? data.status.toUpperCase() : 'SALE';
 
-  const truncateName = (name: string, maxLength = 24): string =>
+  const truncateName = (name: string, maxLength = 28): string =>
     name.length <= maxLength ? name : name.substring(0, maxLength - 3) + '...';
 
   const itemsHtml = data.items
@@ -53,1061 +242,156 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
         : 0;
       const discountedPrice = Math.max(0, item.price - unitDiscount);
       const lineTotal = discountedPrice * item.quantity;
-      const sizeText = item.size ? `Size ${item.size}` : '';
-      const ageText = item.ageGroup ? `${item.ageGroup}` : '';
-      const detailText = [sizeText, ageText].filter(Boolean).join(' · ');
-      const discountLabel = item.discount
-        ? (item.discount.type === 'percent' ? `${item.discount.value}%` : `$${item.discount.value.toFixed(2)}`)
+      const detailParts = [
+        item.size ? `Size: ${item.size}` : '',
+        item.ageGroup || '',
+        `Qty: ${item.quantity}`,
+      ].filter(Boolean);
+      const discountLine = item.discount
+        ? `<div class="item-detail">Discount: -${money(unitDiscount * item.quantity)}</div>`
         : '';
 
       return `
         <div class="item">
-          <div class="item-row">
-            <span class="item-name">${truncateName(item.name)}</span>
-            <span class="item-price">$${lineTotal.toFixed(2)}</span>
-          </div>
-          ${detailText ? `<div class="item-details">${detailText}</div>` : ''}
-          <div class="item-qty">Qty: ${item.quantity} @ $${item.price.toFixed(2)}</div>
-          ${item.discount ? `<div class="item-details">Discount: ${discountLabel} (-$${(unitDiscount * item.quantity).toFixed(2)})</div>` : ''}
-        </div>
-      `;
+          <div class="item-row"><span class="item-name">${truncateName(item.name)}</span><span class="item-price">${money(lineTotal)}</span></div>
+          <div class="item-detail">${detailParts.join(' | ')}</div>
+          ${discountLine}
+        </div>`;
     })
     .join('');
 
-  const statusLine = data.status && data.status.toUpperCase() !== 'COMPLETED' ? `[${data.status.toUpperCase()}]` : '';
-  const copies = data.copies || 1;
-
-  // Receipt body extracted so it can be duplicated for 2-copy printing
   const receiptContent = `
-    <!-- Header -->
-    <div class="header">
-      ${data.logoUrl ? `<img src="${data.logoUrl}" alt="Logo" class="logo">` : ''}
-      <div class="store-name">ABSOLUTE SOCCER MISSISSAUGA</div>
-      <div class="store-info">
-        <div>Phone: 905-593-3600</div>
-        <div>torontosoccershop.com</div>
-      </div>
-      <div class="header-divider"></div>
-    </div>
-
-    ${data.isReprint ? '<div class="reprint-header">*** REPRINT ***</div><div class="divider"></div>' : ''}
-
-    <!-- Barcode -->
-    <div class="barcode-container">
-      <svg class="receipt-barcode"></svg>
-    </div>
-
-    <!-- Transaction Details -->
-    <div class="transaction-info">
-      <div class="tx-row">
-        <span class="tx-label">Invoice #</span>
-        <span class="tx-value">${data.invoiceNumber || data.transactionId.slice(0, 8).toUpperCase()}</span>
-      </div>
-      <div class="tx-row">
-        <span class="tx-label">Date</span>
-        <span class="tx-value">${dateStr}</span>
-      </div>
-      <div class="tx-row">
-        <span class="tx-label">Time</span>
-        <span class="tx-value">${timeStr}</span>
-      </div>
-      ${data.customerName && data.customerName.toLowerCase() !== 'walk-in' ? `
-      <div class="tx-row">
-        <span class="tx-label">Customer</span>
-        <span class="tx-value">${data.customerName}</span>
-      </div>
-      ` : ''}
-      <div class="tx-row">
-        <span class="tx-label">Payment</span>
-        <span class="tx-value">${data.paymentMethod}</span>
-      </div>
-    </div>
-
+    ${buildHeader()}
+    ${data.isReprint ? '<div class="reprint-banner">*** REPRINT ***</div>' : ''}
+    ${buildMetadata({ transactionType, ref, dateStr, timeStr, cashier: data.cashier, customerName: data.customerName })}
     <div class="divider"></div>
-
-    <!-- Items Header -->
-    <div class="section-header">ITEMS</div>
-
-    <!-- Items -->
-    <div class="items-section">
-      ${itemsHtml}
-    </div>
-
+    <div class="row items-head"><span>Items</span><span>Price</span></div>
+    ${itemsHtml}
     <div class="divider"></div>
-
-    <!-- Totals -->
     <div class="totals">
-      <div class="total-row">
-        <span class="total-label">Subtotal</span>
-        <span class="total-value">$${data.subtotal.toFixed(2)}</span>
-      </div>
-      <div class="total-row">
-        <span class="total-label">HST (13%)</span>
-        <span class="total-value">$${data.hst.toFixed(2)}</span>
-      </div>
-      <div class="total-row grand-total">
-        <span class="total-label">TOTAL</span>
-        <span class="total-value">$${data.total.toFixed(2)}</span>
-      </div>
+      <div class="row"><span>Subtotal:</span><span>${money(data.subtotal)}</span></div>
+      <div class="row"><span>HST (13%):</span><span>${money(data.hst)}</span></div>
+      <div class="row grand-total"><span>Total:</span><span>${money(data.total)}</span></div>
     </div>
-
-    <!-- Footer -->
-    <div class="footer">
-      <div class="footer-message">Thank you for shopping with us!</div>
-      <div class="footer-social">Follow us on Instagram</div>
-      <div class="footer-social">@absolutemississauga</div>
-      ${statusLine ? `<div class="footer-status">${statusLine}</div>` : ''}
-      ${data.copyLabel ? `<div class="footer-copy">${data.copyLabel}</div>` : ''}
-      ${data.showSignatureLine ? `
-      <div class="signature-section">
-        <div>Signature: _______________</div>
-      </div>
-      ` : ''}
-    </div>
+    ${buildPaymentMethods(data.paymentMethod, data.total, data.paymentSplits)}
+    <div class="divider"></div>
+    ${buildBarcodeSection(ref)}
+    ${buildFooter(STANDARD_FOOTER)}
+    ${data.copyLabel ? `<div class="copy-label">${data.copyLabel}</div>` : ''}
+    ${data.showSignatureLine ? `<div class="signature-line">Signature: _______________</div>` : ''}
   `;
 
-  const bodyHTML = copies === 2
-    ? `<div class="receipt" style="page-break-after: always; break-after: page;">${receiptContent}</div>
-       <div class="receipt">${receiptContent}</div>`
+  const copies = data.copies || 1;
+  const bodyHtml = copies === 2
+    ? `<div class="receipt" data-page-break="true">${receiptContent}</div><div class="receipt">${receiptContent}</div>`
     : `<div class="receipt">${receiptContent}</div>`;
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Receipt - ${data.transactionId}</title>
-  <style>
-    * { margin: 0; padding: 0; font-weight: 700 !important; }
-    body {
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-      line-height: 1.5;
-      width: 72mm;
-      color: #000;
-      font-weight: 700 !important;
-    }
-    .receipt {
-      width: 72mm;
-      padding: 3mm 4mm;
-      margin: 0 auto;
-    }
-
-    /* Header */
-    .header {
-      text-align: center;
-      margin-bottom: 8px;
-    }
-    .logo {
-      display: block;
-      margin: 0 auto 2mm auto;
-      max-width: 62.5mm;
-      max-height: 22.5mm;
-      width: auto;
-      height: auto;
-      object-fit: contain;
-    }
-    .store-name {
-      font-size: 17px;
-      letter-spacing: 1.5px;
-      margin: 2px 0 4px 0;
-    }
-    .store-info {
-      font-size: 10px;
-      color: #1a1a1a;
-      line-height: 1.3;
-      margin-bottom: 4px;
-    }
-    .header-divider {
-      border-top: 1px solid #000;
-      margin: 6px 0 4px 0;
-    }
-
-    /* Reprint Header */
-    .reprint-header {
-      text-align: center;
-      font-size: 11px;
-      margin: 4px 0;
-      letter-spacing: 1px;
-    }
-
-    /* Dividers */
-    .divider {
-      border-top: 1px solid #000;
-      margin: 6px 0;
-      height: 0;
-    }
-
-    /* Transaction Info */
-    .transaction-info {
-      font-size: 11px;
-      margin: 6px 0;
-    }
-    .tx-row {
-      display: flex;
-      justify-content: space-between;
-      margin: 2px 0;
-      line-height: 1.3;
-    }
-    .tx-label {
-    }
-    .tx-value {
-      text-align: right;
-    }
-
-    /* Barcode */
-    .barcode-container {
-      text-align: center;
-      margin: 8px 0;
-    }
-    .barcode-container svg {
-      max-width: 100%;
-      height: auto;
-    }
-
-    /* Section Header */
-    .section-header {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin: 6px 0 4px 0;
-    }
-
-    /* Items Section */
-    .items-section {
-      margin: 4px 0;
-    }
-    .item {
-      margin-bottom: 8px;
-    }
-    .item-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 1px;
-    }
-    .item-name {
-      font-size: 12px;
-      flex: 1;
-    }
-    .item-price {
-      font-size: 12px;
-      text-align: right;
-      white-space: nowrap;
-      margin-left: 4px;
-    }
-    .item-details {
-      font-size: 10px;
-      color: #1a1a1a;
-      margin: 1px 0 1px 2px;
-    }
-    .item-qty {
-      font-size: 10px;
-      color: #1a1a1a;
-      margin: 1px 0 0 2px;
-    }
-
-    /* Totals */
-    .totals {
-      margin: 6px 0;
-      font-size: 12px;
-    }
-    .total-row {
-      display: flex;
-      justify-content: space-between;
-      margin: 3px 0;
-      line-height: 1.4;
-    }
-    .total-label {
-      flex: 1;
-    }
-    .total-value {
-      text-align: right;
-      min-width: 45px;
-    }
-    .total-row.grand-total {
-      font-size: 15px;
-      margin: 4px 0 0 0;
-      padding: 4px 0;
-      border-top: 2px double #000;
-      border-bottom: 2px double #000;
-    }
-    .grand-total .total-label {
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    /* Footer */
-    .footer {
-      text-align: center;
-      font-size: 11px;
-      margin-top: 6px;
-    }
-    .footer-message {
-      margin-bottom: 3px;
-      letter-spacing: 0.5px;
-    }
-    .footer-social {
-      font-size: 9px;
-      color: #1a1a1a;
-      margin: 1px 0;
-    }
-    .footer-status {
-      margin-top: 4px;
-      font-size: 10px;
-    }
-    .footer-copy {
-      margin-top: 3px;
-      letter-spacing: 0.5px;
-      font-size: 10px;
-    }
-    .signature-section {
-      margin-top: 8px;
-      border-top: 1px solid #000;
-      padding-top: 4px;
-      font-size: 9px;
-      text-align: left;
-    }
-
-    @media print {
-      @page {
-        size: 80mm auto;
-        margin: 0;
-      }
-      body {
-        width: 72mm;
-        margin: 0;
-        padding: 0;
-      }
-      .receipt {
-        width: 72mm;
-        padding: 3mm 4mm;
-        page-break-inside: avoid;
-      }
-      .receipt[style*="page-break-after"] {
-        page-break-after: always;
-        -webkit-page-break-after: always;
-        break-after: page;
-      }
-      img {
-        max-width: 62.5mm !important;
-        max-height: 22.5mm !important;
-        display: block !important;
-        margin: 0 auto !important;
-      }
-    }
-  </style>
-</head>
-<body>
-  ${bodyHTML}
-
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <script>
-    window.addEventListener('load', function() {
-      try {
-        var barcodeValue = "${data.barcodeValue || data.invoiceNumber || data.transactionId}";
-        if (typeof JsBarcode !== 'undefined') {
-          document.querySelectorAll('.receipt-barcode').forEach(function(svg) {
-            JsBarcode(svg, barcodeValue, {
-              format: "CODE128",
-              width: 1.5,
-              height: 40,
-              displayValue: false,
-              margin: 0
-            });
-          });
-        }
-      } catch (e) {
-        console.error('Barcode generation failed:', e);
-      }
-    });
-  </script>
-</body>
-</html>
-  `;
+  return wrapReceiptDocument({
+    title: `Receipt - ${data.transactionId}`,
+    bodyHtml,
+    barcodeValue: data.barcodeValue || data.invoiceNumber || data.transactionId,
+    autoPrint: false, // callers trigger print themselves via window.onload
+  });
 };
 
 // Generate gift receipt (no prices, just items)
 export const generateGiftReceiptHTML = (data: {
+  transactionId?: string;
   invoiceNumber?: string;
+  barcodeValue?: string;
   customerName: string;
   items: Array<{ name: string; quantity: number; size?: string; ageGroup?: string }>;
   createdAt: Date;
   logoUrl?: string;
+  cashier?: string;
 }): string => {
-  const dateStr = data.createdAt.toLocaleDateString('en-US', {
-    month: '2-digit',
-    day: '2-digit',
-    year: 'numeric',
-  });
-  const timeStr = data.createdAt.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
+  const dateStr = formatReceiptDate(data.createdAt);
+  const timeStr = formatReceiptTime(data.createdAt);
+  const ref = data.invoiceNumber || (data.transactionId ? data.transactionId.slice(0, 8).toUpperCase() : 'N/A');
 
   const itemsHtml = data.items
     .map((item) => {
-      const sizeText = item.size ? `Size ${item.size}` : '';
-      const ageText = item.ageGroup ? `${item.ageGroup}` : '';
-      const detailText = [sizeText, ageText].filter(Boolean).join(' · ');
-
+      const detailParts = [
+        item.size ? `Size: ${item.size}` : '',
+        item.ageGroup || '',
+        `Qty: ${item.quantity}`,
+      ].filter(Boolean);
       return `
         <div class="item">
-          <div class="item-name-gift">${item.name}</div>
-          ${detailText ? `<div class="item-details">${detailText}</div>` : ''}
-          <div class="item-qty">Qty: ${item.quantity}</div>
-        </div>
-      `;
+          <div class="item-row"><span class="item-name">${item.name}</span></div>
+          <div class="item-detail">${detailParts.join(' | ')}</div>
+        </div>`;
     })
     .join('');
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Gift Receipt</title>
-  <style>
-    * { margin: 0; padding: 0; font-weight: 700 !important; }
-    body {
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-      line-height: 1.5;
-      width: 72mm;
-      color: #000;
-      font-weight: 700 !important;
-    }
-    .receipt {
-      width: 72mm;
-      padding: 3mm 4mm;
-      margin: 0 auto;
-    }
-
-    /* Header */
-    .header {
-      text-align: center;
-      margin-bottom: 6px;
-    }
-    .logo {
-      display: block;
-      margin: 0 auto 2mm auto;
-      max-width: 62.5mm;
-      max-height: 22.5mm;
-      width: auto;
-      height: auto;
-      object-fit: contain;
-    }
-    .store-name {
-      font-size: 17px;
-      letter-spacing: 1.5px;
-      margin: 2px 0 3px 0;
-    }
-    .store-info {
-      font-size: 10px;
-      color: #1a1a1a;
-      line-height: 1.3;
-    }
-    .header-divider {
-      border-top: 1px solid #000;
-      margin: 6px 0 4px 0;
-    }
-
-    /* Dividers */
-    .divider {
-      border-top: 1px solid #000;
-      margin: 6px 0;
-      height: 0;
-    }
-
-    /* Gift Receipt Header */
-    .gift-header {
-      text-align: center;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      margin: 6px 0;
-      padding: 4px 0;
-      border-top: 2px double #000;
-      border-bottom: 2px double #000;
-    }
-
-    /* Barcode */
-    .barcode-container {
-      text-align: center;
-      margin: 8px 0;
-    }
-    .barcode-container svg {
-      max-width: 100%;
-      height: auto;
-    }
-    .invoice-number {
-      text-align: center;
-      font-size: 10px;
-      font-family: monospace;
-      margin: 2px 0 0 0;
-      letter-spacing: 0.5px;
-    }
-
-    /* Transaction Info */
-    .transaction-info {
-      font-size: 11px;
-      margin: 6px 0;
-    }
-    .tx-row {
-      display: flex;
-      justify-content: space-between;
-      margin: 2px 0;
-      line-height: 1.3;
-    }
-    .tx-label {
-    }
-    .tx-value {
-      text-align: right;
-    }
-
-    /* Section Header */
-    .section-header {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin: 6px 0 4px 0;
-    }
-
-    /* Items */
-    .items-section {
-      margin: 4px 0;
-    }
-    .item {
-      margin-bottom: 6px;
-    }
-    .item-name-gift {
-      font-size: 12px;
-      margin-bottom: 1px;
-    }
-    .item-details {
-      font-size: 10px;
-      color: #1a1a1a;
-      margin: 1px 0;
-    }
-    .item-qty {
-      font-size: 10px;
-      color: #1a1a1a;
-    }
-
-    /* Footer */
-    .footer {
-      text-align: center;
-      font-size: 10px;
-      margin-top: 6px;
-      font-weight: 600;
-      line-height: 1.4;
-    }
-    .footer-text {
-      margin: 2px 0;
-      font-weight: 600;
-    }
-    .footer-policy {
-      font-size: 9px;
-      color: #1a1a1a;
-      margin-top: 4px;
-    }
-    .footer-social {
-      font-size: 9px;
-      color: #1a1a1a;
-      margin: 2px 0;
-    }
-
-    @media print {
-      @page {
-        size: 80mm auto;
-        margin: 0;
-      }
-      body {
-        width: 72mm;
-        margin: 0;
-        padding: 0;
-      }
-      .receipt {
-        width: 72mm;
-        padding: 3mm 4mm;
-      }
-      img {
-        max-width: 62.5mm !important;
-        max-height: 22.5mm !important;
-        display: block !important;
-        margin: 0 auto !important;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="receipt">
-    <!-- Header -->
-    <div class="header">
-      ${data.logoUrl ? `<img src="${data.logoUrl}" alt="Logo" class="logo">` : ''}
-      <div class="store-name">ABSOLUTE SOCCER MISSISSAUGA</div>
-      <div class="store-info">
-        <div>Phone: 905-593-3600</div>
-      </div>
-      <div class="header-divider"></div>
-    </div>
-
-    <div class="gift-header">GIFT RECEIPT</div>
-
-    <!-- Barcode -->
-    ${data.invoiceNumber ? `
-    <div class="barcode-container">
-      <svg id="barcode"></svg>
-    </div>
-    <div class="invoice-number">${data.invoiceNumber}</div>
-    ` : ''}
-
+  const receiptContent = `
+    ${buildHeader()}
+    ${buildMetadata({ transactionType: 'GIFT', ref, dateStr, timeStr, cashier: data.cashier, customerName: data.customerName })}
     <div class="divider"></div>
-
-    <!-- Transaction Details -->
-    <div class="transaction-info">
-      ${data.invoiceNumber ? `
-      <div class="tx-row">
-        <span class="tx-label">Ref #</span>
-        <span class="tx-value">${data.invoiceNumber}</span>
-      </div>
-      ` : ''}
-      <div class="tx-row">
-        <span class="tx-label">Date</span>
-        <span class="tx-value">${dateStr}</span>
-      </div>
-      ${data.customerName && data.customerName.toLowerCase() !== 'walk-in' ? `
-      <div class="tx-row">
-        <span class="tx-label">For</span>
-        <span class="tx-value">${data.customerName}</span>
-      </div>
-      ` : ''}
-    </div>
-
+    <div class="row items-head"><span>Items</span></div>
+    ${itemsHtml}
     <div class="divider"></div>
-
-    <div class="section-header">ITEMS</div>
-
-    <!-- Items -->
-    <div class="items-section">
-      ${itemsHtml}
-    </div>
-
-    <div class="divider"></div>
-
-    <!-- Footer -->
-    <div class="footer">
-      <div class="footer-text">This is a gift receipt</div>
-      <div class="footer-policy">This item may be exchanged within</div>
-      <div class="footer-policy">30 days with this receipt</div>
-      <div class="footer-social" style="margin-top: 4px;">Absolute Soccer</div>
-      <div class="footer-social">Mississauga, Ontario</div>
-      <div class="footer-social">@absolutemississauga</div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <script>
-    window.addEventListener('load', () => {
-      try {
-        const barcodeValue = "${data.invoiceNumber || 'N/A'}";
-        if (typeof JsBarcode !== 'undefined' && document.getElementById('barcode')) {
-          JsBarcode("#barcode", barcodeValue, {
-            format: "CODE128",
-            width: 1.5,
-            height: 40,
-            displayValue: false,
-            margin: 0
-          });
-        }
-      } catch (e) {
-        console.error('Barcode generation failed:', e);
-      }
-      setTimeout(() => window.print(), 100);
-    });
-  </script>
-</body>
-</html>
+    ${buildBarcodeSection(ref)}
+    ${buildFooter([
+      'This is a gift receipt.',
+      'No prices shown.',
+      'Exchange within 30 days with this receipt.',
+    ])}
   `;
+
+  return wrapReceiptDocument({
+    title: 'Gift Receipt',
+    bodyHtml: `<div class="receipt">${receiptContent}</div>`,
+    barcodeValue: data.barcodeValue || ref,
+    autoPrint: false, // every caller already triggers print via window.onload
+  });
 };
 
 // Generate special receipt for store credit issuance or redemption
 export const generateStoreCreditReceiptHTML = (data: ReceiptData): string => {
-  const dateStr = data.createdAt.toLocaleDateString('en-US', {
-    month: '2-digit',
-    day: '2-digit',
-    year: 'numeric',
-  });
-  const timeStr = data.createdAt.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
+  const dateStr = formatReceiptDate(data.createdAt);
+  const timeStr = formatReceiptTime(data.createdAt);
+  const isRedemption = !!(data.storeCreditUsedAmount && data.storeCreditUsedAmount > 0);
+  const transactionType = isRedemption ? 'STORE CREDIT REDEEMED' : 'STORE CREDIT ISSUED';
+  const ref = isRedemption
+    ? (data.transactionId ? data.transactionId.slice(0, 8).toUpperCase() : 'N/A')
+    : (data.storeCreditCardNumber || 'N/A');
 
-  // Determine if this is issuance or redemption
-  const isRedemption = data.storeCreditUsedAmount && data.storeCreditUsedAmount > 0;
+  const detailsHtml = isRedemption
+    ? `
+      <div class="row"><span>Store Credit Used:</span><span>-${money(data.storeCreditUsedAmount || 0)}</span></div>
+      <div class="row"><span>Cash/Card Paid:</span><span>${money(data.total - (data.storeCreditUsedAmount || 0))}</span></div>`
+    : `
+      <div class="row"><span>Amount Issued:</span><span>${money(data.storeCreditAmount || 0)}</span></div>
+      <div class="row"><span>Expires:</span><span>Never</span></div>
+      ${data.storeCreditReason ? `<div class="row"><span>Reason:</span><span>${data.storeCreditReason}</span></div>` : ''}`;
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>${isRedemption ? 'Receipt - Store Credit Used' : 'Store Credit - ' + data.storeCreditCardNumber}</title>
-  <style>
-    * { margin: 0; padding: 0; font-weight: 700 !important; }
-    body {
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-      line-height: 1.5;
-      width: 72mm;
-      color: #000;
-      font-weight: 700 !important;
-    }
-    .receipt {
-      width: 72mm;
-      padding: 3mm 4mm;
-      margin: 0 auto;
-    }
-
-    /* Header */
-    .header {
-      text-align: center;
-      margin-bottom: 6px;
-    }
-    .logo {
-      display: block;
-      margin: 0 auto 2mm auto;
-      max-width: 62.5mm;
-      max-height: 22.5mm;
-      width: auto;
-      height: auto;
-      object-fit: contain;
-    }
-    .store-name {
-      font-size: 17px;
-      letter-spacing: 1.5px;
-      margin: 2px 0 3px 0;
-    }
-    .store-info {
-      font-size: 10px;
-      color: #1a1a1a;
-      line-height: 1.3;
-      margin-bottom: 4px;
-    }
-    .header-divider {
-      border-top: 1px solid #000;
-      margin: 6px 0 4px 0;
-    }
-
-    /* Reprint Header */
-    .reprint-header {
-      text-align: center;
-      font-size: 11px;
-      margin: 4px 0;
-      letter-spacing: 1px;
-    }
-
-    /* Dividers */
-    .divider {
-      border-top: 1px solid #000;
-      margin: 6px 0;
-      height: 0;
-    }
-    .divider-double {
-      border-top: 2px double #000;
-      margin: 6px 0;
-      height: 0;
-    }
-
-    /* Receipt Type */
-    .receipt-type {
-      text-align: center;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      margin: 6px 0;
-      padding: 4px 0;
-      border-top: 2px double #000;
-      border-bottom: 2px double #000;
-    }
-
-    /* Card Number Box */
-    .card-box {
-      text-align: center;
-      margin: 6px 0;
-      padding: 4px;
-      border: 1px solid #000;
-    }
-    .card-box-label {
-      font-size: 9px;
-      margin-bottom: 2px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .card-box-number {
-      font-size: 13px;
-      font-family: monospace;
-      letter-spacing: 1px;
-    }
-
-    /* Barcode */
-    .barcode-container {
-      text-align: center;
-      margin: 8px 0;
-    }
-    .barcode-container svg {
-      max-width: 100%;
-      height: auto;
-    }
-
-    /* Transaction Info */
-    .transaction-info {
-      font-size: 11px;
-      margin: 6px 0;
-    }
-    .tx-row {
-      display: flex;
-      justify-content: space-between;
-      margin: 2px 0;
-      line-height: 1.3;
-    }
-    .tx-label {
-    }
-    .tx-value {
-      text-align: right;
-    }
-
-    /* Section Header */
-    .section-header {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin: 6px 0 4px 0;
-      text-align: center;
-    }
-
-    /* Details Section */
-    .details-section {
-      margin: 6px 0;
-      font-size: 10px;
-    }
-    .details-row {
-      display: flex;
-      justify-content: space-between;
-      margin: 3px 0;
-      line-height: 1.3;
-    }
-    .details-row span:first-child {
-      flex: 1;
-    }
-    .details-row span:last-child {
-      text-align: right;
-      min-width: 45px;
-    }
-
-    /* Amount Highlight */
-    .amount-box {
-      font-size: 16px;
-      text-align: center;
-      margin: 6px 0;
-      padding: 6px;
-      border: 2px double #000;
-    }
-
-    /* Footer */
-    .footer {
-      text-align: center;
-      font-size: 11px;
-      margin-top: 6px;
-      line-height: 1.4;
-    }
-    .footer-text {
-      margin: 2px 0;
-    }
-    .footer-message {
-      letter-spacing: 0.5px;
-    }
-    .footer-social {
-      font-size: 9px;
-      color: #1a1a1a;
-      margin: 1px 0;
-    }
-
-    @media print {
-      @page {
-        size: 80mm auto;
-        margin: 0;
-      }
-      body {
-        width: 72mm;
-        margin: 0;
-        padding: 0;
-      }
-      .receipt {
-        width: 72mm;
-        padding: 3mm 4mm;
-      }
-      img {
-        max-width: 62.5mm !important;
-        max-height: 22.5mm !important;
-        display: block !important;
-        margin: 0 auto !important;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="receipt">
-    <!-- Header -->
-    <div class="header">
-      ${data.logoUrl ? `<img src="${data.logoUrl}" alt="Logo" class="logo">` : ''}
-      <div class="store-name">ABSOLUTE SOCCER MISSISSAUGA</div>
-      <div class="store-info">
-        <div>Phone: 905-593-3600</div>
-      </div>
-      <div class="header-divider"></div>
-    </div>
-
-    ${data.isReprint ? '<div class="reprint-header">*** REPRINT ***</div><div class="divider"></div>' : ''}
-
-    <div class="receipt-type">${isRedemption ? 'Store Credit Redeemed' : 'Store Credit Issued'}</div>
-
-    <!-- SC Card Number (Prominent, for issuance only) -->
+  const receiptContent = `
+    ${buildHeader()}
+    ${data.isReprint ? '<div class="reprint-banner">*** REPRINT ***</div>' : ''}
+    ${buildMetadata({ transactionType, ref, dateStr, timeStr, cashier: data.cashier, customerName: data.customerName })}
+    <div class="divider"></div>
     ${!isRedemption && data.storeCreditCardNumber ? `
     <div class="card-box">
       <div class="card-box-label">Card Number</div>
       <div class="card-box-number">${data.storeCreditCardNumber}</div>
-    </div>
-    ` : ''}
-
+    </div>` : ''}
+    <div class="totals">${detailsHtml}</div>
     <div class="divider"></div>
-
-    <!-- Barcode -->
-    ${data.storeCreditCardNumber ? `
-    <div class="barcode-container">
-      <svg id="barcode"></svg>
-    </div>
-    ` : ''}
-
-    <!-- Transaction Details -->
-    <div class="transaction-info">
-      <div class="tx-row">
-        <span class="tx-label">Date</span>
-        <span class="tx-value">${dateStr}</span>
-      </div>
-      <div class="tx-row">
-        <span class="tx-label">Time</span>
-        <span class="tx-value">${timeStr}</span>
-      </div>
-      ${data.customerName && data.customerName.toLowerCase() !== 'walk-in' ? `
-      <div class="tx-row">
-        <span class="tx-label">Customer</span>
-        <span class="tx-value">${data.customerName}</span>
-      </div>
-      ` : ''}
-      ${isRedemption && data.transactionId ? `
-      <div class="tx-row">
-        <span class="tx-label">Ref</span>
-        <span class="tx-value">${data.transactionId.slice(0, 8).toUpperCase()}</span>
-      </div>
-      ` : ''}
-    </div>
-
+    <div class="amount-box">${money(isRedemption ? (data.storeCreditRemainingBalance || 0) : (data.storeCreditAmount || 0))}</div>
     <div class="divider"></div>
-
-    ${isRedemption ? `
-    <!-- Redemption Details -->
-    <div class="section-header">Payment Details</div>
-    <div class="details-section">
-      <div class="details-row">
-        <span>Store Credit Used</span>
-        <span>-$${data.storeCreditUsedAmount.toFixed(2)}</span>
-      </div>
-      <div class="details-row">
-        <span>Cash/Card Paid</span>
-        <span>$${(data.total - data.storeCreditUsedAmount).toFixed(2)}</span>
-      </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <div class="section-header">Remaining Balance</div>
-    <div class="amount-box">$${data.storeCreditRemainingBalance.toFixed(2)}</div>
-    ` : `
-    <!-- Store Credit Details -->
-    <div class="section-header">Credit Details</div>
-    <div class="details-section">
-      <div class="details-row">
-        <span>Card Number</span>
-        <span style="font-family:monospace;">${data.storeCreditCardNumber || 'N/A'}</span>
-      </div>
-      <div class="details-row">
-        <span>Amount Issued</span>
-        <span>$${data.storeCreditAmount.toFixed(2)}</span>
-      </div>
-      <div class="details-row">
-        <span>Remaining</span>
-        <span>$${data.storeCreditAmount.toFixed(2)}</span>
-      </div>
-      <div class="details-row">
-        <span>Expires</span>
-        <span>Never</span>
-      </div>
-      ${data.storeCreditReason ? `
-      <div class="details-row">
-        <span>Reason</span>
-        <span>${data.storeCreditReason}</span>
-      </div>
-      ` : ''}
-    </div>
-
-    <div class="divider"></div>
-
-    <div class="section-header">Amount Issued</div>
-    <div class="amount-box">$${data.storeCreditAmount.toFixed(2)}</div>
-    `}
-
-    <div class="divider"></div>
-
-    <!-- Footer -->
-    <div class="footer">
-      ${isRedemption ? `
-        <div class="footer-text footer-message">Thank you for your business!</div>
-        <div class="footer-social">Keep this receipt for your records</div>
-      ` : `
-        <div class="footer-text footer-message">Store Credit Issued</div>
-        <div class="footer-social">Redeem at Absolute Soccer</div>
-        <div class="footer-social">Mississauga in store only</div>
-        <div class="footer-social">Keep this receipt safe!</div>
-      `}
-      <div class="footer-social">@absolutemississauga</div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <script>
-    window.addEventListener('load', () => {
-      try {
-        // For SC receipt: barcode ONLY the SC card number
-        const barcodeValue = "${data.storeCreditCardNumber}";
-        if (typeof JsBarcode !== 'undefined' && document.getElementById('barcode')) {
-          JsBarcode("#barcode", barcodeValue, {
-            format: "CODE128",
-            width: 1.5,
-            height: 40,
-            displayValue: false,
-            margin: 0
-          });
-        }
-      } catch (e) {
-        console.error('Barcode generation failed:', e);
-      }
-      setTimeout(() => window.print(), 100);
-    });
-  </script>
-</body>
-</html>
+    ${data.storeCreditCardNumber ? buildBarcodeSection(data.storeCreditCardNumber) : ''}
+    ${buildFooter(isRedemption
+      ? ['Thank you for your business!', 'Keep this receipt for your records.']
+      : ['Store credit issued.', 'Redeem in store at Absolute Soccer.', 'Keep this receipt safe.'])}
   `;
+
+  return wrapReceiptDocument({
+    title: isRedemption ? 'Receipt - Store Credit Used' : `Store Credit - ${data.storeCreditCardNumber}`,
+    bodyHtml: `<div class="receipt">${receiptContent}</div>`,
+    barcodeValue: data.storeCreditCardNumber || '',
+    autoPrint: true, // sole caller (ReturnsModal.tsx) doesn't trigger print itself
+  });
 };
 
 interface LayawayPayLaterItem {
@@ -1126,6 +410,24 @@ const splitOutHst = (totalAmount: number) => {
   return { subtotal, hst };
 };
 
+const layawayPayLaterItemsHtml = (items: LayawayPayLaterItem[]): string =>
+  items
+    .map((item) => {
+      const lineTotal = item.price * item.quantity;
+      const detailParts = [
+        item.size ? `Size: ${item.size}` : '',
+        item.color ? `Color: ${item.color}` : '',
+        item.ageGroup || '',
+        `Qty: ${item.quantity}`,
+      ].filter(Boolean);
+      return `
+        <div class="item">
+          <div class="item-row"><span class="item-name">${item.name}</span><span class="item-price">${money(lineTotal)}</span></div>
+          <div class="item-detail">${detailParts.join(' | ')}</div>
+        </div>`;
+    })
+    .join('');
+
 export interface LayawayReceiptData {
   layawayId?: string;
   customerName: string;
@@ -1136,159 +438,41 @@ export interface LayawayReceiptData {
   balanceDue: number;
   createdAt: Date;
   logoUrl?: string;
+  cashier?: string;
 }
 
-const layawayPayLaterStyles = `
-    * { margin: 0; padding: 0; font-weight: 700 !important; }
-    body {
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-      line-height: 1.5;
-      width: 72mm;
-      color: #000;
-      font-weight: 700 !important;
-    }
-    .receipt { width: 72mm; padding: 3mm 4mm; margin: 0 auto; }
-    .header { text-align: center; margin-bottom: 6px; }
-    .logo { display: block; margin: 0 auto 2mm auto; max-width: 62.5mm; max-height: 22.5mm; width: auto; height: auto; object-fit: contain; }
-    .store-name { font-size: 17px; letter-spacing: 1.5px; margin: 2px 0 3px 0; }
-    .store-info { font-size: 10px; color: #1a1a1a; line-height: 1.3; }
-    .header-divider { border-top: 1px solid #000; margin: 6px 0 4px 0; }
-    .divider { border-top: 1px solid #000; margin: 6px 0; height: 0; }
-    .gift-header { text-align: center; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; margin: 6px 0; padding: 4px 0; border-top: 2px double #000; border-bottom: 2px double #000; }
-    .barcode-container { text-align: center; margin: 8px 0; }
-    .barcode-container svg { max-width: 100%; height: auto; }
-    .invoice-number { text-align: center; font-size: 10px; font-family: monospace; margin: 2px 0 0 0; letter-spacing: 0.5px; }
-    .transaction-info { font-size: 11px; margin: 6px 0; }
-    .tx-row { display: flex; justify-content: space-between; margin: 2px 0; line-height: 1.3; }
-    .tx-value { text-align: right; }
-    .section-header { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 6px 0 4px 0; }
-    .items-section { margin: 4px 0; }
-    .item { margin-bottom: 6px; }
-    .item-row { display: flex; justify-content: space-between; }
-    .item-name { font-size: 12px; }
-    .item-price { font-size: 12px; }
-    .item-details { font-size: 10px; color: #1a1a1a; margin: 1px 0; }
-    .item-qty { font-size: 10px; color: #1a1a1a; }
-    .totals { font-size: 12px; margin: 6px 0; }
-    .total-row { display: flex; justify-content: space-between; margin: 3px 0; }
-    .total-row.emphasis { font-size: 14px; border-top: 2px double #000; padding-top: 4px; margin-top: 4px; }
-    .footer { text-align: center; font-size: 10px; margin-top: 6px; font-weight: 600; line-height: 1.4; }
-    .footer-text { margin: 2px 0; font-weight: 600; }
-    .footer-policy { font-size: 12px; margin: 6px 0; font-weight: 800; }
-    .footer-social { font-size: 9px; color: #1a1a1a; margin: 2px 0; }
-    @media print {
-      @page { size: 80mm auto; margin: 0; }
-      body { width: 72mm; margin: 0; padding: 0; }
-      .receipt { width: 72mm; padding: 3mm 4mm; }
-      img { max-width: 62.5mm !important; max-height: 22.5mm !important; display: block !important; margin: 0 auto !important; }
-    }
-`;
-
-const layawayPayLaterItemsHtml = (items: LayawayPayLaterItem[]): string =>
-  items
-    .map((item) => {
-      const lineTotal = item.price * item.quantity;
-      const sizeText = item.size ? `Size ${item.size}` : '';
-      const ageText = item.ageGroup ? `${item.ageGroup}` : '';
-      const colorText = item.color ? `${item.color}` : '';
-      const detailText = [colorText, sizeText, ageText].filter(Boolean).join(' · ');
-      return `
-        <div class="item">
-          <div class="item-row">
-            <span class="item-name">${item.name}</span>
-            <span class="item-price">$${lineTotal.toFixed(2)}</span>
-          </div>
-          ${detailText ? `<div class="item-details">${detailText}</div>` : ''}
-          <div class="item-qty">Qty: ${item.quantity} @ $${item.price.toFixed(2)}</div>
-        </div>
-      `;
-    })
-    .join('');
-
 export const generateLayawayReceiptHTML = (data: LayawayReceiptData): string => {
-  const dateStr = data.createdAt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
-  const timeStr = data.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-  const heldUntil = new Date(data.createdAt.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const heldUntilStr = heldUntil.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+  const dateStr = formatReceiptDate(data.createdAt);
+  const timeStr = formatReceiptTime(data.createdAt);
   const refNumber = (data.layawayId || '').slice(0, 8).toUpperCase();
+  const ref = refNumber ? `LAY-${refNumber}` : 'N/A';
   const { subtotal, hst } = splitOutHst(data.totalAmount);
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Layaway Receipt</title>
-  <style>${layawayPayLaterStyles}</style>
-</head>
-<body>
-  <div class="receipt">
-    <div class="header">
-      ${data.logoUrl ? `<img src="${data.logoUrl}" alt="Logo" class="logo">` : ''}
-      <div class="store-name">ABSOLUTE SOCCER MISSISSAUGA</div>
-      <div class="store-info"><div>Phone: 905-593-3600</div></div>
-      <div class="header-divider"></div>
-    </div>
-
-    <div class="gift-header">LAYAWAY RECEIPT</div>
-
-    ${data.layawayId ? `
-    <div class="barcode-container"><svg id="barcode"></svg></div>
-    ` : ''}
-
+  const receiptContent = `
+    ${buildHeader()}
+    ${buildMetadata({ transactionType: 'LAYAWAY', ref, dateStr, timeStr, cashier: data.cashier, customerName: data.customerName, phone: data.customerPhone })}
     <div class="divider"></div>
-
-    <div class="transaction-info">
-      ${refNumber ? `<div class="tx-row"><span>Ref #</span><span class="tx-value">LAY-${refNumber}</span></div>` : ''}
-      <div class="tx-row"><span>Date</span><span class="tx-value">${dateStr}</span></div>
-      <div class="tx-row"><span>Time</span><span class="tx-value">${timeStr}</span></div>
-      <div class="tx-row"><span>Customer</span><span class="tx-value">${data.customerName}</span></div>
-      ${data.customerPhone ? `<div class="tx-row"><span>Phone</span><span class="tx-value">${data.customerPhone}</span></div>` : ''}
-    </div>
-
+    <div class="row items-head"><span>Items On Hold</span><span>Price</span></div>
+    ${layawayPayLaterItemsHtml(data.items)}
     <div class="divider"></div>
-
-    <div class="section-header">ITEMS ON HOLD</div>
-    <div class="items-section">${layawayPayLaterItemsHtml(data.items)}</div>
-
-    <div class="divider"></div>
-
     <div class="totals">
-      <div class="total-row"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
-      <div class="total-row"><span>HST (13%)</span><span>$${hst.toFixed(2)}</span></div>
-      <div class="total-row"><span>Total Amount</span><span>$${data.totalAmount.toFixed(2)}</span></div>
-      <div class="total-row"><span>Deposit Paid</span><span>-$${data.depositPaid.toFixed(2)}</span></div>
-      <div class="total-row emphasis"><span>Balance Due</span><span>$${data.balanceDue.toFixed(2)}</span></div>
+      <div class="row"><span>Subtotal:</span><span>${money(subtotal)}</span></div>
+      <div class="row"><span>HST (13%):</span><span>${money(hst)}</span></div>
+      <div class="row"><span>Total Amount:</span><span>${money(data.totalAmount)}</span></div>
+      <div class="row"><span>Deposit Paid:</span><span>-${money(data.depositPaid)}</span></div>
+      <div class="row grand-total"><span>Balance Due:</span><span>${money(data.balanceDue)}</span></div>
     </div>
-
     <div class="divider"></div>
-
-    <div class="footer">
-      <div class="footer-policy">Items held for 30 days from date of deposit</div>
-      <div class="footer-policy">Pickup by ${heldUntilStr}</div>
-      <div class="footer-social">Exchanges within 30 days of pickup with this receipt.</div>
-      <div class="footer-social">Deposits are non-refundable.</div>
-      <div class="footer-text" style="margin-top: 4px;">Absolute Soccer</div>
-      <div class="footer-social">Mississauga, Ontario</div>
-      <div class="footer-social">@absolutemississauga</div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <script>
-    window.addEventListener('load', () => {
-      try {
-        const barcodeValue = "${data.layawayId || 'N/A'}";
-        if (typeof JsBarcode !== 'undefined' && document.getElementById('barcode')) {
-          JsBarcode("#barcode", barcodeValue, { format: "CODE128", width: 1.5, height: 40, displayValue: false, margin: 0 });
-        }
-      } catch (e) { console.error('Barcode generation failed:', e); }
-    });
-  </script>
-</body>
-</html>
+    ${buildBarcodeSection(ref)}
+    ${buildFooter(['Deposits are non-refundable.', ...STANDARD_FOOTER])}
   `;
+
+  return wrapReceiptDocument({
+    title: 'Layaway Receipt',
+    bodyHtml: `<div class="receipt">${receiptContent}</div>`,
+    barcodeValue: data.layawayId || 'N/A',
+    autoPrint: false,
+  });
 };
 
 export interface PayLaterReceiptData {
@@ -1299,84 +483,39 @@ export interface PayLaterReceiptData {
   totalAmount: number;
   createdAt: Date;
   logoUrl?: string;
+  cashier?: string;
 }
 
 export const generatePayLaterReceiptHTML = (data: PayLaterReceiptData): string => {
-  const dateStr = data.createdAt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
-  const timeStr = data.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const dateStr = formatReceiptDate(data.createdAt);
+  const timeStr = formatReceiptTime(data.createdAt);
   const refNumber = (data.payLaterId || '').slice(0, 8).toUpperCase();
+  const ref = refNumber ? `PL-${refNumber}` : 'N/A';
   const { subtotal, hst } = splitOutHst(data.totalAmount);
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Pay Later Receipt</title>
-  <style>${layawayPayLaterStyles}</style>
-</head>
-<body>
-  <div class="receipt">
-    <div class="header">
-      ${data.logoUrl ? `<img src="${data.logoUrl}" alt="Logo" class="logo">` : ''}
-      <div class="store-name">ABSOLUTE SOCCER MISSISSAUGA</div>
-      <div class="store-info"><div>Phone: 905-593-3600</div></div>
-      <div class="header-divider"></div>
-    </div>
-
-    <div class="gift-header">PAY LATER RECEIPT</div>
-
-    ${data.payLaterId ? `
-    <div class="barcode-container"><svg id="barcode"></svg></div>
-    ` : ''}
-
+  const receiptContent = `
+    ${buildHeader()}
+    ${buildMetadata({ transactionType: 'PAY LATER', ref, dateStr, timeStr, cashier: data.cashier, customerName: data.customerName, phone: data.customerPhone })}
     <div class="divider"></div>
-
-    <div class="transaction-info">
-      ${refNumber ? `<div class="tx-row"><span>Ref #</span><span class="tx-value">PL-${refNumber}</span></div>` : ''}
-      <div class="tx-row"><span>Date</span><span class="tx-value">${dateStr}</span></div>
-      <div class="tx-row"><span>Time</span><span class="tx-value">${timeStr}</span></div>
-      <div class="tx-row"><span>Customer</span><span class="tx-value">${data.customerName}</span></div>
-      ${data.customerPhone ? `<div class="tx-row"><span>Phone</span><span class="tx-value">${data.customerPhone}</span></div>` : ''}
-    </div>
-
+    <div class="row items-head"><span>Items</span><span>Price</span></div>
+    ${layawayPayLaterItemsHtml(data.items)}
     <div class="divider"></div>
-
-    <div class="section-header">ITEMS</div>
-    <div class="items-section">${layawayPayLaterItemsHtml(data.items)}</div>
-
-    <div class="divider"></div>
-
     <div class="totals">
-      <div class="total-row"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
-      <div class="total-row"><span>HST (13%)</span><span>$${hst.toFixed(2)}</span></div>
-      <div class="total-row emphasis"><span>Total Amount Owed</span><span>$${data.totalAmount.toFixed(2)}</span></div>
+      <div class="row"><span>Subtotal:</span><span>${money(subtotal)}</span></div>
+      <div class="row"><span>HST (13%):</span><span>${money(hst)}</span></div>
+      <div class="row grand-total"><span>Total Owed:</span><span>${money(data.totalAmount)}</span></div>
     </div>
-
     <div class="divider"></div>
-
-    <div class="footer">
-      <div class="footer-policy">Payment due upon next visit</div>
-      <div class="footer-text" style="margin-top: 4px;">Absolute Soccer</div>
-      <div class="footer-social">Mississauga, Ontario</div>
-      <div class="footer-social">@absolutemississauga</div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <script>
-    window.addEventListener('load', () => {
-      try {
-        const barcodeValue = "${data.payLaterId || 'N/A'}";
-        if (typeof JsBarcode !== 'undefined' && document.getElementById('barcode')) {
-          JsBarcode("#barcode", barcodeValue, { format: "CODE128", width: 1.5, height: 40, displayValue: false, margin: 0 });
-        }
-      } catch (e) { console.error('Barcode generation failed:', e); }
-    });
-  </script>
-</body>
-</html>
+    ${buildBarcodeSection(ref)}
+    ${buildFooter(['Payment due upon next visit.', ...STANDARD_FOOTER])}
   `;
+
+  return wrapReceiptDocument({
+    title: 'Pay Later Receipt',
+    bodyHtml: `<div class="receipt">${receiptContent}</div>`,
+    barcodeValue: data.payLaterId || 'N/A',
+    autoPrint: false,
+  });
 };
 
 export interface LayawayPaymentReceiptData {
@@ -1391,89 +530,43 @@ export interface LayawayPaymentReceiptData {
   isFullyPaid: boolean;
   createdAt: Date;
   logoUrl?: string;
+  cashier?: string;
 }
 
 export const generateLayawayPaymentReceiptHTML = (data: LayawayPaymentReceiptData): string => {
-  const dateStr = data.createdAt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
-  const timeStr = data.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const dateStr = formatReceiptDate(data.createdAt);
+  const timeStr = formatReceiptTime(data.createdAt);
   const isLayaway = data.recordType === 'layaway';
   const refPrefix = isLayaway ? 'LAY' : 'PL';
   const refNumber = (data.recordId || '').slice(0, 8).toUpperCase();
-  const headerTitle = isLayaway ? 'LAYAWAY PAYMENT RECEIPT' : 'PAY LATER PAYMENT RECEIPT';
+  const ref = refNumber ? `${refPrefix}-${refNumber}` : 'N/A';
+  const transactionType = isLayaway ? 'LAYAWAY PAYMENT' : 'PAY LATER PAYMENT';
   const itemsSummaryHtml = data.items
-    .map((item) => `<div class="item-qty">${item.name} x${item.quantity}</div>`)
+    .map((item) => `<div class="item-detail">${item.name} x${item.quantity}</div>`)
     .join('');
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>${headerTitle}</title>
-  <style>${layawayPayLaterStyles}</style>
-</head>
-<body>
-  <div class="receipt">
-    <div class="header">
-      ${data.logoUrl ? `<img src="${data.logoUrl}" alt="Logo" class="logo">` : ''}
-      <div class="store-name">ABSOLUTE SOCCER MISSISSAUGA</div>
-      <div class="store-info"><div>Phone: 905-593-3600</div></div>
-      <div class="header-divider"></div>
-    </div>
-
-    <div class="gift-header">${headerTitle}</div>
-
-    ${refNumber ? `
-    <div class="barcode-container"><svg id="barcode"></svg></div>
-    ` : ''}
-
+  const receiptContent = `
+    ${buildHeader()}
+    ${buildMetadata({ transactionType, ref, dateStr, timeStr, cashier: data.cashier, customerName: data.customerName, phone: data.customerPhone })}
     <div class="divider"></div>
-
-    <div class="transaction-info">
-      ${refNumber ? `<div class="tx-row"><span>Ref #</span><span class="tx-value">${refPrefix}-${refNumber}</span></div>` : ''}
-      <div class="tx-row"><span>Date</span><span class="tx-value">${dateStr}</span></div>
-      <div class="tx-row"><span>Time</span><span class="tx-value">${timeStr}</span></div>
-      <div class="tx-row"><span>Customer</span><span class="tx-value">${data.customerName}</span></div>
-      ${data.customerPhone ? `<div class="tx-row"><span>Phone</span><span class="tx-value">${data.customerPhone}</span></div>` : ''}
-    </div>
-
+    <div class="row items-head"><span>${isLayaway ? 'Items On Hold' : 'Items'} (Summary)</span></div>
+    ${itemsSummaryHtml}
     <div class="divider"></div>
-
-    <div class="section-header">${isLayaway ? 'ITEMS ON HOLD' : 'ITEMS'} (SUMMARY)</div>
-    <div class="items-section">${itemsSummaryHtml}</div>
-
-    <div class="divider"></div>
-
     <div class="totals">
-      <div class="total-row"><span>Payment Made</span><span>$${data.paymentAmount.toFixed(2)}</span></div>
-      <div class="total-row"><span>Previous Balance</span><span>$${data.previousBalance.toFixed(2)}</span></div>
-      <div class="total-row emphasis"><span>New Balance Remaining</span><span>$${data.newBalance.toFixed(2)}</span></div>
+      <div class="row"><span>Payment Made:</span><span>${money(data.paymentAmount)}</span></div>
+      <div class="row"><span>Previous Balance:</span><span>${money(data.previousBalance)}</span></div>
+      <div class="row grand-total"><span>New Balance:</span><span>${money(data.newBalance)}</span></div>
     </div>
-
     <div class="divider"></div>
-
-    <div class="footer">
-      ${data.isFullyPaid
-        ? '<div class="gift-header" style="margin: 6px 0;">PAID IN FULL<br>READY FOR PICKUP</div>'
-        : `<div class="footer-policy">Remaining balance due on pickup</div>`}
-      <div class="footer-text" style="margin-top: 4px;">Absolute Soccer</div>
-      <div class="footer-social">Mississauga, Ontario</div>
-      <div class="footer-social">@absolutemississauga</div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <script>
-    window.addEventListener('load', () => {
-      try {
-        const barcodeValue = "${data.recordId || 'N/A'}";
-        if (typeof JsBarcode !== 'undefined' && document.getElementById('barcode')) {
-          JsBarcode("#barcode", barcodeValue, { format: "CODE128", width: 1.5, height: 40, displayValue: false, margin: 0 });
-        }
-      } catch (e) { console.error('Barcode generation failed:', e); }
-    });
-  </script>
-</body>
-</html>
+    ${buildBarcodeSection(ref)}
+    ${data.isFullyPaid ? `<div class="footer-strong">Paid In Full</div>` : ''}
+    ${buildFooter(STANDARD_FOOTER)}
   `;
+
+  return wrapReceiptDocument({
+    title: transactionType,
+    bodyHtml: `<div class="receipt">${receiptContent}</div>`,
+    barcodeValue: data.recordId || 'N/A',
+    autoPrint: false,
+  });
 };
