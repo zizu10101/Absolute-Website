@@ -197,7 +197,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           // Explicitly clear query caches from browser client request headers
           const { data: settingsData, error: settingsError } = await supabase
             .from('settings')
-            .select('*');
+            .select('key, data')
+            .in('key', ['global', 'slider', 'homeCategories', 'navigation', 'footer', 'seo', 'store_info', 'theme', 'brand_images', 'category_images']);
 
           if (settingsError) throw settingsError;
 

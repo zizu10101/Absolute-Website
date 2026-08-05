@@ -75,7 +75,15 @@ export function Header({ onMenuClick }: Props) {
             <Menu size={24} strokeWidth={1.5} />
           </button>
           <Link to="/" className="flex items-center">
-            <img src={logo} alt="ABSOLUTE SOCCER" className="h-10 md:h-16 w-auto" />
+            <img
+              src={logo}
+              alt="Absolute Soccer Mississauga"
+              width={132}
+              height={70}
+              className="h-10 md:h-16 w-auto"
+              fetchPriority="high"
+              decoding="async"
+            />
           </Link>
         </div>
 

@@ -13,6 +13,22 @@ export function HomePage() {
   const { sliderImages, homeCategories, storeInfo } = useSettings();
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [saleProducts, setSaleProducts] = useState<Product[]>([]);
+  const [mapVisible, setMapVisible] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setMapVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    if (mapRef.current) observer.observe(mapRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const fetchNewArrivals = async () => {
@@ -452,19 +468,25 @@ export function HomePage() {
               </div>
             </div>
 
-            {/* Google Map */}
-            <div className="w-full h-[280px] rounded-lg overflow-hidden border-2 border-zinc-800 shadow-xl relative bg-zinc-900">
-              <iframe
-                title="Absolute Soccer Location Map"
-                src="https://maps.google.com/maps?q=5600%20Rose%20Cherry%20Place,%20Mississauga%20Ontario&amp;t=&amp;z=15&amp;ie=UTF8&amp;iwloc=&amp;output=embed"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen={false}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                className="grayscale opacity-75 hover:grayscale-0 hover:opacity-100 transition-all duration-500"
-              />
+            {/* Google Map — deferred until scrolled into view (embed script is ~400KB) */}
+            <div ref={mapRef} className="w-full h-[280px] rounded-lg overflow-hidden border-2 border-zinc-800 shadow-xl relative bg-zinc-900">
+              {mapVisible ? (
+                <iframe
+                  title="Absolute Soccer Location Map"
+                  src="https://maps.google.com/maps?q=5600%20Rose%20Cherry%20Place,%20Mississauga%20Ontario&amp;t=&amp;z=15&amp;ie=UTF8&amp;iwloc=&amp;output=embed"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen={false}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  className="grayscale opacity-75 hover:grayscale-0 hover:opacity-100 transition-all duration-500"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <span className="text-zinc-500 text-sm font-medium">Loading map...</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -116,7 +116,8 @@ function BrandCard({ brand, count, tall, idx }: BrandCardProps) {
           src={brand.image}
           alt={brand.label}
           className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-60"
-          loading="lazy"
+          loading={idx === 0 ? 'eager' : 'lazy'}
+          fetchPriority={idx === 0 ? 'high' : 'auto'}
           decoding="async"
         />
 
