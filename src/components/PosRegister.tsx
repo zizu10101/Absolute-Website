@@ -240,9 +240,9 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
 
       const stock = variant.stock_quantity ?? 0;
       if (stock <= 0) {
-        const sizeText = variant.size ? ` Â· Size ${variant.size}` : '';
+        const sizeText = variant.size ? ` - Size ${variant.size}` : '';
         setBarcodeError(
-          `OUT OF STOCK â€” ${product.name}${sizeText}`
+          `OUT OF STOCK - ${product.name}${sizeText}`
         );
         setTimeout(() => setBarcodeError(null), 4000);
         return;
@@ -269,13 +269,13 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
         setBarcodeError(addError);
         setTimeout(() => setBarcodeError(null), 4000);
       } else {
-        const sizeText = variant.size ? ` Â· Sz ${variant.size}` : '';
+        const sizeText = variant.size ? ` - Sz ${variant.size}` : '';
         setBarcodeSuccess(`Added: ${product.name}${sizeText}`);
         setTimeout(() => setBarcodeSuccess(null), 2000);
       }
     } catch (err: any) {
       console.error('Barcode scan error:', err);
-      setBarcodeError('Error looking up barcode â€” check connection');
+      setBarcodeError('Error looking up barcode - check connection');
       setTimeout(() => setBarcodeError(null), 4000);
     } finally {
       setBarcodeInput('');
@@ -305,7 +305,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
   const getStockCount = (product: any) => {
     if (product.stock !== undefined) return product.stock;
     if (product.inventory_quantity !== undefined) return product.inventory_quantity;
-    return 'â€”';
+    return '-';
   };
 
   const matchesCategory = (p: any, tab: TabId) => {
@@ -744,7 +744,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                     <CheckCircle2 size={24} className="text-emerald-600 shrink-0" />
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest text-emerald-800">Sale Complete</p>
-                      <p className="text-[10px] text-emerald-600 font-bold">{receipt.time} Â· {receipt.method}</p>
+                      <p className="text-[10px] text-emerald-600 font-bold">{receipt.time} - {receipt.method}</p>
                     </div>
                   </div>
 
@@ -773,10 +773,10 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                             <p className="font-bold text-zinc-900 uppercase leading-tight">{item.name}</p>
                             {item.size && (
                               <p className="text-zinc-400 font-medium">
-                                {item.ageGroup && `${item.ageGroup} Â· `}Size {item.size}
+                                {item.ageGroup && `${item.ageGroup} - `}Size {item.size}
                               </p>
                             )}
-                            <p className="text-zinc-500">Qty {item.quantity} Ã— ${Number(item.price).toFixed(2)}</p>
+                            <p className="text-zinc-500">Qty {item.quantity} x ${Number(item.price).toFixed(2)}</p>
                           </div>
                           <p className="font-black text-zinc-900 shrink-0">${(Number(item.price) * item.quantity).toFixed(2)}</p>
                         </div>
@@ -841,14 +841,14 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                               <p className="text-[11px] font-black uppercase text-zinc-900 leading-snug">{item.name}</p>
                               {item.size && (
                                 <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wide">
-                                  {item.ageGroup && `${item.ageGroup} Â· `}Size {item.size}
+                                  {item.ageGroup && `${item.ageGroup} - `}Size {item.size}
                                 </p>
                               )}
                               {item.stockQuantity !== undefined && (
                                 <p className={`text-[9px] font-bold uppercase tracking-wide ${isLowStock ? 'text-amber-600' : 'text-zinc-400'}`}>
                                   {isLowStock && <AlertTriangle size={9} className="inline mr-0.5" />}
                                   Stock: {item.stockQuantity}
-                                  {isLowStock && ' â€” LOW STOCK'}
+                                  {isLowStock && ' - LOW STOCK'}
                                 </p>
                               )}
                             </div>
@@ -872,7 +872,7 @@ export const PosRegister: React.FC<PosRegisterProps> = ({ posTab = 'register', s
                             >
                               +
                             </button>
-                            <span className="text-[9px] text-zinc-400 font-bold">Ã— ${Number(item.price).toFixed(2)}</span>
+                            <span className="text-[9px] text-zinc-400 font-bold">x ${Number(item.price).toFixed(2)}</span>
                           </div>
                         </div>
                       );

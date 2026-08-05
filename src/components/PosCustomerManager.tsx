@@ -167,7 +167,7 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
             <ArrowLeft size={16} />
           </button>
           <h2 className="text-sm font-black uppercase tracking-widest text-zinc-900">
-            {view === 'create' ? 'New Customer' : `Edit â€” ${selected?.first_name} ${selected?.last_name}`}
+            {view === 'create' ? 'New Customer' : `Edit - ${selected?.first_name} ${selected?.last_name}`}
           </h2>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -274,7 +274,7 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
             {[
               { icon: ShoppingBag, label: 'Purchases', value: customerTxns.filter(t => t.status !== 'voided').length },
               { icon: DollarSign, label: 'Total Spent', value: `$${totalSpent.toFixed(2)}` },
-              { icon: Clock, label: 'Last Visit', value: lastVisit || 'â€”' },
+              { icon: Clock, label: 'Last Visit', value: lastVisit || '-' },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="bg-white rounded-xl border border-zinc-100 p-4 text-center">
                 <Icon size={16} className="text-zinc-400 mx-auto mb-1" />
@@ -323,7 +323,7 @@ export const PosCustomerManager: React.FC<PosCustomerManagerProps> = ({ onSelect
                             {isExpanded && <ChevronUp size={14} className="text-zinc-400" />}
                             {!isExpanded && <ChevronDown size={14} className="text-zinc-400" />}
                           </div>
-                          <p className="text-[9px] text-zinc-400 font-mono">{tx.id.slice(0, 8).toUpperCase()} Â· {tx.method}</p>
+                          <p className="text-[9px] text-zinc-400 font-mono">{tx.id.slice(0, 8).toUpperCase()} - {tx.method}</p>
                           <p className="text-[9px] text-zinc-400">{(tx.items || []).length} item(s)</p>
                         </div>
                         <div className="text-right">

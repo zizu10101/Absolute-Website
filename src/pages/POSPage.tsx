@@ -368,7 +368,7 @@ export function POSPage() {
       // UUID format: 8-4-4-4-12 hex digits (36 chars total with hyphens)
       const isUUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(barcode);
       if (isUUID) {
-        setBarcodeError('âŒ That appears to be a transaction UUID. Please scan the invoice barcode (INV-XXXXX) instead.');
+        setBarcodeError('That appears to be a transaction UUID. Please scan the invoice barcode (INV-XXXXX) instead.');
         setTimeout(() => setBarcodeError(null), 4000);
         return;
       }
@@ -426,7 +426,7 @@ export function POSPage() {
 
         const stock = variant.stock_quantity ?? 0;
         if (stock <= 0) {
-          setBarcodeError(`OUT OF STOCK â€” ${product.name} Â· Size ${variant.size}`);
+          setBarcodeError(`OUT OF STOCK - ${product.name} - Size ${variant.size}`);
           setTimeout(() => setBarcodeError(null), 4000);
           return;
         }
@@ -474,8 +474,8 @@ export function POSPage() {
         setBarcodeError(addError);
         setTimeout(() => setBarcodeError(null), 4000);
       } else {
-        const colorText = cartItem.color ? ` Â· ${cartItem.color}` : '';
-        const sizeText = cartItem.size ? ` Â· Sz ${cartItem.size}` : '';
+        const colorText = cartItem.color ? ` - ${cartItem.color}` : '';
+        const sizeText = cartItem.size ? ` - Sz ${cartItem.size}` : '';
         setBarcodeSuccess(`Added: ${cartItem.name}${colorText}${sizeText}`);
         setTimeout(() => setBarcodeSuccess(null), 2000);
       }
@@ -643,7 +643,7 @@ export function POSPage() {
         setRecentTransactions(data);
       }
     } catch (e: any) {
-      console.error(`âŒ STEP 8: Caught exception:`, e.message);
+      console.error(`STEP 8: Caught exception:`, e.message);
       alert(`Error: ${e.message}`);
     }
   };
@@ -671,7 +671,7 @@ export function POSPage() {
       // Detect UUID format
       const isUUID = input.length === 36 && input.includes('-') && !input.startsWith('INV-');
       if (isUUID) {
-        setReturnsLookupError('âŒ Please scan the invoice barcode, not the transaction UUID');
+        setReturnsLookupError('Please scan the invoice barcode, not the transaction UUID');
         return;
       }
 
@@ -935,7 +935,7 @@ export function POSPage() {
       // Detect if this is an invoice number (INV-XXXXX format)
       if (searchCode.startsWith('INV-') || /^INV-\d+$/.test(searchCode)) {
         setStoreCreditError(
-          'â›” This is an invoice barcode, not a store credit.\n\n' +
+          'This is an invoice barcode, not a store credit.\n\n' +
           'Invoice codes are in format: INV-XXXXX\n\n' +
           'To process a return or look up a transaction, use the Returns tab instead.'
         );
@@ -946,7 +946,7 @@ export function POSPage() {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (uuidRegex.test(searchCode)) {
         setStoreCreditError(
-          'âŒ This is a transaction receipt barcode, not a store credit.\n\n' +
+          'This is a transaction receipt barcode, not a store credit.\n\n' +
           'Store Credit codes are in format: SC-XXXXXXXXXXXX\n\n' +
           'Please scan the STORE CREDIT receipt instead.'
         );
@@ -1260,7 +1260,7 @@ export function POSPage() {
           } else {
           }
         } catch (err) {
-          console.error('âŒ Error processing gift card redemption:', err);
+          console.error('Error processing gift card redemption:', err);
           // Don't fail the transaction if gift card redemption fails
         }
       }
@@ -1746,7 +1746,7 @@ export function POSPage() {
                           <p className="text-sm font-semibold truncate">{item.name}</p>
                           {(item.color || item.size) && (
                             <p className="text-xs text-gray-400">
-                              {item.color}{item.color && item.size ? ' Â· ' : ''}{item.size && `Size ${item.size}`}
+                              {item.color}{item.color && item.size ? ' - ' : ''}{item.size && `Size ${item.size}`}
                             </p>
                           )}
                         </div>
@@ -1756,7 +1756,13 @@ export function POSPage() {
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">−</button>
-                        <span className="text-xs font-bold w-5 text-center">{item.quantity}</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={item.quantity}
+                          onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value) || 1)}
+                          className="w-10 text-xs font-bold text-center bg-transparent border border-[#2d3547] rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
                         <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className="w-5 h-5 rounded border border-[#2d3547] text-xs hover:bg-[#2d3547] flex items-center justify-center">+</button>
                       </div>
 
@@ -1999,7 +2005,7 @@ export function POSPage() {
 
               {returnsFoundTransaction && !showReturnsModal && (
                 <div className="p-4 bg-green-900/20 border border-green-500 rounded space-y-2">
-                  <p className="text-green-400 font-bold">âœ“ Invoice Found</p>
+                  <p className="text-green-400 font-bold">Invoice Found</p>
                   <p className="text-gray-300 text-sm">
                     Invoice: {returnsFoundTransaction.id.slice(0, 8).toUpperCase()}
                   </p>
@@ -2115,7 +2121,7 @@ export function POSPage() {
                     >
                       <span className="font-semibold">
                         Size {variant.size || '(no size)'}
-                        {variant.color && ` Â· ${variant.color}`}
+                        {variant.color && ` - ${variant.color}`}
                         {variant.age_group && ` (${variant.age_group})`}
                       </span>
                       <span className={`text-sm ${
@@ -2157,7 +2163,7 @@ export function POSPage() {
                     <CheckCircle2 size={20} className="text-green-600 shrink-0" />
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest text-green-800">Sale Complete</p>
-                      <p className="text-[10px] text-green-600 font-bold">{receipt.time} Â· {receipt.method}</p>
+                      <p className="text-[10px] text-green-600 font-bold">{receipt.time} - {receipt.method}</p>
                     </div>
                   </div>
 
@@ -2186,11 +2192,11 @@ export function POSPage() {
                             <p className="font-bold text-black uppercase leading-tight">{item.name}</p>
                             {(item.color || item.size || item.ageGroup) && (
                               <p className="text-zinc-600 font-medium">
-                                {item.color && `${item.color}`}{item.color && (item.size || item.ageGroup) ? ' Â· ' : ''}{item.ageGroup && `${item.ageGroup} Â· `}
+                                {item.color && `${item.color}`}{item.color && (item.size || item.ageGroup) ? ' - ' : ''}{item.ageGroup && `${item.ageGroup} - `}
                                 {item.size && `Size ${item.size}`}
                               </p>
                             )}
-                            <p className="text-zinc-600">Qty {item.quantity} Ã— ${Number(item.price).toFixed(2)}</p>
+                            <p className="text-zinc-600">Qty {item.quantity} x ${Number(item.price).toFixed(2)}</p>
                             {item.discount && (
                               <p className="text-yellow-600 font-bold">
                                 Discount: {item.discount.type === 'percent' ? `${item.discount.value}%` : `$${item.discount.value.toFixed(2)}`} (−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)})
@@ -2222,10 +2228,10 @@ export function POSPage() {
                               <div className="text-[9px] font-bold text-blue-700 uppercase tracking-widest">Store Credit Payment</div>
                               <div className="text-sm text-blue-600">Amount Used: −${receipt.storeCreditAmount.toFixed(2)}</div>
                               {receipt.storeCreditNewBalance === 0 ? (
-                                <div className="text-[18px] font-black text-blue-900 py-2">â˜… STORE CREDIT FULLY REDEEMED â˜…</div>
+                                <div className="text-[18px] font-black text-blue-900 py-2">STORE CREDIT FULLY REDEEMED</div>
                               ) : (
                                 <div className="py-2 space-y-1">
-                                  <div className="text-[18px] font-black text-blue-900">â˜… REMAINING BALANCE: ${receipt.storeCreditNewBalance.toFixed(2)} â˜…</div>
+                                  <div className="text-[18px] font-black text-blue-900">REMAINING BALANCE: ${receipt.storeCreditNewBalance.toFixed(2)}</div>
                                 </div>
                               )}
                             </div>
@@ -2313,7 +2319,7 @@ export function POSPage() {
                                 <div className="flex-1 text-[11px]">
                                   <p className="font-bold leading-tight">{item.name}</p>
                                   {(item.size || item.ageGroup) && (
-                                    <p className="text-zinc-500">{item.ageGroup ? `${item.ageGroup} Â· ` : ''}Size {item.size}</p>
+                                    <p className="text-zinc-500">{item.ageGroup ? `${item.ageGroup} - ` : ''}Size {item.size}</p>
                                   )}
                                   <p className="text-zinc-500">Qty {item.quantity}</p>
                                 </div>
@@ -2351,7 +2357,7 @@ export function POSPage() {
                     {cart.map(item => (
                       <div key={item.id} className="border border-[#2d3547] rounded p-2">
                         <p className="font-bold text-white">{item.name}</p>
-                        <p className="text-gray-400">Qty {item.quantity} Ã— ${Number(item.price).toFixed(2)}</p>
+                        <p className="text-gray-400">Qty {item.quantity} x ${Number(item.price).toFixed(2)}</p>
                         {item.discount && (
                           <p className="text-yellow-400">Discount: {item.discount.type === 'percent' ? `${item.discount.value}%` : `$${item.discount.value.toFixed(2)}`} (−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)})</p>
                         )}
@@ -2430,7 +2436,7 @@ export function POSPage() {
                           </>
                         )}
                         {scRemainingBalance === 0 && (
-                          <div className="text-[9px] text-green-300 font-bold italic">âœ… Store credit fully covers this transaction. Click "Complete Sale" below.</div>
+                          <div className="text-[9px] text-green-300 font-bold italic">Store credit fully covers this transaction. Click "Complete Sale" below.</div>
                         )}
                       </div>
                     )}
@@ -2442,7 +2448,7 @@ export function POSPage() {
                         disabled={isConfirming}
                         className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white p-3 rounded font-bold text-sm uppercase mb-3"
                       >
-                        âœ… Complete Sale (Store Credit)
+                        Complete Sale (Store Credit)
                       </button>
                     ) : (
                       <>
@@ -3016,7 +3022,7 @@ export function POSPage() {
                   {recentTransactions.slice(0, 10).map((tx) => (
                     <div key={tx.id} className="bg-[#0f1117] border border-[#2d3547] p-3 rounded flex items-center justify-between">
                       <div className="flex-1">
-                        <p className="text-xs font-bold text-white">{tx.method} Â· ${Number(tx.total_amount).toFixed(2)} <span className="text-[10px] text-gray-400">({tx.status || 'completed'})</span></p>
+                        <p className="text-xs font-bold text-white">{tx.method} - ${Number(tx.total_amount).toFixed(2)} <span className="text-[10px] text-gray-400">({tx.status || 'completed'})</span></p>
                         <p className="text-[10px] text-gray-400">{new Date(tx.created_at).toLocaleString()}</p>
                         {tx.customer_id && (
                           <p className="text-[10px] text-gray-400">
