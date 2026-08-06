@@ -102,8 +102,6 @@ function AppRoutes() {
     <>
       <Meta />
       <Routes>
-        <Route path="/custom-lab" element={<CustomLabPage />} />
-
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
 
@@ -173,6 +171,7 @@ function AppRoutes() {
           <Route path="brands" element={<BrandsPage />} />
           <Route path="brand/:brandName" element={<BrandPage />} />
           <Route path="customization" element={<CustomizationPage />} />
+          <Route path="custom-lab" element={<CustomLabPage />} />
           <Route path="kit-orders" element={<UniformSubmissionPage />} />
           <Route path="uniform-submission" element={<UniformSubmissionPage />} />
           <Route path="contact-us" element={<ContactUsPage />} />
