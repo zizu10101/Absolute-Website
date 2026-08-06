@@ -32,22 +32,14 @@ export function HomePage() {
 
   useEffect(() => {
     const fetchNewArrivals = async () => {
-      // Try ordering by created_at; fall back to isNewArrival flag if column absent
-      let { data, error } = await supabase
+      // products has no created_at column (confirmed via Supabase: 42703 column does not exist),
+      // so "newest" is tracked via the isNewArrival flag instead of a real date order.
+      const { data } = await supabase
         .from('products')
         .select('*')
         .eq('is_online', true)
-        .order('created_at', { ascending: false })
+        .eq('isNewArrival', true)
         .limit(4);
-      if (error || !data || data.length === 0) {
-        const res = await supabase
-          .from('products')
-          .select('*')
-          .eq('is_online', true)
-          .eq('isNewArrival', true)
-          .limit(4);
-        data = res.data;
-      }
       if (data) setNewArrivals(data.map(mapProductFromDb));
     };
 
