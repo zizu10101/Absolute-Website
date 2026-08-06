@@ -106,14 +106,20 @@ function AppRoutes() {
           <Route path="/" element={<HomePage />} />
 
           {/* Dynamic Routes from Navigation Menus */}
-          {navigationMenus.map(menu => (
-            <Fragment key={menu.path}>
-              <Route
-                path={menu.path.startsWith('/') ? menu.path.slice(1) : menu.path}
-                element={<ProductGridPage title={menu.label} category={menu.label} />}
-              />
-            </Fragment>
-          ))}
+          {/* "custom-lab" is excluded here — it's a DB-driven nav menu entry (CUSTOM LAB -> /custom-lab)
+              but has its own dedicated page route below, not a product category. Without this
+              exclusion it registers an earlier ProductGridPage route at the same path, which wins
+              the React Router tie-break over the CustomLabPage route and renders "No products found". */}
+          {navigationMenus
+            .filter(menu => (menu.path.startsWith('/') ? menu.path.slice(1) : menu.path) !== 'custom-lab')
+            .map(menu => (
+              <Fragment key={menu.path}>
+                <Route
+                  path={menu.path.startsWith('/') ? menu.path.slice(1) : menu.path}
+                  element={<ProductGridPage title={menu.label} category={menu.label} />}
+                />
+              </Fragment>
+            ))}
           {navigationMenus.flatMap(menu =>
             (menu.submenus || []).filter(s => s && typeof s === 'object' && s.heading).map(submenu => (
               <Fragment key={submenu.heading + (submenu.path || '')}>
