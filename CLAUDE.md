@@ -6,7 +6,21 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**POS DARK/LIGHT MODE TOGGLE (Session 51 - CURRENT):**
+**CUSTOM LAB / KIT ORDERS IFRAMES, 400 FIX, POS NEW PRICE DISCOUNT, FOOTER HEADING FIX (Session 52 - CURRENT):**
+- Custom Lab page (`/custom-lab`): iframe embed of Google AI Studio jersey designer — URL: `https://absolute-basic-jersey-customizer-930161668914.us-west1.run.app`
+- Kit Orders page (`/kit-orders`): iframe embed of uniform designer — URL: `https://absolute-uniform.ai.studio`
+- Both pages use standard site Header and Footer (via `Layout`) — `src/App.tsx`'s dynamic `navigationMenus.map()` route generator was silently shadowing both pages' dedicated routes with a `ProductGridPage` route at the same path (DB nav menu rows `CUSTOM LAB -> /custom-lab` and `KIT ORDERS -> /kit-orders` collided with the static routes), showing "No products found" instead — fixed via a `RESERVED_PAGE_PATHS` exclusion list
+- Footer h4 changed to h3 for heading hierarchy (`src/components/Footer.tsx` — Shop/Custom Lab/Support section titles)
+- 400 error fixed: removed invalid `created_at` query from homepage (`products` table has no `created_at` column — confirmed via direct Supabase query, error code `42703`); `HomePage.tsx`'s New Arrivals fetch now queries the working `isNewArrival` flag directly instead of attempting the failing query first
+- Set New Price discount option added to POS: item-level cart discounts now support a 3rd type alongside %/$ off — staff enter a final price directly, discount is derived as `originalPrice - newPrice`, with validation against $0 and against exceeding the original price
+- Master variant color naming field added above release date in Edit Product (documented under Session 50)
+- Color selector on product page shows only named colors, no "All Colors" button (documented under Session 50)
+- Rapid Scan dropdown shows named colors when defined, free text when not (documented under Session 49)
+- Corrupted characters fixed on POS (documented under Session 49)
+- Quantity field in POS cart now allows typing numbers directly (documented under Session 49)
+- Google Analytics: `G-LP6TC6XHFW` (documented under Session 49)
+
+**POS DARK/LIGHT MODE TOGGLE (Session 51):**
 - `src/pages/POSPage.tsx`: Implemented fully functional dark/light mode toggle for POS system
   - `isDarkMode` state with localStorage persistence (defaults to dark mode if no saved preference)
   - Toggle button with Sun/Moon icon in top bar, smooth transitions between modes
@@ -266,10 +280,16 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-## CURRENT STATUS (Main Branch - August 5, 2026)
-**Latest:** POS dark/light mode toggle with full theme-aware styling, logo switching, localStorage persistence (session 51)
+## CURRENT STATUS (Main Branch - August 6, 2026)
+**Latest:** Custom Lab (`/custom-lab`) and Kit Orders (`/kit-orders`) simplified to standard Header/Footer + a full-page designer iframe each; fixed a route collision that was shadowing both pages with "No products found"; homepage 400 error fixed; POS gained a "Set New Price" item discount option; Footer heading hierarchy fixed (session 52)
 
-**COMPLETED (August 5, 2026):**
+**COMPLETED (August 6, 2026):**
+- ✅ **Session 52:** Custom Lab + Kit Orders iframe pages, route-collision fix, homepage 400 fix, POS New Price discount, Footer h3 fix
+  - `/custom-lab` and `/kit-orders`: each page is just the standard Header/Footer (via `Layout`) wrapping a full-height iframe (jersey designer / uniform designer respectively) — no custom nav, no other page content
+  - Fixed `src/App.tsx`: `RESERVED_PAGE_PATHS` list excludes `custom-lab` and `kit-orders` from the dynamic `navigationMenus.map()` route generator, which was registering an earlier `ProductGridPage` route at the same path and winning React Router's tie-break over the real page component
+  - Fixed homepage 400: `products` has no `created_at` column; `HomePage.tsx` New Arrivals now queries `isNewArrival` directly instead of attempting the failing ordered query first
+  - POS: item-level cart discounts gained a 3rd "Set New Price" type (`src/hooks/usePOSCart.ts`, `src/pages/POSPage.tsx`, `src/utils/thermalReceipt.ts`) — staff enter a final price, discount is derived as `originalPrice - newPrice`, validated against $0 and against exceeding the original price
+  - `src/components/Footer.tsx`: Shop/Custom Lab/Support section titles changed from `h4` to `h3` (heading-hierarchy fix, no visual change)
 - ✅ **Session 51:** POS dark/light mode toggle fully implemented
   - isDarkMode state with localStorage persistence (defaults to dark)
   - Conditional styling throughout entire POS: all text, buttons, panels, modals, forms
@@ -966,7 +986,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - `/brands` — All brands listing page (BrandsPage)
 - `/brand/:brandName` — Individual brand page (BrandPage) — filters products by brand, with category sub-filter + search + sort
 - `/reports` — Financial reports
-- `/kit-orders` — Kit Orders / Uniform Submission page (also aliased at `/uniform-submission` for backward compat)
+- `/kit-orders` — Kit Orders page: standard Header/Footer + full-height iframe embed of the uniform designer (also aliased at `/uniform-submission` for backward compat)
+- `/custom-lab` — Custom Lab page: standard Header/Footer + full-height iframe embed of the jersey designer
 - `/sale` — Sale page (filters products where isOnSale=true)
 - `/custom-apparel` — Custom Apparel landing page
 - `/brampton-soccer-uniforms` — City SEO landing page for Brampton soccer clubs (BramptonSoccerPage)

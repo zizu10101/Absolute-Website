@@ -29,6 +29,10 @@ import { BrandPage } from './pages/BrandPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { useSEO } from './hooks/useSEO';
 
+// Paths that exist as DB-driven navigation_menus rows but must render their own dedicated
+// page component below, not the generic ProductGridPage category route.
+const RESERVED_PAGE_PATHS = ['custom-lab', 'kit-orders'];
+
 function LoadingScreen() {
   return (
     <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
@@ -106,12 +110,13 @@ function AppRoutes() {
           <Route path="/" element={<HomePage />} />
 
           {/* Dynamic Routes from Navigation Menus */}
-          {/* "custom-lab" is excluded here — it's a DB-driven nav menu entry (CUSTOM LAB -> /custom-lab)
-              but has its own dedicated page route below, not a product category. Without this
-              exclusion it registers an earlier ProductGridPage route at the same path, which wins
-              the React Router tie-break over the CustomLabPage route and renders "No products found". */}
+          {/* RESERVED_PAGE_PATHS are DB-driven nav menu entries that share a path with a dedicated
+              page route declared below (not a product category). Without this exclusion they'd
+              register an earlier ProductGridPage route at the same path, which wins the React
+              Router tie-break over the real page route and renders "No products found" instead
+              (confirmed for both custom-lab -> CustomLabPage and kit-orders -> UniformSubmissionPage). */}
           {navigationMenus
-            .filter(menu => (menu.path.startsWith('/') ? menu.path.slice(1) : menu.path) !== 'custom-lab')
+            .filter(menu => !RESERVED_PAGE_PATHS.includes(menu.path.startsWith('/') ? menu.path.slice(1) : menu.path))
             .map(menu => (
               <Fragment key={menu.path}>
                 <Route
