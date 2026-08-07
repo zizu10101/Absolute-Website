@@ -21,6 +21,25 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Mirrors src/utils/slugify.ts — kept in sync manually since this script runs
+// standalone under plain Node (not through the Vite/TS build).
+function slugify(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim()
+    .substring(0, 80);
+}
+
+function buildProductUrl(product) {
+  const nameSlug = slugify(product.name);
+  const codeSlug = product.product_code ? `-${slugify(product.product_code)}` : '';
+  const shortId = product.id.substring(0, 8);
+  return `/product/${nameSlug}${codeSlug}--${shortId}`;
+}
+
 // Helper function to make Supabase API calls
 async function supabaseRequest(endpoint, method = 'GET') {
   return new Promise((resolve, reject) => {
@@ -61,7 +80,7 @@ async function generateSitemap() {
 
     // Fetch products
     console.log('Fetching products from Supabase...');
-    const products = await supabaseRequest('/products?is_online=eq.true&select=id,name,category');
+    const products = await supabaseRequest('/products?is_online=eq.true&select=id,name,category,product_code');
     console.log(`Found ${products.length} online products`);
 
     // Get unique category slugs (deduplicate after slug conversion to handle case variations)
@@ -113,7 +132,7 @@ async function generateSitemap() {
     xml += '\n  <!-- Product Pages -->\n';
     products.forEach(product => {
       xml += '  <url>\n';
-      xml += `    <loc>https://torontosoccershop.com/product/${product.id}</loc>\n`;
+      xml += `    <loc>https://torontosoccershop.com${buildProductUrl(product)}</loc>\n`;
       xml += '    <changefreq>weekly</changefreq>\n';
       xml += '    <priority>0.7</priority>\n';
       xml += '  </url>\n';

@@ -189,7 +189,7 @@ function AppRoutes() {
           <Route path="custom-apparel" element={<CustomApparelPage />} />
           <Route path="brampton-soccer-uniforms" element={<BramptonSoccerPage />} />
           <Route path="mississauga-soccer-store" element={<MississaugaSoccerPage />} />
-          <Route path="product/:id" element={<ProductDetailPage />} />
+          <Route path="product/:slug" element={<ProductDetailPage />} />
           <Route path="products" element={<Navigate to="/category/footwear" replace />} />
         </Route>
 

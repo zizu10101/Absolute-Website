@@ -1,6 +1,7 @@
 ﻿import React from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../context/ProductContext';
+import { buildProductUrl } from '../utils/slugify';
 
 interface ProductCardProps {
   product: Product;
@@ -18,11 +19,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
   // Find the first image in the gallery that isn't the primary image
   const hoverImage = product.images?.find(img => img && img !== product.image);
   const displayImage = activeImage || (isHovered && hoverImage ? hoverImage : product.image);
+  const productUrl = buildProductUrl(product);
 
   return (
     <div className={`bg-white group cursor-pointer border border-zinc-100 relative flex flex-col h-full${isSoldOut ? ' opacity-70' : ''}`}>
-      <Link 
-        to={`/product/${product.id}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} 
+      <Link
+        to={`${productUrl}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`}
         className="block"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -100,7 +102,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
         </div>
       )}
 
-      <Link to={`/product/${product.id}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} className="flex flex-col flex-1 p-3">
+      <Link to={`${productUrl}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} className="flex flex-col flex-1 p-3">
         {product.brand && (
           <span className="text-[10px] font-medium text-zinc-600 uppercase tracking-wide mb-1">
             {product.brand}
