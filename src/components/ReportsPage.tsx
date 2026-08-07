@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useSettings } from '../context/SettingsContext';
 import {
   Download, Calendar, TrendingUp, Package, Gift, Users,
-  BarChart3, DollarSign, RefreshCw, Printer, RotateCcw
+  BarChart3, DollarSign, RefreshCw, Printer, RotateCcw, ArrowLeft
 } from 'lucide-react';
 import { EndOfDayReport } from './reports/EndOfDayReport';
 import { SalesReport } from './reports/SalesReport';
@@ -16,9 +17,19 @@ import { StoreCreditReport } from './reports/StoreCreditReport';
 type ReportTab = 'eod' | 'sales' | 'product' | 'gift-card' | 'customer' | 'void-refund' | 'store-credit';
 
 export const ReportsPage: React.FC = () => {
+  const navigate = useNavigate();
   const { logo } = useSettings();
   const [activeTab, setActiveTab] = useState<ReportTab>('eod');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Handle Escape key to return to POS
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') navigate('/pos');
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
 
   const tabs = [
     { id: 'eod', label: 'End of Day', icon: Calendar },
@@ -32,6 +43,17 @@ export const ReportsPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-zinc-50">
+      {/* Back Button */}
+      <div className="bg-white border-b border-zinc-200 px-6 py-3">
+        <button
+          onClick={() => navigate('/pos')}
+          className="flex items-center gap-2 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-600 transition-colors"
+        >
+          <ArrowLeft size={16} />
+          Back to POS
+        </button>
+      </div>
+
       {/* Header */}
       <div className="bg-white border-b border-zinc-200 px-6 py-4">
         <div className="flex items-center justify-between">

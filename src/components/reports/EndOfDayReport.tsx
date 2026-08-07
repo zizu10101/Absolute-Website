@@ -18,6 +18,7 @@ interface Transaction {
   items: any[];
   created_at: string;
   customer_id?: string;
+  payment_splits?: Array<{ method: string; amount: number }>;
 }
 
 interface PaymentBreakdown {
@@ -106,30 +107,47 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
     };
   }, [transactions]);
 
-  // Payment breakdown
+  // Payment breakdown - handles both single payment method and split payments
   const paymentBreakdown = useMemo(() => {
-    const breakdown: Record<string, PaymentBreakdown> = {
-      Cash: { method: 'Cash', count: 0, amount: 0 },
-      Debit: { method: 'Debit', count: 0, amount: 0 },
-      Visa: { method: 'Visa', count: 0, amount: 0 },
-      Mastercard: { method: 'Mastercard', count: 0, amount: 0 },
-      Amex: { method: 'Amex', count: 0, amount: 0 },
-      'Gift Card': { method: 'Gift Card', count: 0, amount: 0 },
-      'Store Credit': { method: 'Store Credit', count: 0, amount: 0 },
-      Other: { method: 'Other', count: 0, amount: 0 },
-    };
+    interface BreakdownWithTxIds extends PaymentBreakdown {
+      txIds?: Set<string>;
+    }
+    const breakdown: Record<string, BreakdownWithTxIds> = {};
 
     const completed = transactions.filter(t => t.status === 'completed');
 
-    completed.forEach((t, idx) => {
-      const method = t.method || 'Other';
-      if (!breakdown[method]) breakdown[method] = { method, count: 0, amount: 0 };
-      breakdown[method].count += 1;
-      breakdown[method].amount += Math.abs(Number(t.total_amount));
+    completed.forEach((t) => {
+      // Check if transaction has split payments
+      if (t.payment_splits && Array.isArray(t.payment_splits) && t.payment_splits.length > 0) {
+        // Handle split payments - sum each method's amount
+        t.payment_splits.forEach(split => {
+          const method = split.method || 'Other';
+          if (!breakdown[method]) breakdown[method] = { method, count: 0, amount: 0, txIds: new Set() };
+          breakdown[method].amount += Math.abs(Number(split.amount || 0));
+          // Increment count only once per transaction (not per split)
+          breakdown[method].txIds?.add(t.id);
+        });
+      } else {
+        // Single payment method
+        const method = t.method || 'Other';
+        if (!breakdown[method]) breakdown[method] = { method, count: 0, amount: 0 };
+        breakdown[method].count += 1;
+        breakdown[method].amount += Math.abs(Number(t.total_amount));
+      }
     });
 
-    // Return ALL methods, including those with 0 count
-    return Object.values(breakdown);
+    // Set count from unique transaction IDs for split payments
+    Object.values(breakdown).forEach(item => {
+      if (item.txIds && item.txIds.size > 0) {
+        item.count = item.txIds.size;
+      }
+    });
+
+    // Filter to only include methods with amount > 0, sorted by amount descending
+    return Object.values(breakdown)
+      .filter(item => item.amount > 0)
+      .map(({ txIds, ...item }) => item) // Remove txIds before returning
+      .sort((a, b) => b.amount - a.amount);
   }, [transactions]);
 
   // Top products
