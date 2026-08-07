@@ -212,9 +212,40 @@ export function ProductDetailPage() {
   // Look up the matching product.colors entry for price/images
   const selectedColorEntry = product?.colors?.find((c: any) => c.name === selectedColor) ?? null;
 
-  const displayPrice = product ? (selectedColorEntry?.price
-    ? selectedColorEntry.price
-    : (product.isOnSale && product.salePrice ? product.salePrice : product.price)) : 0;
+  // Compute display price and original price (for strikethrough) based on color selection
+  let displayPrice = 0;
+  let displayOriginalPrice: number | null = null;
+  if (product) {
+    const colorSalePrice: number | null = selectedColorEntry?.salePrice ?? null;
+    const colorPriceOverride: number | null = selectedColorEntry?.price ?? null;
+    if (selectedColor) {
+      if (colorSalePrice) {
+        displayPrice = colorSalePrice;
+        displayOriginalPrice = colorPriceOverride || product.price;
+      } else if (colorPriceOverride) {
+        displayPrice = colorPriceOverride;
+      } else if (product.isOnSale && product.salePrice) {
+        displayPrice = product.salePrice;
+        displayOriginalPrice = product.price;
+      } else {
+        displayPrice = product.price;
+      }
+    } else {
+      // No color selected — show lowest available price
+      const colorSalePrices = (product.colors || []).filter((c: any) => c.salePrice).map((c: any) => c.salePrice as number);
+      const effectiveBase = product.isOnSale && product.salePrice ? product.salePrice : product.price;
+      if (colorSalePrices.length > 0) {
+        const lowestColorSale = Math.min(...colorSalePrices);
+        displayPrice = Math.min(effectiveBase, lowestColorSale);
+        displayOriginalPrice = product.price;
+      } else if (product.isOnSale && product.salePrice) {
+        displayPrice = product.salePrice;
+        displayOriginalPrice = product.price;
+      } else {
+        displayPrice = product.price;
+      }
+    }
+  }
 
   const currentVariantImages = product ? (selectedColorEntry?.images?.length
     ? selectedColorEntry.images
@@ -527,8 +558,8 @@ export function ProductDetailPage() {
             </h1>
             <div className="flex items-baseline gap-4">
               <span className="text-3xl font-black font-headline text-zinc-900">${displayPrice.toFixed(2)}</span>
-              {product.isOnSale && !selectedColorEntry?.price && (
-                <span className="text-xl text-zinc-600 line-through font-bold">${product.price.toFixed(2)}</span>
+              {displayOriginalPrice && displayOriginalPrice !== displayPrice && (
+                <span className="text-xl text-zinc-400 line-through font-bold">${displayOriginalPrice.toFixed(2)}</span>
               )}
             </div>
           </div>
@@ -545,6 +576,14 @@ export function ProductDetailPage() {
                 )}
               </div>
               <div className="flex flex-wrap gap-3">
+                {variants.some((v: any) => !v.color || v.color === '') && (
+                  <button
+                    onClick={() => setSelectedColor(null)}
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === null ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}
+                  >
+                    Default
+                  </button>
+                )}
                 {allColorNames.map((colorName: string) => (
                   <button
                     key={colorName}

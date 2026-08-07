@@ -1127,6 +1127,16 @@ function AdminPageInner() {
         }
       }
       
+      // Auto-assign master color name to all uncolored variants for this product
+      const masterColorEntry = (productData.colors || []).find((c: any) => c.isDefault);
+      if (savedProd?.id && masterColorEntry?.name?.trim()) {
+        await supabase
+          .from('product_variants')
+          .update({ color: masterColorEntry.name.trim() })
+          .eq('product_id', savedProd.id)
+          .or('color.is.null,color.eq.');
+      }
+
       setCreatedProductVariants([]);
       setAddStatus('success');
       setNewProduct({
@@ -1252,6 +1262,16 @@ function AdminPageInner() {
 
 
         const result = await updateProduct(productData);
+
+        // Auto-assign master color name to all uncolored variants for this product
+        const masterColorEntry = (editingProduct.colors || []).find((c: any) => c.isDefault);
+        if (masterColorEntry?.name?.trim()) {
+          await supabase
+            .from('product_variants')
+            .update({ color: masterColorEntry.name.trim() })
+            .eq('product_id', editingProduct.id)
+            .or('color.is.null,color.eq.');
+        }
 
         await resetProducts();
 
@@ -4455,10 +4475,61 @@ function AdminPageInner() {
                       <h3 className="text-sm font-bold text-zinc-900 mb-4 flex items-center gap-2">
                         <span className="text-zinc-400">Optional</span> Color Variants
                       </h3>
+
+                      {/* Master Variant Color */}
+                      <div className="border border-zinc-200 rounded-xl p-4 bg-zinc-50 space-y-3 mb-6">
+                        <div>
+                          <h4 className="text-[10px] font-black text-zinc-700 uppercase tracking-widest">Master Variant Color</h4>
+                          <p className="text-[9px] text-zinc-400 mt-0.5">Name and sale price for the main product color (uses the product's default images).</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Master Variant Color Name</label>
+                            <input
+                              className="w-full p-2 bg-white border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
+                              placeholder="e.g. White, Black, Red"
+                              value={(newProduct.colors || []).find((c: any) => c.isDefault)?.name || ''}
+                              onChange={e => {
+                                const colors = [...(newProduct.colors || [])];
+                                const masterIdx = colors.findIndex((c: any) => c.isDefault);
+                                if (!e.target.value) {
+                                  if (masterIdx >= 0) colors.splice(masterIdx, 1);
+                                } else if (masterIdx >= 0) {
+                                  colors[masterIdx] = {...colors[masterIdx], name: e.target.value};
+                                } else {
+                                  colors.unshift({isDefault: true, name: e.target.value, images: []});
+                                }
+                                setNewProduct({...newProduct, colors});
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Master Variant Sale Price</label>
+                            <input
+                              className="w-full p-2 bg-white border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
+                              placeholder="Leave empty if no sale"
+                              type="number"
+                              value={(newProduct.colors || []).find((c: any) => c.isDefault)?.salePrice || ''}
+                              onChange={e => {
+                                const colors = [...(newProduct.colors || [])];
+                                const masterIdx = colors.findIndex((c: any) => c.isDefault);
+                                const salePrice = e.target.value ? parseFloat(e.target.value) : undefined;
+                                if (masterIdx >= 0) {
+                                  colors[masterIdx] = {...colors[masterIdx], salePrice};
+                                }
+                                setNewProduct({...newProduct, colors});
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="space-y-4">
-                        {(newProduct.colors || []).map((color, colorIdx) => (
+                        {(newProduct.colors || []).map((color, colorIdx) => {
+                          if ((color as any).isDefault) return null;
+                          return (
                           <div key={colorIdx} className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-4 relative group">
-                            <button 
+                            <button
                               onClick={() => {
                                 const newColors = (newProduct.colors || []).filter((_, i) => i !== colorIdx);
                                 setNewProduct({...newProduct, colors: newColors});
@@ -4470,10 +4541,10 @@ function AdminPageInner() {
                             <div className="grid grid-cols-2 gap-4">
                               <div>
                                 <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Color Name</label>
-                                <input 
-                                  className="w-full p-2 bg-white border border-zinc-200 rounded text-xs" 
-                                  placeholder="e.g. Red/White" 
-                                  value={color.name} 
+                                <input
+                                  className="w-full p-2 bg-white border border-zinc-200 rounded text-xs"
+                                  placeholder="e.g. Red/White"
+                                  value={color.name}
                                   onChange={e => {
                                     const newColors = [...(newProduct.colors || [])];
                                     newColors[colorIdx] = {...newColors[colorIdx], name: e.target.value};
@@ -4483,14 +4554,28 @@ function AdminPageInner() {
                               </div>
                               <div>
                                 <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Color Price (Optional)</label>
-                                <input 
-                                  className="w-full p-2 bg-white border border-zinc-200 rounded text-xs" 
-                                  placeholder="Leave empty for base price" 
+                                <input
+                                  className="w-full p-2 bg-white border border-zinc-200 rounded text-xs"
+                                  placeholder="Leave empty for base price"
                                   type="number"
-                                  value={color.price || ''} 
+                                  value={color.price || ''}
                                   onChange={e => {
                                     const newColors = [...(newProduct.colors || [])];
                                     newColors[colorIdx] = {...newColors[colorIdx], price: e.target.value ? parseFloat(e.target.value) : undefined};
+                                    setNewProduct({...newProduct, colors: newColors});
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Color Sale Price</label>
+                                <input
+                                  className="w-full p-2 bg-white border border-zinc-200 rounded text-xs"
+                                  placeholder="Leave empty if no sale"
+                                  type="number"
+                                  value={color.salePrice || ''}
+                                  onChange={e => {
+                                    const newColors = [...(newProduct.colors || [])];
+                                    newColors[colorIdx] = {...newColors[colorIdx], salePrice: e.target.value ? parseFloat(e.target.value) : undefined};
                                     setNewProduct({...newProduct, colors: newColors});
                                   }}
                                 />
@@ -4549,8 +4634,9 @@ function AdminPageInner() {
                               </div>
                             </div>
                           </div>
-                        ))}
-                        <button 
+                          );
+                        })}
+                        <button
                           onClick={() => setNewProduct({...newProduct, colors: [...(newProduct.colors || []), { name: '', images: [] }]})}
                           className="w-full py-2 border border-dashed border-zinc-300 rounded text-[10px] font-bold text-zinc-500 hover:text-zinc-900 transition-all uppercase tracking-widest bg-zinc-50"
                         >
@@ -5601,12 +5687,62 @@ function AdminPageInner() {
                     </div>
                   </div>
 
+                  {/* Master Variant Color */}
+                  <div className="border border-zinc-200 rounded-xl p-5 bg-zinc-50 space-y-4">
+                    <div>
+                      <h3 className="text-[10px] font-black text-zinc-700 uppercase tracking-widest">Master Variant Color</h3>
+                      <p className="text-[9px] text-zinc-400 mt-0.5">Name and sale price for the main product color (uses the product's default images).</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Master Variant Color Name</label>
+                        <input
+                          className="w-full p-2 bg-white border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
+                          placeholder="e.g. White, Black, Red"
+                          value={(editingProduct.colors || []).find((c: any) => c.isDefault)?.name || ''}
+                          onChange={e => {
+                            const colors = [...(editingProduct.colors || [])];
+                            const masterIdx = colors.findIndex((c: any) => c.isDefault);
+                            if (!e.target.value) {
+                              if (masterIdx >= 0) colors.splice(masterIdx, 1);
+                            } else if (masterIdx >= 0) {
+                              colors[masterIdx] = {...colors[masterIdx], name: e.target.value};
+                            } else {
+                              colors.unshift({isDefault: true, name: e.target.value, images: []});
+                            }
+                            setEditingProduct({...editingProduct, colors});
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Master Variant Sale Price</label>
+                        <input
+                          className="w-full p-2 bg-white border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
+                          placeholder="Leave empty if no sale"
+                          type="number"
+                          value={(editingProduct.colors || []).find((c: any) => c.isDefault)?.salePrice || ''}
+                          onChange={e => {
+                            const colors = [...(editingProduct.colors || [])];
+                            const masterIdx = colors.findIndex((c: any) => c.isDefault);
+                            const salePrice = e.target.value ? parseFloat(e.target.value) : undefined;
+                            if (masterIdx >= 0) {
+                              colors[masterIdx] = {...colors[masterIdx], salePrice};
+                            }
+                            setEditingProduct({...editingProduct, colors});
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">Color Ways (Optional)</label>
                     <div className="space-y-4">
-                      {(editingProduct.colors || []).map((color, colorIdx) => (
+                      {(editingProduct.colors || []).map((color, colorIdx) => {
+                        if ((color as any).isDefault) return null;
+                        return (
                         <div key={colorIdx} className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-4 relative group">
-                          <button 
+                          <button
                             onClick={() => {
                               const newColors = (editingProduct.colors || []).filter((_, i) => i !== colorIdx);
                               setEditingProduct({...editingProduct, colors: newColors});
@@ -5618,27 +5754,41 @@ function AdminPageInner() {
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Color Name</label>
-                              <input 
-                                className="w-full p-2 bg-white border border-zinc-200 rounded text-xs" 
-                                placeholder="e.g. Red/White" 
-                                value={color.name} 
+                              <input
+                                className="w-full p-2 bg-white border border-zinc-200 rounded text-xs"
+                                placeholder="e.g. Red/White"
+                                value={color.name}
                                 onChange={e => {
                                   const newColors = [...(editingProduct.colors || [])];
                                   newColors[colorIdx] = {...newColors[colorIdx], name: e.target.value};
                                   setEditingProduct({...editingProduct, colors: newColors});
-                                }} 
+                                }}
                               />
                             </div>
                             <div>
                               <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Color Price (Optional)</label>
-                              <input 
-                                className="w-full p-2 bg-white border border-zinc-200 rounded text-xs" 
-                                placeholder="Leave empty for base price" 
+                              <input
+                                className="w-full p-2 bg-white border border-zinc-200 rounded text-xs"
+                                placeholder="Leave empty for base price"
                                 type="number"
-                                value={color.price || ''} 
+                                value={color.price || ''}
                                 onChange={e => {
                                   const newColors = [...(editingProduct.colors || [])];
                                   newColors[colorIdx] = {...newColors[colorIdx], price: e.target.value ? parseFloat(e.target.value) : undefined};
+                                  setEditingProduct({...editingProduct, colors: newColors});
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Color Sale Price</label>
+                              <input
+                                className="w-full p-2 bg-white border border-zinc-200 rounded text-xs"
+                                placeholder="Leave empty if no sale"
+                                type="number"
+                                value={color.salePrice || ''}
+                                onChange={e => {
+                                  const newColors = [...(editingProduct.colors || [])];
+                                  newColors[colorIdx] = {...newColors[colorIdx], salePrice: e.target.value ? parseFloat(e.target.value) : undefined};
                                   setEditingProduct({...editingProduct, colors: newColors});
                                 }}
                               />
@@ -5697,8 +5847,9 @@ function AdminPageInner() {
                             </div>
                           </div>
                         </div>
-                      ))}
-                      <button 
+                        );
+                      })}
+                      <button
                         onClick={() => setEditingProduct({...editingProduct, colors: [...(editingProduct.colors || []), { name: '', images: [] }]})}
                         className="w-full py-2 border border-dashed border-zinc-300 rounded text-[10px] font-bold text-zinc-500 hover:text-zinc-900 transition-all uppercase tracking-widest bg-zinc-50"
                       >

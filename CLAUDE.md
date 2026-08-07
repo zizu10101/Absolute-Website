@@ -275,6 +275,16 @@ Admin login: info@edgedbs.com
 - ✅ Transparent PNG fix: `resizeImage()` in `src/lib/imageUtils.ts` now fills a white canvas background before drawing, so transparent PNGs no longer show black; all product image containers standardized to `bg-white` + `object-contain`
 - **Build Notes:** inline `<style>` in `index.html` moved to `src/print-styles.css` (Vite v6.4.3 failed on inline style tags in the html-proxy build step); a smart-quote character in `RapidScanIntakeMatrix.tsx` that broke esbuild parsing was replaced with an ASCII quote
 
+**COLOR VARIANT IMPROVEMENTS (Session 40):**
+- `src/context/ProductContext.tsx`: `ColorVariant` interface now has `salePrice?: number` and `isDefault?: boolean` fields
+- `src/pages/AdminPage.tsx`: Sale price field added to each color way in Edit Product and Add Product forms
+- `src/pages/AdminPage.tsx`: Master Variant Color section added (above Color Ways list) — name the default product color and set its sale price; stored as `{ isDefault: true, name, salePrice, images: [] }` in the `colors` JSONB array
+- `src/pages/AdminPage.tsx`: On save (both `handleUpdate` and `handleAdd`), if a master color name is set, all `product_variants` with `color IS NULL` or `color = ''` for that product are automatically updated to the master color name via Supabase update
+- `src/pages/ProductDetailPage.tsx`: `displayPrice` / `displayOriginalPrice` refactored — uses `colorSalePrice` when a color with `salePrice` is selected; shows strikethrough of original price; falls back to product-level sale or base price; when no color selected, shows lowest price across all color sale prices
+- `src/pages/ProductDetailPage.tsx`: "Default" button in color selector hidden when all registered variants have a color assigned (`variants.some(v => !v.color)` guard); shows only when at least one uncolored variant exists
+- `src/components/ProductCard.tsx`: Computes `lowestPrice` and `isOnSaleAny` from all color `salePrice` values — sale badge and price display use these; color-only sale reflected on card
+- `src/pages/POSPage.tsx`: Barcode scan and size selector modal both look up `variant.color` in `product.colors` and apply `colorEntry.salePrice` if present when building the cart item
+
 ## RECENT CHANGES (July 2026)
 
 **CATEGORY TILE TITLE/GRADIENT REDESIGN (Session 43):**
@@ -398,7 +408,6 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-<<<<<<< HEAD
 ## CURRENT STATUS (Main Branch - August 7, 2026)
 **Latest:** Invoice and Estimate printing to POS with customer details modal (session 53 - DEPLOYED)
 **Deployment:** ✅ GitHub main branch updated (commit 9192a86 + merge 102b934)
