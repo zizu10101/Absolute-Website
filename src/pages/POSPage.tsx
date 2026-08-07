@@ -23,6 +23,8 @@ import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../supabase';
 import { mapProductFromDb } from '../context/ProductContext';
 import { generateThermalReceiptHTML, generateGiftReceiptHTML } from '../utils/thermalReceipt';
+import { generateInvoiceHTML, printInvoice, InvoiceCustomerInfo } from '../utils/invoice';
+import { InvoiceCustomerModal } from '../components/InvoiceCustomerModal';
 
 type CategoryTab = 'ALL' | 'FOOTWEAR' | 'KITS' | 'BALLS' | 'EQUIPMENT' | 'TEAMWEAR' | 'GLOVES';
 
@@ -138,6 +140,10 @@ export function POSPage() {
   // Gift receipt modal
   const [showGiftReceiptModal, setShowGiftReceiptModal] = useState(false);
   const [giftReceiptSelected, setGiftReceiptSelected] = useState<Set<number>>(new Set());
+
+  // Invoice/Estimate modal
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceType, setInvoiceType] = useState<'invoice' | 'estimate'>('invoice');
 
   // Cash Calculator
   const [showCashCalculator, setShowCashCalculator] = useState(false);
@@ -754,8 +760,35 @@ export function POSPage() {
     );
   }, [safeCustomers, customerSearchTerm]);
 
-  // Open cash drawer via EpsonControl font
-  const openCashDrawer = () => {
+  // Open cash drawer via Node.js backend + node-printer
+  const openCashDrawer = async () => {
+    try {
+      console.log('🔄 Attempting to open drawer via backend...');
+
+      const response = await fetch('/api/open-drawer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      console.log('📨 Response status:', response.status);
+
+      const data = await response.json();
+      console.log('📦 Response data:', data);
+
+      if (!data.success) {
+        throw new Error(data.error || 'Backend returned error');
+      }
+
+      console.log('✓ Cash drawer opened successfully!');
+    } catch (err) {
+      console.error('❌ Drawer error (fallback DISABLED for testing):', err);
+      // FALLBACK TEMPORARILY DISABLED FOR TESTING
+      // openCashDrawerFallback();
+    }
+  };
+
+  // Fallback cash drawer via print dialog (if backend unavailable)
+  const openCashDrawerFallback = () => {
     const drawerHTML = `<!DOCTYPE html>
 <html>
 <head>
@@ -1387,6 +1420,42 @@ export function POSPage() {
       };
     }
     setShowGiftReceiptModal(false);
+  };
+
+  // Open invoice/estimate modal
+  const handleOpenInvoiceModal = (type: 'invoice' | 'estimate') => {
+    if (!receipt) return;
+    setInvoiceType(type);
+    setShowInvoiceModal(true);
+  };
+
+  // Handle invoice/estimate print with customer info
+  const handlePrintInvoice = (customerInfo: InvoiceCustomerInfo) => {
+    if (!receipt) return;
+
+    const invoiceHtml = generateInvoiceHTML(
+      {
+        invoiceNumber: receipt.invoiceNumber || 'INV-00000',
+        items: receipt.items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          size: item.size,
+          color: item.color,
+        })),
+        subtotal: receipt.subtotal,
+        tax: receipt.hst,
+        total: receipt.total,
+        createdAt: new Date(),
+        customerInfo,
+        paymentMethod: receipt.method,
+        logoUrl: logo,
+      },
+      invoiceType
+    );
+
+    printInvoice(invoiceHtml);
+    setShowInvoiceModal(false);
   };
 
   // Add customer
@@ -2283,6 +2352,20 @@ export function POSPage() {
                         className="flex-1 flex items-center justify-center gap-1 border border-zinc-200 rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-colors text-black"
                       >
                         <Gift size={13} /> Gift Receipt
+                      </button>
+                      <button
+                        onClick={() => handleOpenInvoiceModal('invoice')}
+                        className="flex-1 flex items-center justify-center gap-1 border border-zinc-200 rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-colors text-black"
+                      >
+                        <FileText size={13} /> Invoice
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleOpenInvoiceModal('estimate')}
+                        className="flex-1 flex items-center justify-center gap-1 border border-zinc-200 rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-colors text-black"
+                      >
+                        <FileText size={13} /> Estimate
                       </button>
                       <button
                         onClick={handleNewTransaction}
@@ -3357,6 +3440,16 @@ export function POSPage() {
           <Clock size={14} className="inline mr-1" /> Layaway
         </button>
       </div>
+
+      {/* Invoice/Estimate Modal */}
+      <InvoiceCustomerModal
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        onPrint={handlePrintInvoice}
+        prefilledCustomerId={selectedCustomerId}
+        prefilledCustomer={selectedCustomer}
+        docType={invoiceType}
+      />
     </div>
   );
 }

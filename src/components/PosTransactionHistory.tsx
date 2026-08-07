@@ -3,10 +3,12 @@ import Barcode from 'react-barcode';
 import { useCustomers } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
 import { generateThermalReceiptHTML, generateGiftReceiptHTML } from '../utils/thermalReceipt';
+import { generateInvoiceHTML, printInvoice, InvoiceCustomerInfo } from '../utils/invoice';
+import { InvoiceCustomerModal } from './InvoiceCustomerModal';
 import { ReturnsModal } from './ReturnsModal';
 import { supabase } from '../supabase';
 import {
-  Search, ChevronDown, ChevronUp, Printer,
+  Search, ChevronDown, ChevronUp, Printer, FileText,
   RotateCcw, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Undo2, Gift, X,
 } from 'lucide-react';
 
@@ -41,6 +43,11 @@ export const PosTransactionHistory: React.FC = () => {
   // Gift receipt modal
   const [giftTx, setGiftTx] = useState<Transaction | null>(null);
   const [giftSelected, setGiftSelected] = useState<Set<number>>(new Set());
+
+  // Invoice/Estimate modal
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceType, setInvoiceType] = useState<'invoice' | 'estimate'>('invoice');
+  const [invoiceTx, setInvoiceTx] = useState<Transaction | null>(null);
 
   // Filters
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
@@ -315,6 +322,43 @@ export const PosTransactionHistory: React.FC = () => {
     setGiftTx(null);
   };
 
+  // Open invoice/estimate modal
+  const openInvoiceModal = (tx: Transaction, type: 'invoice' | 'estimate') => {
+    setInvoiceTx(tx);
+    setInvoiceType(type);
+    setShowInvoiceModal(true);
+  };
+
+  // Handle invoice/estimate print with customer info
+  const handlePrintInvoice = (customerInfo: InvoiceCustomerInfo) => {
+    if (!invoiceTx) return;
+
+    const invoiceHtml = generateInvoiceHTML(
+      {
+        invoiceNumber: invoiceTx.invoice_number || 'INV-00000',
+        items: (invoiceTx.items || []).map((item: any) => ({
+          name: item.name || 'Item',
+          quantity: item.quantity || 1,
+          price: Number(item.price),
+          size: item.size,
+          color: item.color,
+        })),
+        subtotal: Math.abs(Number(invoiceTx.total_amount)) / 1.13,
+        tax: Math.abs(Number(invoiceTx.total_amount)) - Math.abs(Number(invoiceTx.total_amount)) / 1.13,
+        total: Math.abs(Number(invoiceTx.total_amount)),
+        createdAt: new Date(invoiceTx.created_at),
+        customerInfo,
+        paymentMethod: invoiceTx.method,
+        logoUrl: logo,
+      },
+      invoiceType
+    );
+
+    printInvoice(invoiceHtml);
+    setShowInvoiceModal(false);
+    setInvoiceTx(null);
+  };
+
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
       completed: 'bg-emerald-100 text-emerald-700',
@@ -491,6 +535,18 @@ export const PosTransactionHistory: React.FC = () => {
                     >
                       <Gift size={12} /> Gift Receipt
                     </button>
+                    <button
+                      onClick={() => openInvoiceModal(tx, 'invoice')}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-600 text-white text-[10px] font-black uppercase tracking-wide hover:bg-cyan-700 transition-colors"
+                    >
+                      <FileText size={12} /> Invoice
+                    </button>
+                    <button
+                      onClick={() => openInvoiceModal(tx, 'estimate')}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-500 text-white text-[10px] font-black uppercase tracking-wide hover:bg-cyan-600 transition-colors"
+                    >
+                      <FileText size={12} /> Estimate
+                    </button>
                     {canVoid && (
                       <button
                         onClick={() => handleVoid(tx)}
@@ -624,6 +680,19 @@ export const PosTransactionHistory: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Invoice/Estimate Modal */}
+      <InvoiceCustomerModal
+        isOpen={showInvoiceModal}
+        onClose={() => {
+          setShowInvoiceModal(false);
+          setInvoiceTx(null);
+        }}
+        onPrint={handlePrintInvoice}
+        prefilledCustomerId={invoiceTx?.customer_id || ''}
+        prefilledCustomer={invoiceTx?.customers || undefined}
+        docType={invoiceType}
+      />
     </div>
   );
 };
