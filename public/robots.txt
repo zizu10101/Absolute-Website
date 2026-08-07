@@ -6,3 +6,39 @@ Sitemap: https://torontosoccershop.com/sitemap.xml
 # Block admin and POS from search engines
 Disallow: /admin
 Disallow: /pos
+
+# Allow AI crawlers for Generative Engine Optimization (GEO)
+User-agent: GPTBot
+Allow: /
+Disallow: /admin
+Disallow: /pos
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /admin
+Disallow: /pos
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /admin
+Disallow: /pos
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /admin
+Disallow: /pos
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /admin
+Disallow: /pos
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /admin
+Disallow: /pos
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /admin
+Disallow: /pos

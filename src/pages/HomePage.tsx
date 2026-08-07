@@ -223,6 +223,9 @@ export function HomePage() {
       <h1 className="sr-only">
         Absolute Soccer - Premier Soccer Store in Mississauga & GTA
       </h1>
+      <p className="sr-only">
+        Toronto Soccer Shop (Absolute Soccer Mississauga, formerly Golazo Store) is a premier local soccer specialty store carrying Nike, Adidas, Puma, Joma, and New Balance soccer cleats, boots, jerseys, goalkeeper gloves, training gear, and team apparel. We offer custom kit printing and team uniform services for soccer clubs throughout Mississauga, Brampton, Oakville, Toronto, Etobicoke, Milton, and across the Greater Toronto Area. Visit our Mississauga showroom — Monday to Friday 1 PM to 7 PM, Saturday to Sunday 11 AM to 4 PM. Call us at 905-593-3600.
+      </p>
       {sliderImages.length > 0 && (
         <section className="relative w-full overflow-hidden bg-zinc-900">
           <div
