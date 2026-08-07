@@ -17,7 +17,7 @@ import { StoreCreditsTab } from '../components/StoreCreditsTab';
 import { ReturnsModal } from '../components/ReturnsModal';
 import { LayawayPayLaterModal } from '../components/LayawayPayLaterModal';
 import { PosLayawayTab } from '../components/PosLayawayTab';
-import { usePOSCart, CartItem, getItemUnitDiscount, getItemDiscountedPrice } from '../hooks/usePOSCart';
+import { usePOSCart, CartItem, getItemUnitDiscount, getItemDiscountedPrice, formatItemDiscountLabel } from '../hooks/usePOSCart';
 import { useCustomers, Customer } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../supabase';
@@ -200,25 +200,43 @@ export function POSPage() {
 
   // Per-item discount editor (inline in cart row)
   const [editingDiscountItemId, setEditingDiscountItemId] = useState<string | null>(null);
-  const [discountDraftType, setDiscountDraftType] = useState<'percent' | 'fixed'>('percent');
+  const [discountDraftType, setDiscountDraftType] = useState<'percent' | 'fixed' | 'newprice'>('percent');
   const [discountDraftValue, setDiscountDraftValue] = useState('');
+  const [discountDraftError, setDiscountDraftError] = useState('');
 
   const openItemDiscountEditor = (item: CartItem) => {
     setEditingDiscountItemId(item.id);
     setDiscountDraftType(item.discount?.type || 'percent');
     setDiscountDraftValue(item.discount ? String(item.discount.value) : '');
+    setDiscountDraftError('');
   };
 
   const applyItemDiscountDraft = () => {
     if (!editingDiscountItemId) return;
+    const item = cart.find(i => i.id === editingDiscountItemId);
     const value = parseFloat(discountDraftValue);
-    if (!isNaN(value) && value > 0) {
-      updateItemDiscount(editingDiscountItemId, { type: discountDraftType, value });
-    } else {
+
+    if (isNaN(value) || value <= 0) {
+      if (discountDraftType === 'newprice') {
+        setDiscountDraftError('New price must be greater than $0');
+        return;
+      }
       updateItemDiscount(editingDiscountItemId, null);
+      setEditingDiscountItemId(null);
+      setDiscountDraftValue('');
+      setDiscountDraftError('');
+      return;
     }
+
+    if (discountDraftType === 'newprice' && item && value > item.price) {
+      setDiscountDraftError('New price cannot be higher than original price');
+      return;
+    }
+
+    updateItemDiscount(editingDiscountItemId, { type: discountDraftType, value });
     setEditingDiscountItemId(null);
     setDiscountDraftValue('');
+    setDiscountDraftError('');
   };
 
   // Layaway / Pay Later
@@ -1846,7 +1864,7 @@ export function POSPage() {
                             <span className="line-through">${(item.price * item.quantity).toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between text-yellow-400 font-semibold">
-                            <span>Discount: {item.discount.type === 'percent' ? `${item.discount.value}%` : `$${item.discount.value.toFixed(2)}`}</span>
+                            <span>Discount: {formatItemDiscountLabel(item.discount)}</span>
                             <span>−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)}</span>
                           </div>
                           <div className={`flex justify-between font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
@@ -1876,30 +1894,48 @@ export function POSPage() {
                       </div>
 
                       {editingDiscountItemId === item.id && (
-                        <div className={`mt-2 p-2 rounded border flex items-center gap-1 ${isDarkMode ? 'bg-[#1a2236] border-[#2d3547]' : 'bg-gray-100 border-gray-300'}`}>
-                          <select
-                            value={discountDraftType}
-                            onChange={e => setDiscountDraftType(e.target.value as 'percent' | 'fixed')}
-                            className={`border rounded text-[10px] px-1 py-1 ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547] text-white' : 'bg-white border-gray-300 text-black'}`}
-                          >
-                            <option value="percent">%</option>
-                            <option value="fixed">$</option>
-                          </select>
-                          <input
-                            type="number"
-                            autoFocus
-                            value={discountDraftValue}
-                            onChange={e => setDiscountDraftValue(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') applyItemDiscountDraft(); if (e.key === 'Escape') setEditingDiscountItemId(null); }}
-                            placeholder="0"
-                            className={`w-16 border rounded text-[10px] px-2 py-1 ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547] text-white' : 'bg-white border-gray-300 text-black'}`}
-                          />
-                          <button onClick={applyItemDiscountDraft} className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold uppercase">
-                            Apply
-                          </button>
-                          <button onClick={() => setEditingDiscountItemId(null)} className={`px-2 py-1 border rounded text-[9px] font-bold uppercase ${isDarkMode ? 'border-[#2d3547] text-gray-400 hover:text-white' : 'border-gray-300 text-gray-600 hover:text-black'}`}>
-                            Cancel
-                          </button>
+                        <div className={`mt-2 p-2 rounded border space-y-2 ${isDarkMode ? 'bg-[#1a2236] border-[#2d3547]' : 'bg-gray-100 border-gray-300'}`}>
+                          <div className="flex gap-1">
+                            {(['percent', 'fixed', 'newprice'] as const).map(t => (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => { setDiscountDraftType(t); setDiscountDraftError(''); }}
+                                className={`flex-1 px-1.5 py-1 rounded text-[9px] font-bold uppercase border transition-colors ${
+                                  discountDraftType === t
+                                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                                    : isDarkMode
+                                    ? 'border-[#2d3547] text-gray-300 hover:bg-[#2d3547]'
+                                    : 'border-gray-300 text-gray-700 hover:bg-gray-200'
+                                }`}
+                              >
+                                {t === 'percent' ? '% Off' : t === 'fixed' ? '$ Off' : 'New Price'}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {discountDraftType === 'newprice' && (
+                              <span className={`text-[10px] font-bold shrink-0 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>New Price: $</span>
+                            )}
+                            <input
+                              type="number"
+                              autoFocus
+                              value={discountDraftValue}
+                              onChange={e => { setDiscountDraftValue(e.target.value); setDiscountDraftError(''); }}
+                              onKeyDown={e => { if (e.key === 'Enter') applyItemDiscountDraft(); if (e.key === 'Escape') setEditingDiscountItemId(null); }}
+                              placeholder="0"
+                              className={`w-16 flex-1 border rounded text-[10px] px-2 py-1 ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547] text-white' : 'bg-white border-gray-300 text-black'}`}
+                            />
+                            <button onClick={applyItemDiscountDraft} className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold uppercase">
+                              Apply
+                            </button>
+                            <button onClick={() => setEditingDiscountItemId(null)} className={`px-2 py-1 border rounded text-[9px] font-bold uppercase ${isDarkMode ? 'border-[#2d3547] text-gray-400 hover:text-white' : 'border-gray-300 text-gray-600 hover:text-black'}`}>
+                              Cancel
+                            </button>
+                          </div>
+                          {discountDraftError && (
+                            <p className="text-[9px] text-red-400 font-semibold">{discountDraftError}</p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -2272,7 +2308,7 @@ export function POSPage() {
                             <p className="text-zinc-600">Qty {item.quantity} x ${Number(item.price).toFixed(2)}</p>
                             {item.discount && (
                               <p className="text-yellow-600 font-bold">
-                                Discount: {item.discount.type === 'percent' ? `${item.discount.value}%` : `$${item.discount.value.toFixed(2)}`} (−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)})
+                                Discount: {formatItemDiscountLabel(item.discount)} (−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)})
                               </p>
                             )}
                           </div>
@@ -2446,7 +2482,7 @@ export function POSPage() {
                         <p className="font-bold text-white">{item.name}</p>
                         <p className="text-gray-400">Qty {item.quantity} x ${Number(item.price).toFixed(2)}</p>
                         {item.discount && (
-                          <p className="text-yellow-400">Discount: {item.discount.type === 'percent' ? `${item.discount.value}%` : `$${item.discount.value.toFixed(2)}`} (−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)})</p>
+                          <p className="text-yellow-400">Discount: {formatItemDiscountLabel(item.discount)} (−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)})</p>
                         )}
                         <p className={`font-bold ${item.discount ? 'text-white' : 'text-[var(--primary-color)]'}`}>${(getItemDiscountedPrice(item) * item.quantity).toFixed(2)}</p>
                       </div>

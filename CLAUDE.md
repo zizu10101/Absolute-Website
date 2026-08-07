@@ -6,7 +6,43 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**PRODUCT FEED, REPORTS IMPROVEMENTS, EOD RECEIPT CLEANUP (Session 52 - CURRENT):**
+**INVOICE & ESTIMATE PRINTING (Session 53 - CURRENT):**
+- `src/utils/invoice.ts` (NEW): Professional A4 invoice/estimate HTML generator
+  - `generateInvoiceHTML()`: Creates formatted invoice or estimate document
+  - `printInvoice()`: Opens browser print dialog for A4 output
+  - Supports both invoice (INV-) and estimate (EST-) document types
+  - Includes store logo, customer billing info, itemized products, totals
+  - Tax calculation (13% HST), payment method display
+  - Proper HTML escaping for security
+
+- `src/components/InvoiceCustomerModal.tsx` (NEW): Customer information modal
+  - Two modes: Manual Entry (form fields) and Search Existing Customer
+  - Search by name, email, or phone (filters existing customers from DB)
+  - Pre-fills with linked customer if transaction has one
+  - Optional fields: Company, Address
+  - Option to save new customers for future use
+  - Keyboard navigation and accessibility support
+
+- `src/pages/POSPage.tsx`: Added Invoice/Estimate buttons to receipt screen
+  - "Invoice" and "Estimate" buttons below Gift Receipt button
+  - Opens customer info modal before printing
+  - Integrates with InvoiceCustomerModal component
+  - Pre-fills customer if transaction has linked customer
+
+- `src/components/PosTransactionHistory.tsx`: Added Invoice/Estimate reprint buttons
+  - "Invoice" and "Estimate" buttons on each transaction (cyan colored)
+  - Allows reprinting invoices/estimates with updated customer info
+  - Can generate both document types from same transaction
+  - Integrates with InvoiceCustomerModal component
+
+- `docs/INVOICE_ESTIMATE_FEATURE.md` (NEW): Comprehensive feature documentation
+  - Testing checklist for local and cloud environments
+  - Feature overview and benefits
+  - Browser compatibility notes
+  - Troubleshooting guide
+  - Performance and security notes
+
+**PRODUCT FEED, REPORTS IMPROVEMENTS, EOD RECEIPT CLEANUP (Session 52):**
 
 **Google Merchant Center / Meta Commerce Manager Product Feed:**
 - `server.ts`: New GET `/product-feed.xml` endpoint serves RSS/XML product feed compatible with Google Merchant Center and Meta Commerce Manager
@@ -321,10 +357,22 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
+<<<<<<< HEAD
 ## CURRENT STATUS (Main Branch - August 7, 2026)
-**Latest:** Product feed for Google Merchant Center/Meta Commerce, Reports page navigation, EOD receipt redesign with preview modal (session 52)
+**Latest:** Invoice and Estimate printing to POS with customer details modal (session 53)
 
 **COMPLETED (August 7, 2026):**
+- ✅ **Session 53:** Invoice & Estimate printing feature
+  - Professional A4 invoice/estimate generator (`src/utils/invoice.ts`)
+  - Customer information modal for collecting billing details (`src/components/InvoiceCustomerModal.tsx`)
+  - Search existing customers or manually enter details
+  - Pre-fills with linked customer if available
+  - Optional save-to-database for new customers
+  - Invoice buttons added to POS receipt screen and transaction history
+  - Estimate buttons with distinct styling and disclaimer
+  - Full TypeScript integration, no build errors
+  - Comprehensive documentation in `docs/INVOICE_ESTIMATE_FEATURE.md`
+
 - ✅ **Session 52:** Product feed, Reports improvements, EOD receipt cleanup
   - GET `/product-feed.xml` endpoint: RSS/XML feed compatible with Google Merchant Center and Meta Commerce Manager
     - Real-time stock status from `product_variants` table
@@ -1033,7 +1081,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - `/brands` — All brands listing page (BrandsPage)
 - `/brand/:brandName` — Individual brand page (BrandPage) — filters products by brand, with category sub-filter + search + sort
 - `/reports` — Financial reports
-- `/kit-orders` — Kit Orders / Uniform Submission page (also aliased at `/uniform-submission` for backward compat)
+- `/kit-orders` — Kit Orders page: standard Header/Footer + full-height iframe embed of the uniform designer (also aliased at `/uniform-submission` for backward compat)
+- `/custom-lab` — Custom Lab page: standard Header/Footer + full-height iframe embed of the jersey designer
 - `/sale` — Sale page (filters products where isOnSale=true)
 - `/custom-apparel` — Custom Apparel landing page
 - `/brampton-soccer-uniforms` — City SEO landing page for Brampton soccer clubs (BramptonSoccerPage)

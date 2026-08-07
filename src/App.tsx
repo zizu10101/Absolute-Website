@@ -29,6 +29,10 @@ import { BrandPage } from './pages/BrandPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { useSEO } from './hooks/useSEO';
 
+// Paths that exist as DB-driven navigation_menus rows but must render their own dedicated
+// page component below, not the generic ProductGridPage category route.
+const RESERVED_PAGE_PATHS = ['custom-lab', 'kit-orders'];
+
 function LoadingScreen() {
   return (
     <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
@@ -102,20 +106,25 @@ function AppRoutes() {
     <>
       <Meta />
       <Routes>
-        <Route path="/custom-lab" element={<CustomLabPage />} />
-
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
 
           {/* Dynamic Routes from Navigation Menus */}
-          {navigationMenus.map(menu => (
-            <Fragment key={menu.path}>
-              <Route
-                path={menu.path.startsWith('/') ? menu.path.slice(1) : menu.path}
-                element={<ProductGridPage title={menu.label} category={menu.label} />}
-              />
-            </Fragment>
-          ))}
+          {/* RESERVED_PAGE_PATHS are DB-driven nav menu entries that share a path with a dedicated
+              page route declared below (not a product category). Without this exclusion they'd
+              register an earlier ProductGridPage route at the same path, which wins the React
+              Router tie-break over the real page route and renders "No products found" instead
+              (confirmed for both custom-lab -> CustomLabPage and kit-orders -> UniformSubmissionPage). */}
+          {navigationMenus
+            .filter(menu => !RESERVED_PAGE_PATHS.includes(menu.path.startsWith('/') ? menu.path.slice(1) : menu.path))
+            .map(menu => (
+              <Fragment key={menu.path}>
+                <Route
+                  path={menu.path.startsWith('/') ? menu.path.slice(1) : menu.path}
+                  element={<ProductGridPage title={menu.label} category={menu.label} />}
+                />
+              </Fragment>
+            ))}
           {navigationMenus.flatMap(menu =>
             (menu.submenus || []).filter(s => s && typeof s === 'object' && s.heading).map(submenu => (
               <Fragment key={submenu.heading + (submenu.path || '')}>
@@ -173,13 +182,14 @@ function AppRoutes() {
           <Route path="brands" element={<BrandsPage />} />
           <Route path="brand/:brandName" element={<BrandPage />} />
           <Route path="customization" element={<CustomizationPage />} />
+          <Route path="custom-lab" element={<CustomLabPage />} />
           <Route path="kit-orders" element={<UniformSubmissionPage />} />
           <Route path="uniform-submission" element={<UniformSubmissionPage />} />
           <Route path="contact-us" element={<ContactUsPage />} />
           <Route path="custom-apparel" element={<CustomApparelPage />} />
           <Route path="brampton-soccer-uniforms" element={<BramptonSoccerPage />} />
           <Route path="mississauga-soccer-store" element={<MississaugaSoccerPage />} />
-          <Route path="product/:id" element={<ProductDetailPage />} />
+          <Route path="product/:slug" element={<ProductDetailPage />} />
           <Route path="products" element={<Navigate to="/category/footwear" replace />} />
         </Route>
 

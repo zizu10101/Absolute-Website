@@ -32,22 +32,13 @@ export function HomePage() {
 
   useEffect(() => {
     const fetchNewArrivals = async () => {
-      // Try ordering by created_at; fall back to isNewArrival flag if column absent
-      let { data, error } = await supabase
+      const { data } = await supabase
         .from('products')
         .select('*')
         .eq('is_online', true)
+        .eq('isNewArrival', true)
         .order('created_at', { ascending: false })
         .limit(4);
-      if (error || !data || data.length === 0) {
-        const res = await supabase
-          .from('products')
-          .select('*')
-          .eq('is_online', true)
-          .eq('isNewArrival', true)
-          .limit(4);
-        data = res.data;
-      }
       if (data) setNewArrivals(data.map(mapProductFromDb));
     };
 
@@ -58,6 +49,7 @@ export function HomePage() {
         .eq('is_online', true)
         .eq('isOnSale', true)
         .not('salePrice', 'is', null)
+        .order('created_at', { ascending: false })
         .limit(4);
       if (data) setSaleProducts(data.map(mapProductFromDb));
     };

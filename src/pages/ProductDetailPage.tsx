@@ -1,17 +1,20 @@
-﻿import { useParams, Link, useSearchParams } from 'react-router-dom';
+﻿import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import React, { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '../supabase';
 import { ShoppingBag, ChevronRight, ChevronLeft, ShieldCheck, Truck, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { isUUID, buildProductUrl } from '../utils/slugify';
 
 export function ProductDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { fetchProductById, products } = useProducts();
   const [product, setProduct] = useState<any>(null);
   const [isPageLoading, setIsPageLoading] = useState(true);
+  const [id, setId] = useState<string | null>(null);
 
   // Variant States
   const [variants, setVariants] = useState<any[]>([]);
@@ -35,6 +38,76 @@ export function ProductDetailPage() {
 
   // Track last fetched id so StrictMode's second effect run skips the loading flash
   const lastFetchedIdRef = useRef<string | null>(null);
+  const lastResolvedSlugRef = useRef<string | null>(null);
+
+  // Resolve the URL slug to a real product id.
+  // - Legacy `/product/<uuid>` links are looked up and redirected to the new slug URL.
+  // - New `/product/<name>-<code>--<shortId>` links resolve via a uuid-prefix range query
+  //   (PostgREST's `ilike` doesn't work against a native uuid column, so a `gte`/`lte`
+  //   bound on the first 8 hex chars is used instead).
+  useEffect(() => {
+    if (!slug) return;
+    let cancelled = false;
+
+    const isNewSlug = lastResolvedSlugRef.current !== slug;
+    if (isNewSlug) {
+      setIsPageLoading(true);
+      setId(null);
+    }
+    lastResolvedSlugRef.current = slug;
+
+    (async () => {
+      if (isUUID(slug)) {
+        const { data } = await supabase
+          .from('products')
+          .select('id, name, product_code')
+          .eq('id', slug)
+          .single();
+
+        if (cancelled) return;
+
+        if (data) {
+          navigate(buildProductUrl(data), { replace: true });
+        } else {
+          setId(null);
+          setIsPageLoading(false);
+        }
+        return;
+      }
+
+      const parts = slug.split('--');
+      const shortId = parts[parts.length - 1];
+
+      if (!/^[0-9a-f]{8}$/i.test(shortId)) {
+        if (!cancelled) {
+          setId(null);
+          setIsPageLoading(false);
+        }
+        return;
+      }
+
+      const { data } = await supabase
+        .from('products')
+        .select('id')
+        .gte('id', `${shortId}-0000-0000-0000-000000000000`)
+        .lte('id', `${shortId}-ffff-ffff-ffff-ffffffffffff`)
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (data) {
+        setId(data.id);
+      } else {
+        setId(null);
+        setIsPageLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
 
   // Reset stale variant/color state when navigating to a different product
   useEffect(() => {
@@ -199,7 +272,7 @@ export function ProductDetailPage() {
       },
       "offers": {
         "@type": "Offer",
-        "url": `https://torontosoccershop.com/product/${product.id}`,
+        "url": `https://torontosoccershop.com${buildProductUrl(product)}`,
         "priceCurrency": "CAD",
         "price": price,
         "priceValidUntil": "2026-12-31",
@@ -356,6 +429,7 @@ export function ProductDetailPage() {
       <Helmet>
         <title>{product.name} | Absolute Soccer Mississauga</title>
         <meta name="description" content={`Buy the ${product.name} at Absolute Soccer in Mississauga. In stock now. Shop online or visit us. Call 905-593-3600`} />
+        <link rel="canonical" href={`https://torontosoccershop.com${buildProductUrl(product)}`} />
       </Helmet>
       {/* Toast Notice */}
       <AnimatePresence>

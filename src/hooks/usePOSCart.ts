@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 
 export interface ItemDiscount {
-  type: 'percent' | 'fixed';
-  value: number; // percent (0-100) or a flat $ amount off the unit price
+  type: 'percent' | 'fixed' | 'newprice';
+  value: number; // percent (0-100), a flat $ amount off the unit price, or the new unit price when type is 'newprice'
 }
 
 export interface CartItem {
@@ -28,12 +28,21 @@ export interface CartItem {
 
 // Per-unit $ amount removed by an item's discount (never exceeds the unit price)
 export const getItemUnitDiscount = (item: CartItem): number => {
-  if (!item.discount || !item.discount.value) return 0;
+  if (!item.discount || (!item.discount.value && item.discount.type !== 'newprice')) return 0;
   const raw =
     item.discount.type === 'percent'
       ? item.price * (item.discount.value / 100)
+      : item.discount.type === 'newprice'
+      ? item.price - item.discount.value
       : item.discount.value;
   return Math.max(0, Math.min(item.price, raw));
+};
+
+// Human-readable label for an item's discount, e.g. "20%", "$10.00", "New Price: $190.00"
+export const formatItemDiscountLabel = (discount: ItemDiscount): string => {
+  if (discount.type === 'percent') return `${discount.value}%`;
+  if (discount.type === 'newprice') return `New Price: $${discount.value.toFixed(2)}`;
+  return `$${discount.value.toFixed(2)}`;
 };
 
 // Final per-unit price after the item's discount is applied
@@ -124,6 +133,8 @@ export function usePOSCart() {
         const value =
           itemDiscount.type === 'percent'
             ? Math.max(0, Math.min(100, itemDiscount.value))
+            : itemDiscount.type === 'newprice'
+            ? Math.max(0, Math.min(item.price, itemDiscount.value))
             : Math.max(0, itemDiscount.value);
         return { ...item, discount: { type: itemDiscount.type, value } };
       })

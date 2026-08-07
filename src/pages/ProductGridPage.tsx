@@ -373,7 +373,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
 
     // Sorting
     if (sortBy === 'newest') {
-      filtered.reverse();
+      filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
     } else if (sortBy === 'price-low') {
       filtered.sort((a, b) => (a.salePrice ?? a.price) - (b.salePrice ?? b.price));
     } else if (sortBy === 'price-high') {

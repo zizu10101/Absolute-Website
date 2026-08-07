@@ -201,7 +201,7 @@ export interface ReceiptData {
     price: number;
     size?: string;
     ageGroup?: string;
-    discount?: { type: 'percent' | 'fixed'; value: number };
+    discount?: { type: 'percent' | 'fixed' | 'newprice'; value: number };
   }>;
   subtotal: number;
   hst: number;
@@ -238,7 +238,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
   const itemsHtml = data.items
     .map((item) => {
       const unitDiscount = item.discount
-        ? Math.max(0, Math.min(item.price, item.discount.type === 'percent' ? item.price * (item.discount.value / 100) : item.discount.value))
+        ? Math.max(0, Math.min(item.price, item.discount.type === 'percent' ? item.price * (item.discount.value / 100) : item.discount.type === 'newprice' ? item.price - item.discount.value : item.discount.value))
         : 0;
       const discountedPrice = Math.max(0, item.price - unitDiscount);
       const lineTotal = discountedPrice * item.quantity;

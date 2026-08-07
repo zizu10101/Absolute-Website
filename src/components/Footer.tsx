@@ -42,7 +42,7 @@ export function Footer() {
         </div>
         
         <div>
-          <h4 className="font-headline font-bold uppercase tracking-widest text-sm mb-6">Shop</h4>
+          <h3 className="font-headline font-bold uppercase tracking-widest text-sm mb-6">Shop</h3>
           <ul className="space-y-4 text-zinc-400 text-sm font-medium">
             {shopLinks.map((link, idx) => (
               <li key={`${link.path}-${idx}`}><Link to={link.path} className="hover:text-white transition-colors">{link.label}</Link></li>
@@ -50,7 +50,7 @@ export function Footer() {
           </ul>
         </div>
         <div>
-          <h4 className="font-headline font-bold uppercase tracking-widest text-sm mb-6">Custom Lab</h4>
+          <h3 className="font-headline font-bold uppercase tracking-widest text-sm mb-6">Custom Lab</h3>
           <ul className="space-y-4 text-zinc-400 text-sm font-medium">
             {customLinks.map((link, idx) => (
               <li key={`${link.path}-${idx}`}><Link to={link.path} className="hover:text-white transition-colors">{link.label}</Link></li>
@@ -58,7 +58,7 @@ export function Footer() {
           </ul>
         </div>
         <div>
-          <h4 className="font-headline font-bold uppercase tracking-widest text-sm mb-6">Support</h4>
+          <h3 className="font-headline font-bold uppercase tracking-widest text-sm mb-6">Support</h3>
           <ul className="space-y-4 text-zinc-400 text-sm font-medium">
             {supportLinks.map((link, idx) => (
               <li key={`${link.path}-${idx}`}>

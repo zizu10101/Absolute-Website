@@ -13,6 +13,7 @@ export interface Product {
   name: string;
   price: number;
   cost_price?: number;
+  created_at?: string;
   category: string;
   brand?: string;
   product_code?: string;
@@ -238,7 +239,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       const normalizedSubmenu = submenu ? normalize(submenu) : null;
 
       // Fetch ALL products without filters, then filter client-side with proper normalization
-      const { data, error } = await supabase.from('products').select('*').order('name');
+      const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
 
       if (error) throw error;
 
