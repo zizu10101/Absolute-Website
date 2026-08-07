@@ -32,13 +32,12 @@ export function HomePage() {
 
   useEffect(() => {
     const fetchNewArrivals = async () => {
-      // products has no created_at column (confirmed via Supabase: 42703 column does not exist),
-      // so "newest" is tracked via the isNewArrival flag instead of a real date order.
       const { data } = await supabase
         .from('products')
         .select('*')
         .eq('is_online', true)
         .eq('isNewArrival', true)
+        .order('created_at', { ascending: false })
         .limit(4);
       if (data) setNewArrivals(data.map(mapProductFromDb));
     };
@@ -50,6 +49,7 @@ export function HomePage() {
         .eq('is_online', true)
         .eq('isOnSale', true)
         .not('salePrice', 'is', null)
+        .order('created_at', { ascending: false })
         .limit(4);
       if (data) setSaleProducts(data.map(mapProductFromDb));
     };
