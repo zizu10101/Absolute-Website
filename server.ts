@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import printer from "node-printer";
 
 dotenv.config();
 
@@ -1156,6 +1157,39 @@ async function startServer() {
     }
   });
 
+  // --- CASH DRAWER / PRINTER ---
+
+  // Open Cash Drawer via node-printer (Windows Print Spooler)
+  app.post("/api/open-drawer", (req, res) => {
+    console.log("🔵 [DRAWER] POST /api/open-drawer called");
+
+    try {
+      // ESC/POS drawer kick command
+      const drawerCommand = Buffer.from([0x1B, 0x70, 0x00, 0x19, 0xFA]);
+      console.log("🔵 [DRAWER] ESC/POS command prepared:", drawerCommand);
+
+      const printerName = "EPSON TM-T88V Receipt (1)";
+      console.log("🔵 [DRAWER] Attempting to use printer:", printerName);
+
+      printer.printDirect({
+        data: drawerCommand,
+        printer: printerName,
+        type: "RAW",
+        success: () => {
+          console.log("✓ [DRAWER] Drawer command sent successfully");
+          res.json({ success: true, message: "Cash drawer opened" });
+        },
+        error: (err: any) => {
+          console.error("❌ [DRAWER] Printer error:", err);
+          res.status(500).json({ error: err.message || "Failed to open drawer" });
+        }
+      });
+    } catch (err: any) {
+      console.error("❌ [DRAWER] Caught exception:", err);
+      res.status(500).json({ error: err.message || "Failed to open drawer" });
+    }
+  });
+
   // --- PRODUCT VARIANTS API ---
 
   const isValidUUID = (str: string | null | undefined): boolean => {
@@ -1871,6 +1905,147 @@ async function startServer() {
     } catch (err: any) {
       console.error("❌ [FAILED] Store credit redemption error:", err.message);
       return res.status(500).json({ error: err.message || "Failed to redeem store credit" });
+    }
+  });
+
+  // --- PRODUCT FEED (Google Merchant Center / Meta Commerce) ---
+
+  // Cache for product feed (1 hour TTL)
+  let cachedFeed: { xml: string, expires: number } | null = null;
+
+  app.get("/product-feed.xml", async (req, res) => {
+    try {
+      // Check cache
+      if (cachedFeed && cachedFeed.expires > Date.now()) {
+        console.log("📊 Serving cached product feed");
+        res.type('application/rss+xml; charset=utf-8');
+        return res.send(cachedFeed.xml);
+      }
+
+      console.log("📊 Generating fresh product feed from Supabase...");
+
+      if (!supabase) {
+        throw new Error("Supabase not configured");
+      }
+
+      // Fetch all online products
+      const { data: products, error: prodError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_online', true)
+        .order('created_at', { ascending: false });
+
+      if (prodError) throw prodError;
+
+      // Fetch all variants to calculate stock status
+      const { data: allVariants, error: varError } = await supabase
+        .from('product_variants')
+        .select('product_id, stock_quantity')
+        .gt('stock_quantity', 0);
+
+      if (varError) {
+        console.warn("⚠️ Could not fetch variants for stock check, continuing without stock data");
+      }
+
+      // Build a map of product IDs to their total stock
+      const productStock = new Map<string, number>();
+      if (allVariants) {
+        for (const variant of allVariants) {
+          const current = productStock.get(variant.product_id) || 0;
+          productStock.set(variant.product_id, current + (variant.stock_quantity || 0));
+        }
+      }
+
+      // Build XML feed
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">
+  <channel>
+    <title>Absolute Soccer Mississauga</title>
+    <link>https://torontosoccershop.com</link>
+    <description>Premier soccer store in Mississauga - Soccer gear, team kits, cleats, equipment, and more</description>
+    <language>en-us</language>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+`;
+
+      // Add each product as an item
+      if (products && products.length > 0) {
+        for (const product of products) {
+          const stock = productStock.get(product.id) || 0;
+          const availability = stock > 0 ? 'in_stock' : 'out_of_stock';
+          const price = product.price || 0;
+          const salePrice = product.salePrice || null;
+          const image = product.image || '';
+          const description = (product.description || '').slice(0, 5000); // Max 5000 chars for description
+          const brand = product.brand || 'Absolute Soccer';
+          const productCode = product.product_code || '';
+          const hasIdentifier = productCode ? 'yes' : 'no';
+
+          // Escape XML special characters
+          const escapeXml = (str: string) => {
+            if (!str) return '';
+            return str
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&apos;');
+          };
+
+          // Escape product name and description
+          const safeName = escapeXml(product.name || 'Product');
+          const safeDescription = escapeXml(description);
+          const safeBrand = escapeXml(brand);
+
+          xml += `
+    <item>
+      <g:id>${product.id}</g:id>
+      <g:title>${safeName}</g:title>
+      <g:description>${safeDescription}</g:description>
+      <g:link>https://torontosoccershop.com/product/${product.id}</g:link>
+      <g:image_link>${image}</g:image_link>
+      <g:availability>${availability}</g:availability>
+      <g:price>${price} CAD</g:price>`;
+
+          // Add sale price if available
+          if (salePrice) {
+            xml += `
+      <g:sale_price>${salePrice} CAD</g:sale_price>`;
+          }
+
+          xml += `
+      <g:brand>${safeBrand}</g:brand>
+      <g:condition>new</g:condition>`;
+
+          // Add MPN if product code exists
+          if (productCode) {
+            xml += `
+      <g:mpn>${escapeXml(productCode)}</g:mpn>`;
+          }
+
+          xml += `
+      <g:identifier_exists>${hasIdentifier}</g:identifier_exists>
+      <g:google_product_category>Sporting Goods &gt; Team Sports &gt; Soccer</g:google_product_category>
+    </item>`;
+        }
+      }
+
+      xml += `
+  </channel>
+</rss>`;
+
+      // Cache the feed for 1 hour
+      cachedFeed = {
+        xml,
+        expires: Date.now() + (60 * 60 * 1000) // 1 hour
+      };
+
+      console.log(`📊 Feed generated with ${products?.length || 0} products`);
+
+      res.type('application/rss+xml; charset=utf-8');
+      res.send(xml);
+    } catch (err: any) {
+      console.error("❌ Error generating product feed:", err);
+      res.status(500).type('text/plain').send(`Error generating feed: ${err.message}`);
     }
   });
 
