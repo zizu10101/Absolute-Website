@@ -35,6 +35,8 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [giftCardData, setGiftCardData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showEODPreview, setShowEODPreview] = useState(false);
+  const [eodPreviewHTML, setEODPreviewHTML] = useState<string>('');
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -81,6 +83,17 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
   useEffect(() => {
     fetchData();
   }, [selectedDate]);
+
+  // Handle Escape key to close EOD preview
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowEODPreview(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Calculate metrics
   const metrics = useMemo(() => {
@@ -177,6 +190,128 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
       .slice(0, 10);
   }, [transactions]);
 
+  // Generate clean EOD receipt HTML
+  const generateEODReceiptHTML = () => {
+    const receiptDate = new Date(selectedDate);
+    const dateStr = receiptDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const timeStr = receiptDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    // Get store info
+    const storeInfo = {
+      name: 'Absolute Soccer Mississauga',
+      address: '5600 Rose Cherry Place',
+      city: 'Mississauga, ON L4Z 4B6',
+      phone: '905-593-3600',
+    };
+
+    const paymentRows = paymentBreakdown
+      .map(p => `<tr><td style="padding: 3px 4mm; font-family: monospace; font-weight: 700;">${p.method}:</td><td style="text-align: right; padding: 3px 4mm; font-family: monospace; font-weight: 700;">$${p.amount.toFixed(2)}</td></tr>`)
+      .join('');
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>End of Day Report</title>
+  <style>
+    * { margin: 0; padding: 0; font-weight: 700; }
+    body { font-family: monospace; width: 80mm; margin: 0 auto; padding: 0; }
+    @page { size: 80mm auto; margin: 0; }
+    @media print {
+      body { width: 80mm; margin: 0; padding: 0; }
+    }
+    .receipt { width: 72mm; margin: 4mm auto; font-size: 11px; line-height: 1.4; }
+    .header { text-align: center; margin-bottom: 4mm; }
+    .logo { max-width: 50mm; height: auto; margin-bottom: 2mm; }
+    .store-name { font-size: 12px; margin-bottom: 2mm; }
+    .store-info { font-size: 10px; line-height: 1.3; margin-bottom: 4mm; }
+    .divider { border-top: 1px solid #000; margin: 3mm 0; }
+    .title { font-size: 12px; text-align: center; margin: 4mm 0; }
+    .date-time { font-size: 10px; text-align: center; margin-bottom: 4mm; }
+    .section-title { font-size: 11px; margin-top: 3mm; margin-bottom: 2mm; text-transform: uppercase; letter-spacing: 1px; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 2px 0; font-family: monospace; }
+    .label { text-align: left; }
+    .amount { text-align: right; }
+    .total-row { font-size: 12px; font-weight: 700; }
+    .footer { font-size: 10px; text-align: center; margin-top: 4mm; }
+  </style>
+</head>
+<body>
+  <div class="receipt">
+    <div class="header">
+      ${logo ? `<img src="${logo}" class="logo" alt="Logo">` : ''}
+      <div class="store-name">ABSOLUTE SOCCER MISSISSAUGA</div>
+    </div>
+
+    <div class="store-info">
+      ${storeInfo.address}<br>
+      ${storeInfo.city}<br>
+      Tel: ${storeInfo.phone}
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="title">END OF DAY REPORT</div>
+    <div class="date-time">
+      Date: ${dateStr}<br>
+      Time: ${timeStr}
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-title">PAYMENT BREAKDOWN</div>
+    <table>
+      ${paymentRows}
+    </table>
+
+    <div class="divider"></div>
+
+    <table style="margin: 3mm 0;">
+      <tr>
+        <td class="label">Subtotal:</td>
+        <td class="amount">$${metrics.netSales.toFixed(2)}</td>
+      </tr>
+      <tr>
+        <td class="label">HST (13%):</td>
+        <td class="amount">$${metrics.hstCollected.toFixed(2)}</td>
+      </tr>
+      <tr class="total-row">
+        <td class="label">TOTAL:</td>
+        <td class="amount">$${metrics.totalSales.toFixed(2)}</td>
+      </tr>
+    </table>
+
+    <div class="divider"></div>
+
+    <table style="margin: 3mm 0;">
+      <tr>
+        <td class="label">Transactions:</td>
+        <td class="amount">${metrics.totalTransactions}</td>
+      </tr>
+    </table>
+
+    <div class="divider"></div>
+
+    <div class="footer">
+      Thank you for your business!<br>
+      Absolute Soccer
+    </div>
+  </div>
+</body>
+</html>
+    `;
+  };
+
   const handleExportCSV = () => {
     const data = [
       ['End of Day Report', selectedDate],
@@ -204,47 +339,9 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
   };
 
   const handlePrintThermal = () => {
-    const receiptDate = new Date(selectedDate);
-    const html = generateThermalReceiptHTML({
-      transactionId: `EOD-${selectedDate.replace(/-/g, '')}`,
-      customerName: 'END OF DAY REPORT',
-      items: [
-        {
-          name: '═══════════════════════',
-          quantity: 1,
-          price: 0,
-          size: '',
-          ageGroup: '',
-        },
-        ...paymentBreakdown.map(p => ({
-          name: `${p.method}`,
-          quantity: p.count,
-          price: p.amount / p.count,
-          size: '',
-          ageGroup: `${p.count} x $${(p.amount / p.count).toFixed(2)}`,
-        })),
-        {
-          name: '═══════════════════════',
-          quantity: 1,
-          price: 0,
-          size: '',
-          ageGroup: '',
-        },
-      ],
-      subtotal: metrics.netSales,
-      hst: metrics.hstCollected,
-      total: metrics.totalSales,
-      paymentMethod: `${metrics.totalTransactions} Transactions`,
-      createdAt: receiptDate,
-      status: 'completed',
-      logoUrl: logo,
-    });
-
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
-    setTimeout(() => win.print(), 250);
+    const html = generateEODReceiptHTML();
+    setEODPreviewHTML(html);
+    setShowEODPreview(true);
   };
 
   const handlePrint = () => {
@@ -454,6 +551,61 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
           Print to Receipt Printer
         </button>
       </div>
+
+      {/* EOD Receipt Preview Modal */}
+      {showEODPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
+            {/* Close Button */}
+            <div className="sticky top-0 flex items-center justify-between bg-white border-b border-zinc-200 px-6 py-4 z-10">
+              <h3 className="text-lg font-bold text-zinc-900">EOD Receipt Preview</h3>
+              <button
+                onClick={() => setShowEODPreview(false)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 text-zinc-700 rounded hover:bg-zinc-200 transition-colors text-sm font-bold"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            {/* Receipt Preview */}
+            <div className="p-4">
+              <iframe
+                srcDoc={eodPreviewHTML}
+                style={{
+                  width: '100%',
+                  height: '600px',
+                  border: '1px solid #e4e4e7',
+                  borderRadius: '0.5rem',
+                }}
+                title="EOD Receipt Preview"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 border-t border-zinc-200 bg-zinc-50 px-6 py-4">
+              <button
+                onClick={() => {
+                  const win = window.open('', '_blank');
+                  if (win) {
+                    win.document.write(eodPreviewHTML);
+                    win.document.close();
+                    setTimeout(() => win.print(), 250);
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-zinc-900 text-white rounded font-bold hover:bg-zinc-800 transition-colors"
+              >
+                Print
+              </button>
+              <button
+                onClick={() => setShowEODPreview(false)}
+                className="px-4 py-2 bg-zinc-200 text-zinc-900 rounded font-bold hover:bg-zinc-300 transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
