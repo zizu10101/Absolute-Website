@@ -6,7 +6,62 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**POS DARK/LIGHT MODE TOGGLE (Session 51 - CURRENT):**
+**PRODUCT FEED, REPORTS IMPROVEMENTS, EOD RECEIPT CLEANUP (Session 52 - CURRENT):**
+
+**Google Merchant Center / Meta Commerce Manager Product Feed:**
+- `server.ts`: New GET `/product-feed.xml` endpoint serves RSS/XML product feed compatible with Google Merchant Center and Meta Commerce Manager
+  - Fetches all `is_online=true` products from Supabase with real-time stock status from `product_variants` table
+  - Includes all required fields: product ID, title, description, link, image, availability, price, sale_price, brand, condition, MPN, identifier_exists, Google product category
+  - Proper XML escaping for special characters
+  - 1-hour server-side cache to avoid hammering Supabase on every request
+  - Stock availability calculated: `in_stock` if any variant has `stock_quantity > 0`, else `out_of_stock`
+  - Tested on localhost: verified valid XML output with real product data
+- `docs/PRODUCT_FEED_SETUP.md`: Comprehensive guide for configuring feed in Google Merchant Center and Meta Commerce Manager
+  - Step-by-step setup instructions for both platforms
+  - Monitoring, maintenance, and troubleshooting section
+  - Technical details on feed generation and caching
+  - Field mapping and dynamic ads configuration
+- Feed endpoint: https://torontosoccershop.com/product-feed.xml
+
+**Reports Page Navigation & Accessibility:**
+- `src/components/ReportsPage.tsx`: Added back button and Escape key navigation
+  - Back button with arrow icon at top of Reports page - returns to `/pos`
+  - Escape key handler - pressing Escape navigates back to POS
+  - Button styled: `bg-zinc-700 text-white rounded-lg hover:bg-zinc-600 transition-colors`
+  - Works for all report tabs (EOD, Sales, Products, Gift Cards, etc.)
+  - `useEffect` cleanup on unmount prevents memory leaks
+
+**End of Day Report Improvements:**
+- `src/components/reports/EndOfDayReport.tsx`: Complete redesign of EOD receipt format and print workflow
+  - **Payment method filtering**: Only shows methods with `amount > 0` (cleaned up from showing all 8 payment methods even if unused)
+  - **Split payment support**: Parses `payment_splits` JSONB array from transactions, sums each method's amount, counts unique transaction IDs correctly
+  - **New `generateEODReceiptHTML()` function**: Generates clean, printer-ready HTML for 80mm thermal receipts
+    - Store header: logo, name (ABSOLUTE SOCCER MISSISSAUGA), address, phone
+    - Title: "END OF DAY REPORT" centered
+    - Date and time in readable format
+    - Payment breakdown: only methods with sales > $0, sorted by amount descending
+    - Subtotal (net sales), HST (13%), TOTAL
+    - Transaction count
+    - Friendly footer message
+  - **Removed fields** from old format: customer name line, transaction type, cashier, ref#, balance due, qty lines, decorative lines with prices
+  - **EOD Receipt Preview Modal**:
+    - Added `showEODPreview` and `eodPreviewHTML` state variables
+    - Added Escape key handler: pressing Escape closes the preview modal
+    - Modal features: centered dialog, sticky header with close button, scrollable receipt preview in iframe, Print button, Dismiss button
+    - Print button opens browser print dialog; users can send to thermal printer from there
+    - Close button (X) in top-right corner + Dismiss button at bottom
+    - Dark overlay focuses attention on modal
+    - Modal content scrolls while header stays sticky
+  - `handlePrintThermal()` now shows preview instead of opening new window
+- `docs/EOD_RECEIPT_IMPROVEMENTS.md`: Complete documentation of receipt redesign
+  - Before/after format comparison
+  - Preview modal features and keyboard shortcuts
+  - Technical implementation details
+  - Testing checklist
+  - Printer configuration guidelines
+  - Payment method filtering logic with examples
+
+**POS DARK/LIGHT MODE TOGGLE (Session 51):**
 - `src/pages/POSPage.tsx`: Implemented fully functional dark/light mode toggle for POS system
   - `isDarkMode` state with localStorage persistence (defaults to dark mode if no saved preference)
   - Toggle button with Sun/Moon icon in top bar, smooth transitions between modes
@@ -266,10 +321,22 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-## CURRENT STATUS (Main Branch - August 5, 2026)
-**Latest:** POS dark/light mode toggle with full theme-aware styling, logo switching, localStorage persistence (session 51)
+## CURRENT STATUS (Main Branch - August 7, 2026)
+**Latest:** Product feed for Google Merchant Center/Meta Commerce, Reports page navigation, EOD receipt redesign with preview modal (session 52)
 
-**COMPLETED (August 5, 2026):**
+**COMPLETED (August 7, 2026):**
+- ✅ **Session 52:** Product feed, Reports improvements, EOD receipt cleanup
+  - GET `/product-feed.xml` endpoint: RSS/XML feed compatible with Google Merchant Center and Meta Commerce Manager
+    - Real-time stock status from `product_variants` table
+    - 1-hour cache to prevent excessive Supabase queries
+    - Only includes `is_online=true` products
+    - Verified on localhost with valid XML output
+  - Reports page back button and Escape key navigation (all report tabs)
+  - EOD report payment method filtering: only shows methods with sales > $0
+  - Split payment support in EOD: correctly sums payment methods from `payment_splits` JSONB
+  - EOD receipt format complete redesign: clean, professional layout with store header, date/time, payment breakdown, totals
+  - EOD receipt preview modal: centered dialog with Escape key support, close button, print button, preview in iframe
+  - Build passes without errors, all TypeScript validated
 - ✅ **Session 51:** POS dark/light mode toggle fully implemented
   - isDarkMode state with localStorage persistence (defaults to dark)
   - Conditional styling throughout entire POS: all text, buttons, panels, modals, forms
