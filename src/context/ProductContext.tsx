@@ -6,6 +6,8 @@ export interface ColorVariant {
   name: string;
   images: string[];
   price?: number;
+  salePrice?: number;
+  isDefault?: boolean;
 }
 
 export interface Product {

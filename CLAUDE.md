@@ -6,7 +6,7 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**BLOG / GEAR GUIDES SECTION, GEO OPTIMIZATION (Session 53 - CURRENT):**
+**BLOG / GEAR GUIDES SECTION, GEO OPTIMIZATION (Session 54 - CURRENT):**
 - New Supabase table `blog_posts` (see `docs/blog-migration.sql` — **must be run manually in the Supabase SQL editor**, same as every other migration in this project; no DDL execution path exists from the app/scripts). Columns: `id`, `title`, `slug` (unique), `content`, `excerpt`, `image_url`, `thumbnail_url`, `featured_product_ids` (`UUID[]`), `author`, `is_published`, `published_at`, `created_at`, `updated_at`
 - `/blog` (`src/pages/BlogListPage.tsx`, NEW): listing page — featured post (most recent) as a large card at top, remaining published posts in a 3-column grid below; each card shows image, title, date, excerpt, "Read More"; only `is_published = true` rows are queried
 - `/blog/:slug` (`src/pages/BlogPostPage.tsx`, NEW): full article page — breadcrumb (Home > Gear Guides > Article Title), H1 title, author + date, hero image (`image_url`) between the header and the article body, content rendered via `react-markdown` + `remark-gfm` (added as new dependencies) through a hand-rolled `.blog-prose` CSS class in `src/index.css` (no `@tailwindcss/typography` plugin installed in this repo), a featured-products grid sourced from `featured_product_ids` (rendered just above the article's closing `## Final Thoughts` section when present, otherwise at the end), and `BlogPosting` JSON-LD schema injected the same way `ProductDetailPage`'s Product schema is (imperative `<script>` tag keyed by id, cleaned up on unmount); only published posts are queried, same as the listing page
@@ -17,11 +17,147 @@ Admin login: info@edgedbs.com
 - Footer (`src/components/Footer.tsx`): new "Gear Guides" column (grid widened from `md:grid-cols-4` to `md:grid-cols-5`) linking to `/blog`
 - `scripts/generate-sitemap.js`: fetches published `blog_posts` slugs and adds `/blog` + each `/blog/:slug` to the generated sitemap
 - Seed article: "FG vs AG vs Turf: Which Soccer Cleat Do You Actually Need?" (`fg-vs-ag-vs-turf-soccer-cleats`)
-- **GEO (Generative Engine Optimization):**
-  - `public/robots.txt`: added explicit `Allow: /` blocks for AI/LLM crawlers (GPTBot, ChatGPT-User, OAI-SearchBot, PerplexityBot, Perplexity-User, Google-Extended, ClaudeBot, Claude-User, Claude-SearchBot, anthropic-ai, CCBot, Bytespider) alongside the existing wildcard allow + `/admin`/`/pos` disallow
-  - `public/llms.txt`: added a "Gear Guides" entry under Key Pages linking to `/blog`
-  - `src/pages/HomePage.tsx`: added a visually-hidden (`sr-only`) brand-description paragraph after the existing hidden `<h1>`, giving AI crawlers a concise factual summary of the store (location, product range, service area, Gear Guides) without changing the visible page
+- **GEO (Generative Engine Optimization)** — built independently in this session, then merged with a concurrent session's own (more thorough) GEO audit landed the same day; the merge kept whichever side was more complete per file rather than picking one session wholesale:
+  - `public/robots.txt`: explicit `Allow: /` blocks for AI/LLM crawlers — merged list covers GPTBot, ChatGPT-User, OAI-SearchBot, PerplexityBot, Perplexity-User, Google-Extended, ClaudeBot, Claude-User, Claude-SearchBot, anthropic-ai, CCBot, Bytespider — alongside the existing wildcard allow + `/admin`/`/pos` disallow
+  - `public/llms.txt`: kept the concurrent session's substantially expanded rewrite (About/Services/Products We Carry/Brands/Geographic Service Area sections), with this session's "Gear Guides" → `/blog` entry added into its Key Pages list
+  - `src/pages/HomePage.tsx`: kept the concurrent session's more detailed `sr-only` brand-description paragraph (includes hours/phone), with a "Gear Guides" mention folded in
+  - `index.html`: concurrent session also enhanced the homepage `SportingGoodsStore`/`Organization` JSON-LD (knowsAbout, brand list, foundingDate) — untouched by this session, kept as-is
 - Verified via `npm run build` (clean), `tsc --noEmit` (no new errors — only pre-existing unrelated errors in `SalesReport.tsx`/`AdminPage.tsx`/scratch root scripts, as previously documented), and live Playwright runs against localhost: blog listing/article render, header/footer links present, admin login → Blog tab → hero+thumbnail upload → save → public page reflects both images, featured-product search/select/save/reload round-trips correctly, and `/blog/fg-vs-ag-vs-turf-soccer-cleats` shows the exact 3 hand-picked products after editing
+
+**INVOICE & ESTIMATE PRINTING (Session 53 - COMPLETE - DEPLOYED):**
+
+**New Files Created**:
+- `src/utils/invoice.ts`: Professional A4 invoice/estimate HTML generator with `generateInvoiceHTML()` and `printInvoice()` functions
+  - Supports both invoice (INV-) and estimate (EST-) document types with distinct branding
+  - Includes store logo, header with address/phone/website
+  - Customer billing section: name, email, phone, company, address
+  - Itemized product table: name, size/color, quantity, unit price, line total
+  - Automatic tax calculation (13% HST), grand total with red highlighting
+  - Payment method display (invoices) or disclaimer (estimates - valid 30 days)
+  - Proper HTML entity escaping for security
+  - Browser print dialog opens A4-formatted document for all modern browsers
+
+- `src/components/InvoiceCustomerModal.tsx`: Smart customer information collection modal
+  - Two modes: Manual Entry (form with optional Company/Address fields) and Search Existing Customer
+  - Search filters customers by name, email, or phone (live filtering from DB)
+  - Pre-fills with linked customer from transaction if available
+  - Optional "Save customer info for future use" checkbox (only saves if explicitly checked)
+  - Clear primary action (Print Invoice/Estimate) and Cancel button
+  - Keyboard navigation (Tab, Escape, Enter) and accessibility support
+  - Smooth transitions and error handling
+
+- `docs/INVOICE_ESTIMATE_FEATURE.md`: Comprehensive 400+ line feature documentation
+  - Complete feature overview and architecture
+  - Files created/modified with detailed descriptions
+  - Testing checklist with 40+ specific test cases (POS receipt, Transaction History, Modal features, Print output, Data validation)
+  - Browser compatibility matrix (Chrome, Firefox, Safari, Edge)
+  - Troubleshooting guide with 5 common issues and solutions
+  - Performance notes (instant invoice generation < 1ms, no network calls during print)
+  - Security analysis (XSS prevention, client-side print, optional DB save)
+  - Accessibility notes (ARIA labels, keyboard navigation, WCAG AA color contrast)
+  - Future enhancement ideas (email delivery, SMS, custom templates, digital signatures, recurring invoices)
+
+**Files Modified**:
+- `src/pages/POSPage.tsx`: Added invoice/estimate functionality to receipt screen
+  - New state: `showInvoiceModal`, `invoiceType` ('invoice' | 'estimate')
+  - New handlers: `handleOpenInvoiceModal()`, `handlePrintInvoice()`
+  - New UI: Two buttons below Gift Receipt (Invoice with FileText icon, Estimate with FileText icon)
+  - Buttons arranged: [Print 1x] [Print 2x] [Gift Receipt] [Invoice] + [Estimate] [New Sale]
+  - Integrated `<InvoiceCustomerModal>` component with pre-filled customer if available
+  - Passes selected customer and customer ID to modal
+
+- `src/components/PosTransactionHistory.tsx`: Added invoice/estimate reprint buttons
+  - New state: `showInvoiceModal`, `invoiceType`, `invoiceTx`
+  - New handlers: `openInvoiceModal()`, `handlePrintInvoice()`
+  - New UI: Two cyan-colored buttons on each transaction ([Invoice] [Estimate])
+  - Positioned after Gift Receipt button in action buttons row
+  - Allows reprinting invoices/estimates with updated customer details from transaction
+  - Can generate both document types from same transaction record
+  - Integrated `<InvoiceCustomerModal>` with transaction customer pre-fill
+
+**Features Summary**:
+✅ Professional A4 invoice format (customizable via browser print dialog)
+✅ Two document types: Invoice (paid/completed) and Estimate (30-day quote)
+✅ Customer information collection before printing
+✅ Search existing customers by name, email, phone
+✅ Pre-fill with linked customer if transaction has one
+✅ Optional new customer save-to-database
+✅ Works for walk-in customers (no pre-filled info needed)
+✅ Itemized product list with sizes, colors, quantities
+✅ Automatic subtotal, HST (13%), grand total calculations
+✅ Payment method display for invoices
+✅ Estimate disclaimer for quotes
+✅ Keyboard navigation and accessibility support
+✅ No external dependencies (uses native browser print)
+✅ Security: HTML entity escaping, client-side processing, optional DB save
+✅ Performance: Instant generation (< 1ms), no network calls during print
+✅ Browser compatibility: Chrome, Firefox, Safari, Edge
+
+**Deployment Status**: ✅ DEPLOYED to GitHub main
+- Commit: `9192a86` - feat: add invoice and estimate printing to POS
+- Merge commit: `102b934` - Merged with remote session 52 changes
+- All TypeScript validates without errors
+- Build passes without warnings (pre-existing chunk size warnings only)
+- Working tree clean, no uncommitted changes
+- Remote main branch up to date with all changes
+
+**PRODUCT FEED, REPORTS IMPROVEMENTS, EOD RECEIPT CLEANUP (Session 52):**
+
+**Google Merchant Center / Meta Commerce Manager Product Feed:**
+- `server.ts`: New GET `/product-feed.xml` endpoint serves RSS/XML product feed compatible with Google Merchant Center and Meta Commerce Manager
+  - Fetches all `is_online=true` products from Supabase with real-time stock status from `product_variants` table
+  - Includes all required fields: product ID, title, description, link, image, availability, price, sale_price, brand, condition, MPN, identifier_exists, Google product category
+  - Proper XML escaping for special characters
+  - 1-hour server-side cache to avoid hammering Supabase on every request
+  - Stock availability calculated: `in_stock` if any variant has `stock_quantity > 0`, else `out_of_stock`
+  - Tested on localhost: verified valid XML output with real product data
+- `docs/PRODUCT_FEED_SETUP.md`: Comprehensive guide for configuring feed in Google Merchant Center and Meta Commerce Manager
+  - Step-by-step setup instructions for both platforms
+  - Monitoring, maintenance, and troubleshooting section
+  - Technical details on feed generation and caching
+  - Field mapping and dynamic ads configuration
+- Feed endpoint: https://torontosoccershop.com/product-feed.xml
+
+**Reports Page Navigation & Accessibility:**
+- `src/components/ReportsPage.tsx`: Added back button and Escape key navigation
+  - Back button with arrow icon at top of Reports page - returns to `/pos`
+  - Escape key handler - pressing Escape navigates back to POS
+  - Button styled: `bg-zinc-700 text-white rounded-lg hover:bg-zinc-600 transition-colors`
+  - Works for all report tabs (EOD, Sales, Products, Gift Cards, etc.)
+  - `useEffect` cleanup on unmount prevents memory leaks
+
+**End of Day Report Improvements:**
+- `src/components/reports/EndOfDayReport.tsx`: Complete redesign of EOD receipt format and print workflow
+  - **Payment method filtering**: Only shows methods with `amount > 0` (cleaned up from showing all 8 payment methods even if unused)
+  - **Split payment support**: Parses `payment_splits` JSONB array from transactions, sums each method's amount, counts unique transaction IDs correctly
+  - **New `generateEODReceiptHTML()` function**: Generates clean, printer-ready HTML for 80mm thermal receipts
+    - Store header: logo, name (ABSOLUTE SOCCER MISSISSAUGA), address, phone
+    - Title: "END OF DAY REPORT" centered
+    - Date and time in readable format
+    - Payment breakdown: only methods with sales > $0, sorted by amount descending
+    - Subtotal (net sales), HST (13%), TOTAL
+    - Transaction count
+    - Friendly footer message
+  - **Removed fields** from old format: customer name line, transaction type, cashier, ref#, balance due, qty lines, decorative lines with prices
+  - **EOD Receipt Preview Modal**:
+    - Added `showEODPreview` and `eodPreviewHTML` state variables
+    - Added Escape key handler: pressing Escape closes the preview modal
+    - Modal features: centered dialog, sticky header with close button, scrollable receipt preview in iframe, Print button, Dismiss button
+    - Print button opens browser print dialog; users can send to thermal printer from there
+    - Close button (X) in top-right corner + Dismiss button at bottom
+    - Dark overlay focuses attention on modal
+    - Modal content scrolls while header stays sticky
+  - `handlePrintThermal()` now shows preview instead of opening new window
+- `docs/EOD_RECEIPT_IMPROVEMENTS.md`: Complete documentation of receipt redesign
+  - Before/after format comparison
+  - Preview modal features and keyboard shortcuts
+  - Technical implementation details
+  - Testing checklist
+  - Printer configuration guidelines
+  - Payment method filtering logic with examples
+
+**COLOR SALE PRICING, MASTER VARIANT AUTO-NAMING, DEFAULT BUTTON FIX (concurrent session, Aug 7):**
+- `ColorVariant` interface gained `salePrice`/`isDefault` fields; per-color sale price field in Add/Edit Product; Master Variant Color section auto-updates all NULL-color variants on save; `ProductDetailPage`/`ProductCard`/`POSPage` price logic now uses color-level `salePrice` when a color is selected. (Full write-up landed under the July 2026 "COLOR VARIANT IMPROVEMENTS (Session 40)" heading further down by the originating session — left as-is rather than moved, to avoid re-splitting content across merges)
 
 **CUSTOM LAB / KIT ORDERS IFRAMES, 400 FIX, POS NEW PRICE DISCOUNT, FOOTER HEADING FIX (Session 52):**
 - Custom Lab page (`/custom-lab`): iframe embed of Google AI Studio jersey designer — URL: `https://absolute-basic-jersey-customizer-930161668914.us-west1.run.app`
@@ -174,6 +310,16 @@ Admin login: info@edgedbs.com
 - ✅ Transparent PNG fix: `resizeImage()` in `src/lib/imageUtils.ts` now fills a white canvas background before drawing, so transparent PNGs no longer show black; all product image containers standardized to `bg-white` + `object-contain`
 - **Build Notes:** inline `<style>` in `index.html` moved to `src/print-styles.css` (Vite v6.4.3 failed on inline style tags in the html-proxy build step); a smart-quote character in `RapidScanIntakeMatrix.tsx` that broke esbuild parsing was replaced with an ASCII quote
 
+**COLOR VARIANT IMPROVEMENTS (Session 40):**
+- `src/context/ProductContext.tsx`: `ColorVariant` interface now has `salePrice?: number` and `isDefault?: boolean` fields
+- `src/pages/AdminPage.tsx`: Sale price field added to each color way in Edit Product and Add Product forms
+- `src/pages/AdminPage.tsx`: Master Variant Color section added (above Color Ways list) — name the default product color and set its sale price; stored as `{ isDefault: true, name, salePrice, images: [] }` in the `colors` JSONB array
+- `src/pages/AdminPage.tsx`: On save (both `handleUpdate` and `handleAdd`), if a master color name is set, all `product_variants` with `color IS NULL` or `color = ''` for that product are automatically updated to the master color name via Supabase update
+- `src/pages/ProductDetailPage.tsx`: `displayPrice` / `displayOriginalPrice` refactored — uses `colorSalePrice` when a color with `salePrice` is selected; shows strikethrough of original price; falls back to product-level sale or base price; when no color selected, shows lowest price across all color sale prices
+- `src/pages/ProductDetailPage.tsx`: "Default" button in color selector hidden when all registered variants have a color assigned (`variants.some(v => !v.color)` guard); shows only when at least one uncolored variant exists
+- `src/components/ProductCard.tsx`: Computes `lowestPrice` and `isOnSaleAny` from all color `salePrice` values — sale badge and price display use these; color-only sale reflected on card
+- `src/pages/POSPage.tsx`: Barcode scan and size selector modal both look up `variant.color` in `product.colors` and apply `colorEntry.salePrice` if present when building the cart item
+
 ## RECENT CHANGES (July 2026)
 
 **CATEGORY TILE TITLE/GRADIENT REDESIGN (Session 43):**
@@ -298,16 +444,48 @@ Admin login: info@edgedbs.com
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
 ## CURRENT STATUS (Main Branch - August 8, 2026)
-**Latest:** New Blog / Gear Guides section (`/blog`, `/blog/:slug`, Admin → Blog tab with hero/thumbnail image upload and a featured-products picker) plus GEO optimization (AI-crawler-friendly `robots.txt`, updated `llms.txt`, hidden homepage brand description) (session 53)
+**Latest:** New Blog / Gear Guides section (`/blog`, `/blog/:slug`, Admin → Blog tab with hero/thumbnail image upload and a featured-products picker) plus a merged GEO optimization pass (AI-crawler-friendly `robots.txt`, expanded `llms.txt`, hidden homepage brand description) (session 54). Also recently deployed: Invoice/Estimate printing in POS (session 53) and a Product Feed / Reports / EOD receipt overhaul (session 52, concurrent branch)
 
 **COMPLETED (August 8, 2026):**
-- ✅ **Session 53:** Blog / Gear Guides section + GEO optimization — see full write-up above under RECENT CHANGES; requires `docs/blog-migration.sql` run in Supabase before the Blog tab/pages will work
-- ✅ **Session 52:** Custom Lab + Kit Orders iframe pages, route-collision fix, homepage 400 fix, POS New Price discount, Footer h3 fix
+- ✅ **Session 54:** Blog / Gear Guides section + GEO optimization — see full write-up above under RECENT CHANGES; requires `docs/blog-migration.sql` run in Supabase before the Blog tab/pages will work
+- ✅ **Session 53 (DEPLOYED):** Invoice & Estimate printing feature
+  - Professional A4 invoice/estimate generator with store logo and billing details
+  - Smart customer information modal (search or manual entry)
+  - Invoice buttons on POS receipt screen + transaction history reprint buttons
+  - Two document types: Invoice (paid) and Estimate (30-day quote) with distinct styling
+  - Pre-fills with linked customer from transaction if available
+  - Optional new customer save-to-database (checkbox enabled by default)
+  - Keyboard navigation and accessibility support (WCAG AA)
+  - Browser print dialog integration (all modern browsers)
+  - Security: HTML entity escaping, client-side processing
+  - Performance: Instant generation (< 1ms), no network overhead
+  - Full TypeScript validation, no build errors
+  - 400+ line comprehensive documentation (`docs/INVOICE_ESTIMATE_FEATURE.md`)
+  - 40+ test cases covering all features and edge cases
+  - Troubleshooting guide with 5 common scenarios
+  - Future enhancement ideas documented
+
+- ✅ **Session 52:** Product feed, Reports improvements, EOD receipt cleanup
+  - GET `/product-feed.xml` endpoint: RSS/XML feed compatible with Google Merchant Center and Meta Commerce Manager
+    - Real-time stock status from `product_variants` table
+    - 1-hour cache to prevent excessive Supabase queries
+    - Only includes `is_online=true` products
+    - Verified on localhost with valid XML output
+  - Reports page back button and Escape key navigation (all report tabs)
+  - EOD report payment method filtering: only shows methods with sales > $0
+  - Split payment support in EOD: correctly sums payment methods from `payment_splits` JSONB
+  - EOD receipt format complete redesign: clean, professional layout with store header, date/time, payment breakdown, totals
+  - EOD receipt preview modal: centered dialog with Escape key support, close button, print button, preview in iframe
+  - Build passes without errors, all TypeScript validated
+
+- ✅ **Session 52 (Custom Lab):** Custom Lab + Kit Orders iframe pages, route-collision fix, homepage 400 fix, POS New Price discount, Footer h3 fix
   - `/custom-lab` and `/kit-orders`: each page is just the standard Header/Footer (via `Layout`) wrapping a full-height iframe (jersey designer / uniform designer respectively) — no custom nav, no other page content
   - Fixed `src/App.tsx`: `RESERVED_PAGE_PATHS` list excludes `custom-lab` and `kit-orders` from the dynamic `navigationMenus.map()` route generator, which was registering an earlier `ProductGridPage` route at the same path and winning React Router's tie-break over the real page component
   - Fixed homepage 400: `products` has no `created_at` column; `HomePage.tsx` New Arrivals now queries `isNewArrival` directly instead of attempting the failing ordered query first
   - POS: item-level cart discounts gained a 3rd "Set New Price" type (`src/hooks/usePOSCart.ts`, `src/pages/POSPage.tsx`, `src/utils/thermalReceipt.ts`) — staff enter a final price, discount is derived as `originalPrice - newPrice`, validated against $0 and against exceeding the original price
   - `src/components/Footer.tsx`: Shop/Custom Lab/Support section titles changed from `h4` to `h3` (heading-hierarchy fix, no visual change)
+  - Note: two independently-numbered "Session 52" write-ups exist from concurrent branches that diverged from the same base — kept both rather than discarding either
+
 - ✅ **Session 51:** POS dark/light mode toggle fully implemented
   - isDarkMode state with localStorage persistence (defaults to dark)
   - Conditional styling throughout entire POS: all text, buttons, panels, modals, forms
