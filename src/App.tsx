@@ -27,6 +27,8 @@ import { BramptonSoccerPage } from './pages/BramptonSoccerPage';
 import { MississaugaSoccerPage } from './pages/MississaugaSoccerPage';
 import { BrandPage } from './pages/BrandPage';
 import { BrandsPage } from './pages/BrandsPage';
+import { BlogListPage } from './pages/BlogListPage';
+import { BlogPostPage } from './pages/BlogPostPage';
 import { useSEO } from './hooks/useSEO';
 
 // Paths that exist as DB-driven navigation_menus rows but must render their own dedicated
@@ -189,6 +191,8 @@ function AppRoutes() {
           <Route path="custom-apparel" element={<CustomApparelPage />} />
           <Route path="brampton-soccer-uniforms" element={<BramptonSoccerPage />} />
           <Route path="mississauga-soccer-store" element={<MississaugaSoccerPage />} />
+          <Route path="blog" element={<BlogListPage />} />
+          <Route path="blog/:slug" element={<BlogPostPage />} />
           <Route path="product/:slug" element={<ProductDetailPage />} />
           <Route path="products" element={<Navigate to="/category/footwear" replace />} />
         </Route>

@@ -223,6 +223,13 @@ export function HomePage() {
       <h1 className="sr-only">
         Absolute Soccer - Premier Soccer Store in Mississauga & GTA
       </h1>
+      <p className="sr-only">
+        Absolute Soccer (formerly Golazo Store) is Mississauga's premier soccer store, offering
+        soccer cleats, official national team and club jerseys, custom team uniforms, and gear
+        for players and clubs across Mississauga, Brampton, Oakville, Toronto, Etobicoke, Milton
+        and the wider GTA. Shop Nike, Adidas and Puma footwear, browse our Gear Guides for expert
+        cleat comparisons and buying advice, or visit our Mississauga showroom in person.
+      </p>
       {sliderImages.length > 0 && (
         <section className="relative w-full overflow-hidden bg-zinc-900">
           <div

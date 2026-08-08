@@ -83,6 +83,16 @@ async function generateSitemap() {
     const products = await supabaseRequest('/products?is_online=eq.true&select=id,name,category,product_code');
     console.log(`Found ${products.length} online products`);
 
+    // Fetch published blog posts
+    console.log('Fetching published blog posts from Supabase...');
+    let blogPosts = [];
+    try {
+      blogPosts = await supabaseRequest('/blog_posts?is_published=eq.true&select=slug');
+      console.log(`Found ${blogPosts.length} published blog posts`);
+    } catch (err) {
+      console.warn('Could not fetch blog_posts (table may not exist yet):', err.message);
+    }
+
     // Get unique category slugs (deduplicate after slug conversion to handle case variations)
     const rawCategories = products.map(p => p.category).filter(Boolean);
     const categoryMap = new Map();
@@ -104,6 +114,7 @@ async function generateSitemap() {
       { url: 'https://torontosoccershop.com', changefreq: 'weekly', priority: 1.0 },
       { url: 'https://torontosoccershop.com/products', changefreq: 'daily', priority: 0.9 },
       { url: 'https://torontosoccershop.com/brands', changefreq: 'weekly', priority: 0.8 },
+      { url: 'https://torontosoccershop.com/blog', changefreq: 'weekly', priority: 0.8 },
       { url: 'https://torontosoccershop.com/custom-apparel', changefreq: 'monthly', priority: 0.8 },
       { url: 'https://torontosoccershop.com/brampton-soccer-uniforms', changefreq: 'monthly', priority: 0.8 },
       { url: 'https://torontosoccershop.com/mississauga-soccer-store', changefreq: 'monthly', priority: 0.9 },
@@ -138,6 +149,16 @@ async function generateSitemap() {
       xml += '  </url>\n';
     });
 
+    // Blog post pages
+    xml += '\n  <!-- Blog Pages -->\n';
+    blogPosts.forEach(post => {
+      xml += '  <url>\n';
+      xml += `    <loc>https://torontosoccershop.com/blog/${post.slug}</loc>\n`;
+      xml += '    <changefreq>monthly</changefreq>\n';
+      xml += '    <priority>0.6</priority>\n';
+      xml += '  </url>\n';
+    });
+
     // Brand pages
     xml += '\n  <!-- Brand Pages -->\n';
     xml += '  <url>\n';
@@ -162,7 +183,8 @@ async function generateSitemap() {
     console.log(`   - ${mainPages.length} main pages`);
     console.log(`   - ${uniqueCategories.length} category pages`);
     console.log(`   - ${products.length} product pages`);
-    console.log(`   - Total: ${mainPages.length + uniqueCategories.length + products.length + 2} URLs`);
+    console.log(`   - ${blogPosts.length} blog pages`);
+    console.log(`   - Total: ${mainPages.length + uniqueCategories.length + products.length + blogPosts.length + 2} URLs`);
 
   } catch (error) {
     console.error('Error generating sitemap:', error.message);

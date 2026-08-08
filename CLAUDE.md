@@ -6,7 +6,24 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**CUSTOM LAB / KIT ORDERS IFRAMES, 400 FIX, POS NEW PRICE DISCOUNT, FOOTER HEADING FIX (Session 52 - CURRENT):**
+**BLOG / GEAR GUIDES SECTION, GEO OPTIMIZATION (Session 53 - CURRENT):**
+- New Supabase table `blog_posts` (see `docs/blog-migration.sql` — **must be run manually in the Supabase SQL editor**, same as every other migration in this project; no DDL execution path exists from the app/scripts). Columns: `id`, `title`, `slug` (unique), `content`, `excerpt`, `image_url`, `thumbnail_url`, `featured_product_ids` (`UUID[]`), `author`, `is_published`, `published_at`, `created_at`, `updated_at`
+- `/blog` (`src/pages/BlogListPage.tsx`, NEW): listing page — featured post (most recent) as a large card at top, remaining published posts in a 3-column grid below; each card shows image, title, date, excerpt, "Read More"; only `is_published = true` rows are queried
+- `/blog/:slug` (`src/pages/BlogPostPage.tsx`, NEW): full article page — breadcrumb (Home > Gear Guides > Article Title), H1 title, author + date, hero image (`image_url`) between the header and the article body, content rendered via `react-markdown` + `remark-gfm` (added as new dependencies) through a hand-rolled `.blog-prose` CSS class in `src/index.css` (no `@tailwindcss/typography` plugin installed in this repo), a featured-products grid sourced from `featured_product_ids` (rendered just above the article's closing `## Final Thoughts` section when present, otherwise at the end), and `BlogPosting` JSON-LD schema injected the same way `ProductDetailPage`'s Product schema is (imperative `<script>` tag keyed by id, cleaned up on unmount); only published posts are queried, same as the listing page
+- Blog prose styling: bold labels (`**Label:**`) render as `font-weight:700 / #111`; `> blockquote` renders as a red-bordered, pink-background alert box — used for the seed article's `**Caution:**` line, which was rewritten in the DB to `> **Caution:**` so it renders as a blockquote
+- Admin → **Blog** tab (`src/components/BlogAdminTab.tsx`, NEW, wired into `AdminPage.tsx`'s tab bar): lists all posts (drafts included, admin-only), search-by-title, Add/Edit modal with title (auto-slug via existing `slugify()` util, slug stays editable), excerpt, Markdown content textarea, separate Hero Image and Thumbnail fields (each with a URL input + an Upload button that compresses to WebP via the existing `compressToWebP`/`uploadImage` pipeline — hero 1200×630, thumbnail 800×500, uploaded to `media/blog/`), a Featured Products search-and-select widget (debounced name search against `products`, click to add, shows selected products with remove buttons, order preserved on save/reload), Author field, Published toggle, and Delete (with confirm)
+- Blog listing cards use `thumbnail_url` with fallback to `image_url`, then a dark gradient placeholder if neither is set (not a literal `/placeholder.jpg`, which doesn't exist in `public/`)
+- Header (`src/components/Header.tsx`) and mobile nav (`src/components/NavigationDrawer.tsx`): "Gear Guides" link added next to Custom Apparel, pointing to `/blog`
+- Footer (`src/components/Footer.tsx`): new "Gear Guides" column (grid widened from `md:grid-cols-4` to `md:grid-cols-5`) linking to `/blog`
+- `scripts/generate-sitemap.js`: fetches published `blog_posts` slugs and adds `/blog` + each `/blog/:slug` to the generated sitemap
+- Seed article: "FG vs AG vs Turf: Which Soccer Cleat Do You Actually Need?" (`fg-vs-ag-vs-turf-soccer-cleats`)
+- **GEO (Generative Engine Optimization):**
+  - `public/robots.txt`: added explicit `Allow: /` blocks for AI/LLM crawlers (GPTBot, ChatGPT-User, OAI-SearchBot, PerplexityBot, Perplexity-User, Google-Extended, ClaudeBot, Claude-User, Claude-SearchBot, anthropic-ai, CCBot, Bytespider) alongside the existing wildcard allow + `/admin`/`/pos` disallow
+  - `public/llms.txt`: added a "Gear Guides" entry under Key Pages linking to `/blog`
+  - `src/pages/HomePage.tsx`: added a visually-hidden (`sr-only`) brand-description paragraph after the existing hidden `<h1>`, giving AI crawlers a concise factual summary of the store (location, product range, service area, Gear Guides) without changing the visible page
+- Verified via `npm run build` (clean), `tsc --noEmit` (no new errors — only pre-existing unrelated errors in `SalesReport.tsx`/`AdminPage.tsx`/scratch root scripts, as previously documented), and live Playwright runs against localhost: blog listing/article render, header/footer links present, admin login → Blog tab → hero+thumbnail upload → save → public page reflects both images, featured-product search/select/save/reload round-trips correctly, and `/blog/fg-vs-ag-vs-turf-soccer-cleats` shows the exact 3 hand-picked products after editing
+
+**CUSTOM LAB / KIT ORDERS IFRAMES, 400 FIX, POS NEW PRICE DISCOUNT, FOOTER HEADING FIX (Session 52):**
 - Custom Lab page (`/custom-lab`): iframe embed of Google AI Studio jersey designer — URL: `https://absolute-basic-jersey-customizer-930161668914.us-west1.run.app`
 - Kit Orders page (`/kit-orders`): iframe embed of uniform designer — URL: `https://absolute-uniform.ai.studio`
 - Both pages use standard site Header and Footer (via `Layout`) — `src/App.tsx`'s dynamic `navigationMenus.map()` route generator was silently shadowing both pages' dedicated routes with a `ProductGridPage` route at the same path (DB nav menu rows `CUSTOM LAB -> /custom-lab` and `KIT ORDERS -> /kit-orders` collided with the static routes), showing "No products found" instead — fixed via a `RESERVED_PAGE_PATHS` exclusion list
@@ -280,10 +297,11 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-## CURRENT STATUS (Main Branch - August 6, 2026)
-**Latest:** Custom Lab (`/custom-lab`) and Kit Orders (`/kit-orders`) simplified to standard Header/Footer + a full-page designer iframe each; fixed a route collision that was shadowing both pages with "No products found"; homepage 400 error fixed; POS gained a "Set New Price" item discount option; Footer heading hierarchy fixed (session 52)
+## CURRENT STATUS (Main Branch - August 8, 2026)
+**Latest:** New Blog / Gear Guides section (`/blog`, `/blog/:slug`, Admin → Blog tab with hero/thumbnail image upload and a featured-products picker) plus GEO optimization (AI-crawler-friendly `robots.txt`, updated `llms.txt`, hidden homepage brand description) (session 53)
 
-**COMPLETED (August 6, 2026):**
+**COMPLETED (August 8, 2026):**
+- ✅ **Session 53:** Blog / Gear Guides section + GEO optimization — see full write-up above under RECENT CHANGES; requires `docs/blog-migration.sql` run in Supabase before the Blog tab/pages will work
 - ✅ **Session 52:** Custom Lab + Kit Orders iframe pages, route-collision fix, homepage 400 fix, POS New Price discount, Footer h3 fix
   - `/custom-lab` and `/kit-orders`: each page is just the standard Header/Footer (via `Layout`) wrapping a full-height iframe (jersey designer / uniform designer respectively) — no custom nav, no other page content
   - Fixed `src/App.tsx`: `RESERVED_PAGE_PATHS` list excludes `custom-lab` and `kit-orders` from the dynamic `navigationMenus.map()` route generator, which was registering an earlier `ProductGridPage` route at the same path and winning React Router's tie-break over the real page component
@@ -955,6 +973,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - navigation_items: id, menu_id, label, path, logo_url, order_index, parent_id
 - layaways: id, customer_id, items(jsonb), total_amount, deposit_paid, balance_due, status ('active'/'completed'/'cancelled'), notes, created_at, updated_at — **NOT YET CREATED**, run `docs/layaway-paylater-migration.sql` (session 44)
 - pay_later: id, customer_id, items(jsonb), total_amount, amount_paid, balance_due, status ('unpaid'/'paid'/'cancelled'), notes, created_at — **NOT YET CREATED**, run `docs/layaway-paylater-migration.sql` (session 44)
+- blog_posts: id, title, slug (unique), content, excerpt, image_url, thumbnail_url, featured_product_ids (UUID[]), author, is_published, published_at, created_at, updated_at — run `docs/blog-migration.sql` (session 53)
 
 **E-Commerce (ecommerce-dev branch):**
 - online_orders: id, customer_id, items(jsonb), subtotal, tax, total, shipping_method, shipping_cost, status, created_at
@@ -976,7 +995,12 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - src/utils/timezoneUtils.ts - Eastern time (America/Toronto) helpers for all report date filtering/display; Intl-based, not host-machine-timezone-based (session 46)
 - src/hooks/useSEO.tsx - JSON-LD SportingGoodsStore schema (homepage only); accepts storeInfo and builds openingHoursSpecification dynamically
 - src/hooks/usePOSCart.ts - Cart state management with color variant support + per-item `%`/`$` discounts (session 45)
+- src/pages/BlogListPage.tsx - Blog/Gear Guides listing page — featured post + 3-col grid, published only (session 53)
+- src/pages/BlogPostPage.tsx - Blog article page — breadcrumb, hero image, react-markdown content, featured products, BlogPosting schema (session 53)
+- src/components/BlogAdminTab.tsx - Admin Blog tab — post list/CRUD, hero+thumbnail upload, featured product search/select (session 53)
 - public/sitemap.xml - SEO sitemap
+- public/robots.txt - Crawler rules; includes explicit AI/LLM crawler allowlist for GEO (session 53)
+- public/llms.txt - LLM-crawler-facing store summary (session 47, updated session 53)
 - data/settings_exported.json - Supabase settings seed data
 
 ## ROUTES
@@ -990,6 +1014,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - `/custom-lab` — Custom Lab page: standard Header/Footer + full-height iframe embed of the jersey designer
 - `/sale` — Sale page (filters products where isOnSale=true)
 - `/custom-apparel` — Custom Apparel landing page
+- `/blog` — Blog/Gear Guides listing page (BlogListPage) — published posts only
+- `/blog/:slug` — Blog article page (BlogPostPage) — published posts only
 - `/brampton-soccer-uniforms` — City SEO landing page for Brampton soccer clubs (BramptonSoccerPage)
 - `/mississauga-soccer-store` — City SEO landing page for Mississauga soccer store (MississaugaSoccerPage)
 - `/category/:slug` — Alias for any nav menu path slug (e.g. `/category/national-teams`) — handled by `CategorySlugRoute`
@@ -1027,6 +1053,9 @@ Already run (no action needed):
 ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS color TEXT;
 -- ✅ Confirmed already applied (verified via live insert during session 45 debugging):
 ALTER TABLE customers ALTER COLUMN email DROP NOT NULL;
+-- ✅ Confirmed already applied (verified via live query during session 53):
+-- docs/blog-migration.sql — creates blog_posts (title, slug, content, excerpt, image_url,
+-- thumbnail_url, featured_product_ids, author, is_published, published_at, created_at, updated_at)
 ```
 
 ## KNOWN ISSUES

@@ -4,7 +4,7 @@ import { useProducts, Product } from '../context/ProductContext';
 import { useSettings, NavMenu, SEO, ThemeSettings, BrandImages, CategoryImages, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, ChevronRight, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical, Palette, Barcode, Clock } from 'lucide-react';
+import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, ChevronRight, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical, Palette, Barcode, Clock, Newspaper } from 'lucide-react';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -16,9 +16,10 @@ import { RapidScanIntakeMatrix } from '../components/RapidScanIntakeMatrix';
 import { GiftCardsAdmin } from '../components/GiftCardsAdmin';
 import { ReportsPage } from '../components/ReportsPage';
 import { PosLayawayTab } from '../components/PosLayawayTab';
+import { BlogAdminTab } from '../components/BlogAdminTab';
 import BarcodePreview from 'react-barcode';
 
-type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports' | 'theme' | 'layaways';
+type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports' | 'theme' | 'layaways' | 'blog';
 
 const CATEGORIES = [
   'Footwear',
@@ -2797,6 +2798,12 @@ function AdminPageInner() {
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'layaways' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
             >
               <Clock size={14} /> Layaways
+            </button>
+            <button
+              onClick={() => setActiveTab('blog')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'blog' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+            >
+              <Newspaper size={14} /> Blog
             </button>
           </div>
         </div>
@@ -6077,6 +6084,17 @@ function AdminPageInner() {
               style={{ height: '75vh' }}
             >
               <PosLayawayTab />
+            </motion.div>
+          )}
+
+          {activeTab === 'blog' && (
+            <motion.div
+              key="blog"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <BlogAdminTab />
             </motion.div>
           )}
         </AnimatePresence>
