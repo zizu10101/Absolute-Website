@@ -805,9 +805,8 @@ export function POSPage() {
 
       console.log('✓ Cash drawer opened successfully!');
     } catch (err) {
-      console.error('❌ Drawer error (fallback DISABLED for testing):', err);
-      // FALLBACK TEMPORARILY DISABLED FOR TESTING
-      // openCashDrawerFallback();
+      console.error('❌ Drawer error, attempting fallback:', err);
+      openCashDrawerFallback();
     }
   };
 
