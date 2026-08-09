@@ -60,8 +60,6 @@ export function BlogListPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const [featured, ...rest] = posts;
-
   return (
     <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-12">
       <Helmet>
@@ -89,66 +87,35 @@ export function BlogListPage() {
           <p className="text-zinc-500 text-sm">Check back soon for gear guides and tips.</p>
         </div>
       ) : (
-        <div className="space-y-16">
-          {/* Featured post */}
-          {featured && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <Link to={`/blog/${featured.slug}`} className="group grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch bg-white border border-zinc-100 rounded-2xl overflow-hidden hover:shadow-xl transition-shadow">
-                <div className="h-64 md:h-full overflow-hidden">
-                  <PostImage post={featured} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {posts.map((post, idx) => (
+            <motion.div
+              key={post.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: Math.min(idx * 0.05, 0.3) }}
+            >
+              <Link to={`/blog/${post.slug}`} className="group flex flex-col h-full bg-white border border-zinc-100 rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="aspect-[4/3] overflow-hidden">
+                  <PostImage post={post} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 </div>
-                <div className="p-8 md:p-10 flex flex-col justify-center">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--primary-color)] mb-3">Featured Article</span>
-                  <h2 className="text-2xl md:text-4xl font-headline font-black uppercase italic tracking-tighter leading-tight mb-4 group-hover:text-[var(--primary-color)] transition-colors">
-                    {featured.title}
-                  </h2>
-                  <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-4">
-                    {formatDate(featured.published_at || featured.created_at)}
+                <div className="p-6 flex flex-col flex-1">
+                  <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-2">
+                    {formatDate(post.published_at || post.created_at)}
                   </p>
-                  {featured.excerpt && (
-                    <p className="text-zinc-600 leading-relaxed mb-6">{featured.excerpt}</p>
+                  <h3 className="text-base font-headline font-black uppercase italic tracking-tight leading-snug mb-3 group-hover:text-[var(--primary-color)] transition-colors flex-1">
+                    {post.title}
+                  </h3>
+                  {post.excerpt && (
+                    <p className="text-zinc-600 text-sm leading-relaxed mb-4 line-clamp-3">{post.excerpt}</p>
                   )}
-                  <span className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-zinc-900 group-hover:text-[var(--primary-color)] group-hover:translate-x-1 transition-all">
-                    Read More <ArrowRight size={14} />
+                  <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-900 group-hover:text-[var(--primary-color)] group-hover:translate-x-1 transition-all mt-auto">
+                    Read More <ArrowRight size={12} />
                   </span>
                 </div>
               </Link>
             </motion.div>
-          )}
-
-          {/* Grid of remaining posts */}
-          {rest.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {rest.map((post, idx) => (
-                <motion.div
-                  key={post.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(idx * 0.05, 0.3) }}
-                >
-                  <Link to={`/blog/${post.slug}`} className="group flex flex-col h-full bg-white border border-zinc-100 rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="h-48 overflow-hidden">
-                      <PostImage post={post} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    </div>
-                    <div className="p-6 flex flex-col flex-1">
-                      <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-2">
-                        {formatDate(post.published_at || post.created_at)}
-                      </p>
-                      <h3 className="text-base font-headline font-black uppercase italic tracking-tight leading-snug mb-3 group-hover:text-[var(--primary-color)] transition-colors flex-1">
-                        {post.title}
-                      </h3>
-                      {post.excerpt && (
-                        <p className="text-zinc-600 text-sm leading-relaxed mb-4 line-clamp-3">{post.excerpt}</p>
-                      )}
-                      <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-900 group-hover:text-[var(--primary-color)] group-hover:translate-x-1 transition-all mt-auto">
-                        Read More <ArrowRight size={12} />
-                      </span>
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          )}
+          ))}
         </div>
       )}
     </div>

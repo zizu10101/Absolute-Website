@@ -6,9 +6,14 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**BLOG / GEAR GUIDES SECTION, GEO OPTIMIZATION (Session 54 - CURRENT):**
+**BLOG LISTING: UNIFORM GRID, NO FEATURED-POST TREATMENT (Session 55 - CURRENT):**
+- `src/pages/BlogListPage.tsx`: removed the large "Featured Article" card that the first (most recent) post used to get — every published post now renders through one shared card component in a single `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6`, no `index === 0` special case
+- All cards share the exact same structure: `aspect-[4/3]` thumbnail, same padding/typography, same "Read More" affordance — a post with no `thumbnail_url`/`image_url` still renders at identical card size via the existing gradient placeholder
+- Verified via Playwright with 2 real posts (identical bounding boxes — same width/height/y-position) and a temporary 3rd post (grid filled evenly across `lg:grid-cols-3`, temp post + its Storage-less placeholder deleted after verifying)
+
+**BLOG / GEAR GUIDES SECTION, GEO OPTIMIZATION (Session 54):**
 - New Supabase table `blog_posts` (see `docs/blog-migration.sql` — **must be run manually in the Supabase SQL editor**, same as every other migration in this project; no DDL execution path exists from the app/scripts). Columns: `id`, `title`, `slug` (unique), `content`, `excerpt`, `image_url`, `thumbnail_url`, `featured_product_ids` (`UUID[]`), `author`, `is_published`, `published_at`, `created_at`, `updated_at`
-- `/blog` (`src/pages/BlogListPage.tsx`, NEW): listing page — featured post (most recent) as a large card at top, remaining published posts in a 3-column grid below; each card shows image, title, date, excerpt, "Read More"; only `is_published = true` rows are queried
+- `/blog` (`src/pages/BlogListPage.tsx`, NEW): listing page — every published post in a uniform grid (originally had a large "Featured Article" card for the first post; removed in session 55, see above); each card shows image, title, date, excerpt, "Read More"; only `is_published = true` rows are queried
 - `/blog/:slug` (`src/pages/BlogPostPage.tsx`, NEW): full article page — breadcrumb (Home > Gear Guides > Article Title), H1 title, author + date, hero image (`image_url`) between the header and the article body, content rendered via `react-markdown` + `remark-gfm` (added as new dependencies) through a hand-rolled `.blog-prose` CSS class in `src/index.css` (no `@tailwindcss/typography` plugin installed in this repo), a featured-products grid sourced from `featured_product_ids` (rendered just above the article's closing `## Final Thoughts` section when present, otherwise at the end), and `BlogPosting` JSON-LD schema injected the same way `ProductDetailPage`'s Product schema is (imperative `<script>` tag keyed by id, cleaned up on unmount); only published posts are queried, same as the listing page
 - Blog prose styling: bold labels (`**Label:**`) render as `font-weight:700 / #111`; `> blockquote` renders as a red-bordered, pink-background alert box — used for the seed article's `**Caution:**` line, which was rewritten in the DB to `> **Caution:**` so it renders as a blockquote
 - Admin → **Blog** tab (`src/components/BlogAdminTab.tsx`, NEW, wired into `AdminPage.tsx`'s tab bar): lists all posts (drafts included, admin-only), search-by-title, Add/Edit modal with title (auto-slug via existing `slugify()` util, slug stays editable), excerpt, Markdown content textarea, separate Hero Image and Thumbnail fields (each with a URL input + an Upload button that compresses to WebP via the existing `compressToWebP`/`uploadImage` pipeline — hero 1200×630, thumbnail 800×500, uploaded to `media/blog/`), a Featured Products search-and-select widget (debounced name search against `products`, click to add, shows selected products with remove buttons, order preserved on save/reload), Author field, Published toggle, and Delete (with confirm)
@@ -26,7 +31,7 @@ Admin login: info@edgedbs.com
 
 **BLOG / GEAR GUIDES (Complete):**
 - `blog_posts` table in Supabase — columns: `id`, `title`, `slug`, `content`, `excerpt`, `image_url`, `thumbnail_url`, `featured_product_ids`, `author`, `is_published`, `published_at`, `created_at`, `updated_at`
-- `/blog` — listing page with featured post + 3-col grid
+- `/blog` — listing page, uniform 1/2/3-col responsive grid (no special first-post/"Featured Article" treatment — removed session 55)
 - `/blog/:slug` — full article with hero image, `react-markdown` rendering, featured products grid, `BlogPosting` JSON-LD schema
 - Admin → Blog tab: add/edit/delete posts, hero image upload, thumbnail upload, featured product selector
 - Header, mobile nav, and footer all have a "Gear Guides" link
@@ -455,10 +460,11 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-## CURRENT STATUS (Main Branch - August 8, 2026)
-**Latest:** New Blog / Gear Guides section (`/blog`, `/blog/:slug`, Admin → Blog tab with hero/thumbnail image upload and a featured-products picker) plus a merged GEO optimization pass (AI-crawler-friendly `robots.txt`, expanded `llms.txt`, hidden homepage brand description) (session 54). Also recently deployed: Invoice/Estimate printing in POS (session 53) and a Product Feed / Reports / EOD receipt overhaul (session 52, concurrent branch)
+## CURRENT STATUS (Main Branch - August 9, 2026)
+**Latest:** Blog listing (`/blog`) simplified to a uniform grid — the large "Featured Article" card for the first post was removed, every post now renders through one identical card component (session 55). Also recently shipped: the Blog / Gear Guides section itself (`/blog`, `/blog/:slug`, Admin → Blog tab with hero/thumbnail image upload and a featured-products picker) plus a merged GEO optimization pass (AI-crawler-friendly `robots.txt`, expanded `llms.txt`, hidden homepage brand description) (session 54); Invoice/Estimate printing in POS (session 53); a Product Feed / Reports / EOD receipt overhaul (session 52, concurrent branch)
 
-**COMPLETED (August 8, 2026):**
+**COMPLETED (August 9, 2026):**
+- ✅ **Session 55:** Blog listing grid uniformity fix — see full write-up above under RECENT CHANGES; no DB/deploy prerequisites beyond what session 54 already needed
 - ✅ **Session 54:** Blog / Gear Guides section + GEO optimization — see full write-up above under RECENT CHANGES; requires `docs/blog-migration.sql` run in Supabase before the Blog tab/pages will work
 - ✅ **Session 53 (DEPLOYED):** Invoice & Estimate printing feature
   - Professional A4 invoice/estimate generator with store logo and billing details
