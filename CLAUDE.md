@@ -24,6 +24,18 @@ Admin login: info@edgedbs.com
   - `index.html`: concurrent session also enhanced the homepage `SportingGoodsStore`/`Organization` JSON-LD (knowsAbout, brand list, foundingDate) — untouched by this session, kept as-is
 - Verified via `npm run build` (clean), `tsc --noEmit` (no new errors — only pre-existing unrelated errors in `SalesReport.tsx`/`AdminPage.tsx`/scratch root scripts, as previously documented), and live Playwright runs against localhost: blog listing/article render, header/footer links present, admin login → Blog tab → hero+thumbnail upload → save → public page reflects both images, featured-product search/select/save/reload round-trips correctly, and `/blog/fg-vs-ag-vs-turf-soccer-cleats` shows the exact 3 hand-picked products after editing
 
+**BLOG / GEAR GUIDES (Complete):**
+- `blog_posts` table in Supabase — columns: `id`, `title`, `slug`, `content`, `excerpt`, `image_url`, `thumbnail_url`, `featured_product_ids`, `author`, `is_published`, `published_at`, `created_at`, `updated_at`
+- `/blog` — listing page with featured post + 3-col grid
+- `/blog/:slug` — full article with hero image, `react-markdown` rendering, featured products grid, `BlogPosting` JSON-LD schema
+- Admin → Blog tab: add/edit/delete posts, hero image upload, thumbnail upload, featured product selector
+- Header, mobile nav, and footer all have a "Gear Guides" link
+- Sitemap includes blog URLs (`public/sitemap.xml`, regenerated via `npm run generate-sitemap` — a static file, not auto-rebuilt on every commit, so it must be regenerated any time a post is published)
+- First article: "FG vs AG vs Turf: Which Soccer Cleat Do You Actually Need?" (`fg-vs-ag-vs-turf-soccer-cleats`) — expanded post-launch to also cover Multi-Ground (MG) cleats alongside FG/AG/TF; content updated directly in Supabase via the JS client (DML, no code/deploy needed)
+- `robots.txt` updated to allow AI crawlers
+- `llms.txt` updated
+- Homepage brand description added (`sr-only`)
+
 **INVOICE & ESTIMATE PRINTING (Session 53 - COMPLETE - DEPLOYED):**
 
 **New Files Created**:
