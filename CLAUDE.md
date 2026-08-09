@@ -6,7 +6,90 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**BLOG LISTING: UNIFORM GRID, NO FEATURED-POST TREATMENT (Session 55 - CURRENT):**
+**CASH PAYMENT IMPROVEMENTS: PROMINENT CHANGE DISPLAY + RECEIPT DETAILS (Session 56 - CURRENT):**
+
+**Prominent Change Amount Display:**
+- `src/pages/POSPage.tsx`: Updated receipt preview to display change amount prominently when payment method is Cash
+  - Large yellow gradient box with `text-5xl` (very large) font, bold text
+  - High contrast: yellow background (#FBBF24) with dark yellow text
+  - Shows both "Cash Received" and "Change Due" amounts
+  - Stays visible on screen until staff clicks "New Sale" button
+  - No auto-dismiss: requires manual action to clear the completion screen
+  - Improves cash handling workflow by ensuring staff sees change before closing transaction
+
+**Cash Payment Details on Receipt:**
+- `src/utils/thermalReceipt.ts`: Updated ReceiptData interface to include `cashTendered` and `changeDue` optional fields
+  - Thermal receipt now displays cash payment details after payment breakdown:
+    - `Cash Tendered: $XX.XX`
+    - `Change Due: $XX.XX`
+  - Only shows these lines when cash payment is present
+  - Provides accountability documentation on physical receipt
+- `src/pages/POSPage.tsx`: Updated `handlePrintReceipt()` to pass cash amounts to receipt generator
+  - `cashTendered: receipt.tenderedAmount`
+  - `changeDue: receipt.changeGiven`
+
+**Benefits:**
+- Staff can clearly verify change amount before closing transaction
+- Receipt documents cash tendered and change for accounting/audit trail
+- Customer receives confirmation of payment method and change on printed receipt
+- Reduces cash handling errors and customer disputes
+
+**Testing Verified:**
+- ✅ Build passes without errors
+- ✅ Large change amount displays in yellow box on completion screen
+- ✅ Change amount persists until "New Sale" clicked
+- ✅ Receipt includes cash tendered and change due lines
+- ✅ Only shows cash details when payment method is Cash
+
+**Deployment:** Commit aa639b9 pushed to main
+
+---
+
+**CASH DRAWER & ADMIN ACCESS FIXES (Session 56b):**
+- `src/pages/POSPage.tsx`: Re-enabled fallback cash drawer method
+  - Primary method: Backend `/api/open-drawer` using node-printer direct ESC/POS command
+  - Fallback method: Browser print dialog with EpsonControl font character (invisible drawer kick)
+  - Previously fallback was disabled for testing; now activates automatically if backend fails
+  - Ensures drawer always has a working method available
+- `src/App.tsx`: Fixed admin domain check to allow both www and non-www versions
+  - Admin/POS/Reports now accessible from both `torontosoccershop.com` and `www.torontosoccershop.com`
+  - Normalized hostname by removing www prefix before comparison: `hostname.replace(/^www\./, '')`
+  - Maintains security by denying access from any other domain
+  - Development access still works on localhost and 127.0.0.1
+- Deployment: Commits 5b13553 and aac5d30 pushed to main
+
+---
+
+**CANONICAL URL CONSISTENCY AUDIT (Session 56c):**
+- Verified all 12 canonical URL locations use non-www format consistently: `https://torontosoccershop.com`
+- Locations verified:
+  - index.html homepage canonical tag ✅
+  - SettingsContext.tsx default canonical URL ✅
+  - useSEO.tsx SportingGoodsStore schema ✅
+  - ProductDetailPage.tsx product pages ✅
+  - BlogListPage.tsx, BlogPostPage.tsx ✅
+  - CustomLabPage.tsx, MississaugaSoccerPage.tsx, BramptonSoccerPage.tsx ✅
+  - CustomApparelPage.tsx, UniformSubmissionPage.tsx ✅
+  - Meta.tsx social sharing (og:url, twitter:url) ✅
+- No www versions found anywhere in codebase
+- Prevents duplicate content penalties in Google Search Console
+- Deployment: Audit confirmed, no code changes needed
+
+---
+
+**PRODUCT SCHEMA ENHANCEMENTS (Session 56a):**
+- `src/pages/ProductDetailPage.tsx`: Enhanced Product JSON-LD schema with structured data for Google Merchant Center
+  - Added `hasMerchantReturnPolicy`: 14-day in-store returns with free return fees (matches receipt policy)
+  - Added `shippingDetails`: $0.00 CAD local pickup with 1-2 days handling + 2-5 days transit
+  - Updated `priceValidUntil` from 2026-12-31 to 2027-12-31 (was in past date)
+  - Clarified why `aggregateRating` and `review` fields are intentionally omitted (Google prefers omitting empty fields)
+- Resolves 3 non-critical Google Merchant Center validation issues
+- Provides complete structured data for pricing, returns, and delivery expectations
+- Deployments: Commits c292f58, 938d183, 15337ed pushed to main
+
+---
+
+**BLOG LISTING: UNIFORM GRID, NO FEATURED-POST TREATMENT (Session 55):**
 - `src/pages/BlogListPage.tsx`: removed the large "Featured Article" card that the first (most recent) post used to get — every published post now renders through one shared card component in a single `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6`, no `index === 0` special case
 - All cards share the exact same structure: `aspect-[4/3]` thumbnail, same padding/typography, same "Read More" affordance — a post with no `thumbnail_url`/`image_url` still renders at identical card size via the existing gradient placeholder
 - Verified via Playwright with 2 real posts (identical bounding boxes — same width/height/y-position) and a temporary 3rd post (grid filled evenly across `lg:grid-cols-3`, temp post + its Storage-less placeholder deleted after verifying)
