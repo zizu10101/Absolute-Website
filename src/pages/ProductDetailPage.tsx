@@ -258,7 +258,7 @@ export function ProductDetailPage() {
 
     const price = product.isOnSale && product.salePrice ? product.salePrice : product.price;
 
-    const schema = {
+    const schema: any = {
       "@context": "https://schema.org/",
       "@type": "Product",
       "name": product.name,
@@ -275,7 +275,7 @@ export function ProductDetailPage() {
         "url": `https://torontosoccershop.com${buildProductUrl(product)}`,
         "priceCurrency": "CAD",
         "price": price,
-        "priceValidUntil": "2026-12-31",
+        "priceValidUntil": "2027-12-31",
         "availability": "https://schema.org/InStock",
         "seller": {
           "@type": "Organization",
@@ -283,6 +283,9 @@ export function ProductDetailPage() {
         }
       }
     };
+
+    // aggregateRating and review fields intentionally omitted when no reviews exist.
+    // Google Search Console prefers omitting these fields over empty/zero values.
 
     const script = document.createElement('script');
     script.id = 'product-schema-markup';
