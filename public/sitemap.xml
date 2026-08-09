@@ -17,6 +17,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://torontosoccershop.com/blog</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://torontosoccershop.com/custom-apparel</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -127,11 +132,6 @@
   </url>
   <url>
     <loc>https://torontosoccershop.com/product/nike-jr-mercurial-vapor-17-pro-sam-kerr-ir4331--a95d2935</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://torontosoccershop.com/product/nike-mercurial-superfly-11-pro-firm-ground-low-top-football-boot-io8224--af16c6c4</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -326,12 +326,12 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/egypt-14-zip-training-top-black-784944--f294bbbc</loc>
+    <loc>https://torontosoccershop.com/product/fff-2026-stadium-home-older-kids-nike-dri-fit-football-replica-shirt-115--3f648472</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/fff-2026-stadium-home-older-kids-nike-dri-fit-football-replica-shirt-115--3f648472</loc>
+    <loc>https://torontosoccershop.com/product/egypt-14-zip-training-top-black-784944--f294bbbc</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -716,7 +716,7 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/uruguay-2026-stadium-home-mens-nike-dri-fit-football-replica-shirt-io4680---966842c3</loc>
+    <loc>https://torontosoccershop.com/product/uruguay-2026-stadium-home-mens-nike-dri-fit-football-replica-shirt-io4680--966842c3</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -891,11 +891,6 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/nike-mercurial-vapor-16-pro-vini-jr-firm-ground-low-top-football-boot--17766063</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://torontosoccershop.com/product/liverpool-fc-special-jersey-95-ka8108--60112429</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -976,11 +971,6 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://torontosoccershop.com/product/nike-mercurial-vapor-16-elite--17752835</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://torontosoccershop.com/product/portugal-warmup-jersey-y-green-784789--37a07ab6</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -1017,11 +1007,6 @@
   </url>
   <url>
     <loc>https://torontosoccershop.com/product/nike-tiempo-reactgato-indoorcourt-low-top-soccer-shoes--12ddc4a3</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://torontosoccershop.com/product/nike-phantom-6-low-elite-firm-ground-soccer-cleats-ih1778--f5908689</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -1204,6 +1189,58 @@
     <loc>https://torontosoccershop.com/product/manchester-city-2526-authentic-home-jersey-men-780792--00b082bd</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/nike-mercurial-vapor-16-pro-vini-jr-firm-ground-low-top-football-boot-io9813--17766063</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/nike-mercurial-superfly-11-pro-firm-ground-low-top-football-boot-io8224--af16c6c4</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/nike-phantom-6-low-elite-firm-ground-soccer-cleats-ih1778--f5908689</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/nike-united-phantom-6-low-elite-firm-ground-football-boot-io8444--5dc7f713</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/nike-united-mercurial-vapor-16-elite-firm-ground-low-top-football-boot-hf1605--26a2a9bc</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/nike-premier-iii-firm-ground-cleats-hm0265--f7bb9fa5</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/nike-mercurial-vapor-16-elite-firm-ground-low-top-soccer-cleats-fq1457--2e8a70b7</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/nike-mercurial-vapor-16-elite-lv8-firm-ground-low-top-football-boot-io8214--eecbbcca</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://torontosoccershop.com/product/nike-mercurial-vapor-16-elite-lv8-firm-ground-low-top-football-boot-if4101--146dec1e</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Blog Pages -->
+  <url>
+    <loc>https://torontosoccershop.com/blog/fg-vs-ag-vs-turf-soccer-cleats</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
 
   <!-- Brand Pages -->

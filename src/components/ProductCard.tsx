@@ -13,13 +13,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
   const [activeImage, setActiveImage] = React.useState<string | null>(null);
   const [activeColorIdx, setActiveColorIdx] = React.useState<number | null>(null);
 
-  if (product.colors && product.colors.length > 0) {
-  }
-
   // Find the first image in the gallery that isn't the primary image
   const hoverImage = product.images?.find(img => img && img !== product.image);
   const displayImage = activeImage || (isHovered && hoverImage ? hoverImage : product.image);
   const productUrl = buildProductUrl(product);
+
+  // Compute lowest price, considering color-specific sale prices
+  const colorSalePrices = (product.colors || []).filter(c => c.salePrice).map(c => c.salePrice!);
+  const productEffectivePrice = product.isOnSale && product.salePrice ? product.salePrice : product.price;
+  const lowestPrice = colorSalePrices.length > 0
+    ? Math.min(productEffectivePrice, ...colorSalePrices)
+    : productEffectivePrice;
+  const isOnSaleAny = (product.isOnSale && !!product.salePrice) || colorSalePrices.length > 0;
 
   return (
     <div className={`bg-white group cursor-pointer border border-zinc-100 relative flex flex-col h-full${isSoldOut ? ' opacity-70' : ''}`}>
@@ -29,9 +34,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        {product.isOnSale && product.salePrice && (
+        {isOnSaleAny && (
           <div className="absolute top-4 left-4 z-10 bg-[var(--primary-color)] text-white px-2 py-1 text-[10px] font-black uppercase tracking-widest italic">
-            SALE {Math.round((1 - product.salePrice / product.price) * 100)}% OFF
+            SALE {Math.round((1 - lowestPrice / product.price) * 100)}% OFF
           </div>
         )}
         {product.isFeatured && (
@@ -110,13 +115,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
         )}
         <h3 className="text-[14px] font-semibold text-zinc-900 leading-tight flex-1">{product.name}</h3>
         <div className="mt-auto pt-2 flex items-center gap-2">
-          {product.isOnSale && product.salePrice ? (
+          {isOnSaleAny ? (
             <>
-              <span className="text-sm font-bold text-[var(--primary-color)]">${product.salePrice}</span>
-              <span className="text-[10px] text-zinc-600 line-through">${product.price}</span>
+              <span className="text-sm font-bold text-[var(--primary-color)]">${lowestPrice.toFixed(2)}</span>
+              <span className="text-[10px] text-zinc-400 line-through">${product.price.toFixed(2)}</span>
             </>
           ) : (
-            <span className="text-sm font-bold text-[var(--primary-color)]">${product.price}</span>
+            <span className="text-sm font-bold text-[var(--primary-color)]">${product.price.toFixed(2)}</span>
           )}
         </div>
       </Link>

@@ -459,15 +459,21 @@ export function POSPage() {
           return;
         }
 
+        const variantColorEntry = variant.color
+          ? (product.colors || []).find((c: any) => c.name === variant.color)
+          : null;
+        const variantPrice = variantColorEntry?.salePrice
+          ? variantColorEntry.salePrice
+          : (variantColorEntry?.price || (product.isOnSale && product.salePrice ? product.salePrice : (product.price ?? 0)));
         cartItem = {
           id: `var-${variant.id}`,
           variantId: variant.id,
           name: product.name,
-          price: product.isOnSale && product.salePrice ? product.salePrice : (product.price ?? 0),
+          price: variantPrice,
           originalPrice: product.price ?? 0,
           category: product.category || '',
-          isOnSale: product.isOnSale,
-          salePrice: product.salePrice,
+          isOnSale: product.isOnSale || !!variantColorEntry?.salePrice,
+          salePrice: variantColorEntry?.salePrice || product.salePrice,
           image: product.image,
           size: variant.size,
           color: variant.color,
@@ -2209,11 +2215,19 @@ export function POSPage() {
                     <button
                       key={variant.id}
                       onClick={() => {
+                        const sizeColorEntry = variant.color
+                          ? (selectedProductForSize.colors || []).find((c: any) => c.name === variant.color)
+                          : null;
+                        const sizePrice = sizeColorEntry?.salePrice
+                          ? sizeColorEntry.salePrice
+                          : (sizeColorEntry?.price || (selectedProductForSize.isOnSale && selectedProductForSize.salePrice ? selectedProductForSize.salePrice : selectedProductForSize.price));
                         const variantProduct = {
                           ...selectedProductForSize,
                           id: `var-${variant.id}`,
                           variantId: variant.id,
+                          price: sizePrice,
                           size: variant.size,
+                          color: variant.color,
                           ageGroup: variant.age_group,
                           stockQuantity: variant.stock_quantity,
                           barcode: variant.barcode,

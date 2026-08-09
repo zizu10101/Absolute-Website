@@ -22,13 +22,16 @@
       },
       {
         "@context": "https://schema.org",
-        "@type": "SportingGoodsStore",
+        "@type": ["SportingGoodsStore", "Organization"],
+        "@id": "https://torontosoccershop.com/#organization",
         "name": "Absolute Soccer Mississauga",
-        "alternateName": "Toronto Soccer Shop",
+        "alternateName": ["Toronto Soccer Shop", "Golazo Store"],
         "image": "https://torontosoccershop.com/logo.svg",
-        "description": "Premier soccer store in Mississauga offering cleats, jerseys, boots and gear. Serving Brampton, Oakville, Toronto, Etobicoke, Milton and the GTA.",
+        "logo": "https://torontosoccershop.com/logo.svg",
+        "description": "Premier soccer store in Mississauga offering Nike, Adidas, Puma, Joma and New Balance soccer cleats, jerseys, goalkeeper gloves and team gear. Custom kit printing and team uniforms for clubs in Brampton, Oakville, Toronto, Etobicoke, Milton and the GTA.",
         "url": "https://torontosoccershop.com",
         "telephone": "+19055933600",
+        "foundingDate": "2020",
         "address": {
           "@type": "PostalAddress",
           "addressLocality": "Mississauga",
@@ -41,9 +44,31 @@
           "longitude": "-79.6441"
         },
         "areaServed": [
-          "Mississauga", "Brampton", "Oakville", "Toronto", 
+          "Mississauga", "Brampton", "Oakville", "Toronto",
           "Etobicoke", "Milton", "Burlington", "Hamilton",
           "Scarborough", "North York", "Vaughan", "Richmond Hill"
+        ],
+        "knowsAbout": [
+          "Soccer cleats and boots",
+          "Custom team soccer uniforms",
+          "National team jerseys",
+          "Club soccer jerseys",
+          "Goalkeeper gloves",
+          "Soccer balls and equipment",
+          "Custom kit printing and embroidery",
+          "Youth and adult soccer apparel",
+          "Nike soccer gear",
+          "Adidas soccer gear",
+          "Puma soccer gear",
+          "Joma soccer gear",
+          "New Balance soccer gear"
+        ],
+        "brand": [
+          {"@type": "Brand", "name": "Nike"},
+          {"@type": "Brand", "name": "Adidas"},
+          {"@type": "Brand", "name": "Puma"},
+          {"@type": "Brand", "name": "Joma"},
+          {"@type": "Brand", "name": "New Balance"}
         ],
         "openingHoursSpecification": [
           {
@@ -61,11 +86,22 @@
         ],
         "priceRange": "$$",
         "hasMap": "https://maps.google.com/?q=Absolute+Soccer+Mississauga",
-        "sameAs": ["https://www.instagram.com/absolutemississauga"],
+        "sameAs": [
+          "https://www.instagram.com/absolutemississauga",
+          "https://torontosoccershop.com"
+        ],
         "hasOfferCatalog": {
           "@type": "OfferCatalog",
           "name": "Services",
           "itemListElement": [
+            {
+              "@type": "Offer",
+              "itemOffered": {
+                "@type": "Service",
+                "name": "Custom Team Soccer Uniforms",
+                "description": "Custom soccer kit printing, team jerseys and uniform packages for clubs in Mississauga, Brampton, Oakville, Toronto and GTA"
+              }
+            },
             {
               "@type": "Offer",
               "itemOffered": {
@@ -79,7 +115,7 @@
               "itemOffered": {
                 "@type": "Service",
                 "name": "Soccer Equipment & Gear",
-                "description": "Soccer cleats, jerseys and gear serving Mississauga, Brampton, Oakville, Toronto and GTA"
+                "description": "Soccer cleats, jerseys, goalkeeper gloves and gear serving Mississauga, Brampton, Oakville, Toronto and GTA"
               }
             }
           ]

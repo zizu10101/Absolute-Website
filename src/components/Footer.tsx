@@ -22,7 +22,7 @@ export function Footer() {
 
   return (
     <footer className="text-white pt-20 pb-10" style={{ backgroundColor: 'var(--secondary-color)' }}>
-      <div className="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+      <div className="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-5 gap-12 mb-16">
         <div className="space-y-6">
           <img src={footerLogo} alt="ABSOLUTE SOCCER" className="h-24 w-auto" />
           <p className="text-zinc-400 text-sm leading-relaxed">
@@ -55,6 +55,12 @@ export function Footer() {
             {customLinks.map((link, idx) => (
               <li key={`${link.path}-${idx}`}><Link to={link.path} className="hover:text-white transition-colors">{link.label}</Link></li>
             ))}
+          </ul>
+        </div>
+        <div>
+          <h3 className="font-headline font-bold uppercase tracking-widest text-sm mb-6">Gear Guides</h3>
+          <ul className="space-y-4 text-zinc-400 text-sm font-medium">
+            <li><Link to="/blog" className="hover:text-white transition-colors">Blog</Link></li>
           </ul>
         </div>
         <div>

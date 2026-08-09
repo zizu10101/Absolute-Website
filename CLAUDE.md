@@ -6,6 +6,41 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
+**BLOG LISTING: UNIFORM GRID, NO FEATURED-POST TREATMENT (Session 55 - CURRENT):**
+- `src/pages/BlogListPage.tsx`: removed the large "Featured Article" card that the first (most recent) post used to get — every published post now renders through one shared card component in a single `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6`, no `index === 0` special case
+- All cards share the exact same structure: `aspect-[4/3]` thumbnail, same padding/typography, same "Read More" affordance — a post with no `thumbnail_url`/`image_url` still renders at identical card size via the existing gradient placeholder
+- Verified via Playwright with 2 real posts (identical bounding boxes — same width/height/y-position) and a temporary 3rd post (grid filled evenly across `lg:grid-cols-3`, temp post + its Storage-less placeholder deleted after verifying)
+
+**BLOG / GEAR GUIDES SECTION, GEO OPTIMIZATION (Session 54):**
+- New Supabase table `blog_posts` (see `docs/blog-migration.sql` — **must be run manually in the Supabase SQL editor**, same as every other migration in this project; no DDL execution path exists from the app/scripts). Columns: `id`, `title`, `slug` (unique), `content`, `excerpt`, `image_url`, `thumbnail_url`, `featured_product_ids` (`UUID[]`), `author`, `is_published`, `published_at`, `created_at`, `updated_at`
+- `/blog` (`src/pages/BlogListPage.tsx`, NEW): listing page — every published post in a uniform grid (originally had a large "Featured Article" card for the first post; removed in session 55, see above); each card shows image, title, date, excerpt, "Read More"; only `is_published = true` rows are queried
+- `/blog/:slug` (`src/pages/BlogPostPage.tsx`, NEW): full article page — breadcrumb (Home > Gear Guides > Article Title), H1 title, author + date, hero image (`image_url`) between the header and the article body, content rendered via `react-markdown` + `remark-gfm` (added as new dependencies) through a hand-rolled `.blog-prose` CSS class in `src/index.css` (no `@tailwindcss/typography` plugin installed in this repo), a featured-products grid sourced from `featured_product_ids` (rendered just above the article's closing `## Final Thoughts` section when present, otherwise at the end), and `BlogPosting` JSON-LD schema injected the same way `ProductDetailPage`'s Product schema is (imperative `<script>` tag keyed by id, cleaned up on unmount); only published posts are queried, same as the listing page
+- Blog prose styling: bold labels (`**Label:**`) render as `font-weight:700 / #111`; `> blockquote` renders as a red-bordered, pink-background alert box — used for the seed article's `**Caution:**` line, which was rewritten in the DB to `> **Caution:**` so it renders as a blockquote
+- Admin → **Blog** tab (`src/components/BlogAdminTab.tsx`, NEW, wired into `AdminPage.tsx`'s tab bar): lists all posts (drafts included, admin-only), search-by-title, Add/Edit modal with title (auto-slug via existing `slugify()` util, slug stays editable), excerpt, Markdown content textarea, separate Hero Image and Thumbnail fields (each with a URL input + an Upload button that compresses to WebP via the existing `compressToWebP`/`uploadImage` pipeline — hero 1200×630, thumbnail 800×500, uploaded to `media/blog/`), a Featured Products search-and-select widget (debounced name search against `products`, click to add, shows selected products with remove buttons, order preserved on save/reload), Author field, Published toggle, and Delete (with confirm)
+- Blog listing cards use `thumbnail_url` with fallback to `image_url`, then a dark gradient placeholder if neither is set (not a literal `/placeholder.jpg`, which doesn't exist in `public/`)
+- Header (`src/components/Header.tsx`) and mobile nav (`src/components/NavigationDrawer.tsx`): "Gear Guides" link added next to Custom Apparel, pointing to `/blog`
+- Footer (`src/components/Footer.tsx`): new "Gear Guides" column (grid widened from `md:grid-cols-4` to `md:grid-cols-5`) linking to `/blog`
+- `scripts/generate-sitemap.js`: fetches published `blog_posts` slugs and adds `/blog` + each `/blog/:slug` to the generated sitemap
+- Seed article: "FG vs AG vs Turf: Which Soccer Cleat Do You Actually Need?" (`fg-vs-ag-vs-turf-soccer-cleats`)
+- **GEO (Generative Engine Optimization)** — built independently in this session, then merged with a concurrent session's own (more thorough) GEO audit landed the same day; the merge kept whichever side was more complete per file rather than picking one session wholesale:
+  - `public/robots.txt`: explicit `Allow: /` blocks for AI/LLM crawlers — merged list covers GPTBot, ChatGPT-User, OAI-SearchBot, PerplexityBot, Perplexity-User, Google-Extended, ClaudeBot, Claude-User, Claude-SearchBot, anthropic-ai, CCBot, Bytespider — alongside the existing wildcard allow + `/admin`/`/pos` disallow
+  - `public/llms.txt`: kept the concurrent session's substantially expanded rewrite (About/Services/Products We Carry/Brands/Geographic Service Area sections), with this session's "Gear Guides" → `/blog` entry added into its Key Pages list
+  - `src/pages/HomePage.tsx`: kept the concurrent session's more detailed `sr-only` brand-description paragraph (includes hours/phone), with a "Gear Guides" mention folded in
+  - `index.html`: concurrent session also enhanced the homepage `SportingGoodsStore`/`Organization` JSON-LD (knowsAbout, brand list, foundingDate) — untouched by this session, kept as-is
+- Verified via `npm run build` (clean), `tsc --noEmit` (no new errors — only pre-existing unrelated errors in `SalesReport.tsx`/`AdminPage.tsx`/scratch root scripts, as previously documented), and live Playwright runs against localhost: blog listing/article render, header/footer links present, admin login → Blog tab → hero+thumbnail upload → save → public page reflects both images, featured-product search/select/save/reload round-trips correctly, and `/blog/fg-vs-ag-vs-turf-soccer-cleats` shows the exact 3 hand-picked products after editing
+
+**BLOG / GEAR GUIDES (Complete):**
+- `blog_posts` table in Supabase — columns: `id`, `title`, `slug`, `content`, `excerpt`, `image_url`, `thumbnail_url`, `featured_product_ids`, `author`, `is_published`, `published_at`, `created_at`, `updated_at`
+- `/blog` — listing page, uniform 1/2/3-col responsive grid (no special first-post/"Featured Article" treatment — removed session 55)
+- `/blog/:slug` — full article with hero image, `react-markdown` rendering, featured products grid, `BlogPosting` JSON-LD schema
+- Admin → Blog tab: add/edit/delete posts, hero image upload, thumbnail upload, featured product selector
+- Header, mobile nav, and footer all have a "Gear Guides" link
+- Sitemap includes blog URLs (`public/sitemap.xml`, regenerated via `npm run generate-sitemap` — a static file, not auto-rebuilt on every commit, so it must be regenerated any time a post is published)
+- First article: "FG vs AG vs Turf: Which Soccer Cleat Do You Actually Need?" (`fg-vs-ag-vs-turf-soccer-cleats`) — expanded post-launch to also cover Multi-Ground (MG) cleats alongside FG/AG/TF; content updated directly in Supabase via the JS client (DML, no code/deploy needed)
+- `robots.txt` updated to allow AI crawlers
+- `llms.txt` updated
+- Homepage brand description added (`sr-only`)
+
 **INVOICE & ESTIMATE PRINTING (Session 53 - COMPLETE - DEPLOYED):**
 
 **New Files Created**:
@@ -137,6 +172,23 @@ Admin login: info@edgedbs.com
   - Testing checklist
   - Printer configuration guidelines
   - Payment method filtering logic with examples
+
+**COLOR SALE PRICING, MASTER VARIANT AUTO-NAMING, DEFAULT BUTTON FIX (concurrent session, Aug 7):**
+- `ColorVariant` interface gained `salePrice`/`isDefault` fields; per-color sale price field in Add/Edit Product; Master Variant Color section auto-updates all NULL-color variants on save; `ProductDetailPage`/`ProductCard`/`POSPage` price logic now uses color-level `salePrice` when a color is selected. (Full write-up landed under the July 2026 "COLOR VARIANT IMPROVEMENTS (Session 40)" heading further down by the originating session — left as-is rather than moved, to avoid re-splitting content across merges)
+
+**CUSTOM LAB / KIT ORDERS IFRAMES, 400 FIX, POS NEW PRICE DISCOUNT, FOOTER HEADING FIX (Session 52):**
+- Custom Lab page (`/custom-lab`): iframe embed of Google AI Studio jersey designer — URL: `https://absolute-basic-jersey-customizer-930161668914.us-west1.run.app`
+- Kit Orders page (`/kit-orders`): iframe embed of uniform designer — URL: `https://absolute-uniform.ai.studio`
+- Both pages use standard site Header and Footer (via `Layout`) — `src/App.tsx`'s dynamic `navigationMenus.map()` route generator was silently shadowing both pages' dedicated routes with a `ProductGridPage` route at the same path (DB nav menu rows `CUSTOM LAB -> /custom-lab` and `KIT ORDERS -> /kit-orders` collided with the static routes), showing "No products found" instead — fixed via a `RESERVED_PAGE_PATHS` exclusion list
+- Footer h4 changed to h3 for heading hierarchy (`src/components/Footer.tsx` — Shop/Custom Lab/Support section titles)
+- 400 error fixed: removed invalid `created_at` query from homepage (`products` table has no `created_at` column — confirmed via direct Supabase query, error code `42703`); `HomePage.tsx`'s New Arrivals fetch now queries the working `isNewArrival` flag directly instead of attempting the failing query first
+- Set New Price discount option added to POS: item-level cart discounts now support a 3rd type alongside %/$ off — staff enter a final price directly, discount is derived as `originalPrice - newPrice`, with validation against $0 and against exceeding the original price
+- Master variant color naming field added above release date in Edit Product (documented under Session 50)
+- Color selector on product page shows only named colors, no "All Colors" button (documented under Session 50)
+- Rapid Scan dropdown shows named colors when defined, free text when not (documented under Session 49)
+- Corrupted characters fixed on POS (documented under Session 49)
+- Quantity field in POS cart now allows typing numbers directly (documented under Session 49)
+- Google Analytics: `G-LP6TC6XHFW` (documented under Session 49)
 
 **POS DARK/LIGHT MODE TOGGLE (Session 51):**
 - `src/pages/POSPage.tsx`: Implemented fully functional dark/light mode toggle for POS system
@@ -275,6 +327,16 @@ Admin login: info@edgedbs.com
 - ✅ Transparent PNG fix: `resizeImage()` in `src/lib/imageUtils.ts` now fills a white canvas background before drawing, so transparent PNGs no longer show black; all product image containers standardized to `bg-white` + `object-contain`
 - **Build Notes:** inline `<style>` in `index.html` moved to `src/print-styles.css` (Vite v6.4.3 failed on inline style tags in the html-proxy build step); a smart-quote character in `RapidScanIntakeMatrix.tsx` that broke esbuild parsing was replaced with an ASCII quote
 
+**COLOR VARIANT IMPROVEMENTS (Session 40):**
+- `src/context/ProductContext.tsx`: `ColorVariant` interface now has `salePrice?: number` and `isDefault?: boolean` fields
+- `src/pages/AdminPage.tsx`: Sale price field added to each color way in Edit Product and Add Product forms
+- `src/pages/AdminPage.tsx`: Master Variant Color section added (above Color Ways list) — name the default product color and set its sale price; stored as `{ isDefault: true, name, salePrice, images: [] }` in the `colors` JSONB array
+- `src/pages/AdminPage.tsx`: On save (both `handleUpdate` and `handleAdd`), if a master color name is set, all `product_variants` with `color IS NULL` or `color = ''` for that product are automatically updated to the master color name via Supabase update
+- `src/pages/ProductDetailPage.tsx`: `displayPrice` / `displayOriginalPrice` refactored — uses `colorSalePrice` when a color with `salePrice` is selected; shows strikethrough of original price; falls back to product-level sale or base price; when no color selected, shows lowest price across all color sale prices
+- `src/pages/ProductDetailPage.tsx`: "Default" button in color selector hidden when all registered variants have a color assigned (`variants.some(v => !v.color)` guard); shows only when at least one uncolored variant exists
+- `src/components/ProductCard.tsx`: Computes `lowestPrice` and `isOnSaleAny` from all color `salePrice` values — sale badge and price display use these; color-only sale reflected on card
+- `src/pages/POSPage.tsx`: Barcode scan and size selector modal both look up `variant.color` in `product.colors` and apply `colorEntry.salePrice` if present when building the cart item
+
 ## RECENT CHANGES (July 2026)
 
 **CATEGORY TILE TITLE/GRADIENT REDESIGN (Session 43):**
@@ -398,12 +460,12 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-<<<<<<< HEAD
-## CURRENT STATUS (Main Branch - August 7, 2026)
-**Latest:** Invoice and Estimate printing to POS with customer details modal (session 53 - DEPLOYED)
-**Deployment:** ✅ GitHub main branch updated (commit 9192a86 + merge 102b934)
+## CURRENT STATUS (Main Branch - August 9, 2026)
+**Latest:** Blog listing (`/blog`) simplified to a uniform grid — the large "Featured Article" card for the first post was removed, every post now renders through one identical card component (session 55). Also recently shipped: the Blog / Gear Guides section itself (`/blog`, `/blog/:slug`, Admin → Blog tab with hero/thumbnail image upload and a featured-products picker) plus a merged GEO optimization pass (AI-crawler-friendly `robots.txt`, expanded `llms.txt`, hidden homepage brand description) (session 54); Invoice/Estimate printing in POS (session 53); a Product Feed / Reports / EOD receipt overhaul (session 52, concurrent branch)
 
-**COMPLETED & DEPLOYED (August 7, 2026):**
+**COMPLETED (August 9, 2026):**
+- ✅ **Session 55:** Blog listing grid uniformity fix — see full write-up above under RECENT CHANGES; no DB/deploy prerequisites beyond what session 54 already needed
+- ✅ **Session 54:** Blog / Gear Guides section + GEO optimization — see full write-up above under RECENT CHANGES; requires `docs/blog-migration.sql` run in Supabase before the Blog tab/pages will work
 - ✅ **Session 53 (DEPLOYED):** Invoice & Estimate printing feature
   - Professional A4 invoice/estimate generator with store logo and billing details
   - Smart customer information modal (search or manual entry)
@@ -433,6 +495,15 @@ Admin login: info@edgedbs.com
   - EOD receipt format complete redesign: clean, professional layout with store header, date/time, payment breakdown, totals
   - EOD receipt preview modal: centered dialog with Escape key support, close button, print button, preview in iframe
   - Build passes without errors, all TypeScript validated
+
+- ✅ **Session 52 (Custom Lab):** Custom Lab + Kit Orders iframe pages, route-collision fix, homepage 400 fix, POS New Price discount, Footer h3 fix
+  - `/custom-lab` and `/kit-orders`: each page is just the standard Header/Footer (via `Layout`) wrapping a full-height iframe (jersey designer / uniform designer respectively) — no custom nav, no other page content
+  - Fixed `src/App.tsx`: `RESERVED_PAGE_PATHS` list excludes `custom-lab` and `kit-orders` from the dynamic `navigationMenus.map()` route generator, which was registering an earlier `ProductGridPage` route at the same path and winning React Router's tie-break over the real page component
+  - Fixed homepage 400: `products` has no `created_at` column; `HomePage.tsx` New Arrivals now queries `isNewArrival` directly instead of attempting the failing ordered query first
+  - POS: item-level cart discounts gained a 3rd "Set New Price" type (`src/hooks/usePOSCart.ts`, `src/pages/POSPage.tsx`, `src/utils/thermalReceipt.ts`) — staff enter a final price, discount is derived as `originalPrice - newPrice`, validated against $0 and against exceeding the original price
+  - `src/components/Footer.tsx`: Shop/Custom Lab/Support section titles changed from `h4` to `h3` (heading-hierarchy fix, no visual change)
+  - Note: two independently-numbered "Session 52" write-ups exist from concurrent branches that diverged from the same base — kept both rather than discarding either
+
 - ✅ **Session 51:** POS dark/light mode toggle fully implemented
   - isDarkMode state with localStorage persistence (defaults to dark)
   - Conditional styling throughout entire POS: all text, buttons, panels, modals, forms
@@ -1098,6 +1169,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - navigation_items: id, menu_id, label, path, logo_url, order_index, parent_id
 - layaways: id, customer_id, items(jsonb), total_amount, deposit_paid, balance_due, status ('active'/'completed'/'cancelled'), notes, created_at, updated_at — **NOT YET CREATED**, run `docs/layaway-paylater-migration.sql` (session 44)
 - pay_later: id, customer_id, items(jsonb), total_amount, amount_paid, balance_due, status ('unpaid'/'paid'/'cancelled'), notes, created_at — **NOT YET CREATED**, run `docs/layaway-paylater-migration.sql` (session 44)
+- blog_posts: id, title, slug (unique), content, excerpt, image_url, thumbnail_url, featured_product_ids (UUID[]), author, is_published, published_at, created_at, updated_at — run `docs/blog-migration.sql` (session 53)
 
 **E-Commerce (ecommerce-dev branch):**
 - online_orders: id, customer_id, items(jsonb), subtotal, tax, total, shipping_method, shipping_cost, status, created_at
@@ -1119,7 +1191,12 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - src/utils/timezoneUtils.ts - Eastern time (America/Toronto) helpers for all report date filtering/display; Intl-based, not host-machine-timezone-based (session 46)
 - src/hooks/useSEO.tsx - JSON-LD SportingGoodsStore schema (homepage only); accepts storeInfo and builds openingHoursSpecification dynamically
 - src/hooks/usePOSCart.ts - Cart state management with color variant support + per-item `%`/`$` discounts (session 45)
+- src/pages/BlogListPage.tsx - Blog/Gear Guides listing page — featured post + 3-col grid, published only (session 53)
+- src/pages/BlogPostPage.tsx - Blog article page — breadcrumb, hero image, react-markdown content, featured products, BlogPosting schema (session 53)
+- src/components/BlogAdminTab.tsx - Admin Blog tab — post list/CRUD, hero+thumbnail upload, featured product search/select (session 53)
 - public/sitemap.xml - SEO sitemap
+- public/robots.txt - Crawler rules; includes explicit AI/LLM crawler allowlist for GEO (session 53)
+- public/llms.txt - LLM-crawler-facing store summary (session 47, updated session 53)
 - data/settings_exported.json - Supabase settings seed data
 
 ## ROUTES
@@ -1133,6 +1210,8 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - `/custom-lab` — Custom Lab page: standard Header/Footer + full-height iframe embed of the jersey designer
 - `/sale` — Sale page (filters products where isOnSale=true)
 - `/custom-apparel` — Custom Apparel landing page
+- `/blog` — Blog/Gear Guides listing page (BlogListPage) — published posts only
+- `/blog/:slug` — Blog article page (BlogPostPage) — published posts only
 - `/brampton-soccer-uniforms` — City SEO landing page for Brampton soccer clubs (BramptonSoccerPage)
 - `/mississauga-soccer-store` — City SEO landing page for Mississauga soccer store (MississaugaSoccerPage)
 - `/category/:slug` — Alias for any nav menu path slug (e.g. `/category/national-teams`) — handled by `CategorySlugRoute`
@@ -1170,6 +1249,9 @@ Already run (no action needed):
 ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS color TEXT;
 -- ✅ Confirmed already applied (verified via live insert during session 45 debugging):
 ALTER TABLE customers ALTER COLUMN email DROP NOT NULL;
+-- ✅ Confirmed already applied (verified via live query during session 53):
+-- docs/blog-migration.sql — creates blog_posts (title, slug, content, excerpt, image_url,
+-- thumbnail_url, featured_product_ids, author, is_published, published_at, created_at, updated_at)
 ```
 
 ## KNOWN ISSUES
