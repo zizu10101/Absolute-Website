@@ -22,7 +22,7 @@ export function Footer() {
 
   return (
     <footer className="text-white pt-20 pb-10" style={{ backgroundColor: 'var(--secondary-color)' }}>
-      <div className="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-5 gap-12 mb-16">
+      <div className="max-w-7xl mx-auto px-8 grid grid-cols-2 md:grid-cols-5 gap-8 mb-16">
         <div className="space-y-6">
           <img src={footerLogo} alt="ABSOLUTE SOCCER" className="h-24 w-auto" />
           <p className="text-zinc-400 text-sm leading-relaxed">
@@ -37,7 +37,9 @@ export function Footer() {
           <address className="text-zinc-400 text-sm leading-relaxed not-italic">
             <p className="font-bold text-white">{storeInfo.name} Mississauga</p>
             <p>{storeInfo.address}</p>
-            <p>Tel: {storeInfo.phone}</p>
+            <a href={`tel:${storeInfo.phone?.replace(/\D/g, '')}`} className="hover:text-white transition-colors">
+              Tel: {storeInfo.phone}
+            </a>
           </address>
         </div>
         
@@ -87,7 +89,7 @@ export function Footer() {
 
       <div className="max-w-7xl mx-auto px-8 pt-8 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-4">
         <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-[0.3em]">
-          Â© 2024 ABSOLUTE SOCCER. ALL RIGHTS RESERVED.
+          &copy; 2026 ABSOLUTE SOCCER. ALL RIGHTS RESERVED.
         </p>
       </div>
       <div className="max-w-7xl mx-auto px-8 pt-3 text-center">
@@ -95,6 +97,9 @@ export function Footer() {
         <p className="text-zinc-500 text-xs leading-relaxed max-w-2xl mx-auto text-center mt-3">
           Absolute Soccer is the premier destination for elite performance footwear, official jerseys, and professional team uniform engineering across the Greater Toronto Area. Whether you are training with a club in Brampton, looking for premium firm-ground boots in Oakville, ordering custom-printed squad kits in Milton, or hitting an indoor turf league in Etobicoke, we provide rapid local shipping and expert team gear sizing directly to your doorstep. Visit our flagship showroom in Mississauga.
         </p>
+      </div>
+      <div className="border-t border-zinc-800 mt-8 pt-6 text-center text-xs text-zinc-500">
+        &copy; 2026 Absolute Soccer Mississauga. All rights reserved.
       </div>
     </footer>
   );
