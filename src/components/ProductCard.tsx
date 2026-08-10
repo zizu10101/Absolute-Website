@@ -83,7 +83,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
           >
             <img src={product.image} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt="Default" />
           </button>
-          {product.colors.map((color, idx) => (
+          {product.colors.filter(c => !(c as any).isDefault).map((color, idx) => (
             <button
               key={idx}
               onClick={(e) => {
