@@ -60,6 +60,34 @@ Admin login: info@edgedbs.com
 
 ---
 
+**EOD PRINT FIX (Session 57):**
+- `src/components/reports/EndOfDayReport.tsx`: Fixed Firefox fullscreen blocking popup after EOD printing
+  - New `printEODReport()` function uses hidden iframe instead of `window.open()` for thermal receipt printing
+  - Hidden iframe is invisible (0×0 size, fixed positioned, visibility hidden) to avoid browser print dialog
+  - Calls `print()` on iframe content window, then removes iframe after 1 second
+  - Eliminates Firefox fullscreen popup that was blocking POS after printing
+  - Regular receipts (gift, store credit, layaway, etc.) still use `window.open()` with Chrome kiosk-printing flag (work fine)
+- `src/components/reports/EndOfDayReport.tsx`: Enhanced EOD preview modal with 4 ways to close
+  - X icon button (top-right corner with lucide-react icon)
+  - ESC key handler (already existed, confirmed working)
+  - Click on dark overlay/background to close modal
+  - Dismiss button (bottom-right)
+  - Modal immediately closes when Print button is clicked, preventing lingering popups
+- `src/components/reports/EndOfDayReport.tsx`: Added `X` icon import from lucide-react for close button
+- Benefits:
+  - Staff can print EOD receipts in Firefox fullscreen without blocking popups
+  - POS remains fully accessible immediately after printing
+  - Four convenient ways to close the modal if staff decides not to print
+  - Invisible iframe printing doesn't interfere with kiosk-mode printer settings
+- Testing verified in Firefox fullscreen:
+  - ✅ Print to Receipt Printer button opens preview modal
+  - ✅ Clicking Print sends to printer without popup
+  - ✅ Modal closes immediately, POS fully accessible
+  - ✅ All 4 close methods work (X, ESC, overlay, Dismiss)
+- Deployment: Commit pushed to main
+
+---
+
 **CANONICAL URL CONSISTENCY AUDIT (Session 56c):**
 - Verified all 12 canonical URL locations use non-www format consistently: `https://torontosoccershop.com`
 - Locations verified:
