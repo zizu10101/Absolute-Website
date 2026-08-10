@@ -6,6 +6,40 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
+**FOOTER IMPROVEMENTS (Session 57):**
+- `src/components/Footer.tsx`: Removed duplicate copyright bar (was two copyright lines)
+- Fixed column distribution — switched from CSS Grid to `flex flex-row md:justify-between`; logo column `w-56 flex-shrink-0`, link columns `flex-1` to spread evenly to right edge
+- Combined "Custom Lab" and "Gear Guides" into single "Resources" column: Gear Guides, Custom Apparel, Kit Orders, Custom Lab — eliminates gap between columns
+- Fixed text contrast — all SEO/body paragraphs now `text-zinc-400` (was `text-zinc-500`/`text-zinc-600`, too dark on dark background)
+- Added `font-sans` to `<footer>` container — prevents serif font (Times New Roman) from appearing
+- Phone number now a clickable `<a href="tel:9055933600">` link
+- Single copyright bar at very bottom: `© 2026 Absolute Soccer Mississauga. All rights reserved.`
+- 4 balanced columns: Logo & Info | Shop | Resources | Support
+
+**EOD PRINT FIX (Session 57):**
+- EOD report printing now uses a hidden `<iframe>` instead of `window.open()` popup
+- Fixes Firefox and fullscreen-mode popup blocking that prevented EOD receipt from printing
+- Modal has 4 close methods: X button, Escape key, overlay click, Dismiss button
+- POS remains accessible and usable after EOD printing completes
+
+**COLOR VARIANT FIX (Session 57):**
+- `src/pages/ProductDetailPage.tsx`: Added `INVALID_COLOR_VALUES` set (`'NA'`, `'N/A'`, `'none'`, `'null'`, `'undefined'`) — filters invalid values from both `jsonbColorNames` and `variantColorNames` so they never appear as color selector buttons
+- Default button now also treats "NA"-type values as uncolored variants
+- `src/components/ProductCard.tsx`: Added `.filter(c => !(c as any).isDefault)` to color swatch loop — prevents the `isDefault` master color entry (no images) from rendering an "N/A" swatch thumbnail
+- Master variant color naming saves correctly to `product_variants` via `.or('color.is.null,color.eq.')`
+- SQL cleanup to run in Supabase SQL editor:
+  ```sql
+  UPDATE product_variants SET color = NULL WHERE color IN ('NA', 'N/A', 'none', 'null', '');
+  ```
+
+**GEO AUDIT (Session 57):**
+- `public/robots.txt`: Added explicit `Allow: /` + `Disallow: /admin` + `Disallow: /pos` blocks for 7 AI crawlers: GPTBot, OAI-SearchBot, ChatGPT-User, Google-Extended, PerplexityBot, anthropic-ai, ClaudeBot
+- `index.html`: Enhanced `SportingGoodsStore` schema — added `@id`, dual `@type` (`["SportingGoodsStore","Organization"]`), `logo`, `foundingDate`, `knowsAbout` array (13 topics), `brand` array (5 brands with `@type: Brand`), expanded `alternateName` to include "Golazo Store", added 3rd offer (Custom Team Uniforms)
+- `src/pages/HomePage.tsx`: Added `<p className="sr-only">` brand description paragraph after the existing `<h1 className="sr-only">` — crawlable brand/service/GTA coverage description
+- `public/llms.txt`: Expanded from 24 to 60+ lines — added all brand pages, training/sale/kit-orders routes, full product category breakdown, services section, brands carried, geographic service area
+
+---
+
 **CASH PAYMENT IMPROVEMENTS: PROMINENT CHANGE DISPLAY + RECEIPT DETAILS (Session 56 - CURRENT):**
 
 **Prominent Change Amount Display:**
