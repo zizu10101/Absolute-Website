@@ -101,8 +101,9 @@ function AppRoutes() {
   const { navigationMenus, seoSettings, storeInfo } = useSettings();
   useSEO(seoSettings, storeInfo);
 
-  // Check if current domain is torontosoccershop.com or localhost for dev
-  const isAdminDomain = window.location.hostname === 'torontosoccershop.com' || window.location.hostname === 'www.torontosoccershop.com' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  // Check if current domain is torontosoccershop.com (with or without www) or localhost for dev
+  const hostname = window.location.hostname.replace(/^www\./, '');
+  const isAdminDomain = hostname === 'torontosoccershop.com' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   return (
     <>

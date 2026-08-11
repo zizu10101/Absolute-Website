@@ -224,6 +224,8 @@ export interface ReceiptData {
   storeCreditRemainingBalance?: number; // For redemption receipts
   storeCreditUsedAmount?: number; // For redemption receipts
   copies?: 1 | 2; // Number of copies: 1 = customer only, 2 = customer + merchant
+  cashTendered?: number; // Amount of cash given for payment
+  changeDue?: number; // Change amount due to customer
 }
 
 export const generateThermalReceiptHTML = (data: ReceiptData): string => {
@@ -274,6 +276,13 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       <div class="row grand-total"><span>Total:</span><span>${money(data.total)}</span></div>
     </div>
     ${buildPaymentMethods(data.paymentMethod, data.total, data.paymentSplits)}
+    ${data.cashTendered !== undefined ? `
+      <div class="divider"></div>
+      <div class="payments">
+        <div class="row"><span>Cash Tendered:</span><span>${money(data.cashTendered)}</span></div>
+        ${data.changeDue !== undefined ? `<div class="row"><span>Change Due:</span><span>${money(data.changeDue)}</span></div>` : ''}
+      </div>
+    ` : ''}
     <div class="divider"></div>
     ${buildBarcodeSection(ref)}
     ${buildFooter(STANDARD_FOOTER)}

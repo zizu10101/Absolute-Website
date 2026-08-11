@@ -805,9 +805,8 @@ export function POSPage() {
 
       console.log('✓ Cash drawer opened successfully!');
     } catch (err) {
-      console.error('❌ Drawer error (fallback DISABLED for testing):', err);
-      // FALLBACK TEMPORARILY DISABLED FOR TESTING
-      // openCashDrawerFallback();
+      console.error('❌ Drawer error, attempting fallback:', err);
+      openCashDrawerFallback();
     }
   };
 
@@ -1387,6 +1386,8 @@ export function POSPage() {
       logoUrl: '/logo-black.png',
       barcodeValue: barcodeValue,
       copies,
+      cashTendered: receipt.tenderedAmount,
+      changeDue: receipt.changeGiven,
     });
 
     // Browser print dialog
@@ -2374,8 +2375,11 @@ export function POSPage() {
                       )}
                       {receipt.method === 'Cash' && receipt.tenderedAmount !== undefined && (
                         <>
-                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300"><span>Cash Received</span><span>${receipt.tenderedAmount.toFixed(2)}</span></div>
-                          <div className="flex justify-between text-emerald-600 font-black pt-1"><span>Change Due</span><span>${receipt.changeGiven?.toFixed(2)}</span></div>
+                          <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300"><span className="text-[11px]">Cash Received</span><span className="text-[11px]">${receipt.tenderedAmount.toFixed(2)}</span></div>
+                          <div className="mt-4 p-4 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg border-2 border-yellow-600 text-center">
+                            <div className="text-[11px] font-black text-yellow-900 uppercase tracking-widest mb-2">Change Due</div>
+                            <div className="text-5xl font-black text-yellow-900">${receipt.changeGiven?.toFixed(2)}</div>
+                          </div>
                         </>
                       )}
                     </div>

@@ -289,7 +289,7 @@ export function ProductDetailPage() {
 
     const price = product.isOnSale && product.salePrice ? product.salePrice : product.price;
 
-    const schema = {
+    const schema: any = {
       "@context": "https://schema.org/",
       "@type": "Product",
       "name": product.name,
@@ -306,14 +306,52 @@ export function ProductDetailPage() {
         "url": `https://torontosoccershop.com${buildProductUrl(product)}`,
         "priceCurrency": "CAD",
         "price": price,
-        "priceValidUntil": "2026-12-31",
+        "priceValidUntil": "2027-12-31",
         "availability": "https://schema.org/InStock",
         "seller": {
           "@type": "Organization",
           "name": "Absolute Soccer Mississauga"
+        },
+        "hasMerchantReturnPolicy": {
+          "@type": "MerchantReturnPolicy",
+          "applicableCountry": "CA",
+          "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+          "merchantReturnDays": 14,
+          "returnMethod": "https://schema.org/ReturnInStore",
+          "returnFees": "https://schema.org/FreeReturn"
+        },
+        "shippingDetails": {
+          "@type": "OfferShippingDetails",
+          "shippingRate": {
+            "@type": "MonetaryAmount",
+            "value": "0.00",
+            "currency": "CAD"
+          },
+          "shippingDestination": {
+            "@type": "DefinedRegion",
+            "addressCountry": "CA"
+          },
+          "deliveryTime": {
+            "@type": "ShippingDeliveryTime",
+            "handlingTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 1,
+              "maxValue": 2,
+              "unitCode": "DAY"
+            },
+            "transitTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 2,
+              "maxValue": 5,
+              "unitCode": "DAY"
+            }
+          }
         }
       }
     };
+
+    // aggregateRating and review fields intentionally omitted when no reviews exist.
+    // Google Search Console prefers omitting these fields over empty/zero values.
 
     const script = document.createElement('script');
     script.id = 'product-schema-markup';
@@ -375,8 +413,15 @@ export function ProductDetailPage() {
   const uniqueAgeGroups = Array.from(new Set(variants.map(v => v.age_group))) as string[];
 
   // Derive all available color names: from product.colors JSONB + from variant color field
-  const jsonbColorNames = (product.colors || []).map((c: any) => c.name as string);
-  const variantColorNames = Array.from(new Set(variants.filter((v: any) => v.color).map((v: any) => v.color as string)));
+  const INVALID_COLOR_VALUES = new Set(['NA', 'N/A', 'none', 'null', 'undefined']);
+  const jsonbColorNames = (product.colors || [])
+    .map((c: any) => c.name as string)
+    .filter((n: string) => n && n.trim() !== '' && !INVALID_COLOR_VALUES.has(n));
+  const variantColorNames = Array.from(new Set(
+    variants
+      .filter((v: any) => v.color && !INVALID_COLOR_VALUES.has(v.color))
+      .map((v: any) => v.color as string)
+  ));
   const allColorNames = Array.from(new Set([...jsonbColorNames, ...variantColorNames]));
 
   // Sizes list based on active/fallback structures
@@ -576,7 +621,7 @@ export function ProductDetailPage() {
                 )}
               </div>
               <div className="flex flex-wrap gap-3">
-                {variants.some((v: any) => !v.color || v.color === '') && (
+                {variants.some((v: any) => !v.color || v.color === '' || INVALID_COLOR_VALUES.has(v.color)) && (
                   <button
                     onClick={() => setSelectedColor(null)}
                     className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === null ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}

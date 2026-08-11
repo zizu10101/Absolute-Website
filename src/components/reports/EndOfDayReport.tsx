@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabase';
-import { Download, RefreshCw } from 'lucide-react';
+import { Download, RefreshCw, X } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
 import { useSettings } from '../../context/SettingsContext';
 import { generateThermalReceiptHTML } from '../../utils/thermalReceipt';
@@ -338,6 +338,31 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
     downloadCSV(data, `eod-report-${selectedDate}.csv`);
   };
 
+  const printEODReport = (receiptHTML: string) => {
+    // Create hidden iframe for printing (avoids print dialog popup in Firefox fullscreen)
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.visibility = 'hidden';
+    document.body.appendChild(iframe);
+
+    iframe.contentDocument?.open();
+    iframe.contentDocument?.write(receiptHTML);
+    iframe.contentDocument?.close();
+
+    iframe.onload = () => {
+      iframe.contentWindow?.print();
+      // Remove iframe after printing
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    };
+  };
+
   const handlePrintThermal = () => {
     const html = generateEODReceiptHTML();
     setEODPreviewHTML(html);
@@ -554,16 +579,23 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
 
       {/* EOD Receipt Preview Modal */}
       {showEODPreview && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowEODPreview(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Close Button */}
             <div className="sticky top-0 flex items-center justify-between bg-white border-b border-zinc-200 px-6 py-4 z-10">
               <h3 className="text-lg font-bold text-zinc-900">EOD Receipt Preview</h3>
               <button
                 onClick={() => setShowEODPreview(false)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 text-zinc-700 rounded hover:bg-zinc-200 transition-colors text-sm font-bold"
+                className="p-2 hover:bg-zinc-100 rounded transition-colors"
+                title="Close (ESC)"
               >
-                ✕ Close
+                <X size={20} className="text-zinc-600 hover:text-zinc-900" />
               </button>
             </div>
 
@@ -585,12 +617,8 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
             <div className="flex gap-3 border-t border-zinc-200 bg-zinc-50 px-6 py-4">
               <button
                 onClick={() => {
-                  const win = window.open('', '_blank');
-                  if (win) {
-                    win.document.write(eodPreviewHTML);
-                    win.document.close();
-                    setTimeout(() => win.print(), 250);
-                  }
+                  printEODReport(eodPreviewHTML);
+                  setShowEODPreview(false);
                 }}
                 className="flex-1 px-4 py-2 bg-zinc-900 text-white rounded font-bold hover:bg-zinc-800 transition-colors"
               >

@@ -6,11 +6,157 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**BLOG POST HERO IMAGE: FIX CROPPING (Session 56 - CURRENT):**
+**BLOG POST HERO IMAGE: FIX CROPPING (Session 58 - CURRENT):**
 - `src/pages/BlogPostPage.tsx`: hero image (rendered between the header/breadcrumb and the article body) was `h-64 md:h-96 overflow-hidden` with `object-cover` on the `<img>` — a fixed-height container that cropped the top/bottom of tall or non-4:3 hero images
 - Changed to `w-full rounded-xl overflow-hidden` on the container with `w-full h-auto object-contain` + `style={{ maxHeight: '500px' }}` on the `<img>` — image now renders at its natural aspect ratio (letterboxed, not cropped), capped at 500px tall
 - `src/pages/BlogListPage.tsx` card thumbnails (`aspect-[4/3]` + `object-cover`) were left as-is — that's the intentional uniform-grid sizing from session 55, not a cropping bug
 - No DB/deploy prerequisites; verified via `tsc --noEmit` (no new errors) — no browser automation available this session (Claude in Chrome extension declined), so the actual rendered crop was not click-verified in a live browser
+- Note: this session was numbered 58 rather than the "56"/"57" a concurrent session had already used for its own unrelated work (footer/EOD/color-variant/GEO fixes below), to avoid colliding session numbers — same renumbering approach used previously (see the Session 52 duplicate-numbering note further down)
+
+**FOOTER IMPROVEMENTS (Session 57):**
+- `src/components/Footer.tsx`: Removed duplicate copyright bar (was two copyright lines)
+- Fixed column distribution — switched from CSS Grid to `flex flex-row md:justify-between`; logo column `w-56 flex-shrink-0`, link columns `flex-1` to spread evenly to right edge
+- Combined "Custom Lab" and "Gear Guides" into single "Resources" column: Gear Guides, Custom Apparel, Kit Orders, Custom Lab — eliminates gap between columns
+- Fixed text contrast — all SEO/body paragraphs now `text-zinc-400` (was `text-zinc-500`/`text-zinc-600`, too dark on dark background)
+- Added `font-sans` to `<footer>` container — prevents serif font (Times New Roman) from appearing
+- Phone number now a clickable `<a href="tel:9055933600">` link
+- Single copyright bar at very bottom: `© 2026 Absolute Soccer Mississauga. All rights reserved.`
+- 4 balanced columns: Logo & Info | Shop | Resources | Support
+
+**EOD PRINT FIX (Session 57):**
+- EOD report printing now uses a hidden `<iframe>` instead of `window.open()` popup
+- Fixes Firefox and fullscreen-mode popup blocking that prevented EOD receipt from printing
+- Modal has 4 close methods: X button, Escape key, overlay click, Dismiss button
+- POS remains accessible and usable after EOD printing completes
+
+**COLOR VARIANT FIX (Session 57):**
+- `src/pages/ProductDetailPage.tsx`: Added `INVALID_COLOR_VALUES` set (`'NA'`, `'N/A'`, `'none'`, `'null'`, `'undefined'`) — filters invalid values from both `jsonbColorNames` and `variantColorNames` so they never appear as color selector buttons
+- Default button now also treats "NA"-type values as uncolored variants
+- `src/components/ProductCard.tsx`: Added `.filter(c => !(c as any).isDefault)` to color swatch loop — prevents the `isDefault` master color entry (no images) from rendering an "N/A" swatch thumbnail
+- Master variant color naming saves correctly to `product_variants` via `.or('color.is.null,color.eq.')`
+- SQL cleanup to run in Supabase SQL editor:
+  ```sql
+  UPDATE product_variants SET color = NULL WHERE color IN ('NA', 'N/A', 'none', 'null', '');
+  ```
+
+**GEO AUDIT (Session 57):**
+- `public/robots.txt`: Added explicit `Allow: /` + `Disallow: /admin` + `Disallow: /pos` blocks for 7 AI crawlers: GPTBot, OAI-SearchBot, ChatGPT-User, Google-Extended, PerplexityBot, anthropic-ai, ClaudeBot
+- `index.html`: Enhanced `SportingGoodsStore` schema — added `@id`, dual `@type` (`["SportingGoodsStore","Organization"]`), `logo`, `foundingDate`, `knowsAbout` array (13 topics), `brand` array (5 brands with `@type: Brand`), expanded `alternateName` to include "Golazo Store", added 3rd offer (Custom Team Uniforms)
+- `src/pages/HomePage.tsx`: Added `<p className="sr-only">` brand description paragraph after the existing `<h1 className="sr-only">` — crawlable brand/service/GTA coverage description
+- `public/llms.txt`: Expanded from 24 to 60+ lines — added all brand pages, training/sale/kit-orders routes, full product category breakdown, services section, brands carried, geographic service area
+
+---
+
+**CASH PAYMENT IMPROVEMENTS: PROMINENT CHANGE DISPLAY + RECEIPT DETAILS (Session 56):**
+
+**Prominent Change Amount Display:**
+- `src/pages/POSPage.tsx`: Updated receipt preview to display change amount prominently when payment method is Cash
+  - Large yellow gradient box with `text-5xl` (very large) font, bold text
+  - High contrast: yellow background (#FBBF24) with dark yellow text
+  - Shows both "Cash Received" and "Change Due" amounts
+  - Stays visible on screen until staff clicks "New Sale" button
+  - No auto-dismiss: requires manual action to clear the completion screen
+  - Improves cash handling workflow by ensuring staff sees change before closing transaction
+
+**Cash Payment Details on Receipt:**
+- `src/utils/thermalReceipt.ts`: Updated ReceiptData interface to include `cashTendered` and `changeDue` optional fields
+  - Thermal receipt now displays cash payment details after payment breakdown:
+    - `Cash Tendered: $XX.XX`
+    - `Change Due: $XX.XX`
+  - Only shows these lines when cash payment is present
+  - Provides accountability documentation on physical receipt
+- `src/pages/POSPage.tsx`: Updated `handlePrintReceipt()` to pass cash amounts to receipt generator
+  - `cashTendered: receipt.tenderedAmount`
+  - `changeDue: receipt.changeGiven`
+
+**Benefits:**
+- Staff can clearly verify change amount before closing transaction
+- Receipt documents cash tendered and change for accounting/audit trail
+- Customer receives confirmation of payment method and change on printed receipt
+- Reduces cash handling errors and customer disputes
+
+**Testing Verified:**
+- ✅ Build passes without errors
+- ✅ Large change amount displays in yellow box on completion screen
+- ✅ Change amount persists until "New Sale" clicked
+- ✅ Receipt includes cash tendered and change due lines
+- ✅ Only shows cash details when payment method is Cash
+
+**Deployment:** Commit aa639b9 pushed to main
+
+---
+
+**CASH DRAWER & ADMIN ACCESS FIXES (Session 56b):**
+- `src/pages/POSPage.tsx`: Re-enabled fallback cash drawer method
+  - Primary method: Backend `/api/open-drawer` using node-printer direct ESC/POS command
+  - Fallback method: Browser print dialog with EpsonControl font character (invisible drawer kick)
+  - Previously fallback was disabled for testing; now activates automatically if backend fails
+  - Ensures drawer always has a working method available
+- `src/App.tsx`: Fixed admin domain check to allow both www and non-www versions
+  - Admin/POS/Reports now accessible from both `torontosoccershop.com` and `www.torontosoccershop.com`
+  - Normalized hostname by removing www prefix before comparison: `hostname.replace(/^www\./, '')`
+  - Maintains security by denying access from any other domain
+  - Development access still works on localhost and 127.0.0.1
+- Deployment: Commits 5b13553 and aac5d30 pushed to main
+
+---
+
+**EOD PRINT FIX (Session 57):**
+- `src/components/reports/EndOfDayReport.tsx`: Fixed Firefox fullscreen blocking popup after EOD printing
+  - New `printEODReport()` function uses hidden iframe instead of `window.open()` for thermal receipt printing
+  - Hidden iframe is invisible (0×0 size, fixed positioned, visibility hidden) to avoid browser print dialog
+  - Calls `print()` on iframe content window, then removes iframe after 1 second
+  - Eliminates Firefox fullscreen popup that was blocking POS after printing
+  - Regular receipts (gift, store credit, layaway, etc.) still use `window.open()` with Chrome kiosk-printing flag (work fine)
+- `src/components/reports/EndOfDayReport.tsx`: Enhanced EOD preview modal with 4 ways to close
+  - X icon button (top-right corner with lucide-react icon)
+  - ESC key handler (already existed, confirmed working)
+  - Click on dark overlay/background to close modal
+  - Dismiss button (bottom-right)
+  - Modal immediately closes when Print button is clicked, preventing lingering popups
+- `src/components/reports/EndOfDayReport.tsx`: Added `X` icon import from lucide-react for close button
+- Benefits:
+  - Staff can print EOD receipts in Firefox fullscreen without blocking popups
+  - POS remains fully accessible immediately after printing
+  - Four convenient ways to close the modal if staff decides not to print
+  - Invisible iframe printing doesn't interfere with kiosk-mode printer settings
+- Testing verified in Firefox fullscreen:
+  - ✅ Print to Receipt Printer button opens preview modal
+  - ✅ Clicking Print sends to printer without popup
+  - ✅ Modal closes immediately, POS fully accessible
+  - ✅ All 4 close methods work (X, ESC, overlay, Dismiss)
+- Deployment: Commit pushed to main
+
+---
+
+**CANONICAL URL CONSISTENCY AUDIT (Session 56c):**
+- Verified all 12 canonical URL locations use non-www format consistently: `https://torontosoccershop.com`
+- Locations verified:
+  - index.html homepage canonical tag ✅
+  - SettingsContext.tsx default canonical URL ✅
+  - useSEO.tsx SportingGoodsStore schema ✅
+  - ProductDetailPage.tsx product pages ✅
+  - BlogListPage.tsx, BlogPostPage.tsx ✅
+  - CustomLabPage.tsx, MississaugaSoccerPage.tsx, BramptonSoccerPage.tsx ✅
+  - CustomApparelPage.tsx, UniformSubmissionPage.tsx ✅
+  - Meta.tsx social sharing (og:url, twitter:url) ✅
+- No www versions found anywhere in codebase
+- Prevents duplicate content penalties in Google Search Console
+- Deployment: Audit confirmed, no code changes needed
+
+---
+
+**PRODUCT SCHEMA ENHANCEMENTS (Session 56a):**
+- `src/pages/ProductDetailPage.tsx`: Enhanced Product JSON-LD schema with structured data for Google Merchant Center
+  - Added `hasMerchantReturnPolicy`: 14-day in-store returns with free return fees (matches receipt policy)
+  - Added `shippingDetails`: $0.00 CAD local pickup with 1-2 days handling + 2-5 days transit
+  - Updated `priceValidUntil` from 2026-12-31 to 2027-12-31 (was in past date)
+  - Clarified why `aggregateRating` and `review` fields are intentionally omitted (Google prefers omitting empty fields)
+- Resolves 3 non-critical Google Merchant Center validation issues
+- Provides complete structured data for pricing, returns, and delivery expectations
+- Deployments: Commits c292f58, 938d183, 15337ed pushed to main
+
+---
 
 **BLOG LISTING: UNIFORM GRID, NO FEATURED-POST TREATMENT (Session 55):**
 - `src/pages/BlogListPage.tsx`: removed the large "Featured Article" card that the first (most recent) post used to get — every published post now renders through one shared card component in a single `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6`, no `index === 0` special case
@@ -467,10 +613,12 @@ Admin login: info@edgedbs.com
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
 ## CURRENT STATUS (Main Branch - August 10, 2026)
-**Latest:** Blog post hero image no longer crops top/bottom — switched from a fixed-height `object-cover` container to `object-contain`/`h-auto` with a 500px max-height (session 56). Also recently shipped: blog listing (`/blog`) simplified to a uniform grid, no "Featured Article" treatment for the first post (session 55); the Blog / Gear Guides section itself (`/blog`, `/blog/:slug`, Admin → Blog tab with hero/thumbnail image upload and a featured-products picker) plus a merged GEO optimization pass (AI-crawler-friendly `robots.txt`, expanded `llms.txt`, hidden homepage brand description) (session 54); Invoice/Estimate printing in POS (session 53); a Product Feed / Reports / EOD receipt overhaul (session 52, concurrent branch)
+**Latest:** Blog post hero image no longer crops top/bottom — switched from a fixed-height `object-cover` container to `object-contain`/`h-auto` with a 500px max-height (session 58). Merged with a concurrent session's own pushes to `main`: footer layout/contrast fixes + duplicate copyright bar removal, EOD print Firefox-popup fix (hidden iframe), invalid-color-value filtering in the product color selector, and another GEO audit pass (session 57); prominent cash-change display + cash details on receipts, cash-drawer fallback re-enabled, www/non-www admin access fix, canonical URL audit, and Product schema return/shipping details (sessions 56/56a/56b/56c) — see RECENT CHANGES above for full write-ups of both sessions. Also recently shipped: blog listing (`/blog`) simplified to a uniform grid, no "Featured Article" treatment for the first post (session 55); the Blog / Gear Guides section itself (`/blog`, `/blog/:slug`, Admin → Blog tab with hero/thumbnail image upload and a featured-products picker) plus a merged GEO optimization pass (AI-crawler-friendly `robots.txt`, expanded `llms.txt`, hidden homepage brand description) (session 54); Invoice/Estimate printing in POS (session 53); a Product Feed / Reports / EOD receipt overhaul (session 52, concurrent branch)
 
 **COMPLETED (August 10, 2026):**
-- ✅ **Session 56:** Blog post hero image cropping fix — see full write-up above under RECENT CHANGES; no DB/deploy prerequisites; not click-verified in a live browser this session (no browser automation available)
+- ✅ **Session 58:** Blog post hero image cropping fix — see full write-up above under RECENT CHANGES; no DB/deploy prerequisites; not click-verified in a live browser this session (no browser automation available)
+- ✅ **Session 57:** Footer layout/contrast fixes, EOD print Firefox-popup fix, invalid product-color filtering, GEO audit — see full write-up above under RECENT CHANGES; requires the `UPDATE product_variants SET color = NULL WHERE color IN (...)` cleanup SQL for full effect on existing data
+- ✅ **Session 56 (+56a/56b/56c):** Cash payment display/receipt improvements, cash-drawer fallback, www/non-www admin access fix, canonical URL audit, Product schema return/shipping details — see full write-up above under RECENT CHANGES
 - ✅ **Session 55:** Blog listing grid uniformity fix — see full write-up above under RECENT CHANGES; no DB/deploy prerequisites beyond what session 54 already needed
 - ✅ **Session 54:** Blog / Gear Guides section + GEO optimization — see full write-up above under RECENT CHANGES; requires `docs/blog-migration.sql` run in Supabase before the Blog tab/pages will work
 - ✅ **Session 53 (DEPLOYED):** Invoice & Estimate printing feature
