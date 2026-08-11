@@ -6,7 +6,13 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**BLOG LISTING: UNIFORM GRID, NO FEATURED-POST TREATMENT (Session 55 - CURRENT):**
+**BLOG POST HERO IMAGE: FIX CROPPING (Session 56 - CURRENT):**
+- `src/pages/BlogPostPage.tsx`: hero image (rendered between the header/breadcrumb and the article body) was `h-64 md:h-96 overflow-hidden` with `object-cover` on the `<img>` — a fixed-height container that cropped the top/bottom of tall or non-4:3 hero images
+- Changed to `w-full rounded-xl overflow-hidden` on the container with `w-full h-auto object-contain` + `style={{ maxHeight: '500px' }}` on the `<img>` — image now renders at its natural aspect ratio (letterboxed, not cropped), capped at 500px tall
+- `src/pages/BlogListPage.tsx` card thumbnails (`aspect-[4/3]` + `object-cover`) were left as-is — that's the intentional uniform-grid sizing from session 55, not a cropping bug
+- No DB/deploy prerequisites; verified via `tsc --noEmit` (no new errors) — no browser automation available this session (Claude in Chrome extension declined), so the actual rendered crop was not click-verified in a live browser
+
+**BLOG LISTING: UNIFORM GRID, NO FEATURED-POST TREATMENT (Session 55):**
 - `src/pages/BlogListPage.tsx`: removed the large "Featured Article" card that the first (most recent) post used to get — every published post now renders through one shared card component in a single `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6`, no `index === 0` special case
 - All cards share the exact same structure: `aspect-[4/3]` thumbnail, same padding/typography, same "Read More" affordance — a post with no `thumbnail_url`/`image_url` still renders at identical card size via the existing gradient placeholder
 - Verified via Playwright with 2 real posts (identical bounding boxes — same width/height/y-position) and a temporary 3rd post (grid filled evenly across `lg:grid-cols-3`, temp post + its Storage-less placeholder deleted after verifying)
@@ -460,10 +466,11 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-## CURRENT STATUS (Main Branch - August 9, 2026)
-**Latest:** Blog listing (`/blog`) simplified to a uniform grid — the large "Featured Article" card for the first post was removed, every post now renders through one identical card component (session 55). Also recently shipped: the Blog / Gear Guides section itself (`/blog`, `/blog/:slug`, Admin → Blog tab with hero/thumbnail image upload and a featured-products picker) plus a merged GEO optimization pass (AI-crawler-friendly `robots.txt`, expanded `llms.txt`, hidden homepage brand description) (session 54); Invoice/Estimate printing in POS (session 53); a Product Feed / Reports / EOD receipt overhaul (session 52, concurrent branch)
+## CURRENT STATUS (Main Branch - August 10, 2026)
+**Latest:** Blog post hero image no longer crops top/bottom — switched from a fixed-height `object-cover` container to `object-contain`/`h-auto` with a 500px max-height (session 56). Also recently shipped: blog listing (`/blog`) simplified to a uniform grid, no "Featured Article" treatment for the first post (session 55); the Blog / Gear Guides section itself (`/blog`, `/blog/:slug`, Admin → Blog tab with hero/thumbnail image upload and a featured-products picker) plus a merged GEO optimization pass (AI-crawler-friendly `robots.txt`, expanded `llms.txt`, hidden homepage brand description) (session 54); Invoice/Estimate printing in POS (session 53); a Product Feed / Reports / EOD receipt overhaul (session 52, concurrent branch)
 
-**COMPLETED (August 9, 2026):**
+**COMPLETED (August 10, 2026):**
+- ✅ **Session 56:** Blog post hero image cropping fix — see full write-up above under RECENT CHANGES; no DB/deploy prerequisites; not click-verified in a live browser this session (no browser automation available)
 - ✅ **Session 55:** Blog listing grid uniformity fix — see full write-up above under RECENT CHANGES; no DB/deploy prerequisites beyond what session 54 already needed
 - ✅ **Session 54:** Blog / Gear Guides section + GEO optimization — see full write-up above under RECENT CHANGES; requires `docs/blog-migration.sql` run in Supabase before the Blog tab/pages will work
 - ✅ **Session 53 (DEPLOYED):** Invoice & Estimate printing feature
@@ -1192,7 +1199,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 - src/hooks/useSEO.tsx - JSON-LD SportingGoodsStore schema (homepage only); accepts storeInfo and builds openingHoursSpecification dynamically
 - src/hooks/usePOSCart.ts - Cart state management with color variant support + per-item `%`/`$` discounts (session 45)
 - src/pages/BlogListPage.tsx - Blog/Gear Guides listing page — featured post + 3-col grid, published only (session 53)
-- src/pages/BlogPostPage.tsx - Blog article page — breadcrumb, hero image, react-markdown content, featured products, BlogPosting schema (session 53)
+- src/pages/BlogPostPage.tsx - Blog article page — breadcrumb, hero image (session 53; `object-contain`/max-height 500px, no crop, session 56), react-markdown content, featured products, BlogPosting schema
 - src/components/BlogAdminTab.tsx - Admin Blog tab — post list/CRUD, hero+thumbnail upload, featured product search/select (session 53)
 - public/sitemap.xml - SEO sitemap
 - public/robots.txt - Crawler rules; includes explicit AI/LLM crawler allowlist for GEO (session 53)

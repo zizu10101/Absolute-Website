@@ -203,11 +203,12 @@ export function BlogPostPage() {
       </div>
 
       {post.image_url && (
-        <div className="w-full h-64 md:h-96 overflow-hidden rounded-xl mb-8">
+        <div className="w-full rounded-xl overflow-hidden mb-8">
           <img
             src={post.image_url}
             alt={post.title}
-            className="w-full h-full object-cover"
+            className="w-full h-auto object-contain"
+            style={{ maxHeight: '500px' }}
             referrerPolicy="no-referrer"
           />
         </div>
