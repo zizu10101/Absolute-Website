@@ -6,7 +6,47 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**EQUIPMENT CATEGORY TILE REDESIGN (Session 60 - CURRENT):**
+**NAVIGATION LOGO REMOVAL FIX + EQUIPMENT GRID LAYOUT (Session 61 - CURRENT):**
+
+**Navigation Logo Removal Persistence:**
+- `src/context/SettingsContext.tsx` `saveNavigation()` function (lines 608-695): Fixed fallback logic that was re-adding deleted logos
+  - **Root cause:** When `saveNavigation()` ran, it snapshotted old logos from the database into a `logoByLabel` Map, then used null-coalescing `??` to fall back to those old values: `const subLogo = normalizePath(sub.logo) ?? logoByLabel.get(...)`
+  - When user removed a logo (set to `null`), `normalizePath(null)` returned `null`, but then `null ?? oldLogo` fell back to the old logo!
+  - **Fix:** Removed the entire `logoByLabel` cache (lines 619-627), and changed `??` to `||` on logo calculations (lines 651, 668)
+  - Now `const subLogo = normalizePath(sub.logo) || null` — if logo is null, it stays null
+  - Logo removal now persists correctly through page refresh and after "Save Navigation"
+  
+- `src/pages/AdminPage.tsx` (lines 2441-2479): Added `handleRemoveSubmenuLogo()` and `handleRemoveNavItemLogo()` functions
+  - Call `updateNavigationItem(id, { logo_url: null })` via SettingsContext to update database immediately
+  - Update local state to `null` (not empty string) after successful DB update
+  - Show error alerts if database update fails
+  - Added Remove buttons in UI (red buttons next to Upload buttons) when a logo exists
+
+**Equipment Grid Layout:**
+- `src/pages/ProductGridPage.tsx` (lines 646-694): Fixed equipment subcategory cards showing one per row
+  - **Problem:** Cards weren't filling grid cells due to missing sizing and incorrect display properties
+  - **Fix:** 
+    - Added `className="h-full"` to `motion.div` wrapper so it fills the grid cell height
+    - Changed Link from `className="relative block"` to `className="relative flex items-center justify-center w-full h-full"` to fill both width and height
+    - Made images `className="absolute inset-0 w-full h-full"` so they fill the entire card
+    - Added `z-10` to text overlay div to ensure it appears above the image
+  - Non-equipment cards (National Teams, Clubs, Footwear): Also updated to use `flex flex-col h-full` for consistency
+  - Grid now displays 2-3-4 columns uniformly with no empty space on the right
+  - All cards have consistent 4:3 aspect ratio
+
+**Testing Verified:**
+- ✅ Logo removal persists after page refresh
+- ✅ Logo removal persists after "Save Navigation" 
+- ✅ Remove buttons only appear when logo exists
+- ✅ Equipment grid shows 2 columns (mobile), 3 columns (tablet), 4 columns (desktop)
+- ✅ All equipment cards same size and height
+- ✅ No single cards taking full row width
+
+**Deployment:** Commit e1dc312 saved locally (not pushed)
+
+---
+
+**EQUIPMENT CATEGORY TILE REDESIGN (Session 60):**
 - `src/pages/ProductGridPage.tsx`: the "submenu logo grid" block (renders whenever a nav-menu heading has logo items — used by Equipment subcategories, National Teams regions, Clubs leagues, and Footwear brand grids, all sharing the same code path) previously rendered every group identically: a white `bg-white border border-zinc-100 rounded-2xl` card with a contained/grayscale-to-color logo and a label below
 - Added an `isEquipmentCategory` flag (`(category || title || '').toLowerCase().trim() === 'equipment'`) and branched the card rendering on it — **only** the Equipment page (Balls, Goalkeeper, Futsal, etc., which use real dark studio photography) got the redesign; National Teams/Clubs/Footwear kept their existing white card untouched, since those use transparent crest/flag/brand-logo PNGs that need the white backdrop to render correctly (confirmed with the user before changing anything, given the component is shared)
 - Equipment cards: full-bleed image (`object-cover`, no white container), `bg-gradient-to-br from-black/70 via-black/20 to-transparent` gradient, white title + "Explore →" overlaid top-left with `drop-shadow`, no text below the image
