@@ -22,27 +22,42 @@ Admin login: info@edgedbs.com
   - Show error alerts if database update fails
   - Added Remove buttons in UI (red buttons next to Upload buttons) when a logo exists
 
-**Equipment Grid Layout:**
-- `src/pages/ProductGridPage.tsx` (lines 646-694): Fixed equipment subcategory cards showing one per row
-  - **Problem:** Cards weren't filling grid cells due to missing sizing and incorrect display properties
-  - **Fix:** 
-    - Added `className="h-full"` to `motion.div` wrapper so it fills the grid cell height
-    - Changed Link from `className="relative block"` to `className="relative flex items-center justify-center w-full h-full"` to fill both width and height
-    - Made images `className="absolute inset-0 w-full h-full"` so they fill the entire card
-    - Added `z-10` to text overlay div to ensure it appears above the image
-  - Non-equipment cards (National Teams, Clubs, Footwear): Also updated to use `flex flex-col h-full` for consistency
-  - Grid now displays 2-3-4 columns uniformly with no empty space on the right
-  - All cards have consistent 4:3 aspect ratio
+**Equipment Grid Layout - Two Groups:**
+- `src/pages/ProductGridPage.tsx` (lines 452-482): New `reorganizedGroups` useMemo reorganizes equipment items into two separate grids
+  - **Group 1 (4 columns):** Balls, Goalkeeper Gloves, Bags, Futsal Balls
+    - Grid: `grid grid-cols-2 md:grid-cols-4 gap-4 mb-6`
+    - 2 columns mobile, 4 columns desktop
+  - **Group 2 (3 columns):** Socks, Shinguards, Accessories  
+    - Grid: `grid grid-cols-2 md:grid-cols-3 gap-4`
+    - 2 columns mobile, 3 columns desktop
+  - Items filtered by `label.toLowerCase().includes()` matching predefined arrays
+  - Only reorganizes for equipment category; other categories unaffected
+  
+- `src/pages/ProductGridPage.tsx` (lines 691-705): Equipment card styling with responsive effects
+  - **Aspect ratio:** `16/9` with `maxHeight: 200px` for compact sizing
+  - **Mobile (< md):** Always shows full color image, light overlay
+    - No grayscale effect (hover states don't work on mobile)
+    - `bg-black/20` overlay for visibility without blocking image
+    - Smaller text: h3 `text-[10px]`, span `text-[9px]`
+  - **Desktop (md+):** Grayscale to color hover with dark overlay fade
+    - Image starts `md:grayscale`, hover reveals `md:group-hover:grayscale-0`
+    - `md:bg-black/60` overlay, fades to `md:group-hover:bg-black/20` on hover
+    - Slightly larger text: h3 `md:text-xs`, span `md:text-[10px]`
+    - Image scales up `group-hover:scale-105` on hover
+    - Smooth transitions: `transition-all duration-500`
+  - Text overlay positioned `absolute top-0 left-0 p-3 z-10` with drop shadow
+  - All other categories (National Teams, Clubs, Footwear) unchanged
 
 **Testing Verified:**
+- ✅ Equipment page shows two separate grids with correct column counts
+- ✅ Mobile view: Full color images immediately visible, text readable
+- ✅ Desktop view: Grayscale cards reveal color on hover, overlay fades
 - ✅ Logo removal persists after page refresh
 - ✅ Logo removal persists after "Save Navigation" 
 - ✅ Remove buttons only appear when logo exists
-- ✅ Equipment grid shows 2 columns (mobile), 3 columns (tablet), 4 columns (desktop)
-- ✅ All equipment cards same size and height
-- ✅ No single cards taking full row width
+- ✅ Other category pages unaffected
 
-**Deployment:** Commit e1dc312 saved locally (not pushed)
+**Deployment:** Changes ready for commit
 
 ---
 
