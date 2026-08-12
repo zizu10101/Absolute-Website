@@ -4,7 +4,7 @@ import {
   Moon, Sun, LogOut, Search, Users, Percent, FileText, Trash2,
   Barcode as BarcodeIcon, Archive, Home, AlertCircle, X, Check,
   Receipt, RotateCcw, RefreshCw, Plus, Printer, ScanLine, CheckCircle2, BarChart3, Undo2,
-  UserPlus, Gift, Tag, CreditCard, Ticket, Clock, Package
+  UserPlus, Gift, Tag, CreditCard, Ticket, Clock, Package, Pencil
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Barcode from 'react-barcode';
@@ -185,6 +185,7 @@ export function POSPage() {
     removeItem,
     updateItemQuantity,
     updateItemDiscount,
+    overrideItemPrice,
     clearCart,
     subtotal,
     totalDiscount,
@@ -203,6 +204,11 @@ export function POSPage() {
   const [discountDraftType, setDiscountDraftType] = useState<'percent' | 'fixed' | 'newprice'>('percent');
   const [discountDraftValue, setDiscountDraftValue] = useState('');
   const [discountDraftError, setDiscountDraftError] = useState('');
+
+  // Per-item price override editor (inline in cart row)
+  const [overridingPriceItemId, setOverridingPriceItemId] = useState<string | null>(null);
+  const [priceOverrideDraft, setPriceOverrideDraft] = useState('');
+  const [priceOverrideError, setPriceOverrideError] = useState('');
 
   const openItemDiscountEditor = (item: CartItem) => {
     setEditingDiscountItemId(item.id);
@@ -237,6 +243,26 @@ export function POSPage() {
     setEditingDiscountItemId(null);
     setDiscountDraftValue('');
     setDiscountDraftError('');
+  };
+
+  const openPriceOverrideEditor = (item: CartItem) => {
+    setEditingDiscountItemId(null); // close discount editor if open
+    setOverridingPriceItemId(item.id);
+    setPriceOverrideDraft(item.priceOverride !== undefined ? String(item.priceOverride) : String(item.price));
+    setPriceOverrideError('');
+  };
+
+  const applyPriceOverride = () => {
+    if (!overridingPriceItemId) return;
+    const value = parseFloat(priceOverrideDraft);
+    if (isNaN(value) || value < 0) {
+      setPriceOverrideError('Please enter a valid price');
+      return;
+    }
+    overrideItemPrice(overridingPriceItemId, value);
+    setOverridingPriceItemId(null);
+    setPriceOverrideDraft('');
+    setPriceOverrideError('');
   };
 
   // Layaway / Pay Later
@@ -1377,7 +1403,12 @@ export function POSPage() {
       transactionId: receipt.transactionId || 'N/A',
       invoiceNumber: receipt.invoiceNumber,
       customerName: receipt.customer ? `${receipt.customer.first_name} ${receipt.customer.last_name}` : 'Walk-in',
-      items: receipt.items,
+      items: receipt.items.map((item: any) => ({
+        ...item,
+        price: item.priceOverride !== undefined ? item.priceOverride : item.price,
+        priceOverridden: item.priceOverride !== undefined,
+        originalPrice: item.priceOverride !== undefined ? item.price : undefined,
+      })),
       subtotal: receipt.subtotal,
       hst: receipt.hst,
       total: receipt.total,
@@ -1864,7 +1895,17 @@ export function POSPage() {
                         <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className={`w-5 h-5 rounded border text-xs flex items-center justify-center ${isDarkMode ? 'border-[#2d3547] hover:bg-[#2d3547] text-white' : 'border-gray-300 hover:bg-gray-100 text-black'}`}>+</button>
                       </div>
 
-                      {item.discount ? (
+                      {item.priceOverride !== undefined ? (
+                        <div className="text-[10px] space-y-0.5 mb-1">
+                          <div className={`flex justify-between ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+                            <span className="line-through">Was: ${(item.price * item.quantity).toFixed(2)}</span>
+                          </div>
+                          <div className={`flex justify-between font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                            <span className="text-amber-400">Overridden</span>
+                            <span>${(item.priceOverride * item.quantity).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ) : item.discount ? (
                         <div className="text-[10px] space-y-0.5 mb-1">
                           <div className={`flex justify-between ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
                             <span>Price</span>
@@ -1883,7 +1924,7 @@ export function POSPage() {
                         <p className="text-xs font-bold text-[var(--primary-color)] mb-1">${(item.price * item.quantity).toFixed(2)}</p>
                       )}
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <button
                           onClick={() => openItemDiscountEditor(item)}
                           className="text-[9px] text-emerald-400 hover:text-emerald-300 font-bold uppercase flex items-center gap-1"
@@ -1896,6 +1937,20 @@ export function POSPage() {
                             className="text-[9px] text-red-400 hover:text-red-300 font-bold uppercase"
                           >
                             Remove
+                          </button>
+                        )}
+                        <button
+                          onClick={() => openPriceOverrideEditor(item)}
+                          className="text-[9px] text-amber-400 hover:text-amber-300 font-bold uppercase flex items-center gap-1"
+                        >
+                          <Pencil size={10} /> {item.priceOverride !== undefined ? 'Edit Override' : 'Override Price'}
+                        </button>
+                        {item.priceOverride !== undefined && (
+                          <button
+                            onClick={() => overrideItemPrice(item.id, null)}
+                            className="text-[9px] text-red-400 hover:text-red-300 font-bold uppercase"
+                          >
+                            Reset
                           </button>
                         )}
                       </div>
@@ -1942,6 +1997,59 @@ export function POSPage() {
                           </div>
                           {discountDraftError && (
                             <p className="text-[9px] text-red-400 font-semibold">{discountDraftError}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {overridingPriceItemId === item.id && (
+                        <div className={`mt-2 p-2 rounded border space-y-2 ${isDarkMode ? 'bg-[#1a2236] border-amber-900/40' : 'bg-amber-50 border-amber-200'}`}>
+                          <p className={`text-[9px] font-bold uppercase tracking-wide ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}>Override Price</p>
+                          <div className="flex items-center gap-1">
+                            <span className={`text-[10px] font-bold shrink-0 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>$</span>
+                            <input
+                              type="number"
+                              autoFocus
+                              min={0}
+                              step={0.01}
+                              value={priceOverrideDraft}
+                              onChange={e => { setPriceOverrideDraft(e.target.value); setPriceOverrideError(''); }}
+                              onKeyDown={e => { if (e.key === 'Enter') applyPriceOverride(); if (e.key === 'Escape') setOverridingPriceItemId(null); }}
+                              placeholder="0.00"
+                              className={`flex-1 border rounded text-[10px] px-2 py-1 ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547] text-white' : 'bg-white border-gray-300 text-black'}`}
+                            />
+                            <button onClick={applyPriceOverride} className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[9px] font-bold uppercase">
+                              Apply
+                            </button>
+                            <button onClick={() => setOverridingPriceItemId(null)} className={`px-2 py-1 border rounded text-[9px] font-bold uppercase ${isDarkMode ? 'border-[#2d3547] text-gray-400 hover:text-white' : 'border-gray-300 text-gray-600 hover:text-black'}`}>
+                              Cancel
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => { setPriceOverrideDraft(String(item.originalPrice)); setPriceOverrideError(''); }}
+                              className={`px-2 py-1 rounded text-[9px] font-bold border transition-colors ${isDarkMode ? 'border-[#2d3547] text-gray-300 hover:bg-[#2d3547]' : 'border-gray-300 text-gray-700 hover:bg-gray-200'}`}
+                            >
+                              Regular ${item.originalPrice.toFixed(2)}
+                            </button>
+                            {item.isOnSale && item.salePrice && (
+                              <button
+                                onClick={() => { setPriceOverrideDraft(String(item.salePrice)); setPriceOverrideError(''); }}
+                                className={`px-2 py-1 rounded text-[9px] font-bold border transition-colors ${isDarkMode ? 'border-[#2d3547] text-gray-300 hover:bg-[#2d3547]' : 'border-gray-300 text-gray-700 hover:bg-gray-200'}`}
+                              >
+                                Sale ${item.salePrice.toFixed(2)}
+                              </button>
+                            )}
+                            {item.priceOverride !== undefined && (
+                              <button
+                                onClick={() => { overrideItemPrice(item.id, null); setOverridingPriceItemId(null); }}
+                                className="px-2 py-1 rounded text-[9px] font-bold text-red-400 hover:text-red-300"
+                              >
+                                Remove Override
+                              </button>
+                            )}
+                          </div>
+                          {priceOverrideError && (
+                            <p className="text-[9px] text-red-400 font-semibold">{priceOverrideError}</p>
                           )}
                         </div>
                       )}
@@ -2320,8 +2428,13 @@ export function POSPage() {
                                 {item.size && `Size ${item.size}`}
                               </p>
                             )}
-                            <p className="text-zinc-600">Qty {item.quantity} x ${Number(item.price).toFixed(2)}</p>
-                            {item.discount && (
+                            <p className="text-zinc-600">Qty {item.quantity} x ${Number(getItemDiscountedPrice(item)).toFixed(2)}</p>
+                            {item.priceOverride !== undefined && (
+                              <p className="text-amber-600 font-bold">
+                                Overridden (was ${Number(item.price).toFixed(2)})
+                              </p>
+                            )}
+                            {!item.priceOverride && item.discount && (
                               <p className="text-yellow-600 font-bold">
                                 Discount: {formatItemDiscountLabel(item.discount)} (−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)})
                               </p>
@@ -2498,11 +2611,14 @@ export function POSPage() {
                     {cart.map(item => (
                       <div key={item.id} className="border border-[#2d3547] rounded p-2">
                         <p className="font-bold text-white">{item.name}</p>
-                        <p className="text-gray-400">Qty {item.quantity} x ${Number(item.price).toFixed(2)}</p>
-                        {item.discount && (
+                        <p className="text-gray-400">Qty {item.quantity} x ${Number(getItemDiscountedPrice(item)).toFixed(2)}</p>
+                        {item.priceOverride !== undefined && (
+                          <p className="text-amber-400 font-bold">Overridden (was ${Number(item.price).toFixed(2)})</p>
+                        )}
+                        {!item.priceOverride && item.discount && (
                           <p className="text-yellow-400">Discount: {formatItemDiscountLabel(item.discount)} (−${(getItemUnitDiscount(item) * item.quantity).toFixed(2)})</p>
                         )}
-                        <p className={`font-bold ${item.discount ? 'text-white' : 'text-[var(--primary-color)]'}`}>${(getItemDiscountedPrice(item) * item.quantity).toFixed(2)}</p>
+                        <p className={`font-bold ${(item.priceOverride !== undefined || item.discount) ? 'text-white' : 'text-[var(--primary-color)]'}`}>${(getItemDiscountedPrice(item) * item.quantity).toFixed(2)}</p>
                       </div>
                     ))}
                   </div>
