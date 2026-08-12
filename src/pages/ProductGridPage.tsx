@@ -649,21 +649,22 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.03 }}
+                    className="h-full"
                   >
                     {isEquipmentCategory ? (
                       <Link
                         to={item.path}
-                        className="relative block overflow-hidden rounded-xl group cursor-pointer"
+                        className="relative flex items-center justify-center w-full h-full overflow-hidden rounded-xl group cursor-pointer"
                         style={{ aspectRatio: '4/3' }}
                       >
                         <img
                           src={item.logo}
                           alt={item.label}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                           referrerPolicy="no-referrer"
                         />
                         <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/20 to-transparent" />
-                        <div className="absolute top-0 left-0 p-3">
+                        <div className="relative top-0 left-0 p-3 text-left z-10">
                           <h3 className="text-white font-black uppercase text-xs tracking-widest drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                             {item.label}
                           </h3>
@@ -675,9 +676,9 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                     ) : (
                       <Link
                         to={item.path}
-                        className="group block bg-white border border-zinc-100 rounded-2xl p-4 text-center transition-all hover:border-[var(--primary-color)] hover:shadow-xl hover:shadow-red-900/5 hover:-translate-y-1"
+                        className="group flex flex-col h-full bg-white border border-zinc-100 rounded-2xl p-4 text-center transition-all hover:border-[var(--primary-color)] hover:shadow-xl hover:shadow-red-900/5 hover:-translate-y-1"
                       >
-                        <div className="aspect-square mb-3 flex items-center justify-center relative overflow-hidden">
+                        <div className="aspect-square mb-3 flex items-center justify-center relative overflow-hidden flex-shrink-0">
                           <img
                             src={item.logo}
                             alt={item.label}
