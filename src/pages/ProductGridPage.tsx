@@ -418,6 +418,12 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     return navigationMenus.find(m => m.label.toLowerCase().trim() === target);
   }, [navigationMenus, category, title]);
 
+  // Equipment subcategory tiles (Balls, Goalkeeper, Futsal, etc.) use full-bleed dark studio
+  // photos, unlike National Teams/Clubs/Footwear which use transparent crest/flag/logo PNGs
+  // that need the white card background to render correctly — so only Equipment gets the
+  // full-bleed treatment, everything else keeps the white logo card.
+  const isEquipmentCategory = (category || title || '').toLowerCase().trim() === 'equipment';
+
   const groupedSubmenuItems = useMemo(() => {
     if (!currentMenu) return [];
 
@@ -634,7 +640,9 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                 <div className="h-px bg-zinc-100 flex-1" />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6">
+              <div className={isEquipmentCategory
+                ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'
+                : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6'}>
                 {group.items.map((item, idx) => (
                   <motion.div
                     key={item.path + idx}
@@ -642,22 +650,46 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.03 }}
                   >
-                    <Link
-                      to={item.path}
-                      className="group block bg-white border border-zinc-100 rounded-2xl p-4 text-center transition-all hover:border-[var(--primary-color)] hover:shadow-xl hover:shadow-red-900/5 hover:-translate-y-1"
-                    >
-                      <div className="aspect-square mb-3 flex items-center justify-center relative overflow-hidden">
+                    {isEquipmentCategory ? (
+                      <Link
+                        to={item.path}
+                        className="relative block overflow-hidden rounded-xl group cursor-pointer"
+                        style={{ aspectRatio: '4/3' }}
+                      >
                         <img
                           src={item.logo}
                           alt={item.label}
-                          className="max-w-[85%] max-h-[85%] object-contain transition-all duration-500 grayscale group-hover:grayscale-0 group-hover:scale-110"
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                           referrerPolicy="no-referrer"
                         />
-                      </div>
-                      <h3 className="text-[9px] font-black uppercase tracking-tight text-zinc-600 group-hover:text-zinc-900 transition-colors">
-                        {item.label}
-                      </h3>
-                    </Link>
+                        <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/20 to-transparent" />
+                        <div className="absolute top-0 left-0 p-3">
+                          <h3 className="text-white font-black uppercase text-xs tracking-widest drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                            {item.label}
+                          </h3>
+                          <span className="text-white/70 text-xs font-medium uppercase tracking-wider">
+                            Explore &rarr;
+                          </span>
+                        </div>
+                      </Link>
+                    ) : (
+                      <Link
+                        to={item.path}
+                        className="group block bg-white border border-zinc-100 rounded-2xl p-4 text-center transition-all hover:border-[var(--primary-color)] hover:shadow-xl hover:shadow-red-900/5 hover:-translate-y-1"
+                      >
+                        <div className="aspect-square mb-3 flex items-center justify-center relative overflow-hidden">
+                          <img
+                            src={item.logo}
+                            alt={item.label}
+                            className="max-w-[85%] max-h-[85%] object-contain transition-all duration-500 grayscale group-hover:grayscale-0 group-hover:scale-110"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                        <h3 className="text-[9px] font-black uppercase tracking-tight text-zinc-600 group-hover:text-zinc-900 transition-colors">
+                          {item.label}
+                        </h3>
+                      </Link>
+                    )}
                   </motion.div>
                 ))}
               </div>
