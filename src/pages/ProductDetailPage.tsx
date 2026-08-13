@@ -750,24 +750,12 @@ export function ProductDetailPage() {
                           );
                         })}
                       </div>
+
+                      <p className="text-[11px] text-zinc-500 uppercase tracking-widest">
+                        Available sizes shown — styles sell out and are not restocked
+                      </p>
                     </div>
                   )}
-
-                  {/* Call to Order CTA */}
-                  <div className="my-6 rounded-xl border-2 border-[var(--primary-color)] bg-[#0d0d0d] p-6 text-center shadow-lg shadow-red-900/20">
-                    <p className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-3">
-                      Available In Store
-                    </p>
-                    <a
-                      href="tel:9055933600"
-                      className="inline-flex items-center gap-2 bg-[var(--primary-color)] hover:bg-[#d4001a] text-white font-black text-lg px-6 py-3 rounded-lg transition-colors shadow-md shadow-red-900/30"
-                    >
-                      Call: 905-593-3600
-                    </a>
-                    <p className="text-[11px] text-zinc-500 mt-3 uppercase tracking-widest">
-                      Call to order or visit us in store
-                    </p>
-                  </div>
                 </>
               )}
             </>
