@@ -45,13 +45,16 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
       const { start, end } = getEasternDayRange(selectedDate);
 
 
-      // Fetch transactions in Eastern day range (converted to UTC)
+      // Fetch transactions in Eastern day range (converted to UTC).
+      // 'Other' is a separate off-books tender type (see the Cash Report tab) - it never
+      // appears in the regular EOD report or counts toward its totals.
       const { data: txData, error: txError } = await supabase
         .from('transactions')
         .select('*')
         .gte('created_at', start)
         .lte('created_at', end)
-        .neq('status', 'voided');
+        .neq('status', 'voided')
+        .neq('method', 'Other');
 
       if (txError) throw txError;
       setTransactions(txData || []);

@@ -4,7 +4,7 @@ import { supabase } from '../supabase';
 import { useSettings } from '../context/SettingsContext';
 import {
   Download, Calendar, TrendingUp, Package, Gift, Users,
-  BarChart3, DollarSign, RefreshCw, Printer, RotateCcw, ArrowLeft
+  BarChart3, DollarSign, RefreshCw, Printer, RotateCcw, ArrowLeft, Calculator, Lock
 } from 'lucide-react';
 import { EndOfDayReport } from './reports/EndOfDayReport';
 import { SalesReport } from './reports/SalesReport';
@@ -13,8 +13,13 @@ import { GiftCardReport } from './reports/GiftCardReport';
 import { CustomerReport } from './reports/CustomerReport';
 import { VoidRefundReport } from './reports/VoidRefundReport';
 import { StoreCreditReport } from './reports/StoreCreditReport';
+import { CashReport } from './reports/CashReport';
+import { ManagerPinModal } from './ManagerPinModal';
 
-type ReportTab = 'eod' | 'sales' | 'product' | 'gift-card' | 'customer' | 'void-refund' | 'store-credit';
+type ReportTab = 'eod' | 'cash' | 'sales' | 'product' | 'gift-card' | 'customer' | 'void-refund' | 'store-credit';
+
+const MAX_PIN_ATTEMPTS = 3;
+const PIN_LOCKOUT_MS = 30000;
 
 export const ReportsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -22,14 +27,58 @@ export const ReportsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ReportTab>('eod');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Handle Escape key to return to POS
+  // Cash Report is gated behind a separate manager PIN - deliberately NOT persisted anywhere
+  // (no sessionStorage, no "remembered" flag). It re-locks the instant staff navigates to any
+  // other tab, so the PIN must be re-entered every single time Cash Report is opened.
+  const [cashReportUnlocked, setCashReportUnlocked] = useState(false);
+  const [showManagerPinModal, setShowManagerPinModal] = useState(false);
+  const [pinAttempts, setPinAttempts] = useState(0);
+  const [pinLockedUntil, setPinLockedUntil] = useState<number | null>(null);
+
+  // Handle Escape key: closes the PIN modal if open, otherwise returns to POS
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') navigate('/pos');
+      if (e.key !== 'Escape') return;
+      if (showManagerPinModal) {
+        setShowManagerPinModal(false);
+      } else {
+        navigate('/pos');
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate]);
+  }, [navigate, showManagerPinModal]);
+
+  const handleWrongPin = () => {
+    setPinAttempts(prev => {
+      const next = prev + 1;
+      if (next >= MAX_PIN_ATTEMPTS) {
+        setPinLockedUntil(Date.now() + PIN_LOCKOUT_MS);
+        return 0;
+      }
+      return next;
+    });
+  };
+
+  const handlePinSuccess = () => {
+    setCashReportUnlocked(true);
+    setShowManagerPinModal(false);
+    setPinAttempts(0);
+    setPinLockedUntil(null);
+    setActiveTab('cash');
+  };
+
+  // Always prompts for the PIN - no shortcut for "already unlocked", since access must never
+  // be remembered between clicks.
+  const handleLockIconClick = () => {
+    setShowManagerPinModal(true);
+  };
+
+  // Switching to any other tab immediately re-locks Cash Report.
+  const handleTabClick = (id: ReportTab) => {
+    setActiveTab(id);
+    setCashReportUnlocked(false);
+  };
 
   const tabs = [
     { id: 'eod', label: 'End of Day', icon: Calendar },
@@ -55,13 +104,20 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Header */}
-      <div className="bg-white border-b border-zinc-200 px-6 py-4">
+      <div className="relative bg-white border-b border-zinc-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-black uppercase tracking-widest text-zinc-900">Reports</h1>
             <p className="text-xs text-zinc-400 font-bold mt-1">Financial summaries and detailed analytics</p>
           </div>
         </div>
+        <button
+          onClick={handleLockIconClick}
+          className="absolute top-4 right-4 text-zinc-400
+                     hover:text-zinc-600 transition-colors"
+        >
+          <Lock size={16} />
+        </button>
       </div>
 
       {/* Tab Navigation */}
@@ -72,7 +128,7 @@ export const ReportsPage: React.FC = () => {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as ReportTab)}
+              onClick={() => handleTabClick(tab.id as ReportTab)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs transition-all whitespace-nowrap ${
                 isActive
                   ? 'bg-zinc-900 text-white shadow-md'
@@ -84,11 +140,26 @@ export const ReportsPage: React.FC = () => {
             </button>
           );
         })}
+
+        {cashReportUnlocked && (
+          <button
+            onClick={() => setActiveTab('cash')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs transition-all whitespace-nowrap ${
+              activeTab === 'cash'
+                ? 'bg-zinc-900 text-white shadow-md'
+                : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 border border-zinc-200'
+            }`}
+          >
+            <Calculator size={14} />
+            Cash Report
+          </button>
+        )}
       </div>
 
       {/* Report Content */}
       <div className="flex-1 overflow-y-auto p-6">
         {activeTab === 'eod' && <EndOfDayReport logo={logo} />}
+        {activeTab === 'cash' && cashReportUnlocked && <CashReport logo={logo} />}
         {activeTab === 'sales' && <SalesReport logo={logo} />}
         {activeTab === 'product' && <ProductReport logo={logo} />}
         {activeTab === 'gift-card' && <GiftCardReport logo={logo} />}
@@ -96,6 +167,16 @@ export const ReportsPage: React.FC = () => {
         {activeTab === 'void-refund' && <VoidRefundReport logo={logo} />}
         {activeTab === 'customer' && <CustomerReport logo={logo} />}
       </div>
+
+      {showManagerPinModal && (
+        <ManagerPinModal
+          onSuccess={handlePinSuccess}
+          onCancel={() => setShowManagerPinModal(false)}
+          attemptsRemaining={MAX_PIN_ATTEMPTS - pinAttempts}
+          lockedUntil={pinLockedUntil}
+          onWrongPin={handleWrongPin}
+        />
+      )}
     </div>
   );
 };

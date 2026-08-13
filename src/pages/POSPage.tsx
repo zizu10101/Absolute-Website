@@ -2855,7 +2855,7 @@ export function POSPage() {
                           </div>
                         ) : (
                           <div className="grid grid-cols-2 gap-2 mb-3">
-                            {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Store Credit'].map(method => (
+                            {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Store Credit', 'Other'].map(method => (
                               <button
                                 key={method}
                                 disabled={isConfirming || (selectedStoreCredit && method === 'Store Credit')}
