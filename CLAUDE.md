@@ -6,7 +6,32 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**NAVIGATION LOGO REMOVAL FIX + EQUIPMENT GRID LAYOUT (Session 61 - CURRENT):**
+**PRODUCT DETAIL PAGE: RELATED PRODUCTS + SHIPPING BADGE + CTA CLEANUP (Session 62 - CURRENT):**
+
+**"You Might Also Like" related products section:**
+- `src/pages/ProductDetailPage.tsx`: new section rendered below the Product Details accordion (still inside the page's `max-w-[1600px]` container, above where `Layout` renders the site `<Footer>`) — a `grid grid-cols-2 md:grid-cols-4 gap-4` of up to 4 related products using the existing `ProductCard` component; hidden entirely when zero related products are found
+- New `relatedProducts` state + a fetch effect keyed on `product.id/category/brand/name/submenus`, querying Supabase directly (no new context method) and mapping raw rows through `ProductContext`'s existing `mapProductFromDb()` (imported alongside `useProducts`) so `ProductCard` gets a fully-shaped `Product` object (images, colors, isOnSale, isFeatured, etc.) — a narrower column select (as first drafted) left those fields undefined and broke the card
+- **Matching priority (2 tiers, most-specific first), all applied client-side against over-fetched Supabase candidate pools to keep the DB query simple:**
+  1. Same category + same brand + same surface type + same age group
+  2. Same category + same surface type + same age group (any brand)
+  - Deliberately **no 3rd "any surface" fallback** — surface type is never mixed into the results, even if that means showing fewer than 4 (or 0) related products. This was a direct choice over the alternative (always backfill to 4 by allowing a surface mismatch) after live-data testing showed turf (3 products total) and artificial-grass (1 product total) categories would otherwise get padded out with firm-ground boots to hit the count
+- **Age group detection** (`isYouthProduct(name)`): regex `/kids|junior|youth|jr\.|children/i` against the product name — no `product_variants` lookup needed
+- **Surface type detection** (`getSurfaceType(product)`): checks product `name` + `submenus` (lowercased, joined) for `firm ground`/` fg` → `fg`, `artificial grass`/` ag` → `ag`, `multi ground`/` mg` → `mg`, `turf`/` tf` → `turf`, `indoor`/`futsal` → `indoor`, `soft ground`/` sg` → `sg`, else `unknown`; when `unknown`, surface filtering is skipped entirely (this only meaningfully applies to Footwear — other categories like Balls/Equipment/Jerseys just fall through unfiltered on surface, same as before this session)
+- Both helpers are module-level pure functions (not defined inside the component)
+- Verified against the **live production Supabase data** (not a local fixture) via standalone scripts run from the project root: same-category+same-brand+same-age+same-surface returns 4/4 correctly matched results for a firm-ground boot (40 FG products in the catalog); a turf boot and an artificial-grass boot correctly return 0 related products rather than mixing in firm-ground boots, given how sparse those two surface types are in the current catalog
+- **Not click-verified in a live browser this session** (Claude in Chrome extension declined again — noted not to ask again this session) — data/query logic verified directly against Supabase instead; user asked to spot-check the rendered UI/click-through on localhost
+
+**Shipping & Certifications badge row — Free Delivery replaced with In-Store Pickup:**
+- `src/pages/ProductDetailPage.tsx`: the 3-badge row below the buy box previously read "Free Delivery / On all club orders over $150" — inaccurate, since this store has no shipping/delivery option (pickup-only, per `docs/INVOICE_ESTIMATE_FEATURE.md` and the Product schema's `shippingDetails` from session 56a which already describes $0.00 local pickup only)
+- Replaced with an "In-Store Pickup / Available at Mississauga location" badge using a new `Store` icon import from lucide-react (swapped in place of `Truck`, which had no other usage in the file); kept `text-[var(--primary-color)]` rather than the hardcoded `#b90014` given in the original request snippet, consistent with the session 33 site-wide color-var migration
+- "Easy Returns" subtext corrected from "30 days custom refund policy" to "14 day return policy" — aligns with the store's actual 14-day policy already stated elsewhere (receipts, Product schema `hasMerchantReturnPolicy` from session 56a)
+- "100% Authentic" subtext shortened from "Official tournament licensed gear" to "Official licensed gear"
+
+**Removed a misleading duplicate CTA under the size picker:**
+- `src/pages/ProductDetailPage.tsx`: found while working the badge row — a second "Available In Store / Call to order or visit us in store" CTA block was rendering unconditionally right after the size-picker grid (and even after the SOLD OUT badge, directly contradicting it), duplicating the CTA already shown for products with no online size picker at all (`!product.showSizes`). Removed it; replaced with a plain helper line under the size grid: "Available sizes shown — styles sell out and are not restocked"
+- This fix shipped in its own commit (`d3aa52a`) ahead of the related-products/badge work in this session, merged cleanly with a concurrent session's POS price-override and equipment-grid-layout commits (`020bfcd`, `f3f2711`) — no conflicts, `ProductDetailPage.tsx` untouched by the concurrent session
+
+**NAVIGATION LOGO REMOVAL FIX + EQUIPMENT GRID LAYOUT (Session 61):**
 
 **Navigation Logo Removal Persistence:**
 - `src/context/SettingsContext.tsx` `saveNavigation()` function (lines 608-695): Fixed fallback logic that was re-adding deleted logos
@@ -682,10 +707,11 @@ Admin login: info@edgedbs.com
 - Collapsible menus in admin navigation editor
 - Brand pages fixed (`/brand/Nike` now loads all products via `fetchProductsByCategory`)
 
-## CURRENT STATUS (Main Branch - August 12, 2026)
-**Latest:** Equipment category tiles (`/category/equipment` subcategories — Balls, Goalkeeper, Futsal, etc.) redesigned to full-bleed dark cards with a top-left text overlay, matching the Shop-by-Brand treatment — sized down in a follow-up pass (4 columns on large screens, `4/3` aspect ratio, tighter padding/text) after the first version ran too large; National Teams/Clubs/Footwear logo grids were deliberately left on their existing white-card style since those use transparent crest/flag/brand PNGs (session 60). Also recently shipped: homepage "Shop by Brand" cards reworked to top-left text overlay + full-image no-crop 16:9 cards + rebalanced featured-vs-small sizing (session 59); blog post hero image no longer crops top/bottom (session 58); a concurrent session's footer layout/contrast fixes, EOD print Firefox-popup fix, invalid-color-value filtering, and a GEO audit pass (session 57); prominent cash-change display + cash details on receipts, cash-drawer fallback re-enabled, www/non-www admin access fix, canonical URL audit, and Product schema return/shipping details (sessions 56/56a/56b/56c); blog listing (`/blog`) simplified to a uniform grid (session 55); the Blog / Gear Guides section itself plus a merged GEO optimization pass (session 54); Invoice/Estimate printing in POS (session 53)
+## CURRENT STATUS (Main Branch - August 13, 2026)
+**Latest:** Product detail page: added a "You Might Also Like" related-products section (same category + brand + surface type + age group, prioritized in 2 tiers, never mixing surface types even at the cost of showing fewer than 4 results); replaced the inaccurate "Free Delivery" badge with "In-Store Pickup" and corrected the Easy Returns/100% Authentic subtext; removed a misleading duplicate "Call to order" CTA that rendered under a working size picker (session 62). Also recently shipped: navigation logo removal now persists correctly + equipment page split into two grouped grids (session 61); equipment category tiles redesigned to full-bleed dark cards with a top-left text overlay (session 60); homepage "Shop by Brand" cards reworked to top-left text overlay + full-image no-crop 16:9 cards (session 59); blog post hero image no longer crops top/bottom (session 58)
 
-**COMPLETED (August 12, 2026):**
+**COMPLETED (August 13, 2026):**
+- ✅ **Session 62:** Related products section, In-Store Pickup shipping badge, misleading size-picker CTA fix — see full write-up above under RECENT CHANGES; no DB/deploy prerequisites; not click-verified in a live browser (no browser automation available this session) — related-products query logic verified directly against live Supabase data instead; user asked to spot-check the rendered UI on localhost
 - ✅ **Session 60:** Equipment category tile redesign (full-bleed dark cards with top-left overlay, sized down in a follow-up pass) — see full write-up above under RECENT CHANGES; no DB/deploy prerequisites; not click-verified in a live browser by Claude this session (no browser automation available) — user reviewed each iteration on localhost manually before requesting the size follow-up
 - ✅ **Session 59:** Homepage "Shop by Brand" card redesign (top-left text overlay, full-image no-crop 16:9 cards, rebalanced featured-vs-small sizing) — see full write-up above under RECENT CHANGES; no DB/deploy prerequisites; not click-verified in a live browser by Claude this session (no browser automation available) — user reviewed each iteration on localhost manually before requesting the next change
 - ✅ **Session 58:** Blog post hero image cropping fix — see full write-up above under RECENT CHANGES; no DB/deploy prerequisites; not click-verified in a live browser this session (no browser automation available)
@@ -1055,7 +1081,7 @@ Admin login: info@edgedbs.com
 **Session 19 improvements:**
 - ✅ `ProductCard.tsx`: Added `isSoldOut?: boolean` prop — greyscale image + `opacity-70` + dark "SOLD OUT" banner at bottom of image when true
 - ✅ `ProductGridPage.tsx`: Added `soldOutProductIds` state + fetch effect — queries `product_variants` for `stock_quantity > 0` per product; passes `isSoldOut` to each `ProductCard`
-- ✅ `ProductDetailPage.tsx`: Added `isSoldOut` flag (`!variantsLoading && product.showSizes && all variants at 0`); replaces size grid with red "SOLD OUT" badge when true; Call to Order CTA still shows
+- ✅ `ProductDetailPage.tsx`: Added `isSoldOut` flag (`!variantsLoading && product.showSizes && all variants at 0`); replaces size grid with red "SOLD OUT" badge when true; Call to Order CTA still shows (**note:** this duplicate CTA was removed in session 62 as misleading — see RECENT CHANGES above — the SOLD OUT state no longer shows a "call to order" prompt)
 - ✅ `POSPage.tsx` (`getStockStatus`): Changed "Out of Stock" → "SOLD OUT" with `font-black tracking-widest` styling
 - ✅ `thermalReceipt.ts`: Fixed Epson TM-T88IV CSS — body/receipt width 72mm, padding `2mm 4mm`, logo `55mm × 15mm`, replaced `* { padding: 0 !important }` media-print reset with targeted rules only
 - ✅ `thermalReceipt.ts`: Replaced `display:flex` on item/total rows with `display:table` layout for reliable thermal printer rendering
@@ -1404,7 +1430,7 @@ E-commerce features (Phases 1-5) built on ecommerce-dev branch, not yet merged t
 ## KEY FILES
 - src/pages/POSPage.tsx - POS main interface
 - src/pages/AdminPage.tsx - Admin panel (8+ tabs)
-- src/pages/ProductDetailPage.tsx - Product detail page (Call to Order CTA for no-size products; Product JSON-LD schema)
+- src/pages/ProductDetailPage.tsx - Product detail page (Call to Order CTA for no-size products; Product JSON-LD schema; "You Might Also Like" related products by category+brand+surface+age group, session 62)
 - src/pages/HomePage.tsx - Homepage, incl. hero peek carousel with infinite loop (cloned edge slides + transition-less snap-back)
 - src/components/BrandBanners.tsx - Homepage brand banner grid; reads admin-editable title/image from settings.brand_images
 - src/context/ProductContext.tsx - Product CRUD

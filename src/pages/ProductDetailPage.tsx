@@ -1,11 +1,29 @@
 ﻿import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { useProducts } from '../context/ProductContext';
+import { useProducts, mapProductFromDb } from '../context/ProductContext';
 import React, { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '../supabase';
-import { ShoppingBag, ChevronRight, ChevronLeft, ShieldCheck, Truck, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ShoppingBag, ChevronRight, ChevronLeft, ShieldCheck, Store, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { isUUID, buildProductUrl } from '../utils/slugify';
+import { ProductCard } from '../components/ProductCard';
+
+const isYouthProduct = (name: string) =>
+  /kids|junior|youth|jr\.|children/i.test(name || '');
+
+const getSurfaceType = (product: any): string => {
+  const name = (product.name || '').toLowerCase();
+  const submenus = (product.submenus || []).join(' ').toLowerCase();
+  const combined = `${name} ${submenus}`;
+
+  if (combined.includes('firm ground') || combined.includes(' fg')) return 'fg';
+  if (combined.includes('artificial grass') || combined.includes(' ag')) return 'ag';
+  if (combined.includes('multi ground') || combined.includes(' mg')) return 'mg';
+  if (combined.includes('turf') || combined.includes(' tf')) return 'turf';
+  if (combined.includes('indoor') || combined.includes('futsal')) return 'indoor';
+  if (combined.includes('soft ground') || combined.includes(' sg')) return 'sg';
+  return 'unknown';
+};
 
 export function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -208,6 +226,89 @@ export function ProductDetailPage() {
       cancelled = true;
     };
   }, [product?.id]);
+
+  // Related Products, priority order:
+  // 1. Same category + same brand + same surface + same age group
+  // 2. Same category + same surface + same age group (any brand)
+  // Surface type is never mixed, even if that leaves fewer than 4 results
+  // for low-inventory surfaces (e.g. turf/artificial-grass).
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!product?.id || !product?.category) {
+      setRelatedProducts([]);
+      return;
+    }
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const currentIsYouth = isYouthProduct(product.name);
+        const currentSurface = getSurfaceType(product);
+        const matchesAgeGroup = (p: any) => isYouthProduct(p.name) === currentIsYouth;
+        const matchesSurface = (p: any) => currentSurface === 'unknown' || getSurfaceType(p) === currentSurface;
+
+        const usedIds = new Set<string>([product.id]);
+        const combined: any[] = [];
+        const addCandidates = (candidates: any[]) => {
+          for (const p of candidates) {
+            if (combined.length >= 4) break;
+            if (usedIds.has(p.id)) continue;
+            combined.push(p);
+            usedIds.add(p.id);
+          }
+        };
+
+        // Tier 1: same brand + same category (over-fetched, filtered client-side)
+        if (product.brand) {
+          const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .eq('category', product.category)
+            .eq('brand', product.brand)
+            .eq('is_online', true)
+            .neq('id', product.id)
+            .limit(40);
+
+          if (error) throw error;
+          addCandidates((data || []).filter((p: any) => matchesAgeGroup(p) && matchesSurface(p)));
+        }
+
+        // Tiers 2 & 3 draw from one broader same-category pool (any brand)
+        if (combined.length < 4) {
+          const existingIds = [...usedIds];
+          const { data: pool, error: poolError } = await supabase
+            .from('products')
+            .select('*')
+            .eq('category', product.category)
+            .eq('is_online', true)
+            .not('id', 'in', `(${existingIds.join(',')})`)
+            .limit(100);
+
+          if (poolError) throw poolError;
+          const poolData = pool || [];
+
+          // Tier 2: same surface + same age group, any brand
+          // (no further fallback: surface type is never mixed, even if this
+          // leaves fewer than 4 related products for low-inventory surfaces)
+          addCandidates(poolData.filter((p: any) => matchesAgeGroup(p) && matchesSurface(p)));
+        }
+
+        if (!cancelled) {
+          setRelatedProducts(combined.map(mapProductFromDb));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Error fetching related products:", err);
+          setRelatedProducts([]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product?.id, product?.category, product?.brand, product?.name, product?.submenus]);
 
   // Look up the matching product.colors entry for price/images
   const selectedColorEntry = product?.colors?.find((c: any) => c.name === selectedColor) ?? null;
@@ -763,25 +864,31 @@ export function ProductDetailPage() {
 
           {/* Shipping & Certifications bar */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-zinc-500 font-medium">
-            <div className="flex items-center gap-3">
-              <Truck size={18} className="text-[var(--primary-color)] flex-shrink-0" />
-              <div className="leading-tight">
-                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-800 leading-none mb-1">Free Delivery</p>
-                <p className="text-[9px] text-zinc-600 leading-none">On all club orders over $150</p>
+            <div className="flex items-center gap-3 p-3 bg-zinc-50 rounded-lg">
+              <div className="text-[var(--primary-color)]">
+                <Store size={20} />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide">
+                  In-Store Pickup
+                </p>
+                <p className="text-xs text-zinc-500">
+                  Available at Mississauga location
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <RotateCcw size={18} className="text-[var(--primary-color)] flex-shrink-0" />
               <div className="leading-tight">
                 <p className="text-[10px] font-black uppercase tracking-wider text-zinc-800 leading-none mb-1">Easy Returns</p>
-                <p className="text-[9px] text-zinc-600 leading-none">30 days custom refund policy</p>
+                <p className="text-[9px] text-zinc-600 leading-none">14 day return policy</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <ShieldCheck size={18} className="text-[var(--primary-color)] flex-shrink-0" />
               <div className="leading-tight">
                 <p className="text-[10px] font-black uppercase tracking-wider text-zinc-800 leading-none mb-1">100% Authentic</p>
-                <p className="text-[9px] text-zinc-600 leading-none">Official tournament licensed gear</p>
+                <p className="text-[9px] text-zinc-600 leading-none">Official licensed gear</p>
               </div>
             </div>
           </div>
@@ -820,6 +927,19 @@ export function ProductDetailPage() {
         </div>
 
       </div>
+
+      {relatedProducts.length > 0 && (
+        <div className="mt-12 border-t border-zinc-200 pt-8">
+          <h2 className="text-lg font-bold uppercase tracking-widest text-zinc-900 mb-6">
+            You Might Also Like
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {relatedProducts.map((relatedProduct) => (
+              <ProductCard key={relatedProduct.id} product={relatedProduct} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
