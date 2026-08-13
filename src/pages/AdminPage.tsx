@@ -2438,6 +2438,46 @@ function AdminPageInner() {
     setDraftNavigationMenus(newMenus);
   };
 
+  const handleRemoveSubmenuLogo = async (menuIndex: number, submenuIndex: number) => {
+    const submenu = draftNavigationMenus[menuIndex].submenus[submenuIndex];
+
+    // Update database if this submenu has an id
+    if (submenu.id) {
+      try {
+        await updateNavigationItem(submenu.id, { logo_url: null });
+      } catch (err: any) {
+        console.error('Failed to remove submenu logo:', err);
+        alert('Failed to remove logo: ' + err.message);
+        return;
+      }
+    }
+
+    // Update local state after successful DB update
+    const newMenus = [...draftNavigationMenus];
+    newMenus[menuIndex].submenus[submenuIndex].logo = null;
+    setDraftNavigationMenus(newMenus);
+  };
+
+  const handleRemoveNavItemLogo = async (menuIndex: number, submenuIndex: number, itemIndex: number) => {
+    const item = draftNavigationMenus[menuIndex].submenus[submenuIndex].items[itemIndex];
+
+    // Update database if this item has an id
+    if (item.id) {
+      try {
+        await updateNavigationItem(item.id, { logo_url: null });
+      } catch (err: any) {
+        console.error('Failed to remove nav item logo:', err);
+        alert('Failed to remove logo: ' + err.message);
+        return;
+      }
+    }
+
+    // Update local state after successful DB update
+    const newMenus = [...draftNavigationMenus];
+    newMenus[menuIndex].submenus[submenuIndex].items[itemIndex].logo = null;
+    setDraftNavigationMenus(newMenus);
+  };
+
   const updateSubmenuItem = async (menuIndex: number, submenuIndex: number, itemIndex: number, field: 'label' | 'path' | 'logo', value: string) => {
     if (field === 'logo' && value.startsWith('data:')) {
       setIsUploading(true);
@@ -3368,16 +3408,26 @@ function AdminPageInner() {
                                                   )}
                                                 </div>
                                                 <div className="flex-1 space-y-1">
-                                                  <div className="relative">
-                                                    <input
-                                                      type="file"
-                                                      accept="image/*"
-                                                      onChange={(e) => handleSubmenuLogoUpload(menuIndex, submenuIndex, e)}
-                                                      className="absolute inset-0 opacity-0 cursor-pointer"
-                                                    />
-                                                    <button className="w-full p-1 bg-zinc-200 text-zinc-700 rounded text-[8px] font-bold uppercase tracking-widest">
-                                                      Upload Logo
-                                                    </button>
+                                                  <div className="flex gap-1">
+                                                    <div className="flex-1 relative">
+                                                      <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => handleSubmenuLogoUpload(menuIndex, submenuIndex, e)}
+                                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                                      />
+                                                      <button className="w-full p-1 bg-zinc-200 text-zinc-700 rounded text-[8px] font-bold uppercase tracking-widest">
+                                                        Upload Logo
+                                                      </button>
+                                                    </div>
+                                                    {submenu.logo && (
+                                                      <button
+                                                        onClick={() => handleRemoveSubmenuLogo(menuIndex, submenuIndex)}
+                                                        className="px-2 py-1 bg-red-100 text-red-600 hover:bg-red-200 rounded text-[8px] font-bold uppercase tracking-widest transition-colors"
+                                                      >
+                                                        Remove
+                                                      </button>
+                                                    )}
                                                   </div>
                                                   <input
                                                     type="text"
@@ -3428,6 +3478,14 @@ function AdminPageInner() {
                                                         Upload
                                                       </button>
                                                     </div>
+                                                    {item.logo && (
+                                                      <button
+                                                        onClick={() => handleRemoveNavItemLogo(menuIndex, submenuIndex, itemIndex)}
+                                                        className="px-1.5 py-1 bg-red-100 text-red-600 hover:bg-red-200 rounded text-[8px] font-bold uppercase tracking-widest transition-colors flex-shrink-0"
+                                                      >
+                                                        Remove
+                                                      </button>
+                                                    )}
                                                     <input
                                                       type="text"
                                                       placeholder="URL"

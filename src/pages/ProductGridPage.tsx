@@ -449,6 +449,38 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     return [];
   }, [currentMenu, submenu]);
 
+  // For equipment category, reorganize into two groups: (1) 4-column main items, (2) 3-column apparel items
+  const reorganizedGroups = useMemo(() => {
+    if (!isEquipmentCategory || submenu) return groupedSubmenuItems;
+
+    const group1Labels = ["balls", "goalkeeper", "goalkeeper gloves", "bags", "futsal", "futsal balls"];
+    const group2Labels = ["socks", "shinguards", "shin guards", "accessories"];
+
+    const group1Items: { label: string; path: string; logo: string }[] = [];
+    const group2Items: { label: string; path: string; logo: string }[] = [];
+
+    groupedSubmenuItems.forEach(group => {
+      group.items.forEach(item => {
+        const itemLabelLower = item.label.toLowerCase();
+        if (group1Labels.some(l => itemLabelLower.includes(l))) {
+          group1Items.push(item);
+        } else if (group2Labels.some(l => itemLabelLower.includes(l))) {
+          group2Items.push(item);
+        }
+      });
+    });
+
+    const result: Array<{ heading: string; items: Array<{ label: string; path: string; logo: string }>; gridClass: string }> = [];
+    if (group1Items.length > 0) {
+      result.push({ heading: "Main Equipment", items: group1Items, gridClass: "grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" });
+    }
+    if (group2Items.length > 0) {
+      result.push({ heading: "Apparel & Accessories", items: group2Items, gridClass: "grid grid-cols-2 md:grid-cols-3 gap-4" });
+    }
+
+    return result.length > 0 ? result : groupedSubmenuItems;
+  }, [groupedSubmenuItems, isEquipmentCategory, submenu]);
+
   // When submenu matches a heading (EUROPE, LIGAâ€¦), groupedSubmenuItems has logo items â†’ show ONLY the logo grid.
   // When submenu matches an item (PORTUGAL, ARSENALâ€¦), groupedSubmenuItems is empty â†’ show product grid.
   const isHeadingLandingPage = !!submenu && groupedSubmenuItems.length > 0;
@@ -631,7 +663,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
       {/* Submenu logo grid */}
       {groupedSubmenuItems.length > 0 && !urlQuery && !region && (
         <div className="mb-24 space-y-16">
-          {groupedSubmenuItems.map((group, groupIdx) => (
+          {reorganizedGroups.map((group, groupIdx) => (
             <div key={groupIdx} className="space-y-8">
               <div className="flex items-center gap-4">
                 <h2 className="text-[11px] font-black text-zinc-900 uppercase tracking-[0.3em] whitespace-nowrap">
@@ -640,9 +672,9 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                 <div className="h-px bg-zinc-100 flex-1" />
               </div>
 
-              <div className={isEquipmentCategory
-                ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'
-                : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6'}>
+              <div className={(group as any).gridClass || (isEquipmentCategory
+                ? 'grid grid-cols-2 md:grid-cols-4 gap-4'
+                : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6')}>
                 {group.items.map((item, idx) => (
                   <motion.div
                     key={item.path + idx}
@@ -653,21 +685,21 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                     {isEquipmentCategory ? (
                       <Link
                         to={item.path}
-                        className="relative block overflow-hidden rounded-xl group cursor-pointer"
-                        style={{ aspectRatio: '4/3' }}
+                        className="relative overflow-hidden rounded-xl group cursor-pointer"
+                        style={{ aspectRatio: '16/9', maxHeight: "200px" }}
                       >
                         <img
                           src={item.logo}
                           alt={item.label}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="w-full h-full object-cover md:grayscale md:group-hover:grayscale-0 transition-all duration-500 group-hover:scale-105"
                           referrerPolicy="no-referrer"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/20 to-transparent" />
-                        <div className="absolute top-0 left-0 p-3">
-                          <h3 className="text-white font-black uppercase text-xs tracking-widest drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                        <div className="absolute inset-0 bg-black/20 md:bg-black/60 md:group-hover:bg-black/20 transition-all duration-500" />
+                        <div className="absolute top-0 left-0 p-3 z-10">
+                          <h3 className="text-white font-black uppercase text-[10px] md:text-xs tracking-widest mb-1 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                             {item.label}
                           </h3>
-                          <span className="text-white/70 text-xs font-medium uppercase tracking-wider">
+                          <span className="text-white/70 text-[9px] md:text-[10px] font-medium uppercase tracking-wider">
                             Explore &rarr;
                           </span>
                         </div>

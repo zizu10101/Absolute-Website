@@ -6,7 +6,62 @@ Admin login: info@edgedbs.com
 
 ## RECENT CHANGES (August 2026)
 
-**EQUIPMENT CATEGORY TILE REDESIGN (Session 60 - CURRENT):**
+**NAVIGATION LOGO REMOVAL FIX + EQUIPMENT GRID LAYOUT (Session 61 - CURRENT):**
+
+**Navigation Logo Removal Persistence:**
+- `src/context/SettingsContext.tsx` `saveNavigation()` function (lines 608-695): Fixed fallback logic that was re-adding deleted logos
+  - **Root cause:** When `saveNavigation()` ran, it snapshotted old logos from the database into a `logoByLabel` Map, then used null-coalescing `??` to fall back to those old values: `const subLogo = normalizePath(sub.logo) ?? logoByLabel.get(...)`
+  - When user removed a logo (set to `null`), `normalizePath(null)` returned `null`, but then `null ?? oldLogo` fell back to the old logo!
+  - **Fix:** Removed the entire `logoByLabel` cache (lines 619-627), and changed `??` to `||` on logo calculations (lines 651, 668)
+  - Now `const subLogo = normalizePath(sub.logo) || null` — if logo is null, it stays null
+  - Logo removal now persists correctly through page refresh and after "Save Navigation"
+  
+- `src/pages/AdminPage.tsx` (lines 2441-2479): Added `handleRemoveSubmenuLogo()` and `handleRemoveNavItemLogo()` functions
+  - Call `updateNavigationItem(id, { logo_url: null })` via SettingsContext to update database immediately
+  - Update local state to `null` (not empty string) after successful DB update
+  - Show error alerts if database update fails
+  - Added Remove buttons in UI (red buttons next to Upload buttons) when a logo exists
+
+**Equipment Grid Layout - Two Groups:**
+- `src/pages/ProductGridPage.tsx` (lines 452-482): New `reorganizedGroups` useMemo reorganizes equipment items into two separate grids
+  - **Group 1 (4 columns):** Balls, Goalkeeper Gloves, Bags, Futsal Balls
+    - Grid: `grid grid-cols-2 md:grid-cols-4 gap-4 mb-6`
+    - 2 columns mobile, 4 columns desktop
+  - **Group 2 (3 columns):** Socks, Shinguards, Accessories  
+    - Grid: `grid grid-cols-2 md:grid-cols-3 gap-4`
+    - 2 columns mobile, 3 columns desktop
+  - Items filtered by `label.toLowerCase().includes()` matching predefined arrays
+  - Only reorganizes for equipment category; other categories unaffected
+  
+- `src/pages/ProductGridPage.tsx` (lines 691-705): Equipment card styling with responsive effects
+  - **Aspect ratio:** `16/9` with `maxHeight: 200px` for compact sizing
+  - **Mobile (< md):** Always shows full color image, light overlay
+    - No grayscale effect (hover states don't work on mobile)
+    - `bg-black/20` overlay for visibility without blocking image
+    - Smaller text: h3 `text-[10px]`, span `text-[9px]`
+  - **Desktop (md+):** Grayscale to color hover with dark overlay fade
+    - Image starts `md:grayscale`, hover reveals `md:group-hover:grayscale-0`
+    - `md:bg-black/60` overlay, fades to `md:group-hover:bg-black/20` on hover
+    - Slightly larger text: h3 `md:text-xs`, span `md:text-[10px]`
+    - Image scales up `group-hover:scale-105` on hover
+    - Smooth transitions: `transition-all duration-500`
+  - Text overlay positioned `absolute top-0 left-0 p-3 z-10` with drop shadow
+  - All other categories (National Teams, Clubs, Footwear) unchanged
+
+**Testing Verified:**
+- ✅ Equipment page shows two separate grids with correct column counts
+- ✅ Mobile view: Full color images immediately visible, text readable
+- ✅ Desktop view: Grayscale cards reveal color on hover, overlay fades
+- ✅ Logo removal persists after page refresh
+- ✅ Logo removal persists after "Save Navigation" 
+- ✅ Remove buttons only appear when logo exists
+- ✅ Other category pages unaffected
+
+**Deployment:** Changes ready for commit
+
+---
+
+**EQUIPMENT CATEGORY TILE REDESIGN (Session 60):**
 - `src/pages/ProductGridPage.tsx`: the "submenu logo grid" block (renders whenever a nav-menu heading has logo items — used by Equipment subcategories, National Teams regions, Clubs leagues, and Footwear brand grids, all sharing the same code path) previously rendered every group identically: a white `bg-white border border-zinc-100 rounded-2xl` card with a contained/grayscale-to-color logo and a label below
 - Added an `isEquipmentCategory` flag (`(category || title || '').toLowerCase().trim() === 'equipment'`) and branched the card rendering on it — **only** the Equipment page (Balls, Goalkeeper, Futsal, etc., which use real dark studio photography) got the redesign; National Teams/Clubs/Footwear kept their existing white card untouched, since those use transparent crest/flag/brand-logo PNGs that need the white backdrop to render correctly (confirmed with the user before changing anything, given the component is shared)
 - Equipment cards: full-bleed image (`object-cover`, no white container), `bg-gradient-to-br from-black/70 via-black/20 to-transparent` gradient, white title + "Explore →" overlaid top-left with `drop-shadow`, no text below the image

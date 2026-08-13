@@ -202,6 +202,8 @@ export interface ReceiptData {
     size?: string;
     ageGroup?: string;
     discount?: { type: 'percent' | 'fixed' | 'newprice'; value: number };
+    priceOverridden?: boolean; // true when staff manually set a price
+    originalPrice?: number; // pre-override price shown alongside the note
   }>;
   subtotal: number;
   hst: number;
@@ -252,11 +254,15 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       const discountLine = item.discount
         ? `<div class="item-detail">Discount: -${money(unitDiscount * item.quantity)}</div>`
         : '';
+      const overrideLine = item.priceOverridden
+        ? `<div class="item-detail">*PRICE OVERRIDE*${item.originalPrice !== undefined ? ` (was ${money(item.originalPrice)})` : ''}</div>`
+        : '';
 
       return `
         <div class="item">
           <div class="item-row"><span class="item-name">${truncateName(item.name)}</span><span class="item-price">${money(lineTotal)}</span></div>
           <div class="item-detail">${detailParts.join(' | ')}</div>
+          ${overrideLine}
           ${discountLine}
         </div>`;
     })

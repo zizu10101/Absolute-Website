@@ -13,6 +13,7 @@ export interface CartItem {
   quantity: number;
   category: string;
   discount?: ItemDiscount; // per-item discount, applied to this line only
+  priceOverride?: number; // staff-set price override; takes precedence over price + discount
   isOnSale?: boolean;
   salePrice?: number;
   variantId?: string;
@@ -45,9 +46,11 @@ export const formatItemDiscountLabel = (discount: ItemDiscount): string => {
   return `$${discount.value.toFixed(2)}`;
 };
 
-// Final per-unit price after the item's discount is applied
-export const getItemDiscountedPrice = (item: CartItem): number =>
-  Math.max(0, item.price - getItemUnitDiscount(item));
+// Final per-unit price after any override or discount
+export const getItemDiscountedPrice = (item: CartItem): number => {
+  if (item.priceOverride !== undefined) return Math.max(0, item.priceOverride);
+  return Math.max(0, item.price - getItemUnitDiscount(item));
+};
 
 export interface Discount {
   type: 'percentage' | 'custom';
@@ -122,6 +125,16 @@ export function usePOSCart() {
   const updateItemPrice = (id: string, newPrice: number) => {
     setCart(prev =>
       prev.map(item => (item.id === id ? { ...item, price: Math.max(0, newPrice) } : item))
+    );
+  };
+
+  const overrideItemPrice = (id: string, override: number | null) => {
+    setCart(prev =>
+      prev.map(item =>
+        item.id === id
+          ? { ...item, priceOverride: override !== null ? Math.max(0, override) : undefined }
+          : item
+      )
     );
   };
 
@@ -219,6 +232,7 @@ export function usePOSCart() {
     addItem,
     removeItem,
     updateItemPrice,
+    overrideItemPrice,
     updateItemDiscount,
     updateItemQuantity,
     clearCart,
