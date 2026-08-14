@@ -333,6 +333,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
           desc.replace(/-/g, '').includes(searchTermNoHyphens) ||
           code.includes(searchTerm) ||
           code.replace(/-/g, '').includes(searchTermNoHyphens) ||
+          (p.colors || []).some((c: any) => (c.product_code || '').toLowerCase().includes(searchTerm)) ||
           (p.brand || '').toLowerCase().includes(searchTerm) ||
           p.submenu?.toLowerCase().includes(searchTerm) ||
           p.submenus?.some(s => s.toLowerCase().includes(searchTerm))
