@@ -680,6 +680,29 @@ export function POSPage() {
   const handleVoidRefundReturn = async (transactionId: string, action: 'void' | 'refund' | 'return') => {
 
     try {
+      // Voiding a completed sale restores the full quantity of every item back to inventory
+      if (action === 'void') {
+        const tx = recentTransactions.find((t: any) => t.id === transactionId);
+        if (tx && tx.status === 'completed') {
+          const items = tx.items || [];
+          for (const item of items) {
+            if (item.variantId) {
+              const { data: variant } = await supabase
+                .from('product_variants')
+                .select('stock_quantity')
+                .eq('id', item.variantId)
+                .single();
+
+              if (variant) {
+                const newQty = (variant.stock_quantity || 0) + (item.quantity || 1);
+                await supabase.from('product_variants').update({ stock_quantity: newQty }).eq('id', item.variantId);
+                applyLocalStockDelta(item.variantId, item.quantity || 1);
+              }
+            }
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('transactions')
         .update({ status: action })
@@ -1182,6 +1205,36 @@ export function POSPage() {
     setScSearchResults([]);
   };
 
+  // Applies a stock_quantity delta to local state (productVariants + productStockMap) so the
+  // UI reflects DB changes immediately, without waiting for a full refetch.
+  const applyLocalStockDelta = (variantId: string, delta: number) => {
+    let affectedProductId: string | undefined;
+    for (const [productId, list] of productVariants) {
+      if (list.some((v: any) => v.id === variantId)) {
+        affectedProductId = productId;
+        break;
+      }
+    }
+    if (!affectedProductId) return;
+    const productId = affectedProductId;
+
+    setProductVariants(prev => {
+      const list = prev.get(productId);
+      if (!list) return prev;
+      const next = new Map(prev);
+      next.set(productId, list.map((v: any) =>
+        v.id === variantId ? { ...v, stock_quantity: Math.max(0, (v.stock_quantity || 0) + delta) } : v
+      ));
+      return next;
+    });
+
+    setProductStockMap(prev => {
+      const next = new Map(prev);
+      next.set(productId, Math.max(0, (prev.get(productId) || 0) + delta));
+      return next;
+    });
+  };
+
   const processPayment = async (method: string, tenderedAmount?: number, storeCredit?: any, giftCard?: any) => {
     // CRITICAL: Capture state values BEFORE any awaits - state can change during async operations
     const capturedStoreCredit = storeCredit || selectedStoreCredit;
@@ -1249,6 +1302,7 @@ export function POSPage() {
             if (variant) {
               const newQty = Math.max(0, (variant.stock_quantity || 0) - (item.quantity || 1));
               await supabase.from('product_variants').update({ stock_quantity: newQty }).eq('id', variantId);
+              applyLocalStockDelta(variantId, -(item.quantity || 1));
             }
           } catch (err) {
             console.error('Stock deduction error:', err);
@@ -2181,7 +2235,7 @@ export function POSPage() {
             <h2 className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>Transaction History</h2>
           </div>
           <div className="flex-1 overflow-hidden">
-            <PosTransactionHistory />
+            <PosTransactionHistory onStockChange={applyLocalStockDelta} />
           </div>
         </div>
       )}

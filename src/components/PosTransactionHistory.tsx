@@ -28,7 +28,13 @@ interface Transaction {
 }
 
 
-export const PosTransactionHistory: React.FC = () => {
+interface PosTransactionHistoryProps {
+  // Notifies the parent POS page to sync its local stock state (productVariants/productStockMap)
+  // after this component writes a stock_quantity change directly to the DB.
+  onStockChange?: (variantId: string, delta: number) => void;
+}
+
+export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ onStockChange }) => {
   const { customers } = useCustomers();
   const { logo } = useSettings();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -131,6 +137,29 @@ export const PosTransactionHistory: React.FC = () => {
   const handleVoid = async (tx: Transaction) => {
     if (!confirm('Void this transaction?')) return;
     try {
+      // Restore the full quantity of every item back to inventory
+      if (tx.status === 'completed') {
+        const items = tx.items || [];
+        for (const item of items) {
+          if (item.variantId) {
+            const { data: variant } = await supabase
+              .from('product_variants')
+              .select('stock_quantity')
+              .eq('id', item.variantId)
+              .single();
+
+            if (variant) {
+              const newQty = (variant.stock_quantity || 0) + (item.quantity || 1);
+              await supabase
+                .from('product_variants')
+                .update({ stock_quantity: newQty })
+                .eq('id', item.variantId);
+              onStockChange?.(item.variantId, item.quantity || 1);
+            }
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('transactions')
         .update({ status: 'voided' })
@@ -148,6 +177,27 @@ export const PosTransactionHistory: React.FC = () => {
   const handleUnvoid = async (tx: Transaction) => {
     if (!confirm('Restore this transaction?')) return;
     try {
+      // Mirror handleVoid: re-deduct the items that were restored to inventory on void
+      const items = tx.items || [];
+      for (const item of items) {
+        if (item.variantId) {
+          const { data: variant } = await supabase
+            .from('product_variants')
+            .select('stock_quantity')
+            .eq('id', item.variantId)
+            .single();
+
+          if (variant) {
+            const newQty = Math.max(0, (variant.stock_quantity || 0) - (item.quantity || 1));
+            await supabase
+              .from('product_variants')
+              .update({ stock_quantity: newQty })
+              .eq('id', item.variantId);
+            onStockChange?.(item.variantId, -(item.quantity || 1));
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('transactions')
         .update({ status: 'completed' })
