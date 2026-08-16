@@ -2006,6 +2006,11 @@ export function POSPage() {
                             <span>${(getItemDiscountedPrice(item) * item.quantity).toFixed(2)}</span>
                           </div>
                         </div>
+                      ) : item.quantity > 1 ? (
+                        <div className="mb-1">
+                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{item.quantity} @ ${item.price.toFixed(2)} each</p>
+                          <p className="text-xs font-bold text-[var(--primary-color)]">Total: ${(item.price * item.quantity).toFixed(2)}</p>
+                        </div>
                       ) : (
                         <p className="text-xs font-bold text-[var(--primary-color)] mb-1">${(item.price * item.quantity).toFixed(2)}</p>
                       )}

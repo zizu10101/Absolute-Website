@@ -713,6 +713,11 @@ export function ProductDetailPage() {
                 <span className="text-xl text-zinc-400 line-through font-bold">${displayOriginalPrice.toFixed(2)}</span>
               )}
             </div>
+            {(selectedColorEntry?.product_code || product.product_code) && (
+              <p className="text-xs text-zinc-400 mt-2">
+                Style: {selectedColorEntry?.product_code || product.product_code}
+              </p>
+            )}
           </div>
 
           {/* Color Selection */}
