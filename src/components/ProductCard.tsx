@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import { Link } from 'react-router-dom';
-import { Product } from '../context/ProductContext';
+import { Product, ColorVariant } from '../context/ProductContext';
 import { buildProductUrl } from '../utils/slugify';
 
 interface ProductCardProps {
@@ -12,6 +12,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
   const [isHovered, setIsHovered] = React.useState(false);
   const [activeImage, setActiveImage] = React.useState<string | null>(null);
   const [activeColorIdx, setActiveColorIdx] = React.useState<number | null>(null);
+  const [hoveredColor, setHoveredColor] = React.useState<ColorVariant | null>(null);
 
   // Find the first image in the gallery that isn't the primary image
   const hoverImage = product.images?.find(img => img && img !== product.image);
@@ -20,11 +21,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
 
   // Compute lowest price, considering color-specific sale prices
   const colorSalePrices = (product.colors || []).filter(c => c.salePrice).map(c => c.salePrice!);
+  const hasColorSale = colorSalePrices.length > 0;
   const productEffectivePrice = product.isOnSale && product.salePrice ? product.salePrice : product.price;
-  const lowestPrice = colorSalePrices.length > 0
+  const lowestPrice = hasColorSale
     ? Math.min(productEffectivePrice, ...colorSalePrices)
     : productEffectivePrice;
-  const isOnSaleAny = (product.isOnSale && !!product.salePrice) || colorSalePrices.length > 0;
+  const isOnSaleAny = (product.isOnSale && !!product.salePrice) || hasColorSale;
 
   return (
     <div className={`bg-white group cursor-pointer border border-zinc-100 relative flex flex-col h-full${isSoldOut ? ' opacity-70' : ''}`}>
@@ -77,7 +79,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
               setActiveImage(null);
               setActiveColorIdx(null);
             }}
-            onMouseEnter={() => setActiveImage(null)}
+            onMouseEnter={() => { setActiveImage(null); setHoveredColor(null); }}
+            onMouseLeave={() => setHoveredColor(null)}
             className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === null ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
             aria-label="Show default product image"
           >
@@ -92,7 +95,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
                 setActiveImage(color.images[0] || null);
                 setActiveColorIdx(idx);
               }}
-              onMouseEnter={() => setActiveImage(color.images[0] || null)}
+              onMouseEnter={() => { setActiveImage(color.images[0] || null); setHoveredColor(color); }}
+              onMouseLeave={() => setHoveredColor(null)}
               className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === (color.images[0] || '___none___') ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
               title={color.name}
               aria-label={`Show ${color.name} color`}
@@ -115,9 +119,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
         )}
         <h3 className="text-[14px] font-semibold text-zinc-900 leading-tight flex-1">{product.name}</h3>
         <div className="mt-auto pt-2 flex items-center gap-2">
-          {isOnSaleAny ? (
+          {hoveredColor ? (
+            hoveredColor.salePrice ? (
+              <>
+                <span className="text-sm font-bold text-[var(--primary-color)]">${hoveredColor.salePrice.toFixed(2)}</span>
+                <span className="text-[10px] text-zinc-400 line-through">${product.price.toFixed(2)}</span>
+              </>
+            ) : (
+              <span className="text-sm font-bold text-[var(--primary-color)]">
+                ${(hoveredColor.price ?? product.price).toFixed(2)}
+              </span>
+            )
+          ) : isOnSaleAny ? (
             <>
-              <span className="text-sm font-bold text-[var(--primary-color)]">${lowestPrice.toFixed(2)}</span>
+              <span className="text-sm font-bold text-[var(--primary-color)]">
+                {hasColorSale ? 'From ' : ''}${lowestPrice.toFixed(2)}
+              </span>
               <span className="text-[10px] text-zinc-400 line-through">${product.price.toFixed(2)}</span>
             </>
           ) : (
