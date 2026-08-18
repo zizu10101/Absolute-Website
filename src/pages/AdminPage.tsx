@@ -958,7 +958,12 @@ function AdminPageInner() {
   };
 
   useEffect(() => {
-    const cleanImages = (contextSliderImages || []).filter(img => img && img.url && !img.url.startsWith('data:'));
+    const cleanImages = (contextSliderImages || []).filter(img =>
+      img &&
+      (img.url || img.mobile_image) &&
+      !(img.url || '').startsWith('data:') &&
+      !(img.mobile_image || '').startsWith('data:')
+    );
     setSliderImages(cleanImages);
   }, [contextSliderImages]);
 

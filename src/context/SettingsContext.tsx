@@ -19,11 +19,9 @@ interface HomeCategory {
 }
 
 export interface SliderImage {
-  url: string;
+  url?: string;
   title?: string;
   link?: string;
-  // Optional portrait/square image shown on mobile instead of `url` (via <picture><source>).
-  // Falls back to `url` when not set.
   mobile_image?: string;
 }
 
