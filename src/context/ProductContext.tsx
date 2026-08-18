@@ -8,6 +8,7 @@ export interface ColorVariant {
   price?: number;
   salePrice?: number;
   isDefault?: boolean;
+  product_code?: string;
 }
 
 export interface Product {

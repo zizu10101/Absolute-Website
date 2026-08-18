@@ -444,7 +444,7 @@ export function POSPage() {
         variantData = fuzzy;
       }
 
-      // Fallback: Search by product code if no variant found
+      // Fallback: Search by product-level product code
       let productByCode: any = null;
       if (!variantData) {
         const { data: codeMatch } = await supabase
@@ -455,7 +455,21 @@ export function POSPage() {
         productByCode = codeMatch;
       }
 
+      // Fallback: Search by color-level product_code in colors JSONB (e.g. Adidas colorway IG5427)
+      let colorByCode: { product: any; color: any } | null = null;
       if (!variantData && !productByCode) {
+        const { data: colorProducts } = await supabase
+          .from('products')
+          .select('*')
+          .filter('colors', 'cs', JSON.stringify([{ product_code: barcode }]));
+        if (colorProducts && colorProducts.length > 0) {
+          const prod = colorProducts[0];
+          const matchedColor = (prod.colors || []).find((c: any) => c.product_code === barcode);
+          if (matchedColor) colorByCode = { product: prod, color: matchedColor };
+        }
+      }
+
+      if (!variantData && !productByCode && !colorByCode) {
         openedUnknownModal = true;
         setUnknownBarcode(barcode);
         setUnknownBarcodeBrand('');
@@ -509,7 +523,7 @@ export function POSPage() {
           quantity: 1,
         };
       } else if (productByCode) {
-        // Product found via product code (no specific size/variant)
+        // Product found via product-level product code (no specific size/variant)
         const product = productByCode;
         cartItem = {
           id: product.id,
@@ -521,6 +535,23 @@ export function POSPage() {
           salePrice: product.salePrice,
           image: product.image,
           barcode: product.product_code,
+          quantity: 1,
+        };
+      } else if (colorByCode) {
+        // Product found via color-level product_code (e.g. Adidas colorway IG5427 → Black)
+        const { product, color: matchedColor } = colorByCode;
+        const colorPrice = matchedColor.salePrice || matchedColor.price || null;
+        cartItem = {
+          id: product.id,
+          name: product.name,
+          price: colorPrice ?? (product.isOnSale && product.salePrice ? product.salePrice : (product.price ?? 0)),
+          originalPrice: product.price ?? 0,
+          category: product.category || '',
+          isOnSale: product.isOnSale || !!matchedColor.salePrice,
+          salePrice: matchedColor.salePrice || product.salePrice,
+          image: product.image,
+          color: matchedColor.name,
+          barcode: matchedColor.product_code,
           quantity: 1,
         };
       } else {
@@ -822,7 +853,8 @@ export function POSPage() {
       if (showOnlineOnly && p.is_online !== true) return false;
       if (!matchesCategory(p, activeCategory)) return false;
       const q = searchQuery.toLowerCase();
-      return !q || p.name?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q);
+      return !q || p.name?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q) ||
+        (q.length >= 2 && (p.colors || []).some((c: any) => (c.product_code || '').toLowerCase().includes(q)));
     });
   }, [products, activeCategory, searchQuery, showOnlineOnly]);
 
@@ -1973,6 +2005,11 @@ export function POSPage() {
                             <span>Item Total</span>
                             <span>${(getItemDiscountedPrice(item) * item.quantity).toFixed(2)}</span>
                           </div>
+                        </div>
+                      ) : item.quantity > 1 ? (
+                        <div className="mb-1">
+                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{item.quantity} @ ${item.price.toFixed(2)} each</p>
+                          <p className="text-xs font-bold text-[var(--primary-color)]">Total: ${(item.price * item.quantity).toFixed(2)}</p>
                         </div>
                       ) : (
                         <p className="text-xs font-bold text-[var(--primary-color)] mb-1">${(item.price * item.quantity).toFixed(2)}</p>

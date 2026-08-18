@@ -390,14 +390,19 @@ export function ProductDetailPage() {
 
     const price = product.isOnSale && product.salePrice ? product.salePrice : product.price;
 
+    const selectedColorCode = selectedColor
+      ? (product.colors || []).find((c: any) => c.name === selectedColor)?.product_code || null
+      : null;
+    const skuCode = selectedColorCode || product.product_code || '';
+
     const schema: any = {
       "@context": "https://schema.org/",
       "@type": "Product",
       "name": product.name,
       "image": productImages.filter(Boolean),
       "description": product.description || '',
-      "sku": product.product_code || '',
-      "mpn": product.product_code || '',
+      "sku": skuCode,
+      "mpn": skuCode,
       "brand": {
         "@type": "Brand",
         "name": product.brand || "Absolute Soccer"
@@ -463,7 +468,7 @@ export function ProductDetailPage() {
     return () => {
       document.getElementById('product-schema-markup')?.remove();
     };
-  }, [product]);
+  }, [product, selectedColor]);
 
   useEffect(() => {
     if (product && product.images) {
@@ -708,6 +713,11 @@ export function ProductDetailPage() {
                 <span className="text-xl text-zinc-400 line-through font-bold">${displayOriginalPrice.toFixed(2)}</span>
               )}
             </div>
+            {(selectedColorEntry?.product_code || product.product_code) && (
+              <p className="text-xs text-zinc-400 mt-2">
+                Style: {selectedColorEntry?.product_code || product.product_code}
+              </p>
+            )}
           </div>
 
           {/* Color Selection */}

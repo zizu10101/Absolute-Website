@@ -4624,6 +4624,22 @@ function AdminPageInner() {
                             />
                           </div>
                           <div>
+                            <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Product Code (optional)</label>
+                            <input
+                              className="w-full p-2 bg-white border border-zinc-200 rounded text-xs font-mono focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
+                              placeholder="e.g. IG5427"
+                              value={(newProduct.colors || []).find((c: any) => c.isDefault)?.product_code || ''}
+                              onChange={e => {
+                                const colors = [...(newProduct.colors || [])];
+                                const masterIdx = colors.findIndex((c: any) => c.isDefault);
+                                if (masterIdx >= 0) {
+                                  colors[masterIdx] = {...colors[masterIdx], product_code: e.target.value || undefined};
+                                }
+                                setNewProduct({...newProduct, colors});
+                              }}
+                            />
+                          </div>
+                          <div className="col-span-2">
                             <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Master Variant Sale Price</label>
                             <input
                               className="w-full p-2 bg-white border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
@@ -4669,7 +4685,20 @@ function AdminPageInner() {
                                     const newColors = [...(newProduct.colors || [])];
                                     newColors[colorIdx] = {...newColors[colorIdx], name: e.target.value};
                                     setNewProduct({...newProduct, colors: newColors});
-                                  }} 
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Product Code (optional)</label>
+                                <input
+                                  className="w-full p-2 bg-white border border-zinc-200 rounded text-xs font-mono"
+                                  placeholder="e.g. IG5428"
+                                  value={(color as any).product_code || ''}
+                                  onChange={e => {
+                                    const newColors = [...(newProduct.colors || [])];
+                                    newColors[colorIdx] = {...newColors[colorIdx], product_code: e.target.value || undefined};
+                                    setNewProduct({...newProduct, colors: newColors});
+                                  }}
                                 />
                               </div>
                               <div>
@@ -5835,6 +5864,22 @@ function AdminPageInner() {
                         />
                       </div>
                       <div>
+                        <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Product Code (optional)</label>
+                        <input
+                          className="w-full p-2 bg-white border border-zinc-200 rounded text-xs font-mono focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
+                          placeholder="e.g. IG5427"
+                          value={(editingProduct.colors || []).find((c: any) => c.isDefault)?.product_code || ''}
+                          onChange={e => {
+                            const colors = [...(editingProduct.colors || [])];
+                            const masterIdx = colors.findIndex((c: any) => c.isDefault);
+                            if (masterIdx >= 0) {
+                              colors[masterIdx] = {...colors[masterIdx], product_code: e.target.value || undefined};
+                            }
+                            setEditingProduct({...editingProduct, colors});
+                          }}
+                        />
+                      </div>
+                      <div className="col-span-2">
                         <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Master Variant Sale Price</label>
                         <input
                           className="w-full p-2 bg-white border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
@@ -5881,6 +5926,19 @@ function AdminPageInner() {
                                 onChange={e => {
                                   const newColors = [...(editingProduct.colors || [])];
                                   newColors[colorIdx] = {...newColors[colorIdx], name: e.target.value};
+                                  setEditingProduct({...editingProduct, colors: newColors});
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Product Code (optional)</label>
+                              <input
+                                className="w-full p-2 bg-white border border-zinc-200 rounded text-xs font-mono"
+                                placeholder="e.g. IG5428"
+                                value={(color as any).product_code || ''}
+                                onChange={e => {
+                                  const newColors = [...(editingProduct.colors || [])];
+                                  newColors[colorIdx] = {...newColors[colorIdx], product_code: e.target.value || undefined};
                                   setEditingProduct({...editingProduct, colors: newColors});
                                 }}
                               />

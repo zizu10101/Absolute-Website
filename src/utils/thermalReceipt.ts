@@ -249,7 +249,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       const detailParts = [
         item.size ? `Size: ${item.size}` : '',
         item.ageGroup || '',
-        `Qty: ${item.quantity}`,
+        item.quantity > 1 ? `${item.quantity} @ ${money(discountedPrice)}` : `Qty: ${item.quantity}`,
       ].filter(Boolean);
       const discountLine = item.discount
         ? `<div class="item-detail">Discount: -${money(unitDiscount * item.quantity)}</div>`
