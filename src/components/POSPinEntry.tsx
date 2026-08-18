@@ -4,16 +4,27 @@ import { Lock, Delete } from 'lucide-react';
 interface POSPinEntryProps {
   onPinSubmit: (pin: string) => void;
   isDarkMode: boolean;
+  /** Heading above the keypad. Defaults to the POS register screen. */
+  title?: string;
+  subtitle?: string;
+  /** Number of PIN slots. Reaching it auto-submits. Minimum accepted length is always 4. */
+  maxLength?: number;
 }
 
-export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMode }) => {
+export const POSPinEntry: React.FC<POSPinEntryProps> = ({
+  onPinSubmit,
+  isDarkMode,
+  title = 'POS System',
+  subtitle = 'Enter your PIN to access',
+  maxLength = 6,
+}) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [shaking, setShaking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDigitClick = (digit: string) => {
-    if (pin.length < 6) {
+    if (pin.length < maxLength) {
       setPin(pin + digit);
       setError(null);
     }
@@ -59,7 +70,7 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
   };
 
   useEffect(() => {
-    if (pin.length === 6) {
+    if (pin.length === maxLength) {
       handleSubmit();
     }
   }, [pin]);
@@ -86,8 +97,8 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
 
           {/* Title */}
           <div className="text-center space-y-2">
-            <h1 className={`text-2xl font-black uppercase tracking-wider ${textClass}`}>POS System</h1>
-            <p className={isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}>Enter your PIN to access</p>
+            <h1 className={`text-2xl font-black uppercase tracking-wider ${textClass}`}>{title}</h1>
+            <p className={isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}>{subtitle}</p>
           </div>
 
           {/* Hidden keyboard input - inputMode="none" + readOnly suppress mobile keyboard */}
@@ -105,7 +116,7 @@ export const POSPinEntry: React.FC<POSPinEntryProps> = ({ onPinSubmit, isDarkMod
 
           {/* PIN display - pure CSS dots, no Unicode characters */}
           <div className={`w-full flex justify-center gap-2 py-6 px-4 rounded-lg ${isDarkMode ? 'bg-zinc-800/50' : 'bg-zinc-100'}`}>
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: maxLength }).map((_, i) => (
               <div
                 key={i}
                 className={`w-10 h-10 rounded-lg flex items-center justify-center border-2 transition-all ${

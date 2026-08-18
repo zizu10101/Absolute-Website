@@ -87,10 +87,6 @@ export function HomePage() {
   }, []);
   const gapVw = isMobile ? 0 : 2;
   const peekVw = (100 - slideWidthVw) / 2;
-  // Real banner images measure ~2.29-2.53:1 (landscape); tie frame height to width via
-  // aspect-ratio instead of a fixed vh so the full image fits with minimal letterboxing
-  // at any viewport size, rather than a height guessed independently of image proportions.
-  const slideAspectRatio = '12 / 5';
 
   useEffect(() => {
     if (sliderImages.length > 0 && (currentIndex < 0 || currentIndex > sliderImages.length + 1)) {
@@ -227,7 +223,7 @@ export function HomePage() {
         Toronto Soccer Shop (Absolute Soccer Mississauga, formerly Golazo Store) is a premier local soccer specialty store carrying Nike, Adidas, Puma, Joma, and New Balance soccer cleats, boots, jerseys, goalkeeper gloves, training gear, and team apparel. We offer custom kit printing and team uniform services for soccer clubs throughout Mississauga, Brampton, Oakville, Toronto, Etobicoke, Milton, and across the Greater Toronto Area. Browse our Gear Guides for expert cleat comparisons and buying advice. Visit our Mississauga showroom — Monday to Friday 1 PM to 7 PM, Saturday to Sunday 11 AM to 4 PM. Call us at 905-593-3600.
       </p>
       {sliderImages.length > 0 && (
-        <section className="relative w-full overflow-hidden bg-zinc-900">
+        <section className="relative w-full overflow-hidden bg-white">
           <div
             className="flex"
             style={{
@@ -243,19 +239,25 @@ export function HomePage() {
 
               const media = (
                 <>
-                  <img
-                    src={slide.url}
-                    alt={slide.title || 'Absolute Soccer Mississauga'}
-                    className="absolute inset-0 w-full h-full object-contain object-center bg-black"
-                    referrerPolicy="no-referrer"
-                    draggable={false}
-                    /* infiniteSlides[0] is a cloned copy of the last slide (off-screen, not
-                       the LCP element) — the real, visible first slide sits at index 1 since
-                       currentIndex starts at 1. Only that one gets eager/high priority. */
-                    loading={index === 1 ? 'eager' : 'lazy'}
-                    fetchPriority={index === 1 ? 'high' : 'low'}
-                    decoding="async"
-                  />
+                  <picture>
+                    {slide.mobile_image && (
+                      <source media="(max-width: 767px)" srcSet={slide.mobile_image} />
+                    )}
+                    <img
+                      src={slide.url}
+                      alt={slide.title || 'Absolute Soccer Mississauga'}
+                      className="absolute inset-0 w-full h-full object-cover object-top"
+                      style={{ objectFit: 'cover', objectPosition: 'top' }}
+                      referrerPolicy="no-referrer"
+                      draggable={false}
+                      /* infiniteSlides[0] is a cloned copy of the last slide (off-screen, not
+                         the LCP element) — the real, visible first slide sits at index 1 since
+                         currentIndex starts at 1. Only that one gets eager/high priority. */
+                      loading={index === 1 ? 'eager' : 'lazy'}
+                      fetchPriority={index === 1 ? 'high' : 'low'}
+                      decoding="async"
+                    />
+                  </picture>
                   <div
                     className={`absolute inset-0 bg-black transition-opacity duration-500 ${
                       isActive ? 'opacity-0' : 'opacity-50'
@@ -295,7 +297,12 @@ export function HomePage() {
                   className={`relative flex-shrink-0 overflow-hidden ${isMobile ? '' : 'rounded-xl'}`}
                   style={{
                     width: `${slideWidthVw}vw`,
-                    aspectRatio: slideAspectRatio,
+                    // Mobile: fixed 65vw height. Desktop: aspect-ratio (not a fixed px height)
+                    // so the frame adapts to whatever the uploaded image's real proportions
+                    // are — a fixed 550px was cropping heads off portrait/square uploads.
+                    height: isMobile ? '65vw' : undefined,
+                    aspectRatio: isMobile ? undefined : '16/9',
+                    backgroundColor: '#ffffff',
                     marginRight: index < infiniteSlides.length - 1 ? `${gapVw}vw` : 0,
                   }}
                   onClick={!isActive ? () => { setCurrentIndex(index); resetTimer(); } : undefined}

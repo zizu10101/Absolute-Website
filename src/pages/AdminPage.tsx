@@ -4,7 +4,7 @@ import { useProducts, Product } from '../context/ProductContext';
 import { useSettings, NavMenu, SEO, ThemeSettings, BrandImages, CategoryImages, forceManualNavigationMigration } from '../context/SettingsContext';
 import { DEFAULT_NAV } from '../constants/navigation';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, ChevronRight, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical, Palette, Barcode, Clock, Newspaper } from 'lucide-react';
+import { Trash2, Edit2, Plus, Upload, LayoutDashboard, Package, Image as ImageIcon, Save, Check, X, ArrowLeft, Menu, ChevronDown, ChevronUp, ChevronRight, LogOut, FileText, AlertCircle, Globe, Search, AlertTriangle, Download, Zap, CloudDownload, RefreshCw, CreditCard, BarChart3, ScanLine, GripVertical, Palette, Barcode, Clock, Newspaper, ClipboardList } from 'lucide-react';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -17,9 +17,10 @@ import { GiftCardsAdmin } from '../components/GiftCardsAdmin';
 import { ReportsPage } from '../components/ReportsPage';
 import { PosLayawayTab } from '../components/PosLayawayTab';
 import { BlogAdminTab } from '../components/BlogAdminTab';
+import { InventoryCountsAdmin } from '../components/InventoryCountsAdmin';
 import BarcodePreview from 'react-barcode';
 
-type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports' | 'theme' | 'layaways' | 'blog';
+type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports' | 'theme' | 'layaways' | 'blog' | 'inventory-counts';
 
 const CATEGORIES = [
   'Footwear',
@@ -135,15 +136,27 @@ interface SortableSlideCardProps {
   img: any;
   index: number;
   onDelete: (index: number) => void;
-  onUpdate: (index: number, field: 'title' | 'link' | 'url', value: string) => void;
+  onUpdate: (index: number, field: 'title' | 'link' | 'url' | 'mobile_image', value: string) => void;
+  isUploading?: boolean;
 }
 
-function SortableSlideCard({ id, img, index, onDelete, onUpdate }: SortableSlideCardProps) {
+function SortableSlideCard({ id, img, index, onDelete, onUpdate, isUploading }: SortableSlideCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+  };
+
+  const handleMobileFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      onUpdate(index, 'mobile_image', reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // allow re-selecting the same file to replace again
   };
 
   return (
@@ -191,6 +204,37 @@ function SortableSlideCard({ id, img, index, onDelete, onUpdate }: SortableSlide
             className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
             placeholder="e.g. /footwear"
           />
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Mobile Image (portrait, optional)</label>
+          <p className="text-[10px] text-zinc-400 mb-2">Upload a portrait/square image for mobile devices</p>
+          {img.mobile_image ? (
+            <div className="flex items-center gap-2">
+              <img
+                src={img.mobile_image}
+                alt="Mobile crop preview"
+                className="w-12 h-16 object-cover rounded border border-zinc-200 shrink-0"
+              />
+              <label className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 bg-zinc-50 text-zinc-700 rounded border border-zinc-200 text-[10px] font-bold uppercase tracking-widest transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-zinc-100'}`}>
+                <Upload size={12} /> Replace
+                <input type="file" accept="image/*" className="hidden" onChange={handleMobileFileChange} disabled={isUploading} />
+              </label>
+              <button
+                type="button"
+                onClick={() => onUpdate(index, 'mobile_image', '')}
+                disabled={isUploading}
+                className="p-2 text-zinc-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                title="Remove mobile image"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <label className={`flex items-center justify-center gap-1.5 w-full px-2 py-2 bg-zinc-50 text-zinc-700 rounded border border-dashed border-zinc-300 text-[10px] font-bold uppercase tracking-widest transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-zinc-100'}`}>
+              <Upload size={12} /> Upload Mobile Image
+              <input type="file" accept="image/*" className="hidden" onChange={handleMobileFileChange} disabled={isUploading} />
+            </label>
+          )}
         </div>
       </div>
     </div>
@@ -1764,14 +1808,18 @@ function AdminPageInner() {
     }
   };
 
-  const updateSliderImage = async (index: number, field: 'title' | 'link' | 'url', value: string) => {
+  const updateSliderImage = async (index: number, field: 'title' | 'link' | 'url' | 'mobile_image', value: string) => {
     let finalValue = value;
-    if (field === 'url' && value.startsWith('data:')) {
+    if ((field === 'url' || field === 'mobile_image') && value.startsWith('data:')) {
       setUploading(true);
       setIsUploading(true);
       try {
-        const resized = await compressToWebP(value, 1600, 640, 0.85);
-        const path = `slider/${Date.now()}_pasted`;
+        // mobile_image is portrait/square (staff-supplied crop for phones), so it's resized
+        // to a portrait box instead of the wide 1600x640 desktop banner box.
+        const resized = field === 'mobile_image'
+          ? await compressToWebP(value, 900, 1200, 0.85)
+          : await compressToWebP(value, 1600, 640, 0.85);
+        const path = `slider/${Date.now()}_${field === 'mobile_image' ? 'mobile_pasted' : 'pasted'}`;
         finalValue = await uploadImage(resized, path);
       } catch (err) {
         console.error("Slider upload failed:", err);
@@ -2865,6 +2913,12 @@ function AdminPageInner() {
             >
               <Newspaper size={14} /> Blog
             </button>
+            <button
+              onClick={() => setActiveTab('inventory-counts')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'inventory-counts' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+            >
+              <ClipboardList size={14} /> Inventory Counts
+            </button>
           </div>
         </div>
 
@@ -3020,6 +3074,7 @@ function AdminPageInner() {
                               index={index}
                               onDelete={handleDeleteSlide}
                               onUpdate={updateSliderImage}
+                              isUploading={isUploading || uploading}
                             />
                           ))}
                         </div>
@@ -6304,6 +6359,17 @@ function AdminPageInner() {
               exit={{ opacity: 0, y: -10 }}
             >
               <BlogAdminTab />
+            </motion.div>
+          )}
+
+          {activeTab === 'inventory-counts' && (
+            <motion.div
+              key="inventory-counts"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <InventoryCountsAdmin />
             </motion.div>
           )}
         </AnimatePresence>

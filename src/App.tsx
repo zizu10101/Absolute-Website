@@ -12,6 +12,7 @@ import { HomePage } from './pages/HomePage';
 import { AdminLogin } from './pages/AdminLogin';
 import { POSPage } from './pages/POSPage';
 import { ReportsPageFull } from './pages/ReportsPageFull';
+import { InventoryCountPage } from './pages/InventoryCountPage';
 import { ProductProvider, useProducts } from './context/ProductContext';
 import { CustomerProvider } from './context/CustomerContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
@@ -62,7 +63,7 @@ function AppContent() {
   }, [productsLoading, settingsLoading]);
 
   // Bypass safety check: If the user is trying to go to the admin panel or /pos, don't show the loading gate at all
-  if (window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/pos') || window.location.hash.includes('/admin')) {
+  if (window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/pos') || window.location.pathname.startsWith('/inventory-count') || window.location.hash.includes('/admin')) {
     return <AppRoutes />;
   }
 
@@ -104,6 +105,11 @@ function AppRoutes() {
   // Check if current domain is torontosoccershop.com (with or without www) or localhost for dev
   const hostname = window.location.hostname.replace(/^www\./, '');
   const isAdminDomain = hostname === 'torontosoccershop.com' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+  // Inventory Count is used on staff phones, which reach the dev server over the store's Wi-Fi
+  // by LAN IP rather than by hostname. It's PIN-gated, so also allow private-network addresses.
+  const isPrivateLanHost = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(window.location.hostname);
+  const canUseInventoryCount = isAdminDomain || isPrivateLanHost;
 
   return (
     <>
@@ -202,6 +208,7 @@ function AppRoutes() {
         <Route path="/admin" element={isAdminDomain ? <AdminLogin /> : <AdminAccessDenied />} />
         <Route path="/pos" element={isAdminDomain ? <POSPage /> : <AdminAccessDenied />} />
         <Route path="/reports" element={isAdminDomain ? <ReportsPageFull /> : <AdminAccessDenied />} />
+        <Route path="/inventory-count" element={canUseInventoryCount ? <InventoryCountPage /> : <AdminAccessDenied />} />
       </Routes>
     </>
   );
