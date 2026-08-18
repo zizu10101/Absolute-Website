@@ -58,21 +58,7 @@ export function HomePage() {
     fetchSaleProducts();
   }, []);
 
-  // Infinite loop: clone the last slide before index 0 and the first slide after the end,
-  // so there's always real slide content peeking on both sides instead of grey space.
-  // currentIndex is a position into infiniteSlides (1 = first real slide).
-  const infiniteSlides = useMemo(() => {
-    if (sliderImages.length === 0) return [];
-    return [sliderImages[sliderImages.length - 1], ...sliderImages, sliderImages[0]];
-  }, [sliderImages]);
-
-  const [currentIndex, setCurrentIndex] = useState(1);
-  const [loopTransitionEnabled, setLoopTransitionEnabled] = useState(true);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const touchStartX = useRef<number | null>(null);
-
-  // Center slide is wide with a modest peek so existing wide banner graphics don't get cropped tight.
-  // Mobile gets no peek at all - full width slide, edge-to-edge, so the whole slide is visible.
+  // isMobile must be declared before visibleSlides/infiniteSlides so the filter can use it.
   const [slideWidthVw, setSlideWidthVw] = useState(84);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -88,11 +74,33 @@ export function HomePage() {
   const gapVw = isMobile ? 0 : 2;
   const peekVw = (100 - slideWidthVw) / 2;
 
+  // Only show slides that have an image for the current device type.
+  const visibleSlides = useMemo(() => {
+    return sliderImages.filter(slide =>
+      isMobile
+        ? (slide.mobile_image && slide.mobile_image !== '')
+        : (slide.url && slide.url !== '')
+    );
+  }, [sliderImages, isMobile]);
+
+  // Infinite loop: clone the last slide before index 0 and the first slide after the end,
+  // so there's always real slide content peeking on both sides instead of grey space.
+  // currentIndex is a position into infiniteSlides (1 = first real slide).
+  const infiniteSlides = useMemo(() => {
+    if (visibleSlides.length === 0) return [];
+    return [visibleSlides[visibleSlides.length - 1], ...visibleSlides, visibleSlides[0]];
+  }, [visibleSlides]);
+
+  const [currentIndex, setCurrentIndex] = useState(1);
+  const [loopTransitionEnabled, setLoopTransitionEnabled] = useState(true);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartX = useRef<number | null>(null);
+
   useEffect(() => {
-    if (sliderImages.length > 0 && (currentIndex < 0 || currentIndex > sliderImages.length + 1)) {
+    if (visibleSlides.length > 0 && (currentIndex < 0 || currentIndex > visibleSlides.length + 1)) {
       setCurrentIndex(1);
     }
-  }, [sliderImages, currentIndex]);
+  }, [visibleSlides, currentIndex]);
 
   // Clamp to the clone bounds so a rapid click/tick can't outrun the pending silent jump
   // and index past the end of infiniteSlides before it resolves.
@@ -108,27 +116,27 @@ export function HomePage() {
   useEffect(() => {
     resetTimer();
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [sliderImages]);
+  }, [visibleSlides]);
 
   // Landing on a cloned edge slide: let the transition play, then silently snap to the
   // matching real slide with the transition switched off so the jump is invisible.
   useEffect(() => {
-    if (sliderImages.length === 0) return;
+    if (visibleSlides.length === 0) return;
     if (currentIndex === 0) {
       const t = setTimeout(() => {
         setLoopTransitionEnabled(false);
-        setCurrentIndex(sliderImages.length);
+        setCurrentIndex(visibleSlides.length);
       }, 500);
       return () => clearTimeout(t);
     }
-    if (currentIndex === sliderImages.length + 1) {
+    if (currentIndex === visibleSlides.length + 1) {
       const t = setTimeout(() => {
         setLoopTransitionEnabled(false);
         setCurrentIndex(1);
       }, 500);
       return () => clearTimeout(t);
     }
-  }, [currentIndex, sliderImages.length]);
+  }, [currentIndex, visibleSlides.length]);
 
   // Re-enable the transition on the next paint, after the transition-less jump has applied.
   const reenableRafRef = useRef<number | null>(null);
@@ -158,8 +166,8 @@ export function HomePage() {
   };
   // Active dot for the real slide currently shown, wrapping correctly even while
   // briefly sitting on a cloned slide before the silent snap-back fires.
-  const activeRealIndex = sliderImages.length > 0
-    ? ((currentIndex - 1) % sliderImages.length + sliderImages.length) % sliderImages.length
+  const activeRealIndex = visibleSlides.length > 0
+    ? ((currentIndex - 1) % visibleSlides.length + visibleSlides.length) % visibleSlides.length
     : 0;
 
   const handleTouchStart = (e: TouchEvent) => {
@@ -222,7 +230,7 @@ export function HomePage() {
       <p className="sr-only">
         Toronto Soccer Shop (Absolute Soccer Mississauga, formerly Golazo Store) is a premier local soccer specialty store carrying Nike, Adidas, Puma, Joma, and New Balance soccer cleats, boots, jerseys, goalkeeper gloves, training gear, and team apparel. We offer custom kit printing and team uniform services for soccer clubs throughout Mississauga, Brampton, Oakville, Toronto, Etobicoke, Milton, and across the Greater Toronto Area. Browse our Gear Guides for expert cleat comparisons and buying advice. Visit our Mississauga showroom — Monday to Friday 1 PM to 7 PM, Saturday to Sunday 11 AM to 4 PM. Call us at 905-593-3600.
       </p>
-      {sliderImages.length > 0 && (
+      {visibleSlides.length > 0 && (
         <section className="relative w-full overflow-hidden bg-white">
           <div
             className="flex"
@@ -239,20 +247,13 @@ export function HomePage() {
 
               const media = (
                 <>
-                  <picture>
-                    {slide.mobile_image && (
-                      <source media="(max-width: 767px)" srcSet={slide.mobile_image} />
-                    )}
+                  <picture className="absolute inset-0 w-full h-full">
                     <img
-                      src={slide.url}
+                      src={isMobile ? slide.mobile_image : slide.url}
                       alt={slide.title || 'Absolute Soccer Mississauga'}
-                      className="absolute inset-0 w-full h-full object-cover object-top"
-                      style={{ objectFit: 'cover', objectPosition: 'top' }}
+                      className={`w-full h-full ${isMobile ? 'object-cover object-center' : 'object-contain'}`}
                       referrerPolicy="no-referrer"
                       draggable={false}
-                      /* infiniteSlides[0] is a cloned copy of the last slide (off-screen, not
-                         the LCP element) — the real, visible first slide sits at index 1 since
-                         currentIndex starts at 1. Only that one gets eager/high priority. */
                       loading={index === 1 ? 'eager' : 'lazy'}
                       fetchPriority={index === 1 ? 'high' : 'low'}
                       decoding="async"
@@ -297,10 +298,7 @@ export function HomePage() {
                   className={`relative flex-shrink-0 overflow-hidden ${isMobile ? '' : 'rounded-xl'}`}
                   style={{
                     width: `${slideWidthVw}vw`,
-                    // Mobile: fixed 65vw height. Desktop: aspect-ratio (not a fixed px height)
-                    // so the frame adapts to whatever the uploaded image's real proportions
-                    // are — a fixed 550px was cropping heads off portrait/square uploads.
-                    height: isMobile ? '65vw' : undefined,
+                    height: isMobile ? '90dvh' : undefined,
                     aspectRatio: isMobile ? undefined : '16/9',
                     backgroundColor: '#ffffff',
                     marginRight: index < infiniteSlides.length - 1 ? `${gapVw}vw` : 0,
@@ -321,7 +319,7 @@ export function HomePage() {
             })}
           </div>
 
-          {sliderImages.length > 1 && (
+          {visibleSlides.length > 1 && (
             <>
               <button
                 onClick={prevSlide}
@@ -338,7 +336,7 @@ export function HomePage() {
                 <ChevronRight className="text-white" size={24} />
               </button>
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex z-20">
-                {sliderImages.map((_, i) => (
+                {visibleSlides.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => goToSlide(i)}

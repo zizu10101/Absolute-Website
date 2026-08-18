@@ -147,20 +147,28 @@ function SortableSlideCard({ id, img, index, onDelete, onUpdate, isUploading }: 
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+  const [showEdit, setShowEdit] = useState(false);
+
+  const handleDesktopFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => { onUpdate(index, 'url', reader.result as string); };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   const handleMobileFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = () => {
-      onUpdate(index, 'mobile_image', reader.result as string);
-    };
+    reader.onloadend = () => { onUpdate(index, 'mobile_image', reader.result as string); };
     reader.readAsDataURL(file);
-    e.target.value = ''; // allow re-selecting the same file to replace again
+    e.target.value = '';
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="group relative rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200 shadow-sm flex flex-col">
+    <div ref={setNodeRef} style={style} className="rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200 shadow-sm flex flex-col">
       <div className="relative aspect-video">
         <div
           {...attributes}
@@ -171,72 +179,93 @@ function SortableSlideCard({ id, img, index, onDelete, onUpdate, isUploading }: 
           <GripVertical size={16} />
         </div>
         <img src={img.url} alt={img.title || `Slide ${index + 1}`} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <button
-            onClick={() => onDelete(index)}
-            className="bg-red-500 text-white p-3 rounded-full hover:bg-red-600 hover:scale-110 transition-all shadow-lg"
-            title="Remove image"
-          >
-            <Trash2 size={20} />
-          </button>
-        </div>
         <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-widest">
           Slide {index + 1}
         </div>
       </div>
-      <div className="p-4 space-y-3 bg-white border-t border-zinc-100">
-        <div>
-          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Slide Title (Optional)</label>
-          <input
-            type="text"
-            value={img.title || ''}
-            onChange={(e) => onUpdate(index, 'title', e.target.value)}
-            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
-            placeholder="e.g. New Season Arrivals"
-          />
-        </div>
-        <div>
-          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Click Link (URL)</label>
-          <input
-            type="text"
-            value={img.link || ''}
-            onChange={(e) => onUpdate(index, 'link', e.target.value)}
-            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
-            placeholder="e.g. /footwear"
-          />
-        </div>
-        <div>
-          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Mobile Image (portrait, optional)</label>
-          <p className="text-[10px] text-zinc-400 mb-2">Upload a portrait/square image for mobile devices</p>
-          {img.mobile_image ? (
-            <div className="flex items-center gap-2">
-              <img
-                src={img.mobile_image}
-                alt="Mobile crop preview"
-                className="w-12 h-16 object-cover rounded border border-zinc-200 shrink-0"
-              />
-              <label className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 bg-zinc-50 text-zinc-700 rounded border border-zinc-200 text-[10px] font-bold uppercase tracking-widest transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-zinc-100'}`}>
-                <Upload size={12} /> Replace
+
+      {/* Action row */}
+      <div className="flex items-center gap-2 p-3 bg-white border-t border-zinc-100 flex-wrap">
+        <label className={`cursor-pointer flex items-center gap-1 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded px-3 py-2 text-xs font-medium transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+          <Upload size={12} /> Replace Image
+          <input type="file" accept="image/*" className="hidden" onChange={handleDesktopFileChange} disabled={isUploading} />
+        </label>
+        <label className={`cursor-pointer flex items-center gap-1 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded px-3 py-2 text-xs font-medium transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+          <Upload size={12} /> Replace Mobile
+          <input type="file" accept="image/*" className="hidden" onChange={handleMobileFileChange} disabled={isUploading} />
+        </label>
+        <button
+          type="button"
+          onClick={() => setShowEdit(v => !v)}
+          className="flex items-center gap-1 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 rounded px-3 py-2 text-xs font-medium transition-colors"
+        >
+          <Edit2 size={12} /> Edit {showEdit ? '▲' : '▼'}
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(index)}
+          className="flex items-center gap-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded px-3 py-2 text-xs font-medium transition-colors ml-auto"
+        >
+          <Trash2 size={12} /> Delete
+        </button>
+      </div>
+
+      {/* Collapsible edit panel */}
+      {showEdit && (
+        <div className="p-4 space-y-3 bg-white border-t border-zinc-100">
+          <div>
+            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Slide Title (Optional)</label>
+            <input
+              type="text"
+              value={img.title || ''}
+              onChange={(e) => onUpdate(index, 'title', e.target.value)}
+              className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
+              placeholder="e.g. New Season Arrivals"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Click Link (URL)</label>
+            <input
+              type="text"
+              value={img.link || ''}
+              onChange={(e) => onUpdate(index, 'link', e.target.value)}
+              className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-[var(--primary-color)] outline-none"
+              placeholder="e.g. /footwear"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Mobile Image (portrait, optional)</label>
+            <p className="text-[10px] text-zinc-400 mb-2">Upload a portrait/square image for mobile devices</p>
+            {img.mobile_image ? (
+              <div className="flex items-center gap-2">
+                <img
+                  src={img.mobile_image}
+                  alt="Mobile crop preview"
+                  className="w-12 h-16 object-cover rounded border border-zinc-200 shrink-0"
+                />
+                <label className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 bg-zinc-50 text-zinc-700 rounded border border-zinc-200 text-[10px] font-bold uppercase tracking-widest transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-zinc-100'}`}>
+                  <Upload size={12} /> Replace
+                  <input type="file" accept="image/*" className="hidden" onChange={handleMobileFileChange} disabled={isUploading} />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => onUpdate(index, 'mobile_image', '')}
+                  disabled={isUploading}
+                  className="p-2 text-zinc-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                  title="Remove mobile image"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <label className={`flex items-center justify-center gap-1.5 w-full px-2 py-2 bg-zinc-50 text-zinc-700 rounded border border-dashed border-zinc-300 text-[10px] font-bold uppercase tracking-widest transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-zinc-100'}`}>
+                <Upload size={12} /> Upload Mobile Image
                 <input type="file" accept="image/*" className="hidden" onChange={handleMobileFileChange} disabled={isUploading} />
               </label>
-              <button
-                type="button"
-                onClick={() => onUpdate(index, 'mobile_image', '')}
-                disabled={isUploading}
-                className="p-2 text-zinc-400 hover:text-red-600 transition-colors disabled:opacity-50"
-                title="Remove mobile image"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ) : (
-            <label className={`flex items-center justify-center gap-1.5 w-full px-2 py-2 bg-zinc-50 text-zinc-700 rounded border border-dashed border-zinc-300 text-[10px] font-bold uppercase tracking-widest transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-zinc-100'}`}>
-              <Upload size={12} /> Upload Mobile Image
-              <input type="file" accept="image/*" className="hidden" onChange={handleMobileFileChange} disabled={isUploading} />
-            </label>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
