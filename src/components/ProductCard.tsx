@@ -16,6 +16,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
 
   // Find the first image in the gallery that isn't the primary image
   const hoverImage = product.images?.find(img => img && img !== product.image);
+  const nonDefaultColors = (product.colors || []).filter(c => typeof c === 'object' && !(c as any).isDefault);
   const displayImage = activeImage || (isHovered && hoverImage ? hoverImage : product.image);
   const productUrl = buildProductUrl(product);
 
@@ -46,12 +47,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
             FEATURED
           </div>
         )}
-        <div className="aspect-[4/5] overflow-hidden relative flex items-center justify-center bg-white">
+        <div className="w-full aspect-square bg-[#f6f6f6] overflow-hidden relative flex items-center justify-center rounded-lg">
           {displayImage ? (
             <img
               src={displayImage}
               alt={`${product.name} Soccer Cleats & Gear - Absolute Soccer Mississauga`}
-              className={`w-full h-full object-contain transition-all duration-500 group-hover:scale-105 p-2${isSoldOut ? ' grayscale' : ''}`}
+              className={`w-full h-full object-contain object-center transition-all duration-500 group-hover:scale-105 p-2${isSoldOut ? ' grayscale' : ''}`}
               referrerPolicy="no-referrer"
               loading="lazy"
               decoding="async"
@@ -70,7 +71,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
       </Link>
 
       {/* Color Thumbnails */}
-      {product.colors && product.colors.length > 0 && typeof product.colors[0] === 'object' && (
+      {product.colors && product.colors.length > 0 && typeof product.colors[0] === 'object' && nonDefaultColors.length > 0 && (
         <div className="px-6 pb-4 flex gap-2 overflow-x-auto no-scrollbar relative z-20">
           <button
             onClick={(e) => {
@@ -86,7 +87,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
           >
             <img src={product.image} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt="Default" />
           </button>
-          {product.colors.filter(c => !(c as any).isDefault).map((color, idx) => (
+          {nonDefaultColors.map((color, idx) => (
             <button
               key={idx}
               onClick={(e) => {
