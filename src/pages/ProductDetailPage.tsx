@@ -1,14 +1,17 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
+import { useCart } from '../context/CartContext';
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { ShoppingBag, ChevronRight, ChevronLeft, ShieldCheck, Truck, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { SizeSelector, SizeOption } from '../components/SizeSelector';
 
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const { fetchProductById, products } = useProducts();
+  const { addToCart } = useCart();
   const [product, setProduct] = useState<any>(null);
   const [isPageLoading, setIsPageLoading] = useState(true);
 
@@ -24,6 +27,7 @@ export function ProductDetailPage() {
   const [isAdded, setIsAdded] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(true);
+  const [showSizeSelector, setShowSizeSelector] = useState(false);
 
   const colorParam = searchParams.get('color');
   const [selectedColor, setSelectedColor] = useState<number | null>(colorParam !== null ? parseInt(colorParam) : null);
@@ -204,11 +208,30 @@ export function ProductDetailPage() {
   };
 
   const handleAddToCart = () => {
-    if (displayedSizesList.length > 0 && !selectedSize) {
-      // Prompt selection
-      alert("Please choose a size first.");
+    if (!product) return;
+
+    // Check if product has sizes and one is required
+    const inStockVariants = variants.filter(v => v.stock_quantity > 0);
+    const shouldShowSizes = product.showSizes && variants.length > 0 && inStockVariants.length > 0;
+
+    if (shouldShowSizes && !selectedSize) {
+      setShowSizeSelector(true);
       return;
     }
+
+    // Add to cart
+    const price = selectedColor !== null && product.colors?.[selectedColor]?.price
+      ? product.colors[selectedColor].price
+      : (product.isOnSale && product.salePrice ? product.salePrice : product.price);
+
+    addToCart({
+      productId: product.id,
+      name: product.name,
+      price,
+      image: product.image,
+      quantity,
+      size: selectedSize || undefined,
+    });
 
     setIsAdding(true);
     setTimeout(() => {
@@ -216,6 +239,12 @@ export function ProductDetailPage() {
       setIsAdded(true);
       setTimeout(() => setIsAdded(false), 3500);
     }, 850);
+  };
+
+  const handleSizeSelect = (size: string) => {
+    setSelectedSize(size);
+    setShowSizeSelector(false);
+    // Don't add to cart yet, user can click Add to Cart with the size selected
   };
 
   return (
@@ -434,22 +463,18 @@ export function ProductDetailPage() {
                     </div>
                   </div>
 
-                  {/* Call to Order CTA */}
+                  {/* Add to Cart CTA */}
                   <div className="border-t border-b border-zinc-100 py-6 space-y-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">
-                      Ready to order? Call us directly
-                    </p>
-                    <a
-                      href="tel:9055933600"
-                      className="flex items-center justify-center gap-3 w-full h-14 bg-[#b90014] text-white font-black uppercase tracking-widest text-sm hover:bg-zinc-900 transition-all shadow-xl shadow-red-950/10 rounded-lg"
+                    <button
+                      onClick={handleAddToCart}
+                      disabled={isOutOfStock}
+                      className="flex items-center justify-center gap-3 w-full h-14 bg-[#b90014] text-white font-black uppercase tracking-widest text-sm hover:bg-[#8a000f] disabled:bg-zinc-300 disabled:text-zinc-500 disabled:cursor-not-allowed transition-all shadow-xl shadow-red-950/10 rounded-lg"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-                      </svg>
-                      Call to Order — 905-593-3600
-                    </a>
+                      <ShoppingBag size={18} />
+                      {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+                    </button>
                     <p className="text-[10px] text-zinc-400 text-center uppercase tracking-widest">
-                      Online ordering coming soon — visit us or call to purchase
+                      Need help? Call 905-593-3600
                     </p>
                   </div>
                 </>
@@ -516,6 +541,17 @@ export function ProductDetailPage() {
         </div>
 
       </div>
+
+      {/* Size Selector Modal */}
+      {product && product.showSizes && variants.length > 0 && (
+        <SizeSelector
+          isOpen={showSizeSelector}
+          sizes={variants.filter(v => v.stock_quantity > 0).map(v => ({ size: v.size, stock_quantity: v.stock_quantity }))}
+          productName={product.name}
+          onSelect={handleSizeSelect}
+          onClose={() => setShowSizeSelector(false)}
+        />
+      )}
     </div>
   );
 }

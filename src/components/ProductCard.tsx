@@ -1,18 +1,116 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../context/ProductContext';
+import { useCart } from '../context/CartContext';
+import { supabase } from '../supabase';
+import { SizeSelector, SizeOption } from './SizeSelector';
+import { ShoppingBag } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+  const { addToCart } = useCart();
   const [isHovered, setIsHovered] = React.useState(false);
   const [activeImage, setActiveImage] = React.useState<string | null>(null);
   const [activeColorIdx, setActiveColorIdx] = React.useState<number | null>(null);
+  const [variants, setVariants] = useState<SizeOption[]>([]);
+  const [showSizeSelector, setShowSizeSelector] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch variants for this product
+  useEffect(() => {
+    const fetchVariants = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('product_variants')
+          .select('size, stock_quantity')
+          .eq('product_id', product.id);
+
+        if (!error && Array.isArray(data)) {
+          setVariants(data);
+        }
+      } catch (err) {
+        console.error('Error fetching variants:', err);
+      }
+    };
+
+    if (product.id) {
+      fetchVariants();
+    }
+
+    // Subscribe to real-time stock updates
+    const subscription = supabase
+      .channel(`product_variants:${product.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'product_variants',
+          filter: `product_id=eq.${product.id}`,
+        },
+        () => {
+          // Re-fetch variants when stock changes
+          fetchVariants();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [product.id]);
   
   if (product.colors && product.colors.length > 0) {
   }
+
+  const inStockVariants = variants.filter(v => v.stock_quantity > 0);
+  const hasInStockVariants = inStockVariants.length > 0;
+  const shouldShowSizes = product.showSizes && variants.length > 0;
+  const isOutOfStock = variants.length > 0 && !hasInStockVariants;
+
+  // Get minimum stock across all variants for display
+  const minStock = variants.length > 0
+    ? Math.min(...variants.map(v => v.stock_quantity))
+    : null;
+
+  const getStockStatus = () => {
+    if (isOutOfStock) return 'Out of Stock';
+    if (minStock !== null && minStock > 0 && minStock <= 3) return `Only ${minStock} left!`;
+    return null;
+  };
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (shouldShowSizes) {
+      setShowSizeSelector(true);
+    } else {
+      // Add without size
+      addToCart({
+        productId: product.id,
+        name: product.name,
+        price: product.isOnSale && product.salePrice ? product.salePrice : product.price,
+        image: product.image,
+        quantity: 1,
+      });
+    }
+  };
+
+  const handleSizeSelect = (size: string) => {
+    addToCart({
+      productId: product.id,
+      name: product.name,
+      price: product.isOnSale && product.salePrice ? product.salePrice : product.price,
+      image: product.image,
+      quantity: 1,
+      size,
+    });
+    setShowSizeSelector(false);
+  };
 
   // Find the first image in the gallery that isn't the primary image
   const hoverImage = product.images?.find(img => img && img !== product.image);
@@ -89,25 +187,63 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
       )}
 
-      <Link to={`/product/${product.id}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} className="p-6 block">
-        <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">
-          {product.category} {product.submenu && `• ${product.submenu}`}
-          {!product.submenu && product.submenus && product.submenus.length > 0 && `• ${product.submenus.join(', ')}`}
-        </p>
-        <h4 className="font-headline text-lg font-bold uppercase text-zinc-900">{product.name}</h4>
-        <div className="mt-4">
-          <div className="flex flex-col">
-            {product.isOnSale && product.salePrice ? (
-              <>
-                <span className="text-zinc-400 line-through text-xs font-bold">${product.price}</span>
-                <span className="font-headline font-black text-xl text-[#b90014]">${product.salePrice}</span>
-              </>
-            ) : (
-              <span className="font-headline font-black text-xl text-[#b90014]">${product.price}</span>
-            )}
+      <div className="p-6 flex flex-col h-full">
+        <Link to={`/product/${product.id}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} className="flex-1">
+          <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">
+            {product.category} {product.submenu && `• ${product.submenu}`}
+            {!product.submenu && product.submenus && product.submenus.length > 0 && `• ${product.submenus.join(', ')}`}
+          </p>
+          <h4 className="font-headline text-lg font-bold uppercase text-zinc-900">{product.name}</h4>
+          <div className="mt-4">
+            <div className="flex flex-col">
+              {product.isOnSale && product.salePrice ? (
+                <>
+                  <span className="text-zinc-400 line-through text-xs font-bold">${product.price}</span>
+                  <span className="font-headline font-black text-xl text-[#b90014]">${product.salePrice}</span>
+                </>
+              ) : (
+                <span className="font-headline font-black text-xl text-[#b90014]">${product.price}</span>
+              )}
+            </div>
           </div>
-        </div>
-      </Link>
+        </Link>
+
+        {/* Stock Status */}
+        {getStockStatus() && (
+          <div
+            className={`mt-2 text-xs font-bold uppercase text-center ${
+              isOutOfStock ? 'text-red-600' : 'text-amber-600'
+            }`}
+          >
+            {getStockStatus()}
+          </div>
+        )}
+
+        {/* Add to Cart Button */}
+        <button
+          onClick={handleAddToCart}
+          disabled={isOutOfStock}
+          className={`mt-4 w-full py-3 px-4 font-bold uppercase text-sm transition-all flex items-center justify-center gap-2 rounded ${
+            isOutOfStock
+              ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
+              : 'bg-[#b90014] text-white hover:bg-[#8a000f]'
+          }`}
+        >
+          <ShoppingBag size={16} />
+          {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+        </button>
+      </div>
+
+      {/* Size Selector Modal */}
+      {shouldShowSizes && (
+        <SizeSelector
+          isOpen={showSizeSelector}
+          sizes={inStockVariants}
+          productName={product.name}
+          onSelect={handleSizeSelect}
+          onClose={() => setShowSizeSelector(false)}
+        />
+      )}
     </div>
   );
 }

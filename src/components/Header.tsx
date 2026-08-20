@@ -1,8 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Search, Menu, User, Heart, X } from 'lucide-react';
+import { ShoppingBag, Search, Menu, User, Heart, X, LogOut, Settings } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+import { useCart } from '../context/CartContext';
+import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useRef, useEffect } from 'react';
+import { CartDrawer } from './CartDrawer';
 
 interface Props {
   onMenuClick: () => void;
@@ -12,12 +15,35 @@ import { DEFAULT_NAV } from '../constants/navigation';
 
 export function Header({ onMenuClick }: Props) {
   const { logo, navigationMenus } = useSettings();
+  const { itemCount } = useCart();
+  const { user, logout } = useCustomerAuth();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setIsAccountOpen(false);
+      }
+    };
+    if (isAccountOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isAccountOpen]);
+
+  const handleLogout = async () => {
+    await logout();
+    setIsAccountOpen(false);
+    navigate('/');
+  };
 
   // Reset active submenu when main menu changes
   useEffect(() => {
@@ -88,12 +114,83 @@ export function Header({ onMenuClick }: Props) {
             <Heart size={24} strokeWidth={1.5} />
             <span className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">0</span>
           </button>
-          <button 
+          <button
             onClick={() => setIsSearchOpen(true)}
             className="p-1 text-zinc-900 hover:text-[#b90014] transition-colors"
           >
             <Search size={24} strokeWidth={1.5} />
           </button>
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="p-1 text-zinc-900 hover:text-[#b90014] transition-colors relative"
+          >
+            <ShoppingBag size={24} strokeWidth={1.5} />
+            {itemCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#b90014] text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center">
+                {itemCount}
+              </span>
+            )}
+          </button>
+
+          {/* Account Menu */}
+          <div className="relative" ref={accountMenuRef}>
+            {user ? (
+              <button
+                onClick={() => setIsAccountOpen(!isAccountOpen)}
+                className="relative group"
+              >
+                {user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt={user.user_metadata?.first_name || 'User'}
+                    className="w-6 h-6 rounded-full border-2 border-transparent group-hover:border-[#b90014] transition-all"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-[#b90014] text-white flex items-center justify-center text-xs font-bold">
+                    {user.user_metadata?.first_name?.charAt(0) || user.email?.charAt(0) || 'U'}
+                  </div>
+                )}
+              </button>
+            ) : (
+              <Link to="/login" className="p-1 text-zinc-900 hover:text-[#b90014] transition-colors">
+                <User size={24} strokeWidth={1.5} />
+              </Link>
+            )}
+
+            {/* Dropdown Menu */}
+            <AnimatePresence>
+              {isAccountOpen && user && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-zinc-200 overflow-hidden z-50"
+                >
+                  <div className="px-4 py-3 border-b border-zinc-100">
+                    <p className="text-sm font-medium text-zinc-900">
+                      {user.user_metadata?.first_name || 'Account'}
+                    </p>
+                    <p className="text-xs text-zinc-600">{user.email}</p>
+                  </div>
+                  <Link
+                    to="/account"
+                    onClick={() => setIsAccountOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                  >
+                    <Settings size={16} />
+                    My Account
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-zinc-700 hover:bg-red-50 transition-colors border-t border-zinc-100"
+                  >
+                    <LogOut size={16} />
+                    Sign Out
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
@@ -198,6 +295,9 @@ export function Header({ onMenuClick }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Cart Drawer */}
+      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </header>
   );
 }
