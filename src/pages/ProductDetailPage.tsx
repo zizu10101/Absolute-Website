@@ -548,10 +548,23 @@ export function ProductDetailPage() {
         .map(v => v.size)
     ));
 
-    // Sort shoe sizes numerically, apparel sizes by standard order
-    if (product.category === 'Footwear') {
-      displayedSizesList.sort((a, b) => parseFloat(a) - parseFloat(b));
-    }
+    const sizeOrder = [
+      '8K', '8.5K', '9K', '9.5K', '10K', '10.5K',
+      '11K', '11.5K', '12K', '12.5K', '13K', '13.5K',
+      '1Y', '1.5Y', '2Y', '2.5Y', '3Y', '3.5Y',
+      '4Y', '4.5Y', '5Y', '5.5Y', '6Y', '6.5Y', '7Y',
+      '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5',
+      '10', '10.5', '11', '11.5', '12', '12.5', '13', '14', '15',
+      'XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL',
+      'YXS', 'YS', 'YM', 'YL', 'YXL',
+    ];
+    displayedSizesList.sort((a, b) => {
+      const ia = sizeOrder.indexOf(a), ib = sizeOrder.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b);
+    });
   } else {
     // Fallback to default lists when no variants exist
     displayedSizesList = product.category === 'Footwear' ? shoeSizes : apparelSizes;
