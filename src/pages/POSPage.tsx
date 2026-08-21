@@ -382,6 +382,14 @@ export function POSPage() {
     }
   }, [showCheckout, showDiscountModal, showUnknownBarcodeModal, showPendingBarcodesModal, posTab]);
 
+  const getVariantImage = (product: any, color: string) => {
+    if (!color) return product.image;
+    const colorData = product.colors?.find(
+      (c: any) => c.name?.toLowerCase() === color?.toLowerCase()
+    );
+    return colorData?.images?.[0] || product.image;
+  };
+
   // Barcode scanning
   const handleBarcodeScan = async (rawBarcode: string) => {
     const barcode = rawBarcode.trim().toUpperCase();
@@ -514,7 +522,7 @@ export function POSPage() {
           category: product.category || '',
           isOnSale: product.isOnSale || !!variantColorEntry?.salePrice,
           salePrice: variantColorEntry?.salePrice || product.salePrice,
-          image: product.image,
+          image: getVariantImage(product, variant.color),
           size: variant.size,
           color: variant.color,
           ageGroup: variant.age_group,

@@ -40,7 +40,7 @@
 - settings, blog_posts
 - cash_reports — see Session 63 below; columns: `id, report_date, opening_counts, closing_counts, opening_total, closing_total, pos_cash, pos_debit, pos_visa, pos_mc, pos_amex, pos_cheque, pos_other, pos_total, pos_breakdown, actual_cash, expected_cash, over_short, deposit, other, notes, created_at`. `pos_other`/`pos_breakdown` catch any payment method without its own fixed column (Gift Card, Store Credit, etc.) so nothing is silently dropped
 - inventory_counts — one row per submitted stocktake (see Session 65/66); columns: `id, count_date, counted_by, total_variants_counted, total_discrepancies, adjustments, created_at`. `adjustments` holds the FULL session (every counted variant, matches included — not just discrepancies) as `{variant_id, barcode, product_name, color, size, system_qty, counted_qty, diff, status}` where `status` is `match`/`discrepancy`/`new`, so Admin → Inventory Counts → View can show everything that was counted, not only what changed
-- `online_orders` exists only on the unmerged `ecommerce-dev` branch — not present on `main`
+- `online_orders` — merged from ecommerce-dev (August 21, 2026); columns: `id, customer_first_name, last_name, email, phone, shipping_address, city, province, postal_code, notes, items(jsonb), subtotal, tax, total, status, created_at, user_id, shipping_method, shipping_cost`
 
 **IMPORTANT:** `product_variants` has 2364+ rows. Supabase/PostgREST caps every request at 1000 rows regardless of the `.range()` bounds requested — a single `.range(0, 9999)` call will silently truncate to 1000 rows. Always paginate with a loop:
 ```js
@@ -63,11 +63,23 @@ while (true) {
 - public/logo-black.png used on all receipt types
 
 ## Current Branches
-- main: live site
-- ecommerce-dev: e-commerce Phases 1-5 complete, on hold pending a Stripe integration decision
+- main: live site — ecommerce-dev merged August 21, 2026
+- ecommerce-dev: merged into main; can continue as staging branch for Phase 6
+
+## E-Commerce Features (merged August 21, 2026)
+- Shopping cart (CartContext, CartDrawer, SizeSelector) with localStorage persistence
+- Checkout page (/checkout) with address form, HST, shipping options ($0 pickup / $15 ship)
+- Order confirmation emails via Resend.com (Supabase Edge Function `send-order-email`)
+- Stock validation + automatic reduction/restoration (shared with POS)
+- Customer auth: register, login, forgot password, Google OAuth, account page with order history
+- Admin → Online Orders tab (OnlineOrdersAdmin.tsx) — manage status, view details
+- New pages: /checkout, /order-confirmation, /register, /login, /forgot-password, /account
+- New contexts: CartContext, CustomerAuthContext (separate from admin AuthContext)
+- Google OAuth redirect: https://torontosoccershop.com/account
+- Migrations needed on a fresh DB: migrations/add_user_id_to_online_orders.sql, migrations/add_shipping_to_online_orders.sql
 
 ## Pending Items
-- Stripe payment integration (`ecommerce-dev` branch) — if/when going live with online payments
+- Stripe payment integration — next phase if/when going live with online payments
 - Receipt width fine-tuning on the Epson TM-T88V — not yet verified against real hardware
 - Re-upload logos through Admin → Settings → Theme so existing uploads pick up WebP transparency (the code fix only applies to new uploads, not retroactively)
 - Inventory Count (including the Session 66 Add Missing Variant / Print / CSV / Admin-history additions) not yet verified on a real phone or with a real barcode scanner — tested only in an emulated iPhone viewport, and Admin tab tested at desktop width. Not pushed pending that confirmation
@@ -76,6 +88,7 @@ while (true) {
 - `docs/cash-report-migration.sql` must be run in Supabase before Cash Report works — already applied to this project's live Supabase instance during Session 63 testing; only relevant if this project is ever pointed at a different DB
 
 ## Recent Changes (last 3 sessions)
+- **Session 73 (ecommerce-dev merge):** Merged e-commerce Phases 1-5 + admin/POS enhancements into main. Admin product list now has expandable variant rows (chevron → groups by color with stock badges + color image thumbnails, falls back to master image). `fetchAdminProducts` now selects `colors`, `brand`, `product_code`. POS barcode scan now resolves the correct color variant image via `getVariantImage(product, variant.color)` instead of always using master image.
 - **Session 72:** Product card color-hover price (ProductCard.tsx). Added `hoveredColor: ColorVariant | null` state. Color thumbnail buttons now call `setHoveredColor(color)` on `onMouseEnter` and `setHoveredColor(null)` on `onMouseLeave` (default button clears it too). Price display: hovering a sale color shows that color's `salePrice` in red + strikethrough of `product.price`; hovering a non-sale color shows `color.price` if set, else `product.price`; not hovering falls back to existing "From $X" / "$X" logic. Also added `hasColorSale` flag and "From " prefix to the default price when color-specific sales exist (so customers know not every color is at the lowest price). Reverted slider background to white (`bg-white` / `#ffffff`) — the `#f6f6f6` change was backed out.
 - **Session 71:** Fix mobile-only slides being silently dropped (AdminPage.tsx + SettingsContext.tsx). Bug: `useEffect` on line 961 of AdminPage re-synced local `sliderImages` from context after every save using `.filter(img => img && img.url && ...)` — `img.url` is falsy for a mobile-only slide (url `''`), so the slide vanished from the UI immediately after saving. Fix: filter now keeps any slide where `img.url || img.mobile_image` is truthy, and checks both fields for `data:` prefixes (not just `url`). Also made `SliderImage.url` optional (`url?: string`) in SettingsContext.tsx to match reality — a slide can exist with only `mobile_image` set.
 - **Session 70:** Admin slider independent image controls (AdminPage.tsx). Each slide card now has fully independent desktop and mobile image sections. Desktop section: 16:9 preview + `[Replace]` + `[Remove Desktop]` (sets `url` to `''`, slide stays) or an "Upload Desktop Image" dropzone when empty. Mobile section: 9:16 portrait preview + `[Replace Mobile]` + `[Remove Mobile]` (sets `mobile_image` to `''`, slide stays) or "Upload Mobile Image" dropzone when empty. Title/Link fields always visible (no Edit toggle). "Delete Slide" in the header bar triggers `window.confirm` before calling `onDelete`. `slideId` helper (`img.url || img.mobile_image || \`slide-${i}\``) replaces bare `img.url` as the DnD key/id everywhere (SortableContext items, SortableSlideCard key+id, both findIndex calls in handleSliderDragEnd) so drag-to-reorder keeps working even after a desktop image is cleared.
