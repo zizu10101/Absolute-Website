@@ -918,11 +918,12 @@ function AdminPageInner() {
     }
 
     if (ageGroup === 'Youth Footwear') {
-      const sizes = [];
-      for (let s = 1; s <= 6; s += 0.5) {
-        sizes.push(s % 1 === 0 ? `${s}Y` : `${s.toFixed(1)}Y`);
-      }
-      return sizes;
+      return [
+        '8K', '8.5K', '9K', '9.5K', '10K', '10.5K',
+        '11K', '11.5K', '12K', '12.5K', '13K', '13.5K',
+        '1Y', '1.5Y', '2Y', '2.5Y', '3Y', '3.5Y',
+        '4Y', '4.5Y', '5Y', '5.5Y', '6Y', '6.5Y', '7Y',
+      ];
     }
 
     const cat = category.toLowerCase();
@@ -937,11 +938,12 @@ function AdminPageInner() {
         return toddlerShoeSizes;
       }
       if (ageGroup === 'Youth') {
-        const youthShoeSizes = [];
-        for (let s = 1; s <= 7; s += 0.5) {
-          youthShoeSizes.push(`${s}Y`);
-        }
-        return youthShoeSizes;
+        return [
+          '8K', '8.5K', '9K', '9.5K', '10K', '10.5K',
+          '11K', '11.5K', '12K', '12.5K', '13K', '13.5K',
+          '1Y', '1.5Y', '2Y', '2.5Y', '3Y', '3.5Y',
+          '4Y', '4.5Y', '5Y', '5.5Y', '6Y', '6.5Y', '7Y',
+        ];
       }
       const adultShoeSizes = [];
       for (let s = 4; s <= 15; s += 0.5) {
