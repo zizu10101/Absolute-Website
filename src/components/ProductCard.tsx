@@ -1,11 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 import { Product, ColorVariant } from '../context/ProductContext';
 import { buildProductUrl } from '../utils/slugify';
-import { useCart } from '../context/CartContext';
-import { supabase } from '../supabase';
-import { SizeSelector, SizeOption } from './SizeSelector';
-import { ShoppingBag } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
@@ -13,83 +9,13 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = false }) => {
-  const { addToCart } = useCart();
   const [isHovered, setIsHovered] = React.useState(false);
   const [activeImage, setActiveImage] = React.useState<string | null>(null);
   const [activeColorIdx, setActiveColorIdx] = React.useState<number | null>(null);
   const [hoveredColor, setHoveredColor] = React.useState<ColorVariant | null>(null);
-  const [variants, setVariants] = useState<SizeOption[]>([]);
-  const [showSizeSelector, setShowSizeSelector] = useState(false);
-
-  useEffect(() => {
-    const fetchVariants = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('product_variants')
-          .select('size, stock_quantity')
-          .eq('product_id', product.id);
-        if (!error && Array.isArray(data)) setVariants(data);
-      } catch (err) {
-        console.error('Error fetching variants:', err);
-      }
-    };
-    if (product.id) fetchVariants();
-    const subscription = supabase
-      .channel(`product_variants:${product.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants', filter: `product_id=eq.${product.id}` }, fetchVariants)
-      .subscribe();
-    return () => { subscription.unsubscribe(); };
-  }, [product.id]);
-
-  const inStockVariants = variants.filter(v => v.stock_quantity > 0);
-  const hasInStockVariants = inStockVariants.length > 0;
-  const shouldShowSizes = product.showSizes && variants.length > 0;
-  const isOutOfStock = variants.length > 0 && !hasInStockVariants;
-
-  // Get minimum stock across all variants for display
-  const minStock = variants.length > 0
-    ? Math.min(...variants.map(v => v.stock_quantity))
-    : null;
-
-  const getStockStatus = () => {
-    if (isOutOfStock) return 'Out of Stock';
-    if (minStock !== null && minStock > 0 && minStock <= 3) return `Only ${minStock} left!`;
-    return null;
-  };
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (shouldShowSizes) {
-      setShowSizeSelector(true);
-    } else {
-      // Add without size
-      addToCart({
-        productId: product.id,
-        name: product.name,
-        price: product.isOnSale && product.salePrice ? product.salePrice : product.price,
-        image: product.image,
-        quantity: 1,
-      });
-    }
-  };
-
-  const handleSizeSelect = (size: string) => {
-    addToCart({
-      productId: product.id,
-      name: product.name,
-      price: product.isOnSale && product.salePrice ? product.salePrice : product.price,
-      image: product.image,
-      quantity: 1,
-      size,
-    });
-    setShowSizeSelector(false);
-  };
 
   // Find the first image in the gallery that isn't the primary image
   const hoverImage = product.images?.find(img => img && img !== product.image);
-  const nonDefaultColors = (product.colors || []).filter(c => typeof c === 'object' && !(c as any).isDefault);
   const displayImage = activeImage || (isHovered && hoverImage ? hoverImage : product.image);
   const productUrl = buildProductUrl(product);
 
@@ -120,12 +46,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
             FEATURED
           </div>
         )}
-        <div className="w-full aspect-square bg-[#f6f6f6] overflow-hidden relative flex items-center justify-center rounded-lg">
+        <div className="aspect-[4/5] overflow-hidden relative flex items-center justify-center bg-white">
           {displayImage ? (
             <img
               src={displayImage}
               alt={`${product.name} Soccer Cleats & Gear - Absolute Soccer Mississauga`}
-              className={`w-full h-full object-contain object-center transition-all duration-500 group-hover:scale-105 p-2${isSoldOut ? ' grayscale' : ''}`}
+              className={`w-full h-full object-contain transition-all duration-500 group-hover:scale-105 p-2${isSoldOut ? ' grayscale' : ''}`}
               referrerPolicy="no-referrer"
               loading="lazy"
               decoding="async"
@@ -144,7 +70,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
       </Link>
 
       {/* Color Thumbnails */}
-      {product.colors && product.colors.length > 0 && typeof product.colors[0] === 'object' && nonDefaultColors.length > 0 && (
+      {product.colors && product.colors.length > 0 && typeof product.colors[0] === 'object' && (
         <div className="px-6 pb-4 flex gap-2 overflow-x-auto no-scrollbar relative z-20">
           <button
             onClick={(e) => {
@@ -160,7 +86,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
           >
             <img src={product.image} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt="Default" />
           </button>
-          {nonDefaultColors.map((color, idx) => (
+          {product.colors.filter(c => !(c as any).isDefault).map((color, idx) => (
             <button
               key={idx}
               onClick={(e) => {
@@ -216,35 +142,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
           )}
         </div>
       </Link>
-
-      {getStockStatus() && (
-        <div className={`mx-3 mb-1 text-xs font-bold uppercase text-center ${isOutOfStock ? 'text-red-600' : 'text-amber-600'}`}>
-          {getStockStatus()}
-        </div>
-      )}
-
-      <button
-        onClick={handleAddToCart}
-        disabled={isOutOfStock}
-        className={`mx-3 mb-3 py-2 px-4 font-bold uppercase text-xs transition-all flex items-center justify-center gap-2 rounded ${
-          isOutOfStock
-            ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
-            : 'bg-[var(--primary-color)] text-white hover:opacity-90'
-        }`}
-      >
-        <ShoppingBag size={14} />
-        {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-      </button>
-
-      {shouldShowSizes && (
-        <SizeSelector
-          isOpen={showSizeSelector}
-          sizes={inStockVariants}
-          productName={product.name}
-          onSelect={handleSizeSelect}
-          onClose={() => setShowSizeSelector(false)}
-        />
-      )}
     </div>
   );
 }

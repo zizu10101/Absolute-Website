@@ -18,10 +18,9 @@ import { ReportsPage } from '../components/ReportsPage';
 import { PosLayawayTab } from '../components/PosLayawayTab';
 import { BlogAdminTab } from '../components/BlogAdminTab';
 import { InventoryCountsAdmin } from '../components/InventoryCountsAdmin';
-import { OnlineOrdersAdmin } from '../components/OnlineOrdersAdmin';
 import BarcodePreview from 'react-barcode';
 
-type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports' | 'theme' | 'layaways' | 'blog' | 'inventory-counts' | 'online-orders';
+type Tab = 'slider' | 'products' | 'home-layout' | 'navigation' | 'footer' | 'seo' | 'gift-cards' | 'reports' | 'theme' | 'layaways' | 'blog' | 'inventory-counts';
 
 const CATEGORIES = [
   'Footwear',
@@ -514,8 +513,6 @@ function AdminPageInner() {
   const [isBulkBrandAssigning, setIsBulkBrandAssigning] = useState(false);
   const [bulkBrandStatus, setBulkBrandStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [productStockCache, setProductStockCache] = useState<Map<string, number>>(new Map());
-  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
-  const [variantCache, setVariantCache] = useState<Record<string, any[]>>({});
 
   const syncToLocal = async () => {
     setIsSyncingLocal(true);
@@ -1458,6 +1455,7 @@ function AdminPageInner() {
   const generateMissingBarcodes = async () => {
     setIsGeneratingBarcodes(true);
     try {
+      // Paginate - product_variants can exceed Supabase's 1000-row cap
       const variants: { id: string }[] = [];
       let from = 0;
       const batchSize = 1000;
@@ -1479,6 +1477,9 @@ function AdminPageInner() {
         return;
       }
 
+      // Continue from the highest existing ABS-###### barcode already in use, so
+      // re-running this after new products are added never re-issues a number that
+      // collides with a barcode assigned on a previous run.
       const { data: existingAbs } = await supabase
         .from('product_variants')
         .select('barcode')
@@ -1510,35 +1511,6 @@ function AdminPageInner() {
     } finally {
       setIsGeneratingBarcodes(false);
     }
-  };
-
-  const getColorImage = (product: any, colorName: string): string | null => {
-    if (!colorName) return null;
-    const colorData = product.colors?.find(
-      (c: any) => c.name?.toLowerCase() === colorName?.toLowerCase()
-    );
-    return colorData?.images?.[0] || null;
-  };
-
-  const toggleExpand = (productId: string) => {
-    setExpandedProducts(prev => {
-      const next = new Set(prev);
-      if (next.has(productId)) {
-        next.delete(productId);
-      } else {
-        next.add(productId);
-      }
-      return next;
-    });
-  };
-
-  const fetchVariantsForProduct = async (productId: string) => {
-    const { data } = await supabase
-      .from('product_variants')
-      .select('size, color, stock_quantity')
-      .eq('product_id', productId)
-      .order('color', { ascending: true });
-    setVariantCache(prev => ({ ...prev, [productId]: data || [] }));
   };
 
   const handleBulkBrandAssign = async () => {
@@ -2988,12 +2960,6 @@ function AdminPageInner() {
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'inventory-counts' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
             >
               <ClipboardList size={14} /> Inventory Counts
-            </button>
-            <button
-              onClick={() => setActiveTab('online-orders')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all whitespace-nowrap ${activeTab === 'online-orders' ? 'bg-green-600 text-white shadow-md' : 'text-zinc-500 hover:text-green-600 hover:bg-green-50'}`}
-            >
-              <Package size={14} /> Online Orders
             </button>
           </div>
         </div>
@@ -5368,8 +5334,7 @@ function AdminPageInner() {
                       </div>
                     ) : (
                       paginatedProducts.map(product => (
-                        <div key={product.id}>
-                        <div className="p-3 sm:p-6 flex items-center gap-3 sm:gap-6 hover:bg-zinc-50 transition-colors group border-b border-zinc-100">
+                        <div key={product.id} className="p-3 sm:p-6 flex items-center gap-3 sm:gap-6 hover:bg-zinc-50 transition-colors group border-b border-zinc-100 last:border-b-0">
                           <input
                             type="checkbox"
                             checked={selectedProductIds.has(product.id)}
@@ -5411,19 +5376,6 @@ function AdminPageInner() {
                               <p className="text-[9px] text-amber-600 mt-0.5 font-medium">Missing Brand</p>
                             )}
                           </div>
-                          {/* Expand variants button */}
-                          <button
-                            onClick={() => {
-                              toggleExpand(product.id);
-                              if (!expandedProducts.has(product.id) && !variantCache[product.id]) {
-                                fetchVariantsForProduct(product.id);
-                              }
-                            }}
-                            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-all flex-shrink-0"
-                            title={expandedProducts.has(product.id) ? 'Collapse variants' : 'Show variants'}
-                          >
-                            {expandedProducts.has(product.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                          </button>
                           {/* Buttons: always visible on mobile, hover-only on desktop */}
                           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                             <button
@@ -5464,57 +5416,6 @@ function AdminPageInner() {
                               </button>
                             )}
                           </div>
-                        </div>
-                        {/* Expanded variants panel */}
-                        {expandedProducts.has(product.id) && (
-                          <div className="bg-zinc-50 border-b border-zinc-100 px-4 py-3 pl-6 sm:pl-[calc(1.5rem+44px+80px+1.5rem)]">
-                            {variantCache[product.id] ? (
-                              variantCache[product.id].length === 0 ? (
-                                <span className="text-xs text-zinc-400">No variants found</span>
-                              ) : (
-                                <div className="space-y-2">
-                                  {Object.entries(
-                                    variantCache[product.id].reduce<Record<string, typeof variantCache[string]>>((acc, v) => {
-                                      const key = v.color || '';
-                                      if (!acc[key]) acc[key] = [];
-                                      acc[key].push(v);
-                                      return acc;
-                                    }, {})
-                                  ).map(([color, variants]) => (
-                                    <div key={color} className="flex items-center gap-4 flex-wrap">
-                                      <img
-                                        src={getColorImage(product, color) || product.image}
-                                        alt={color || 'Master'}
-                                        className="w-8 h-8 object-contain rounded border border-zinc-200 bg-zinc-50 shrink-0"
-                                      />
-                                      <span className="text-xs font-bold text-zinc-500 w-20 shrink-0">
-                                        {color || 'No Color'}:
-                                      </span>
-                                      <div className="flex gap-2 flex-wrap">
-                                        {variants.map((v: any) => (
-                                          <span
-                                            key={v.size}
-                                            className={`text-xs px-2 py-1 rounded font-medium ${
-                                              v.stock_quantity === 0
-                                                ? 'bg-red-100 text-red-600'
-                                                : v.stock_quantity <= 2
-                                                ? 'bg-yellow-100 text-yellow-700'
-                                                : 'bg-green-100 text-green-700'
-                                            }`}
-                                          >
-                                            {v.size}: {v.stock_quantity}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )
-                            ) : (
-                              <span className="text-xs text-zinc-400">Loading...</span>
-                            )}
-                          </div>
-                        )}
                         </div>
                       ))
                     )}
@@ -6569,19 +6470,6 @@ function AdminPageInner() {
               exit={{ opacity: 0, y: -10 }}
             >
               <InventoryCountsAdmin />
-            </motion.div>
-          )}
-
-          {activeTab === 'online-orders' && (
-            <motion.div
-              key="online-orders"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-8"
-            >
-              <h2 className="text-2xl font-black uppercase mb-6">Online Orders</h2>
-              <OnlineOrdersAdmin />
             </motion.div>
           )}
         </AnimatePresence>

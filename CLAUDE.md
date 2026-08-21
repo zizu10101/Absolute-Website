@@ -14,7 +14,6 @@
 - src/pages/POSPage.tsx
 - src/pages/AdminPage.tsx
 - src/pages/ProductDetailPage.tsx
-- src/pages/ProductGridPage.tsx — category grid page. Equipment category (`isEquipmentCategory`) gets a special two-row tile layout instead of the normal logo grid: `reorganizedGroups` (see Session 74) dynamically buckets `groupedSubmenuItems` into "Main Equipment" (every top-level submenu whose heading isn't "Accessories") and "Apparel & Accessories" (the items nested under the "Accessories" submenu) — both render as 4-col grids (`grid-cols-2 md:grid-cols-4`). No hardcoded label lists anymore; any submenu/child added in Admin shows up automatically based on its position in the nav tree, not its name.
 - src/utils/thermalReceipt.ts
 - src/utils/invoice.ts
 - src/context/SettingsContext.tsx
@@ -26,7 +25,6 @@
 - src/pages/InventoryCountPage.tsx — `/inventory-count` stocktake page for staff phones (see Session 65 and 66)
 - src/components/InventoryCountsAdmin.tsx — Admin → Inventory Counts tab, history/view/print of past counts (see Session 66)
 - src/components/POSPinEntry.tsx — shared PIN keypad. Optional `title`/`subtitle`/`maxLength` props; defaults reproduce the POS register screen exactly (6 slots, min 4 digits, OK button)
-- src/components/ProductCard.tsx — shared product card used by the main grid, HomePage New Arrivals/On Sale, and ProductDetailPage's "You Might Also Like" (one edit here covers all four). Image container is `aspect-square` + `bg-[#f6f6f6]` + `object-contain object-center` (see Session 73). Color swatch row only renders when `nonDefaultColors.length > 0` (colors array minus any `isDefault`-flagged entry) — a single-color product shows no swatches.
 - server.ts — Express server. Most of the app calls Supabase directly from the client; server.ts's `/api/*` routes are only used for POS drawer control, a few admin DB-sync utilities, and Returns. Cash drawer: `POST /api/open-drawer`.
 - public/logo-black.png — receipt logo, used across all thermal receipt types
 
@@ -42,7 +40,7 @@
 - settings, blog_posts
 - cash_reports — see Session 63 below; columns: `id, report_date, opening_counts, closing_counts, opening_total, closing_total, pos_cash, pos_debit, pos_visa, pos_mc, pos_amex, pos_cheque, pos_other, pos_total, pos_breakdown, actual_cash, expected_cash, over_short, deposit, other, notes, created_at`. `pos_other`/`pos_breakdown` catch any payment method without its own fixed column (Gift Card, Store Credit, etc.) so nothing is silently dropped
 - inventory_counts — one row per submitted stocktake (see Session 65/66); columns: `id, count_date, counted_by, total_variants_counted, total_discrepancies, adjustments, created_at`. `adjustments` holds the FULL session (every counted variant, matches included — not just discrepancies) as `{variant_id, barcode, product_name, color, size, system_qty, counted_qty, diff, status}` where `status` is `match`/`discrepancy`/`new`, so Admin → Inventory Counts → View can show everything that was counted, not only what changed
-- `online_orders` — merged from ecommerce-dev (August 21, 2026); columns: `id, customer_first_name, last_name, email, phone, shipping_address, city, province, postal_code, notes, items(jsonb), subtotal, tax, total, status, created_at, user_id, shipping_method, shipping_cost`
+- `online_orders` exists only on the unmerged `ecommerce-dev` branch — not present on `main`
 
 **IMPORTANT:** `product_variants` has 2364+ rows. Supabase/PostgREST caps every request at 1000 rows regardless of the `.range()` bounds requested — a single `.range(0, 9999)` call will silently truncate to 1000 rows. Always paginate with a loop:
 ```js
@@ -65,35 +63,19 @@ while (true) {
 - public/logo-black.png used on all receipt types
 
 ## Current Branches
-- main: live site — ecommerce-dev merged August 21, 2026
-- ecommerce-dev: merged into main; can continue as staging branch for Phase 6
-
-## E-Commerce Features (merged August 21, 2026)
-- Shopping cart (CartContext, CartDrawer, SizeSelector) with localStorage persistence
-- Checkout page (/checkout) with address form, HST, shipping options ($0 pickup / $15 ship)
-- Order confirmation emails via Resend.com (Supabase Edge Function `send-order-email`)
-- Stock validation + automatic reduction/restoration (shared with POS)
-- Customer auth: register, login, forgot password, Google OAuth, account page with order history
-- Admin → Online Orders tab (OnlineOrdersAdmin.tsx) — manage status, view details
-- New pages: /checkout, /order-confirmation, /register, /login, /forgot-password, /account
-- New contexts: CartContext, CustomerAuthContext (separate from admin AuthContext)
-- Google OAuth redirect: https://torontosoccershop.com/account
-- Migrations needed on a fresh DB: migrations/add_user_id_to_online_orders.sql, migrations/add_shipping_to_online_orders.sql
+- main: live site
+- ecommerce-dev: e-commerce Phases 1-5 complete, on hold pending a Stripe integration decision
 
 ## Pending Items
-- Stripe payment integration — next phase if/when going live with online payments
+- Stripe payment integration (`ecommerce-dev` branch) — if/when going live with online payments
 - Receipt width fine-tuning on the Epson TM-T88V — not yet verified against real hardware
 - Re-upload logos through Admin → Settings → Theme so existing uploads pick up WebP transparency (the code fix only applies to new uploads, not retroactively)
 - Inventory Count (including the Session 66 Add Missing Variant / Print / CSV / Admin-history additions) not yet verified on a real phone or with a real barcode scanner — tested only in an emulated iPhone viewport, and Admin tab tested at desktop width. Not pushed pending that confirmation
 - Hero slider device filtering (Session 69) not yet confirmed on a real phone — tested only in emulated viewports
-- ProductCard square-image + color-swatch-visibility changes (Session 73) have not been visually verified at all — no browser access this session (user declined the Chrome extension). Confirm on localhost before trusting the layout in production.
-- Equipment page dynamic grouping + 4-col grid (Session 74) not visually verified — same no-browser-access limitation. Also, live nav data has two separate "Training Equipment" entries under the Equipment menu (one top-level submenu at `/equipment/training`, one nested under Accessories at `/equipment/accessories/training`) that look like duplicate test entries — worth pruning one in Admin.
 - `docs/inventory-count-migration.sql` — the `inventory_counts` table already existed on this project's live Supabase instance and was verified working during Session 65; the file only matters if this project is ever pointed at a different DB
 - `docs/cash-report-migration.sql` must be run in Supabase before Cash Report works — already applied to this project's live Supabase instance during Session 63 testing; only relevant if this project is ever pointed at a different DB
 
 ## Recent Changes (last 3 sessions)
-- **Session 74:** Equipment page tile grouping fixed to be dynamic (ProductGridPage.tsx `reorganizedGroups`, lines ~454-473). Bug: the equipment page's two-row tile layout used hardcoded label-substring lists (`group1Labels`/`group2Labels`) matched against each item's `label` text — anything not matching either list (e.g. a newly-added "Training Equipment" submenu/child) was silently dropped from the page entirely. Root cause: a DB `heading` column on `navigation_items` exists but is unused/always `NULL` — the real grouping signal is the existing parent/child nav structure, already available as `group.heading` (the submenu's own label) on `groupedSubmenuItems`. Fix: `group1Items` = flattened items from every top-level submenu group whose `heading` isn't "Accessories" (case-insensitive); `group2Items` = the `items` of whichever group's `heading` is "Accessories". Both render as 4-column grids (`grid-cols-2 md:grid-cols-4`, previously group 2 was 3-column). Result: any submenu or nested item added in Admin now appears automatically based on where it sits in the nav tree, no hardcoded names to maintain. Not visually verified — see Pending Items. Also surfaced (not fixed): live nav data has two duplicate-looking "Training Equipment" entries under Equipment (one top-level, one nested under Accessories) — likely test artifacts worth pruning in Admin.
-- **Session 73 (ecommerce-dev merge):** Merged e-commerce Phases 1-5 + admin/POS enhancements into main. Admin product list now has expandable variant rows (chevron → groups by color with stock badges + color image thumbnails, falls back to master image). `fetchAdminProducts` now selects `colors`, `brand`, `product_code`. POS barcode scan now resolves the correct color variant image via `getVariantImage(product, variant.color)` instead of always using master image. Also: ProductCard.tsx image + color-swatch fixes — image container `aspect-square`/`bg-[#f6f6f6]`/`rounded-lg`, color swatch row gated on `nonDefaultColors.length > 0`.
 - **Session 72:** Product card color-hover price (ProductCard.tsx). Added `hoveredColor: ColorVariant | null` state. Color thumbnail buttons now call `setHoveredColor(color)` on `onMouseEnter` and `setHoveredColor(null)` on `onMouseLeave` (default button clears it too). Price display: hovering a sale color shows that color's `salePrice` in red + strikethrough of `product.price`; hovering a non-sale color shows `color.price` if set, else `product.price`; not hovering falls back to existing "From $X" / "$X" logic. Also added `hasColorSale` flag and "From " prefix to the default price when color-specific sales exist (so customers know not every color is at the lowest price). Reverted slider background to white (`bg-white` / `#ffffff`) — the `#f6f6f6` change was backed out.
 - **Session 71:** Fix mobile-only slides being silently dropped (AdminPage.tsx + SettingsContext.tsx). Bug: `useEffect` on line 961 of AdminPage re-synced local `sliderImages` from context after every save using `.filter(img => img && img.url && ...)` — `img.url` is falsy for a mobile-only slide (url `''`), so the slide vanished from the UI immediately after saving. Fix: filter now keeps any slide where `img.url || img.mobile_image` is truthy, and checks both fields for `data:` prefixes (not just `url`). Also made `SliderImage.url` optional (`url?: string`) in SettingsContext.tsx to match reality — a slide can exist with only `mobile_image` set.
 - **Session 70:** Admin slider independent image controls (AdminPage.tsx). Each slide card now has fully independent desktop and mobile image sections. Desktop section: 16:9 preview + `[Replace]` + `[Remove Desktop]` (sets `url` to `''`, slide stays) or an "Upload Desktop Image" dropzone when empty. Mobile section: 9:16 portrait preview + `[Replace Mobile]` + `[Remove Mobile]` (sets `mobile_image` to `''`, slide stays) or "Upload Mobile Image" dropzone when empty. Title/Link fields always visible (no Edit toggle). "Delete Slide" in the header bar triggers `window.confirm` before calling `onDelete`. `slideId` helper (`img.url || img.mobile_image || \`slide-${i}\``) replaces bare `img.url` as the DnD key/id everywhere (SortableContext items, SortableSlideCard key+id, both findIndex calls in handleSliderDragEnd) so drag-to-reorder keeps working even after a desktop image is cleared.

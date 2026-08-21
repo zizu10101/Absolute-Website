@@ -1,6 +1,5 @@
-import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
+﻿import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useProducts, mapProductFromDb } from '../context/ProductContext';
-import { useCart } from '../context/CartContext';
 import React, { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '../supabase';
@@ -8,7 +7,6 @@ import { ShoppingBag, ChevronRight, ChevronLeft, ShieldCheck, Store, RotateCcw, 
 import { motion, AnimatePresence } from 'motion/react';
 import { isUUID, buildProductUrl } from '../utils/slugify';
 import { ProductCard } from '../components/ProductCard';
-import { SizeSelector, SizeOption } from '../components/SizeSelector';
 
 const isYouthProduct = (name: string) =>
   /kids|junior|youth|jr\.|children/i.test(name || '');
@@ -32,7 +30,6 @@ export function ProductDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { fetchProductById, products } = useProducts();
-  const { addToCart } = useCart();
   const [product, setProduct] = useState<any>(null);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [id, setId] = useState<string | null>(null);
@@ -49,7 +46,6 @@ export function ProductDetailPage() {
   const [isAdded, setIsAdded] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(true);
-  const [showSizeSelector, setShowSizeSelector] = useState(false);
 
   // Image zoom states
   const [isImageHovered, setIsImageHovered] = useState(false);
@@ -596,30 +592,11 @@ export function ProductDetailPage() {
   };
 
   const handleAddToCart = () => {
-    if (!product) return;
-
-    // Check if product has sizes and one is required
-    const inStockVariants = variants.filter(v => v.stock_quantity > 0);
-    const shouldShowSizes = product.showSizes && variants.length > 0 && inStockVariants.length > 0;
-
-    if (shouldShowSizes && !selectedSize) {
-      setShowSizeSelector(true);
+    if (displayedSizesList.length > 0 && !selectedSize) {
+      // Prompt selection
+      alert("Please choose a size first.");
       return;
     }
-
-    // Add to cart
-    const price = selectedColor !== null && product.colors?.[selectedColor]?.price
-      ? product.colors[selectedColor].price
-      : (product.isOnSale && product.salePrice ? product.salePrice : product.price);
-
-    addToCart({
-      productId: product.id,
-      name: product.name,
-      price,
-      image: product.image,
-      quantity,
-      size: selectedSize || undefined,
-    });
 
     setIsAdding(true);
     setTimeout(() => {
@@ -627,12 +604,6 @@ export function ProductDetailPage() {
       setIsAdded(true);
       setTimeout(() => setIsAdded(false), 3500);
     }, 850);
-  };
-
-  const handleSizeSelect = (size: string) => {
-    setSelectedSize(size);
-    setShowSizeSelector(false);
-    // Don't add to cart yet, user can click Add to Cart with the size selected
   };
 
   return (
@@ -896,21 +867,6 @@ export function ProductDetailPage() {
                       </p>
                     </div>
                   )}
-
-                  {/* Add to Cart CTA */}
-                  <div className="border-t border-b border-zinc-100 py-6 space-y-3">
-                    <button
-                      onClick={handleAddToCart}
-                      disabled={isOutOfStock}
-                      className="flex items-center justify-center gap-3 w-full h-14 bg-[#b90014] text-white font-black uppercase tracking-widest text-sm hover:bg-[#8a000f] disabled:bg-zinc-300 disabled:text-zinc-500 disabled:cursor-not-allowed transition-all shadow-xl shadow-red-950/10 rounded-lg"
-                    >
-                      <ShoppingBag size={18} />
-                      {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-                    </button>
-                    <p className="text-[10px] text-zinc-400 text-center uppercase tracking-widest">
-                      Need help? Call 905-593-3600
-                    </p>
-                  </div>
                 </>
               )}
             </>
@@ -993,16 +949,6 @@ export function ProductDetailPage() {
             ))}
           </div>
         </div>
-      )}
-
-      {product && product.showSizes && variants.length > 0 && (
-        <SizeSelector
-          isOpen={showSizeSelector}
-          sizes={variants.filter(v => v.stock_quantity > 0).map(v => ({ size: v.size, stock_quantity: v.stock_quantity }))}
-          productName={product.name}
-          onSelect={handleSizeSelect}
-          onClose={() => setShowSizeSelector(false)}
-        />
       )}
     </div>
   );

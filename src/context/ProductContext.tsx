@@ -185,7 +185,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             
       const { data, error } = await supabase
         .from('products')
-        .select('id,name,price,category,submenu,submenus,isNewArrival,isOnSale,isFeatured,salePrice,description,image,is_online,show_sizes,colors,brand,product_code')
+        .select('id,name,price,category,submenu,submenus,isNewArrival,isOnSale,isFeatured,salePrice,description,image,is_online,show_sizes,colors')
         .order('name', { ascending: true })
         .limit(1000);
 

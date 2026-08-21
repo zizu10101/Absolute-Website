@@ -17,8 +17,6 @@ import { ProductProvider, useProducts } from './context/ProductContext';
 import { CustomerProvider } from './context/CustomerContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { AuthProvider } from './context/AuthContext';
-import { CartProvider } from './context/CartContext';
-import { CustomerAuthProvider } from './context/CustomerAuthContext';
 import { ProductGridPage } from './pages/ProductGridPage';
 import { UniformSubmissionPage } from './pages/UniformSubmissionPage';
 import { CustomizationPage } from './pages/CustomizationPage';
@@ -32,12 +30,6 @@ import { BrandPage } from './pages/BrandPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { BlogListPage } from './pages/BlogListPage';
 import { BlogPostPage } from './pages/BlogPostPage';
-import { CheckoutPage } from './pages/CheckoutPage';
-import { OrderConfirmationPage } from './pages/OrderConfirmationPage';
-import { RegisterPage } from './pages/RegisterPage';
-import { LoginPage } from './pages/LoginPage';
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
-import { AccountPage } from './pages/AccountPage';
 import { useSEO } from './hooks/useSEO';
 
 // Paths that exist as DB-driven navigation_menus rows but must render their own dedicated
@@ -123,13 +115,6 @@ function AppRoutes() {
     <>
       <Meta />
       <Routes>
-        {/* Customer Auth Routes */}
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/account" element={<AccountPage />} />
-
-
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
 
@@ -217,8 +202,6 @@ function AppRoutes() {
           <Route path="blog/:slug" element={<BlogPostPage />} />
           <Route path="product/:slug" element={<ProductDetailPage />} />
           <Route path="products" element={<Navigate to="/category/footwear" replace />} />
-          <Route path="checkout" element={<CheckoutPage />} />
-          <Route path="order-confirmation" element={<OrderConfirmationPage />} />
         </Route>
 
         {/* Admin, POS, Reports - Only on torontosoccershop.com */}
@@ -234,20 +217,16 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <CustomerAuthProvider>
-        <ProductProvider>
-          <CustomerProvider>
-            <CartProvider>
-              <BrowserRouter>
-                <SettingsProvider>
-                  <ScrollToTop />
-                  <AppContent />
-                </SettingsProvider>
-              </BrowserRouter>
-            </CartProvider>
-          </CustomerProvider>
-        </ProductProvider>
-      </CustomerAuthProvider>
+      <ProductProvider>
+        <CustomerProvider>
+          <BrowserRouter>
+            <SettingsProvider>
+              <ScrollToTop />
+              <AppContent />
+            </SettingsProvider>
+          </BrowserRouter>
+        </CustomerProvider>
+      </ProductProvider>
     </AuthProvider>
   );
 }
