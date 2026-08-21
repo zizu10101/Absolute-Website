@@ -240,6 +240,8 @@ function AdminPageInner() {
   const [bulkBrandAssignBrand, setBulkBrandAssignBrand] = useState<string>('');
   const [isBulkBrandAssigning, setIsBulkBrandAssigning] = useState(false);
   const [bulkBrandStatus, setBulkBrandStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  const [variantCache, setVariantCache] = useState<Record<string, any[]>>({});
 
   const syncToLocal = async () => {
     setIsSyncingLocal(true);
@@ -968,6 +970,35 @@ function AdminPageInner() {
     } catch (error) {
       console.error('AdminPage: Failed to clear all products', error);
     }
+  };
+
+  const getColorImage = (product: any, colorName: string): string | null => {
+    if (!colorName) return null;
+    const colorData = product.colors?.find(
+      (c: any) => c.name?.toLowerCase() === colorName?.toLowerCase()
+    );
+    return colorData?.images?.[0] || null;
+  };
+
+  const toggleExpand = (productId: string) => {
+    setExpandedProducts(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
+  const fetchVariantsForProduct = async (productId: string) => {
+    const { data } = await supabase
+      .from('product_variants')
+      .select('size, color, stock_quantity')
+      .eq('product_id', productId)
+      .order('color', { ascending: true });
+    setVariantCache(prev => ({ ...prev, [productId]: data || [] }));
   };
 
   const handleBulkBrandAssign = async () => {
@@ -3907,7 +3938,8 @@ function AdminPageInner() {
                       </div>
                     ) : (
                       paginatedProducts.map(product => (
-                        <div key={product.id} className="p-3 sm:p-6 flex items-center gap-3 sm:gap-6 hover:bg-zinc-50 transition-colors group border-b border-zinc-100 last:border-b-0">
+                        <div key={product.id}>
+                        <div className="p-3 sm:p-6 flex items-center gap-3 sm:gap-6 hover:bg-zinc-50 transition-colors group border-b border-zinc-100">
                           <input
                             type="checkbox"
                             checked={selectedProductIds.has(product.id)}
@@ -3948,6 +3980,19 @@ function AdminPageInner() {
                               <p className="text-[9px] text-amber-600 mt-0.5 font-medium">⚠️ Missing Brand</p>
                             )}
                           </div>
+                          {/* Expand variants button */}
+                          <button
+                            onClick={() => {
+                              toggleExpand(product.id);
+                              if (!expandedProducts.has(product.id) && !variantCache[product.id]) {
+                                fetchVariantsForProduct(product.id);
+                              }
+                            }}
+                            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-all flex-shrink-0"
+                            title={expandedProducts.has(product.id) ? 'Collapse variants' : 'Show variants'}
+                          >
+                            {expandedProducts.has(product.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </button>
                           {/* Buttons: always visible on mobile, hover-only on desktop */}
                           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                             <button
@@ -3988,6 +4033,57 @@ function AdminPageInner() {
                               </button>
                             )}
                           </div>
+                        </div>
+                        {/* Expanded variants panel */}
+                        {expandedProducts.has(product.id) && (
+                          <div className="bg-zinc-50 border-b border-zinc-100 px-4 py-3 pl-6 sm:pl-[calc(1.5rem+44px+80px+1.5rem)]">
+                            {variantCache[product.id] ? (
+                              variantCache[product.id].length === 0 ? (
+                                <span className="text-xs text-zinc-400">No variants found</span>
+                              ) : (
+                                <div className="space-y-2">
+                                  {Object.entries(
+                                    variantCache[product.id].reduce<Record<string, typeof variantCache[string]>>((acc, v) => {
+                                      const key = v.color || '';
+                                      if (!acc[key]) acc[key] = [];
+                                      acc[key].push(v);
+                                      return acc;
+                                    }, {})
+                                  ).map(([color, variants]) => (
+                                    <div key={color} className="flex items-center gap-4 flex-wrap">
+                                      <img
+                                        src={getColorImage(product, color) || product.image}
+                                        alt={color || 'Master'}
+                                        className="w-8 h-8 object-contain rounded border border-zinc-200 bg-zinc-50 shrink-0"
+                                      />
+                                      <span className="text-xs font-bold text-zinc-500 w-20 shrink-0">
+                                        {color || 'No Color'}:
+                                      </span>
+                                      <div className="flex gap-2 flex-wrap">
+                                        {variants.map((v: any) => (
+                                          <span
+                                            key={v.size}
+                                            className={`text-xs px-2 py-1 rounded font-medium ${
+                                              v.stock_quantity === 0
+                                                ? 'bg-red-100 text-red-600'
+                                                : v.stock_quantity <= 2
+                                                ? 'bg-yellow-100 text-yellow-700'
+                                                : 'bg-green-100 text-green-700'
+                                            }`}
+                                          >
+                                            {v.size}: {v.stock_quantity}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )
+                            ) : (
+                              <span className="text-xs text-zinc-400">Loading...</span>
+                            )}
+                          </div>
+                        )}
                         </div>
                       ))
                     )}

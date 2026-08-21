@@ -4,9 +4,8 @@ Stack: React + Vite + Supabase + Vercel
 GitHub: zizu10101/Absolute-Website
 Admin login: info@edgedbs.com
 
-## CURRENT STATUS (Checkpoint v1.0 + E-Commerce Phases 1-5 Complete + Shipping)
-POS system live. E-commerce fully functional with customer accounts and shipping options on ecommerce-dev branch.
-Ready for merge to main or Phase 6 development (payment processing).
+## CURRENT STATUS (Checkpoint v1.0 + E-Commerce Phases 1-5 Complete + Shipping + Admin/POS Enhancements)
+POS system live. E-commerce fully functional with customer accounts and shipping options. Merged to main (August 21, 2026).
 
 ### What's Working (ecommerce-dev)
 ✅ Shopping cart with real-time stock checks
@@ -76,6 +75,18 @@ Ready for merge to main or Phase 6 development (payment processing).
 ✅ Auto-save Google profile to customers table
 ✅ Email/password option as alternative
 
+**ADMIN ENHANCEMENTS (August 21, 2026):**
+✅ Expandable variant rows in product list (chevron button)
+✅ Variants grouped by color with green/yellow/red stock badges
+✅ Color image thumbnails beside each color group (falls back to master image)
+✅ Master product image shown as thumbnail fallback when no color image exists
+✅ Variant cache — no re-fetch on collapse/re-expand
+✅ fetchAdminProducts now includes colors, brand, product_code fields
+
+**POS ENHANCEMENTS (August 21, 2026):**
+✅ Barcode scan shows correct color variant image in cart (not always master image)
+✅ getVariantImage helper looks up product.colors by variant.color name
+
 **SHIPPING OPTIONS (June 11, 2026):**
 ✅ Pickup in Store option - FREE (selected by default)
 ✅ Ship to Address option - $15.00
@@ -108,23 +119,18 @@ Ready for merge to main or Phase 6 development (payment processing).
 - Mobile fixes: edit button visible, PIN pad keyboard suppressed
 
 ## BRANCH STRATEGY
-- main = stable live site (DO NOT break)
-- ecommerce-dev = e-commerce features in development
+- main = stable live site (DO NOT break) — ecommerce-dev merged August 21, 2026
+- ecommerce-dev = e-commerce features (now merged to main)
 - Tag v1.0-pos-complete = permanent restore point
 
-## E-COMMERCE BUILD ORDER (ecommerce-dev branch)
+## E-COMMERCE BUILD ORDER (all merged to main)
 1. ✅ Shopping cart (add to cart, quantities, remove, localStorage)
 2. ✅ Checkout form (customer form, validation, order saving)
 3. ✅ Email confirmations (Resend.com - customer + store)
 4. ✅ Inventory sync (stock validation, reduction, restoration)
 5. ✅ Customer accounts (login, register, password reset, order history, profile)
-6. → READY: Merge to main OR continue Phase 6
-7. Payment processing - Stripe (requires paid Vercel plan)
-
-**DECISION POINT:** 
-- Option A: Merge ecommerce-dev to main (Phases 1-5 working, no payment yet)
-- Option B: Continue Phase 6 (payment processing with Stripe)
-- Option C: Build Phase 6 on separate branch, merge later
+6. ✅ Merged to main (August 21, 2026)
+7. → NEXT: Payment processing - Stripe (requires paid Vercel plan)
 
 **Database Migrations Required:**
 Run these in Supabase SQL Editor:
@@ -150,7 +156,7 @@ Run these in Supabase SQL Editor:
 ## DATABASE TABLES (POS + E-Commerce)
 **POS Tables:**
 transactions: id, customer_id, total_amount, method, payment_method, items(jsonb), created_at, status, invoice_number, tendered_amount, change_given
-product_variants: id, product_id, size, barcode, price, stock_quantity, sku
+product_variants: id, product_id, size, color, barcode, price, stock_quantity, sku
 gift_cards: id, card_number, initial_balance, current_balance, customer_id, is_active
 store_credits: id, card_number, customer_id, amount, remaining_balance, reason, is_active
 returns: id, transaction_id, customer_id, items, refund_method, refund_amount, store_credit_id, status
@@ -159,7 +165,7 @@ returns: id, transaction_id, customer_id, items, refund_method, refund_amount, s
 online_orders: id, customer_first_name, last_name, email, phone, shipping_address, city, province, postal_code, notes, items(jsonb), subtotal, tax, total, status, created_at
 
 **Shared Tables:**
-products: id, name, price, category, image, images, description, isNewArrival, isOnSale, isFeatured, salePrice, submenu, submenus, is_online, show_sizes, brand, product_code
+products: id, name, price, category, image, images, colors(jsonb: [{name, images[], price?}]), description, isNewArrival, isOnSale, isFeatured, salePrice, submenu, submenus, is_online, show_sizes, brand, product_code
 customers: id, first_name, last_name, email, phone, boot_size, club_affinity
 navigation_menus: id, label, path, order_index, is_active
 navigation_items: id, menu_id, label, path, logo_url, order_index, parent_id, is_active
