@@ -212,9 +212,21 @@ export function ProductGridPage({ title, category, submenu }: Props) {
         }
       }
 
+      const sizeOrder = [
+        '8K', '9K', '10K', '11K', '12K', '13K',
+        '1Y', '1.5Y', '2Y', '2.5Y', '3Y', '3.5Y',
+        '4Y', '4.5Y', '5Y', '5.5Y', '6Y', '6.5Y', '7Y',
+        '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5',
+        '10', '10.5', '11', '11.5', '12', '12.5', '13', '14', '15',
+        'XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL',
+        'YXS', 'YS', 'YM', 'YL', 'YXL',
+      ];
       const sorted = [...sizeMap.keys()].sort((a, b) => {
-        const na = parseFloat(a), nb = parseFloat(b);
-        return !isNaN(na) && !isNaN(nb) ? na - nb : a.localeCompare(b);
+        const ia = sizeOrder.indexOf(a), ib = sizeOrder.indexOf(b);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.localeCompare(b);
       });
 
       setAvailableSizes(sorted);

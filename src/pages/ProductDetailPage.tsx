@@ -3,7 +3,7 @@ import { useProducts, mapProductFromDb } from '../context/ProductContext';
 import React, { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '../supabase';
-import { ShoppingBag, ChevronRight, ChevronLeft, ShieldCheck, Store, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ShoppingBag, ChevronRight, ChevronLeft, ShieldCheck, Store, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle, Phone, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { isUUID, buildProductUrl } from '../utils/slugify';
 import { ProductCard } from '../components/ProductCard';
@@ -871,6 +871,35 @@ export function ProductDetailPage() {
               )}
             </>
           )}
+
+          {/* Reserve by Phone */}
+          <a
+            href="tel:9055933600"
+            className="w-full flex items-center justify-center gap-3 bg-[#b90014] hover:bg-red-700 text-white font-bold uppercase tracking-widest py-4 px-6 rounded-lg transition-colors duration-200 text-sm mt-4"
+          >
+            <Phone size={18} />
+            Reserve by Phone — 905-593-3600
+          </a>
+
+          {/* Visit Us In Store */}
+          <div className="mt-4 p-4 bg-zinc-50 rounded-lg border border-zinc-200">
+            <div className="flex items-start gap-3">
+              <MapPin size={18} className="text-[#b90014] mt-0.5 shrink-0" />
+              <div>
+                <p className="font-bold text-sm text-zinc-900">Visit Us In Store</p>
+                <p className="text-xs text-zinc-500 mt-1">5600 Rose Cherry Place, Mississauga, ON L4Z 4B6</p>
+                <p className="text-xs text-zinc-500">Mon-Fri: 10am-7pm | Sat: 10am-6pm | Sun: 11am-5pm</p>
+              </div>
+            </div>
+            <a
+              href="https://maps.google.com/?q=5600+Rose+Cherry+Place+Mississauga+ON"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 w-full flex items-center justify-center gap-2 border border-zinc-300 hover:border-zinc-400 text-zinc-700 hover:text-zinc-900 font-medium text-xs uppercase tracking-widest py-2 px-4 rounded-lg transition-colors duration-200"
+            >
+              Get Directions →
+            </a>
+          </div>
 
           {/* Shipping & Certifications bar */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-zinc-500 font-medium">
