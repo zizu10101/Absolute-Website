@@ -454,29 +454,19 @@ export function ProductGridPage({ title, category, submenu }: Props) {
   const reorganizedGroups = useMemo(() => {
     if (!isEquipmentCategory || submenu) return groupedSubmenuItems;
 
-    const group1Labels = ["balls", "goalkeeper", "goalkeeper gloves", "bags", "futsal", "futsal balls"];
-    const group2Labels = ["socks", "shinguards", "shin guards", "accessories"];
+    const group1Items = groupedSubmenuItems
+      .filter(group => group.heading.toLowerCase().trim() !== 'accessories')
+      .flatMap(group => group.items);
 
-    const group1Items: { label: string; path: string; logo: string }[] = [];
-    const group2Items: { label: string; path: string; logo: string }[] = [];
-
-    groupedSubmenuItems.forEach(group => {
-      group.items.forEach(item => {
-        const itemLabelLower = item.label.toLowerCase();
-        if (group1Labels.some(l => itemLabelLower.includes(l))) {
-          group1Items.push(item);
-        } else if (group2Labels.some(l => itemLabelLower.includes(l))) {
-          group2Items.push(item);
-        }
-      });
-    });
+    const group2Items = groupedSubmenuItems
+      .find(group => group.heading.toLowerCase().trim() === 'accessories')?.items || [];
 
     const result: Array<{ heading: string; items: Array<{ label: string; path: string; logo: string }>; gridClass: string }> = [];
     if (group1Items.length > 0) {
       result.push({ heading: "Main Equipment", items: group1Items, gridClass: "grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" });
     }
     if (group2Items.length > 0) {
-      result.push({ heading: "Apparel & Accessories", items: group2Items, gridClass: "grid grid-cols-2 md:grid-cols-3 gap-4" });
+      result.push({ heading: "Apparel & Accessories", items: group2Items, gridClass: "grid grid-cols-2 md:grid-cols-4 gap-4" });
     }
 
     return result.length > 0 ? result : groupedSubmenuItems;
