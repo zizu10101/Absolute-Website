@@ -5486,7 +5486,14 @@ function AdminPageInner() {
                                         {color || 'No Color'}:
                                       </span>
                                       <div className="flex gap-2 flex-wrap">
-                                        {variants.map((v: any) => (
+                                        {[...variants].sort((a, b) => {
+                                          const sizeOrder = ['8K','8.5K','9K','9.5K','10K','10.5K','11K','11.5K','12K','12.5K','13K','13.5K','1Y','1.5Y','2Y','2.5Y','3Y','3.5Y','4Y','4.5Y','5Y','5.5Y','6Y','6.5Y','7Y','3','3.5','4','4.5','5','5.5','6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12','12.5','13','13.5','14','14.5','15','XS','S','M','L','XL','XXL','2XL','3XL','YXS','YS','YM','YL','YXL'];
+                                          const ia = sizeOrder.indexOf(a.size), ib = sizeOrder.indexOf(b.size);
+                                          if (ia !== -1 && ib !== -1) return ia - ib;
+                                          if (ia !== -1) return -1;
+                                          if (ib !== -1) return 1;
+                                          return a.size.localeCompare(b.size);
+                                        }).map((v: any) => (
                                           <span
                                             key={v.size}
                                             className={`text-xs px-2 py-1 rounded font-medium ${
