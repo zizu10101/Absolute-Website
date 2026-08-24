@@ -621,31 +621,54 @@ function AdminPageInner() {
     }
   };
 
+  const [variantCodeMatchIds, setVariantCodeMatchIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const term = adminSearchTerm.trim();
+    if (!term) { setVariantCodeMatchIds(new Set()); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('product_variants')
+        .select('product_id')
+        .ilike('product_code', `%${term}%`);
+      if (!cancelled) {
+        setVariantCodeMatchIds(new Set((data || []).map((r: any) => r.product_id)));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [adminSearchTerm]);
+
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       const searchLower = adminSearchTerm.trim().toLowerCase();
-      
-      // Category matching
-      const matchesCategory = productCategoryFilter === 'All' || 
+
+      const matchesCategory = productCategoryFilter === 'All' ||
         (p.category && p.category.toString().toUpperCase() === productCategoryFilter.toUpperCase());
-      
-      // Search matching (case-insensitive)
+
       const name = (p.name || '').toString().toLowerCase();
       const cat = (p.category || '').toString().toLowerCase();
       const desc = (p.description || '').toString().toLowerCase();
       const sub = (p.submenu || '').toString().toLowerCase();
       const subsArr = (p.submenus || []).map(s => s.toString().toLowerCase());
+      const masterCode = ((p as any).product_code || '').toString().toLowerCase();
+      const colorCodes = ((p as any).colors || [])
+        .map((c: any) => (c.product_code || '').toString().toLowerCase())
+        .filter(Boolean);
 
-      const matchesSearch = !searchLower || 
+      const matchesSearch = !searchLower ||
         name.includes(searchLower) ||
         cat.includes(searchLower) ||
         desc.includes(searchLower) ||
         sub.includes(searchLower) ||
-        subsArr.some(s => s.includes(searchLower));
-        
+        subsArr.some(s => s.includes(searchLower)) ||
+        masterCode.includes(searchLower) ||
+        colorCodes.some((c: string) => c.includes(searchLower)) ||
+        variantCodeMatchIds.has(p.id);
+
       return matchesCategory && matchesSearch;
     });
-  }, [products, adminSearchTerm, productCategoryFilter]);
+  }, [products, adminSearchTerm, productCategoryFilter, variantCodeMatchIds]);
 
   const [adminCurrentPage, setAdminCurrentPage] = useState<number>(1);
   const adminItemsPerPage = 20;

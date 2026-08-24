@@ -241,29 +241,42 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
 
   const itemsHtml = data.items
     .map((item) => {
-      const unitDiscount = item.discount
-        ? Math.max(0, Math.min(item.price, item.discount.type === 'percent' ? item.price * (item.discount.value / 100) : item.discount.type === 'newprice' ? item.price - item.discount.value : item.discount.value))
+      // item.price is always the final (post-discount) price; item.originalPrice set when discounted
+      const originalUnitPrice = item.originalPrice ?? item.price;
+      const discountPerUnit = item.originalPrice !== undefined
+        ? Math.max(0, item.originalPrice - item.price)
         : 0;
-      const discountedPrice = Math.max(0, item.price - unitDiscount);
-      const lineTotal = discountedPrice * item.quantity;
+      const originalLineTotal = originalUnitPrice * item.quantity;
+      const finalLineTotal = item.price * item.quantity;
+      const hasDiscount = discountPerUnit > 0;
+
       const detailParts = [
         item.size ? `Size: ${item.size}` : '',
         item.ageGroup || '',
-        item.quantity > 1 ? `${item.quantity} @ ${money(discountedPrice)}` : `Qty: ${item.quantity}`,
+        item.quantity > 1
+          ? `${item.quantity} @ ${money(originalUnitPrice)}`
+          : `Qty: ${item.quantity}`,
       ].filter(Boolean);
-      const discountLine = item.discount
-        ? `<div class="item-detail">Discount: -${money(unitDiscount * item.quantity)}</div>`
+
+      const discountLabel = item.discount
+        ? item.discount.type === 'percent'
+          ? `Discount (${item.discount.value}%)`
+          : 'Discount'
+        : 'Discount';
+
+      const discountLine = hasDiscount
+        ? `<div class="item-row"><span class="item-name">${discountLabel}</span><span class="item-price">-${money(discountPerUnit * item.quantity)}</span></div>`
         : '';
-      const overrideLine = item.priceOverridden
-        ? `<div class="item-detail">*PRICE OVERRIDE*${item.originalPrice !== undefined ? ` (was ${money(item.originalPrice)})` : ''}</div>`
+      const itemTotalLine = hasDiscount
+        ? `<div class="item-row"><span class="item-name">Item Total</span><span class="item-price">${money(finalLineTotal)}</span></div>`
         : '';
 
       return `
         <div class="item">
-          <div class="item-row"><span class="item-name">${truncateName(item.name)}</span><span class="item-price">${money(lineTotal)}</span></div>
+          <div class="item-row"><span class="item-name">${truncateName(item.name)}</span><span class="item-price">${money(hasDiscount ? originalLineTotal : finalLineTotal)}</span></div>
           <div class="item-detail">${detailParts.join(' | ')}</div>
-          ${overrideLine}
           ${discountLine}
+          ${itemTotalLine}
         </div>`;
     })
     .join('');

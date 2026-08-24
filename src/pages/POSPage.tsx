@@ -1497,12 +1497,19 @@ export function POSPage() {
       transactionId: receipt.transactionId || 'N/A',
       invoiceNumber: receipt.invoiceNumber,
       customerName: receipt.customer ? `${receipt.customer.first_name} ${receipt.customer.last_name}` : 'Walk-in',
-      items: receipt.items.map((item: any) => ({
-        ...item,
-        price: item.priceOverride !== undefined ? item.priceOverride : item.price,
-        priceOverridden: item.priceOverride !== undefined,
-        originalPrice: item.priceOverride !== undefined ? item.price : undefined,
-      })),
+      items: receipt.items.map((item: any) => {
+        const unitDisc = getItemUnitDiscount(item);
+        const isOverride = item.priceOverride !== undefined;
+        const finalPrice = isOverride ? item.priceOverride : item.price - unitDisc;
+        const hasAnyDiscount = isOverride || unitDisc > 0;
+        return {
+          ...item,
+          price: finalPrice,
+          originalPrice: hasAnyDiscount ? item.price : undefined,
+          priceOverridden: hasAnyDiscount,
+          discount: item.discount,
+        };
+      }),
       subtotal: receipt.subtotal,
       hst: receipt.hst,
       total: receipt.total,
