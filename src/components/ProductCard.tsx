@@ -46,12 +46,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
             FEATURED
           </div>
         )}
-        <div className="aspect-square overflow-hidden relative flex items-center justify-center bg-[#f6f6f6] rounded-lg p-3">
+        <div className="aspect-square overflow-hidden relative flex items-center justify-center bg-[#efefef] rounded-lg p-3">
           {displayImage ? (
             <img
               src={displayImage}
               alt={`${product.name} Soccer Cleats & Gear - Absolute Soccer Mississauga`}
               className={`w-full h-full object-contain max-w-full max-h-full transition-all duration-500 group-hover:scale-105${isSoldOut ? ' grayscale' : ''}`}
+              style={{ mixBlendMode: 'multiply' }}
               referrerPolicy="no-referrer"
               loading="lazy"
               decoding="async"
@@ -69,15 +70,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
         </div>
       </Link>
 
-      {/* Color Thumbnails — min-height always reserves space so cards stay aligned */}
-      <div className="px-3 min-h-[36px] flex items-center relative z-20">
-        {product.colors && typeof product.colors[0] === 'object' && product.colors.length > 1 && (
+      {/* Always-rendered swatch area — fixed h-8 keeps all card titles aligned */}
+      <div className="px-3 h-8 flex items-center relative z-20">
+        {product.colors && typeof product.colors[0] === 'object' && product.colors.length > 1 ? (
           <div className="flex gap-2 overflow-x-auto no-scrollbar w-full">
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveImage(null); setActiveColorIdx(null); }}
               onMouseEnter={() => { setActiveImage(null); setHoveredColor(null); }}
               onMouseLeave={() => setHoveredColor(null)}
-              className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === null ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
+              className={`w-7 h-7 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === null ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
               aria-label="Show default product image"
             >
               <img src={product.image} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt="Default" />
@@ -88,7 +89,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveImage(color.images[0] || null); setActiveColorIdx(idx); }}
                 onMouseEnter={() => { setActiveImage(color.images[0] || null); setHoveredColor(color); }}
                 onMouseLeave={() => setHoveredColor(null)}
-                className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === (color.images[0] || '___none___') ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
+                className={`w-7 h-7 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === (color.images[0] || '___none___') ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
                 title={color.name}
                 aria-label={`Show ${color.name} color`}
               >
@@ -100,6 +101,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
               </button>
             ))}
           </div>
+        ) : (
+          <div className="h-7" />
         )}
       </div>
 
