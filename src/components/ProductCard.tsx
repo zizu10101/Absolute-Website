@@ -69,8 +69,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
         </div>
       </Link>
 
-      {/* Color Thumbnails */}
-      {product.colors && product.colors.length > 0 && typeof product.colors[0] === 'object' && (
+      {/* Color Thumbnails — only shown when 2+ non-default colors exist */}
+      {product.colors && typeof product.colors[0] === 'object' &&
+        product.colors.filter(c => !(c as any).isDefault).length > 1 && (
         <div className="px-6 pb-4 flex gap-2 overflow-x-auto no-scrollbar relative z-20">
           <button
             onClick={(e) => {
