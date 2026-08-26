@@ -46,18 +46,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
             FEATURED
           </div>
         )}
-        <div className="aspect-[4/5] overflow-hidden relative flex items-center justify-center bg-white">
+        <div className="aspect-square overflow-hidden relative flex items-center justify-center bg-[#f6f6f6] rounded-lg p-3">
           {displayImage ? (
             <img
               src={displayImage}
               alt={`${product.name} Soccer Cleats & Gear - Absolute Soccer Mississauga`}
-              className={`w-full h-full object-contain transition-all duration-500 group-hover:scale-105 p-2${isSoldOut ? ' grayscale' : ''}`}
+              className={`w-full h-full object-contain max-w-full max-h-full transition-all duration-500 group-hover:scale-105${isSoldOut ? ' grayscale' : ''}`}
               referrerPolicy="no-referrer"
               loading="lazy"
               decoding="async"
             />
           ) : (
-            <div className="w-full h-full bg-zinc-200" />
+            <div className="w-full h-full bg-zinc-200 rounded-lg" />
           )}
           {isSoldOut && (
             <div className="absolute inset-0 flex items-end justify-center pb-4 pointer-events-none z-10">
@@ -69,48 +69,39 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
         </div>
       </Link>
 
-      {/* Color Thumbnails — only shown when 2+ non-default colors exist */}
-      {product.colors && typeof product.colors[0] === 'object' &&
-        product.colors.filter(c => !(c as any).isDefault).length > 1 && (
-        <div className="px-6 pb-4 flex gap-2 overflow-x-auto no-scrollbar relative z-20">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setActiveImage(null);
-              setActiveColorIdx(null);
-            }}
-            onMouseEnter={() => { setActiveImage(null); setHoveredColor(null); }}
-            onMouseLeave={() => setHoveredColor(null)}
-            className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === null ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
-            aria-label="Show default product image"
-          >
-            <img src={product.image} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt="Default" />
-          </button>
-          {product.colors.filter(c => !(c as any).isDefault).map((color, idx) => (
+      {/* Color Thumbnails — min-height always reserves space so cards stay aligned */}
+      <div className="px-3 min-h-[36px] flex items-center relative z-20">
+        {product.colors && typeof product.colors[0] === 'object' && product.colors.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto no-scrollbar w-full">
             <button
-              key={idx}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setActiveImage(color.images[0] || null);
-                setActiveColorIdx(idx);
-              }}
-              onMouseEnter={() => { setActiveImage(color.images[0] || null); setHoveredColor(color); }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveImage(null); setActiveColorIdx(null); }}
+              onMouseEnter={() => { setActiveImage(null); setHoveredColor(null); }}
               onMouseLeave={() => setHoveredColor(null)}
-              className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === (color.images[0] || '___none___') ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
-              title={color.name}
-              aria-label={`Show ${color.name} color`}
+              className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === null ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
+              aria-label="Show default product image"
             >
-              {color.images[0] ? (
-                <img src={color.images[0]} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt={color.name} />
-              ) : (
-                <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-[8px] text-zinc-600 uppercase">N/A</div>
-              )}
+              <img src={product.image} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt="Default" />
             </button>
-          ))}
-        </div>
-      )}
+            {product.colors.filter(c => !(c as any).isDefault).map((color, idx) => (
+              <button
+                key={idx}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveImage(color.images[0] || null); setActiveColorIdx(idx); }}
+                onMouseEnter={() => { setActiveImage(color.images[0] || null); setHoveredColor(color); }}
+                onMouseLeave={() => setHoveredColor(null)}
+                className={`w-10 h-10 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === (color.images[0] || '___none___') ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
+                title={color.name}
+                aria-label={`Show ${color.name} color`}
+              >
+                {color.images[0] ? (
+                  <img src={color.images[0]} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt={color.name} />
+                ) : (
+                  <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-[8px] text-zinc-600 uppercase">N/A</div>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Link to={`${productUrl}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`} className="flex flex-col flex-1 p-3">
         {product.brand && (
