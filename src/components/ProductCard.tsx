@@ -6,13 +6,25 @@ import { buildProductUrl } from '../utils/slugify';
 interface ProductCardProps {
   product: Product;
   isSoldOut?: boolean;
+  filteredSize?: string;
+  sizeVariants?: Array<{ color: string; size: string }>;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = false }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = false, filteredSize, sizeVariants }) => {
   const [isHovered, setIsHovered] = React.useState(false);
   const [activeImage, setActiveImage] = React.useState<string | null>(null);
   const [activeColorIdx, setActiveColorIdx] = React.useState<number | null>(null);
   const [hoveredColor, setHoveredColor] = React.useState<ColorVariant | null>(null);
+
+  const nonDefaultColors = (product.colors || []).filter(c => !(c as any).isDefault);
+  const availableColorNames = filteredSize && sizeVariants
+    ? new Set(sizeVariants.filter(v => v.size === filteredSize).map(v => v.color))
+    : null;
+  const visibleColors = availableColorNames
+    ? nonDefaultColors.filter(c => availableColorNames.has(c.name))
+    : nonDefaultColors;
+  const shouldShowSwatches =
+    product.colors && typeof product.colors[0] === 'object' && product.colors.length > 1 && visibleColors.length > 0;
 
   // Find the first image in the gallery that isn't the primary image
   const hoverImage = product.images?.find(img => img && img !== product.image);
@@ -72,7 +84,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
 
       {/* Always-rendered swatch area — fixed h-8 keeps all card titles aligned */}
       <div className="px-3 h-8 flex items-center relative z-20">
-        {product.colors && typeof product.colors[0] === 'object' && product.colors.length > 1 ? (
+        {shouldShowSwatches ? (
           <div className="flex gap-2 overflow-x-auto no-scrollbar w-full">
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveImage(null); setActiveColorIdx(null); }}
@@ -83,7 +95,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
             >
               <img src={product.image} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt="Default" />
             </button>
-            {product.colors.filter(c => !(c as any).isDefault).map((color, idx) => (
+            {visibleColors.map((color, idx) => (
               <button
                 key={idx}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveImage(color.images[0] || null); setActiveColorIdx(idx); }}

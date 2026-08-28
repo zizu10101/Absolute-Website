@@ -82,6 +82,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
   const [brands, setBrands] = useState<string[]>([]);
   const [availableSizes, setAvailableSizes] = useState<string[]>([]);
   const [sizeToProductIds, setSizeToProductIds] = useState<Map<string, string[]>>(new Map());
+  const [productVariantData, setProductVariantData] = useState<Map<string, Array<{ color: string; size: string }>>>(new Map());
   const [soldOutProductIds, setSoldOutProductIds] = useState<Set<string>>(new Set());
 
   // Sync local search with URL query on search page
@@ -136,6 +137,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     setPriceRange('all');
     setOnSaleOnly(false);
     setSelectedSizes([]);
+    setProductVariantData(new Map());
     setVisibleCount(ITEMS_PER_PAGE);
   }, [category, submenu]);
 
@@ -172,6 +174,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     if (category?.toLowerCase() !== 'footwear') {
       setAvailableSizes([]);
       setSizeToProductIds(new Map());
+      setProductVariantData(new Map());
       return;
     }
     if (isLoading || products.length === 0) return;
@@ -184,6 +187,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
 
     const fetchSizes = async () => {
       const sizeMap = new Map<string, string[]>();
+      const variantData = new Map<string, Array<{ color: string; size: string }>>();
       const CHUNK = 200;
 
       for (let i = 0; i < footwearIds.length; i += CHUNK) {
@@ -194,17 +198,22 @@ export function ProductGridPage({ title, category, submenu }: Props) {
         while (hasMore) {
           const { data } = await supabase
             .from('product_variants')
-            .select('size, product_id')
+            .select('size, product_id, color')
             .in('product_id', chunk)
             .gt('stock_quantity', 0)
             .range(from, from + 999);
 
           if (!data || data.length === 0) { hasMore = false; break; }
 
-          for (const { size, product_id } of data) {
+          for (const { size, product_id, color } of data) {
             if (!size) continue;
             if (!sizeMap.has(size)) sizeMap.set(size, []);
             sizeMap.get(size)!.push(product_id);
+
+            if (color) {
+              if (!variantData.has(product_id)) variantData.set(product_id, []);
+              variantData.get(product_id)!.push({ color, size });
+            }
           }
 
           hasMore = data.length === 1000;
@@ -233,6 +242,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
 
       setAvailableSizes(sorted);
       setSizeToProductIds(sizeMap);
+      setProductVariantData(variantData);
     };
 
     fetchSizes();
@@ -782,7 +792,9 @@ export function ProductGridPage({ title, category, submenu }: Props) {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12">
               <AnimatePresence mode="popLayout">
-                {paginatedProducts.map((product, idx) => (
+                {(() => {
+                  const filteredSize = selectedSizes.length === 1 ? selectedSizes[0] : undefined;
+                  return paginatedProducts.map((product, idx) => (
                   <motion.div
                     key={product.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -790,9 +802,15 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                     transition={{ delay: (idx % ITEMS_PER_PAGE) * 0.05 }}
                     className="h-full"
                   >
-                    <ProductCard product={product} isSoldOut={soldOutProductIds.has(product.id)} />
+                    <ProductCard
+                      product={product}
+                      isSoldOut={soldOutProductIds.has(product.id)}
+                      filteredSize={filteredSize}
+                      sizeVariants={filteredSize ? productVariantData.get(product.id) : undefined}
+                    />
                   </motion.div>
-                ))}
+                  ));
+                })()}
               </AnimatePresence>
             </div>
           )}
