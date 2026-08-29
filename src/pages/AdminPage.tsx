@@ -1616,7 +1616,7 @@ function AdminPageInner() {
           const publicUrl = await uploadImage(resized, path);
           
           if (isEditing && editingProduct) {
-            setEditingProduct({ ...editingProduct, image: publicUrl });
+            setEditingProduct(prev => ({ ...prev, image: publicUrl }));
           } else {
             setNewProduct({ ...newProduct, image: publicUrl });
           }
@@ -1643,9 +1643,11 @@ function AdminPageInner() {
           const publicUrl = await uploadImage(resized, path);
 
           if (isEditing && editingProduct) {
-            const newImages = [...(editingProduct.images || [])];
-            newImages[index] = publicUrl;
-            setEditingProduct({ ...editingProduct, images: newImages });
+            setEditingProduct(prev => {
+              const newImages = [...(prev.images || [])];
+              newImages[index] = publicUrl;
+              return { ...prev, images: newImages };
+            });
           } else {
             const newImages = [...(newProduct.images || [])];
             newImages[index] = publicUrl;
@@ -2404,17 +2406,21 @@ function AdminPageInner() {
     }
 
     if (field === 'image') {
-      setEditingProduct({...editingProduct, image: finalValue});
+      setEditingProduct(prev => ({...prev, image: finalValue}));
     } else if (field === 'additional' && index !== undefined) {
-      const newImages = [...(editingProduct.images || [])];
-      newImages[index] = finalValue;
-      setEditingProduct({...editingProduct, images: newImages});
+      setEditingProduct(prev => {
+        const newImages = [...(prev.images || [])];
+        newImages[index] = finalValue;
+        return {...prev, images: newImages};
+      });
     } else if (field === 'color' && colorIndex !== undefined && index !== undefined) {
-      const newColors = [...(editingProduct.colors || [])];
-      const newImages = [...(newColors[colorIndex].images || [])];
-      newImages[index] = finalValue;
-      newColors[colorIndex] = { ...newColors[colorIndex], images: newImages };
-      setEditingProduct({...editingProduct, colors: newColors});
+      setEditingProduct(prev => {
+        const newColors = [...(prev.colors || [])];
+        const newImages = [...(newColors[colorIndex].images || [])];
+        newImages[index] = finalValue;
+        newColors[colorIndex] = { ...newColors[colorIndex], images: newImages };
+        return {...prev, colors: newColors};
+      });
     }
   };
 
@@ -2524,11 +2530,13 @@ function AdminPageInner() {
           const publicUrl = await uploadImage(resized, path);
 
           if (isEditing && editingProduct) {
-            const newColors = [...(editingProduct.colors || [])];
-            const colorImages = [...(newColors[colorIndex].images || [])];
-            colorImages[imageIndex] = publicUrl;
-            newColors[colorIndex] = { ...newColors[colorIndex], images: colorImages };
-            setEditingProduct({ ...editingProduct, colors: newColors });
+            setEditingProduct(prev => {
+              const newColors = [...(prev.colors || [])];
+              const colorImages = [...(newColors[colorIndex].images || [])];
+              colorImages[imageIndex] = publicUrl;
+              newColors[colorIndex] = { ...newColors[colorIndex], images: colorImages };
+              return { ...prev, colors: newColors };
+            });
           } else {
             const newColors = [...(newProduct.colors || [])];
             const colorImages = [...(newColors[colorIndex].images || [])];

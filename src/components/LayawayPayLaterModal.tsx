@@ -21,6 +21,7 @@ export const LayawayPayLaterModal: React.FC<LayawayPayLaterModalProps> = ({
   isOpen, mode, cart, totalAmount, customer, footerLogo, onClose, onComplete,
 }) => {
   const [depositAmount, setDepositAmount] = useState('');
+  const [depositMethod, setDepositMethod] = useState('Cash');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedRecord, setSavedRecord] = useState<{ id: string; createdAt: Date; deposit: number; balanceDue: number } | null>(null);
@@ -71,6 +72,17 @@ export const LayawayPayLaterModal: React.FC<LayawayPayLaterModalProps> = ({
 
       const { data, error: insertError } = await supabase.from(table).insert([payload]).select();
       if (insertError) throw insertError;
+
+      // Insert a transaction record for the deposit so it appears in EOD under the correct payment method
+      if (mode === 'layaway' && deposit > 0) {
+        await supabase.from('transactions').insert([{
+          total_amount: Number(deposit.toFixed(2)),
+          method: depositMethod,
+          items: [],
+          customer_id: customer.id,
+          created_at: new Date().toISOString(),
+        }]);
+      }
 
       // Deduct stock for held items, same as a completed sale
       for (const item of cart) {
@@ -147,6 +159,7 @@ export const LayawayPayLaterModal: React.FC<LayawayPayLaterModalProps> = ({
 
   const handleClose = () => {
     setDepositAmount('');
+    setDepositMethod('Cash');
     setError(null);
     setSavedRecord(null);
     onClose();
@@ -154,6 +167,7 @@ export const LayawayPayLaterModal: React.FC<LayawayPayLaterModalProps> = ({
 
   const handleDone = () => {
     setDepositAmount('');
+    setDepositMethod('Cash');
     setError(null);
     setSavedRecord(null);
     onComplete();
@@ -194,18 +208,35 @@ export const LayawayPayLaterModal: React.FC<LayawayPayLaterModalProps> = ({
                 </div>
 
                 {mode === 'layaway' && (
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Deposit Amount</label>
-                    <input
-                      type="number"
-                      value={depositAmount}
-                      onChange={e => setDepositAmount(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full bg-[#0f1117] border border-[#2d3547] rounded px-3 py-2 text-white text-sm"
-                    />
-                    {deposit > 0 && (
-                      <p className="text-[10px] text-gray-400 mt-1">Balance due: <span className="text-amber-400 font-bold">${balanceDue.toFixed(2)}</span></p>
-                    )}
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Deposit Amount</label>
+                      <input
+                        type="number"
+                        value={depositAmount}
+                        onChange={e => setDepositAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full bg-[#0f1117] border border-[#2d3547] rounded px-3 py-2 text-white text-sm"
+                      />
+                      {deposit > 0 && (
+                        <p className="text-[10px] text-gray-400 mt-1">Balance due: <span className="text-amber-400 font-bold">${balanceDue.toFixed(2)}</span></p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Deposit Payment Method</label>
+                      <div className="flex flex-wrap gap-1">
+                        {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex'].map(m => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setDepositMethod(m)}
+                            className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-colors ${depositMethod === m ? 'bg-[var(--primary-color)] text-white' : 'bg-[#0f1117] border border-[#2d3547] text-gray-400 hover:border-gray-500'}`}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
 

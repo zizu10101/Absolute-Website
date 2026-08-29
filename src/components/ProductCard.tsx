@@ -30,6 +30,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
   const hoverImage = product.images?.find(img => img && img !== product.image);
   const displayImage = activeImage || (isHovered && hoverImage ? hoverImage : product.image);
   const productUrl = buildProductUrl(product);
+  const productLinkParams = new URLSearchParams();
+  if (activeColorIdx !== null) productLinkParams.set('color', String(activeColorIdx));
+  if (filteredSize) productLinkParams.set('size', filteredSize);
+  const productLinkQs = productLinkParams.toString();
+  const productLink = `${productUrl}${productLinkQs ? `?${productLinkQs}` : ''}`;
 
   // Compute lowest price, considering color-specific sale prices
   const colorSalePrices = (product.colors || []).filter(c => c.salePrice).map(c => c.salePrice!);
@@ -43,7 +48,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
   return (
     <div className={`bg-white group cursor-pointer border border-zinc-100 relative flex flex-col h-full${isSoldOut ? ' opacity-70' : ''}`}>
       <Link
-        to={`${productUrl}${activeColorIdx !== null ? `?color=${activeColorIdx}` : ''}`}
+        to={productLink}
         className="block"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}

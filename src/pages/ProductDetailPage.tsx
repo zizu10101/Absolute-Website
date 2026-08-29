@@ -52,6 +52,7 @@ export function ProductDetailPage() {
   const [imageMousePos, setImageMousePos] = useState({ x: 0, y: 0 });
 
   const colorParam = searchParams.get('color');
+  const sizeParam = searchParams.get('size');
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
   // Track last fetched id so StrictMode's second effect run skips the loading flash
@@ -356,6 +357,7 @@ export function ProductDetailPage() {
 
   useEffect(() => {
     setSelectedImage(0);
+    setSelectedSize(null);
   }, [selectedColor]);
 
   // Convert legacy numeric colorParam (URL ?color=0) to color name once product loads
@@ -366,6 +368,25 @@ export function ProductDetailPage() {
       if (colorName) setSelectedColor(colorName);
     }
   }, [product?.id]);
+
+  // Auto-select default (or first) color when product loads so the size filter
+  // is already active when variants arrive — skipped when ?color= or ?size= is in the URL
+  useEffect(() => {
+    if (!product?.colors?.length || colorParam !== null || sizeParam !== null) return;
+    const def = (product.colors as any[]).find(c => c.isDefault) ?? product.colors[0];
+    if (def?.name) setSelectedColor(def.name);
+  }, [product?.id]);
+
+  // When arriving from a size-filtered category page (?size=11), auto-select the color
+  // that has that size in stock and pre-select the size — runs after variants load
+  useEffect(() => {
+    if (!sizeParam || !variants.length) return;
+    const match = (variants as any[]).find(v => v.size === sizeParam && (v.stock_quantity ?? 0) > 0);
+    if (match?.color) {
+      setSelectedColor(match.color);
+      setSelectedSize(sizeParam);
+    }
+  }, [variants.length, sizeParam]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -543,7 +564,8 @@ export function ProductDetailPage() {
         .filter((v: any) => {
           const ageGroupMatch = !selectedAgeGroup || v.age_group === selectedAgeGroup;
           const colorMatch = !selectedColor || v.color === selectedColor;
-          return ageGroupMatch && colorMatch;
+          const stockMatch = !selectedColor || (v.stock_quantity ?? 0) > 0;
+          return ageGroupMatch && colorMatch && stockMatch;
         })
         .map(v => v.size)
     ));
