@@ -16,19 +16,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
   const [activeColorIdx, setActiveColorIdx] = React.useState<number | null>(null);
   const [hoveredColor, setHoveredColor] = React.useState<ColorVariant | null>(null);
 
-  const nonDefaultColors = (product.colors || []).filter(c => !(c as any).isDefault);
-  const availableColorNames = filteredSize && sizeVariants
-    ? new Set(sizeVariants.filter(v => v.size === filteredSize).map(v => v.color))
-    : null;
-  const visibleColors = availableColorNames
-    ? nonDefaultColors.filter(c => availableColorNames.has(c.name))
-    : nonDefaultColors;
-  const shouldShowSwatches =
-    product.colors && typeof product.colors[0] === 'object' && product.colors.length > 1 && visibleColors.length > 0;
+  const allColors = ((product.colors || []) as any[]).filter((c: any) => typeof c === 'object' && c.name);
+  const visibleColorSet = new Set(allColors.filter((c: any) => (
+    (!filteredSize || sizeVariants?.some((v: any) => v.color === c.name && v.size === filteredSize)) &&
+    c.images?.length > 0
+  )));
+  const shouldShowSwatches = allColors.length > 1 && visibleColorSet.size > 0;
+
+  const cardImage = (() => {
+    if (!filteredSize || !sizeVariants) return product.image;
+    const match = allColors.find((c: any) =>
+      sizeVariants.some((v: any) => v.color === c.name && v.size === filteredSize) && c.images?.length > 0
+    );
+    return match?.images?.[0] || product.image;
+  })();
 
   // Find the first image in the gallery that isn't the primary image
   const hoverImage = product.images?.find(img => img && img !== product.image);
-  const displayImage = activeImage || (isHovered && hoverImage ? hoverImage : product.image);
+  const displayImage = activeImage || (isHovered && hoverImage ? hoverImage : cardImage);
   const productUrl = buildProductUrl(product);
   const productLinkParams = new URLSearchParams();
   if (activeColorIdx !== null) productLinkParams.set('color', String(activeColorIdx));
@@ -91,32 +96,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
       <div className="px-3 h-8 flex items-center relative z-20">
         {shouldShowSwatches ? (
           <div className="flex gap-2 overflow-x-auto no-scrollbar w-full">
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveImage(null); setActiveColorIdx(null); }}
-              onMouseEnter={() => { setActiveImage(null); setHoveredColor(null); }}
-              onMouseLeave={() => setHoveredColor(null)}
-              className={`w-7 h-7 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === null ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
-              aria-label="Show default product image"
-            >
-              <img src={product.image} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt="Default" />
-            </button>
-            {visibleColors.map((color, idx) => (
-              <button
-                key={idx}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveImage(color.images[0] || null); setActiveColorIdx(idx); }}
-                onMouseEnter={() => { setActiveImage(color.images[0] || null); setHoveredColor(color); }}
-                onMouseLeave={() => setHoveredColor(null)}
-                className={`w-7 h-7 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === (color.images[0] || '___none___') ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
-                title={color.name}
-                aria-label={`Show ${color.name} color`}
-              >
-                {color.images[0] ? (
-                  <img src={color.images[0]} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt={color.name} />
-                ) : (
-                  <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-[8px] text-zinc-600 uppercase">N/A</div>
-                )}
-              </button>
-            ))}
+            {allColors.map((color, idx) => {
+              if (!visibleColorSet.has(color)) return null;
+              return (
+                <button
+                  key={idx}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveImage(color.images[0] || null); setActiveColorIdx(idx); }}
+                  onMouseEnter={() => { setActiveImage(color.images[0] || null); setHoveredColor(color); }}
+                  onMouseLeave={() => setHoveredColor(null)}
+                  className={`w-7 h-7 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === (color.images[0] || '___none___') ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
+                  title={color.name}
+                  aria-label={`Show ${color.name} color`}
+                >
+                  {color.images[0] ? (
+                    <img src={color.images[0]} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt={color.name} />
+                  ) : (
+                    <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-[8px] text-zinc-600 uppercase">N/A</div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         ) : (
           <div className="h-7" />

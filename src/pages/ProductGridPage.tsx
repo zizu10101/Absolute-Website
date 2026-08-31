@@ -806,7 +806,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                       product={product}
                       isSoldOut={soldOutProductIds.has(product.id)}
                       filteredSize={filteredSize}
-                      sizeVariants={filteredSize ? productVariantData.get(product.id) : undefined}
+                      sizeVariants={filteredSize ? (productVariantData.size > 0 ? (productVariantData.get(product.id) ?? []) : undefined) : undefined}
                     />
                   </motion.div>
                   ));
