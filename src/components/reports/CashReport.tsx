@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../supabase';
-import { RefreshCw, X, Copy, Save } from 'lucide-react';
+import { RefreshCw, X, Copy, Save, Sheet } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { getEasternDayRange, getTodayEastern } from '../../utils/timezoneUtils';
 import { downloadCSV } from '../../utils/reportExport';
@@ -91,6 +91,7 @@ export const CashReport: React.FC<CashReportProps> = ({ logo: logoFromProps }) =
   const [existingReportChecked, setExistingReportChecked] = useState(false);
   const [notes, setNotes] = useState<string>('');
   const [recentReports, setRecentReports] = useState<any[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const [showPreview, setShowPreview] = useState(false);
   const [previewHTML, setPreviewHTML] = useState('');
@@ -509,6 +510,46 @@ export const CashReport: React.FC<CashReportProps> = ({ logo: logoFromProps }) =
     }
   };
 
+  const handleSyncToSheets = async () => {
+    try {
+      setIsSyncing(true);
+
+      const getMethodAmount = (names: string[]) =>
+        paymentBreakdown.filter(p => names.includes(p.method)).reduce((s, p) => s + p.amount, 0);
+
+      const response = await fetch('/api/sync-to-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: selectedDate,
+          pos_cash: getMethodAmount(['Cash']),
+          pos_debit: getMethodAmount(['Debit']),
+          pos_visa: getMethodAmount(['Visa']),
+          pos_mc: getMethodAmount(['Mastercard', 'MC']),
+          pos_amex: getMethodAmount(['Amex']),
+          other: other,
+          total: totalSalesWithOther,
+          actual_cash: hasActualCash ? actualCashNum : 0,
+          over_short: hasActualCash ? overShort : 0,
+          deposit: deposit !== '' ? Number(deposit) : 0,
+          opening_total: openingTotal,
+          closing_total: closingTotal,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert(`Synced to Google Sheets!\nTab: ${result.tab}`);
+      } else {
+        alert(`Failed to sync to Google Sheets\n${result.error || ''}`);
+      }
+    } catch {
+      alert('Error syncing to Google Sheets');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const inputClass = 'w-16 px-2 py-1 border border-zinc-200 rounded text-sm text-right text-zinc-900';
 
   return (
@@ -792,6 +833,14 @@ export const CashReport: React.FC<CashReportProps> = ({ logo: logoFromProps }) =
         >
           <Save size={14} />
           {isSaving ? 'Saving...' : existingReportId ? 'Update Report' : 'Save Report'}
+        </button>
+        <button
+          onClick={handleSyncToSheets}
+          disabled={isSyncing}
+          className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+        >
+          <Sheet size={14} />
+          {isSyncing ? 'Syncing...' : 'Sync to Google Sheets'}
         </button>
         {saveMessage && (
           <span className={`text-xs font-bold ${saveMessage.type === 'success' ? 'text-emerald-700' : 'text-red-700'}`}>

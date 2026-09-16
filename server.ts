@@ -6,6 +6,7 @@ import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import printer from "node-printer";
+import { syncEODToSheet } from "./src/utils/googleSheets";
 
 dotenv.config();
 
@@ -2048,6 +2049,17 @@ async function startServer() {
       res.status(500).type('text/plain').send(`Error generating feed: ${err.message}`);
     }
   });
+
+  // --- GOOGLE SHEETS SYNC ---
+
+  app.post('/api/sync-to-sheets', async (req, res) => {
+    try {
+      const result = await syncEODToSheet(req.body)
+      res.json(result)
+    } catch (err) {
+      res.status(500).json({ success: false, error: String(err) })
+    }
+  })
 
   // --- VITE & STATIC ---
 
