@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../supabase';
-import { RefreshCw, X, Copy, Save, Sheet } from 'lucide-react';
+import { RefreshCw, X, Copy, Save, Sheet, Calendar } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { getEasternDayRange, getTodayEastern } from '../../utils/timezoneUtils';
 import { downloadCSV } from '../../utils/reportExport';
@@ -92,6 +92,7 @@ export const CashReport: React.FC<CashReportProps> = ({ logo: logoFromProps }) =
   const [notes, setNotes] = useState<string>('');
   const [recentReports, setRecentReports] = useState<any[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isCreatingNewMonth, setIsCreatingNewMonth] = useState(false);
 
   const [showPreview, setShowPreview] = useState(false);
   const [previewHTML, setPreviewHTML] = useState('');
@@ -550,6 +551,31 @@ export const CashReport: React.FC<CashReportProps> = ({ logo: logoFromProps }) =
     }
   };
 
+  const handleNewMonth = async () => {
+    const confirmed = window.confirm(
+      'This will create a new Google Sheet for the new month, copy the template from the last day, and set up Day 1.\n\nContinue?'
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsCreatingNewMonth(true);
+      const response = await fetch('/api/new-month', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const result = await response.json();
+      if (result.success) {
+        alert(`New month sheet created!\n\nSheet: ${result.sheetTitle}\nFirst tab: ${result.firstTab}\n\nFuture syncs will use the new sheet automatically.`);
+      } else {
+        alert(`Failed to create new month sheet\n\n${result.error || ''}`);
+      }
+    } catch {
+      alert('Error creating new month sheet');
+    } finally {
+      setIsCreatingNewMonth(false);
+    }
+  };
+
   const inputClass = 'w-16 px-2 py-1 border border-zinc-200 rounded text-sm text-right text-zinc-900';
 
   return (
@@ -842,6 +868,16 @@ export const CashReport: React.FC<CashReportProps> = ({ logo: logoFromProps }) =
           <Sheet size={14} />
           {isSyncing ? 'Syncing...' : 'Sync to Google Sheets'}
         </button>
+        {true /* TODO: revert to new Date().getDate() === 1 before push */ && (
+          <button
+            onClick={handleNewMonth}
+            disabled={isCreatingNewMonth}
+            className="flex items-center gap-2 px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+          >
+            <Calendar size={14} />
+            {isCreatingNewMonth ? 'Setting up...' : 'Start New Month →'}
+          </button>
+        )}
         {saveMessage && (
           <span className={`text-xs font-bold ${saveMessage.type === 'success' ? 'text-emerald-700' : 'text-red-700'}`}>
             {saveMessage.text}

@@ -75,10 +75,43 @@ while (true) {
 - `docs/inventory-count-migration.sql` — the `inventory_counts` table already existed on this project's live Supabase instance and was verified working during Session 65; the file only matters if this project is ever pointed at a different DB
 - `docs/cash-report-migration.sql` must be run in Supabase before Cash Report works — already applied to this project's live Supabase instance during Session 63 testing; only relevant if this project is ever pointed at a different DB
 
+## Google Sheets EOD Sync
+
+### Daily Sync
+- Sync button in locked Cash Report (PIN 0852)
+- Pulls `completed` transactions from Supabase using EST timezone via luxon (`America/Toronto`)
+- Each payment method fills its own column independently — transactions stack down each column, no empty rows between same-method entries:
+  - L = Cash, M = Debit, N = Visa, O = MC, P = Amex, Q = Cheque
+- Split payments (`payment_splits` JSONB array) go to multiple columns
+- J4:J9 SUM formulas calculate column totals automatically — never written directly
+- R4:S28 untouched (manual cash count entries)
+- F19 = Over/Short, F20 = Deposit
+- Tab exists → clears L4:Q28 then refills; R4:S28 left alone
+- Tab doesn't exist → duplicates previous day tab, reads J4:J9 with `valueRenderOption: 'FORMULA'` to preserve SUM formulas, clears L4:Q28 + R4:S28 + J4:J14, restores J4:J9 formulas, then fills L4:Q28
+- Uses `method` column (not `payment_method`) from transactions table
+- Tab naming: day 1 → "Month 1, Year" (e.g. "October 1, 2026"); other days → day number (e.g. "18")
+- G29 cumulative formula: day 1 → `=K29`; other days → `=SUM(K29+'prevTab'!G29)`
+
+### New Month Automation
+- "Start New Month" button in Cash Report (appears any time, not restricted to 1st)
+- Copies current month's sheet into Drive folder via `drive.files.copy` (OAuth2)
+- Keeps only last tab, renames it to "Month 1, Year"
+- Copies closing counts (E4:G13) → opening counts (A4:C13)
+- Clears J4:J14, L4:R4, E4:G13, R4:R28, S4:S28, L29:Q29
+- Sets G29 = `=K29`
+- Updates `GOOGLE_SHEET_ID` in process.env and Supabase `settings` table after creation
+
+### Google Auth
+- OAuth2 refresh token (not service account — service account has no Drive storage quota)
+- `getOAuthClient()` in `src/utils/googleSheets.ts` using `google.auth.OAuth2`
+- Required env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
+- `GOOGLE_SHEET_ID` — loaded from Supabase `settings` table at startup (overrides `.env`); updated when new month is created
+- `GOOGLE_DRIVE_FOLDER_ID=1G9DUF6igOHt00Kb48XzuTfeuzZF24kXG`
+
 ## Recent Changes (last 3 sessions)
+- **Session 82:** Google Sheets EOD sync complete. OAuth2 replaces service account (quota issue). Per-column transaction stacking: each payment method fills its own column (L–Q), split payments go to multiple columns. Luxon timezone fix for EST date range. New month creates copy of current sheet in Drive folder, clears data columns, copies closing→opening counts. Tab creation reads J4:J9 formulas with `FORMULA` render option to preserve SUM formulas after clear.
 - **Session 81:** ProductCard.tsx + ProductGridPage.tsx — three rounds of size-filter swatch improvements (all confirmed working, all pushed). (1) **Swatch isDefault bug fix** — removed the separate "default" button (which always showed regardless of filter) and the `nonDefaultColors` exemption; replaced with `allColors` (all product.colors with a name) filtered uniformly by `visibleColorSet`. All colors, including `isDefault`, now go through the same size filter. `allColors.map()` with `!visibleColorSet.has(color) → null` preserves original `product.colors[idx]` indices so `?color=N` in the link is correct. (2) **N/A thumbnails removed + card image follows filter** — `visibleColorSet` also requires `c.images?.length > 0` so image-less colors are never rendered. Added `cardImage` IIFE: when `filteredSize` and `sizeVariants` are both set, finds the first matching color with an image and uses its `images[0]` as the resting card image; falls back to `product.image`. `displayImage` now uses `cardImage` instead of `product.image`. (3) **ProductGridPage.tsx sizeVariants loading guard** — `sizeVariants` prop now passes `productVariantData.size > 0 ? (productVariantData.get(id) ?? []) : undefined` so during data load `sizeVariants` is `undefined` (swatches show all), and after load a product with no color-tagged variants gets `[]` (swatches correctly hide). The `sizeVariants?.some()` optional-chain in ProductCard handles the `undefined` loading state without a separate guard branch.
 - **Session 80:** Four fixes across product detail, admin image upload, layaway EOD, and size-filter navigation. (1) **ProductDetailPage.tsx size filter by color** — `displayedSizesList` now adds `stockMatch = !selectedColor || stock_quantity > 0` so only in-stock sizes show for the selected color; `setSelectedSize(null)` added to the color-change effect so stale selections clear. (2) **ProductDetailPage.tsx default color auto-select** — new `useEffect` on `[product?.id]` sets `selectedColor` to the `isDefault` color (fallback: first color) as soon as the product loads, before variants arrive, so the size filter is already active when variants finish fetching; skipped when `?color=` or `?size=` URL params are present. (3) **AdminPage.tsx async image upload stale closure fix** — `handleProductImageUpload`, `handleAdditionalImageUpload`, `handleColorImageUpload`, and `updateEditingProductImage` all switched from `setEditingProduct({ ...editingProduct, ... })` to functional `setEditingProduct(prev => ({ ...prev, ... }))` so concurrent uploads or any intervening re-render cannot overwrite color images with stale state. (4) **LayawayPayLaterModal.tsx EOD deposit tracking** — added `depositMethod` state (default `'Cash'`) with a 5-button selector (Cash / Debit / Visa / Mastercard / Amex); when a layaway is saved, a `transactions` row is inserted (`total_amount = deposit_paid`, `method = depositMethod`) so it naturally appears in EOD under the correct payment method column without any CashReport changes. (5) **ProductCard.tsx + ProductDetailPage.tsx size-filter URL passthrough** — ProductCard builds `productLink` with `URLSearchParams` combining existing `?color=N` and new `?size=X` (when `filteredSize` active); ProductDetailPage reads `sizeParam`, has a new `useEffect([variants.length, sizeParam])` that finds the first in-stock variant for that size and sets both `selectedColor` and `selectedSize`.
-- **Session 79:** Size-filtered color swatches (ProductCard.tsx + ProductGridPage.tsx). When exactly one size is selected in the footwear filter, ProductCard now hides color swatches that don't have that size in stock. Implementation: ProductGridPage extends its existing `product_variants` fetch (adds `color` to the select) to build a `productVariantData: Map<productId, Array<{color, size}>>` alongside the existing `sizeToProductIds` map — no extra DB requests. `filteredSize` (the single selected size) and `sizeVariants` (per-product variant data) are passed as new props to ProductCard. ProductCard computes `visibleColors` from `sizeVariants` and `shouldShowSwatches` (`product.colors.length > 1 && visibleColors.length > 0`) — swatches hide entirely if no colors survive the filter. Filtering is inactive when 0 or 2+ sizes are selected. Feature is footwear-only (size filter only exists on the footwear category page). Tested on localhost: 8 swatches → 4 after Size 9 filter → 8 restored after clearing.
 
 ## Key Settings
 - Primary color: `var(--primary-color)`, default `#b90014` (red) — set via Admin → Settings → Theme; don't hardcode the hex elsewhere in code

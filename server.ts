@@ -6,12 +6,13 @@ import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import printer from "node-printer";
-import { syncEODToSheet } from "./src/utils/googleSheets";
+import { syncEODToSheet, createNewMonthSheet } from "./src/utils/googleSheets";
+import { DateTime } from "luxon";
 
 dotenv.config();
 
 const isProduction = process.env.NODE_ENV === "production";
-const PORT = 3000;
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 // Initialize Supabase if credentials are provided
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
@@ -78,6 +79,23 @@ const app = express();
 
 async function startServer() {
   await ensureDataDir();
+
+  // Override GOOGLE_SHEET_ID from Supabase settings if a new-month update has been saved
+  if (supabase) {
+    try {
+      const { data } = await supabase
+        .from('settings')
+        .select('data')
+        .eq('key', 'google_sheet_id')
+        .maybeSingle();
+      if (data?.data?.id) {
+        process.env.GOOGLE_SHEET_ID = data.data.id;
+        console.log('Google Sheet ID loaded from Supabase:', data.data.id);
+      }
+    } catch {
+      // Non-fatal — fall back to .env value
+    }
+  }
 
   // Basic Middleware
   app.use(express.json({ limit: '100mb' }));
@@ -2054,8 +2072,65 @@ async function startServer() {
 
   app.post('/api/sync-to-sheets', async (req, res) => {
     try {
-      const result = await syncEODToSheet(req.body)
+      const nowInEST = DateTime.now().setZone('America/Toronto')
+      const startOfDay = nowInEST.startOf('day').toUTC().toISO()
+      const endOfDay   = nowInEST.endOf('day').toUTC().toISO()
+
+      console.log('Date range:', startOfDay, 'to', endOfDay)
+
+      let transactions: any[] = []
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('status', 'completed')
+          .gte('created_at', startOfDay)
+          .lte('created_at', endOfDay)
+        if (error) console.error('Transaction fetch error:', error.message)
+        transactions = data || []
+      }
+
+      console.log('Transactions found:', transactions.length)
+      const result = await syncEODToSheet(req.body, transactions)
       res.json(result)
+    } catch (err) {
+      res.status(500).json({ success: false, error: String(err) })
+    }
+  })
+
+  app.post('/api/new-month', async (req, res) => {
+    console.log('🔵 New month endpoint called')
+    try {
+      console.log('🔵 Starting createNewMonthSheet...')
+      const result = await createNewMonthSheet()
+      console.log('🔵 Result:', JSON.stringify(result))
+      if (result.success && result.spreadsheetId) {
+        process.env.GOOGLE_SHEET_ID = result.spreadsheetId
+        if (supabase) {
+          await supabase
+            .from('settings')
+            .upsert({ key: 'google_sheet_id', data: { id: result.spreadsheetId } }, { onConflict: 'key' })
+        }
+      }
+      res.json(result)
+    } catch (err: any) {
+      console.error('🔴 /api/new-month error:', err.message)
+      console.error('🔴 Stack:', err.stack)
+      res.status(500).json({ success: false, error: err.message })
+    }
+  })
+
+  app.post('/api/update-sheet-id', async (req, res) => {
+    try {
+      const { spreadsheetId } = req.body
+      if (!spreadsheetId) return res.status(400).json({ error: 'spreadsheetId required' })
+      process.env.GOOGLE_SHEET_ID = spreadsheetId
+      if (supabase) {
+        await supabase
+          .from('settings')
+          .upsert({ key: 'google_sheet_id', data: { id: spreadsheetId } }, { onConflict: 'key' })
+      }
+      res.json({ success: true })
     } catch (err) {
       res.status(500).json({ success: false, error: String(err) })
     }
