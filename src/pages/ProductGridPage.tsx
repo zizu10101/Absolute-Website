@@ -342,25 +342,31 @@ export function ProductGridPage({ title, category, submenu }: Props) {
 
     const searchTerm = localSearch.toLowerCase().trim();
     if (searchTerm) {
-      // Strip hyphens from BOTH query and all text fields so "IB5300480" finds "IB5300-480"
-      // and vice versa. Codes appear in description ("Style: IB5300-480") not just product_code.
-      const searchTermNoHyphens = searchTerm.replace(/-/g, '');
+      // Strip separators for code lookups ("IB5300480" finds "IB5300-480", "2526" finds "25/26")
+      const searchTermNoSep = searchTerm.replace(/[\/\-]/g, '');
+      // Split into words so "Benfica Away Jersey" finds "Benfica 25/26 Away Jersey"
+      const searchWords = searchTerm.replace(/[\/\-]/g, ' ').split(/\s+/).filter(Boolean);
       filtered = filtered.filter(p => {
         const name = (p.name || '').toLowerCase();
+        const nameNoSep = name.replace(/[\/\-]/g, '');
         const desc = (p.description || '').toLowerCase();
+        const descNoSep = desc.replace(/[\/\-]/g, '');
         const code = (p.product_code || '').toLowerCase();
-        return (
-          name.includes(searchTerm) ||
-          name.replace(/-/g, '').includes(searchTermNoHyphens) ||
-          (p.category || '').toLowerCase().includes(searchTerm) ||
-          desc.includes(searchTerm) ||
-          desc.replace(/-/g, '').includes(searchTermNoHyphens) ||
-          code.includes(searchTerm) ||
-          code.replace(/-/g, '').includes(searchTermNoHyphens) ||
-          (p.colors || []).some((c: any) => (c.product_code || '').toLowerCase().includes(searchTerm)) ||
-          (p.brand || '').toLowerCase().includes(searchTerm) ||
-          p.submenu?.toLowerCase().includes(searchTerm) ||
-          p.submenus?.some(s => s.toLowerCase().includes(searchTerm))
+        const codeNoSep = code.replace(/[\/\-]/g, '');
+        const brand = (p.brand || '').toLowerCase();
+        const cat = (p.category || '').toLowerCase();
+        const colorCodes = (p.colors || []).map((c: any) => (c.product_code || '').toLowerCase());
+
+        // Separator-stripped match for product codes (e.g. "IB5300480" → "IB5300-480")
+        if (searchTermNoSep && (nameNoSep.includes(searchTermNoSep) || codeNoSep.includes(searchTermNoSep) || descNoSep.includes(searchTermNoSep))) return true;
+
+        // Word-by-word match: every word must appear somewhere in the product's fields
+        return searchWords.every(word =>
+          name.includes(word) || desc.includes(word) || code.includes(word) ||
+          brand.includes(word) || cat.includes(word) ||
+          colorCodes.some(c => c.includes(word)) ||
+          p.submenu?.toLowerCase().includes(word) ||
+          p.submenus?.some(s => s.toLowerCase().includes(word))
         );
       });
     }

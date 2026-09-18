@@ -25,6 +25,8 @@ const __dirname = path.dirname(__filename);
 // standalone under plain Node (not through the Vite/TS build).
 function slugify(text) {
   return text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')

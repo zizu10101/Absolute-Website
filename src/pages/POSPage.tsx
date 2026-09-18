@@ -637,10 +637,11 @@ export function POSPage() {
       setPendingSearchResults(prev => ({ ...prev, [barcode]: [] }));
       return;
     }
+    const sanitized = query.trim().replace(/[\/\-]/g, ' ').replace(/\s+/g, ' ');
     const { data } = await supabase
       .from('products')
       .select('id, name, brand, category')
-      .ilike('name', `%${query}%`)
+      .or(`name.ilike.%${sanitized}%,brand.ilike.%${sanitized}%,product_code.ilike.%${sanitized}%`)
       .limit(6);
     setPendingSearchResults(prev => ({ ...prev, [barcode]: data || [] }));
   };
@@ -860,9 +861,17 @@ export function POSPage() {
     return products.filter(p => {
       if (showOnlineOnly && p.is_online !== true) return false;
       if (!matchesCategory(p, activeCategory)) return false;
-      const q = searchQuery.toLowerCase();
-      return !q || p.name?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q) ||
-        (q.length >= 2 && (p.colors || []).some((c: any) => (c.product_code || '').toLowerCase().includes(q)));
+      const raw = searchQuery.trim();
+      if (!raw) return true;
+      // Normalize separators and split into words so "Benfica Away Jersey" finds "Benfica 25/26 Away Jersey"
+      const words = raw.toLowerCase().replace(/[\/\-]/g, ' ').split(/\s+/).filter(Boolean);
+      return words.every(word =>
+        (p.name || '').toLowerCase().includes(word) ||
+        (p.brand || '').toLowerCase().includes(word) ||
+        (p.product_code || '').toLowerCase().includes(word) ||
+        (p.category || '').toLowerCase().includes(word) ||
+        (p.colors || []).some((c: any) => (c.product_code || '').toLowerCase().includes(word))
+      );
     });
   }, [products, activeCategory, searchQuery, showOnlineOnly]);
 

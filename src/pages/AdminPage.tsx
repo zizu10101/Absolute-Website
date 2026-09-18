@@ -624,7 +624,7 @@ function AdminPageInner() {
   const [variantCodeMatchIds, setVariantCodeMatchIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const term = adminSearchTerm.trim();
+    const term = adminSearchTerm.trim().replace(/[\/\-]/g, ' ').replace(/\s+/g, ' ');
     if (!term) { setVariantCodeMatchIds(new Set()); return; }
     let cancelled = false;
     (async () => {
@@ -646,25 +646,28 @@ function AdminPageInner() {
       const matchesCategory = productCategoryFilter === 'All' ||
         (p.category && p.category.toString().toUpperCase() === productCategoryFilter.toUpperCase());
 
+      if (!searchLower) return matchesCategory;
+
       const name = (p.name || '').toString().toLowerCase();
       const cat = (p.category || '').toString().toLowerCase();
       const desc = (p.description || '').toString().toLowerCase();
       const sub = (p.submenu || '').toString().toLowerCase();
       const subsArr = (p.submenus || []).map(s => s.toString().toLowerCase());
       const masterCode = ((p as any).product_code || '').toString().toLowerCase();
+      const brand = ((p as any).brand || '').toString().toLowerCase();
       const colorCodes = ((p as any).colors || [])
         .map((c: any) => (c.product_code || '').toString().toLowerCase())
         .filter(Boolean);
 
-      const matchesSearch = !searchLower ||
-        name.includes(searchLower) ||
-        cat.includes(searchLower) ||
-        desc.includes(searchLower) ||
-        sub.includes(searchLower) ||
-        subsArr.some(s => s.includes(searchLower)) ||
-        masterCode.includes(searchLower) ||
-        colorCodes.some((c: string) => c.includes(searchLower)) ||
-        variantCodeMatchIds.has(p.id);
+      // Word-by-word match so "Benfica Away Jersey" finds "Benfica 25/26 Away Jersey"
+      const words = searchLower.replace(/[\/\-]/g, ' ').split(/\s+/).filter(Boolean);
+      const matchesSearch = variantCodeMatchIds.has(p.id) ||
+        words.every(word =>
+          name.includes(word) || cat.includes(word) || desc.includes(word) ||
+          sub.includes(word) || subsArr.some(s => s.includes(word)) ||
+          masterCode.includes(word) || brand.includes(word) ||
+          colorCodes.some((c: string) => c.includes(word))
+        );
 
       return matchesCategory && matchesSearch;
     });
