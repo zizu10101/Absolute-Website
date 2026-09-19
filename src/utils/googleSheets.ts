@@ -23,8 +23,22 @@ const getDriveClient = () => {
 }
 
 
+function getDescription(transaction: any): string {
+  const items = transaction.items
+  if (!items || !Array.isArray(items) || items.length === 0) return ''
+  return items
+    .map((item: any) => {
+      const name = item.name || item.product_name || ''
+      const size = item.size ? `(${item.size})` : ''
+      const qty = item.quantity > 1 ? `x${item.quantity}` : ''
+      return [name, size, qty].filter(Boolean).join(' ').trim()
+    })
+    .filter(Boolean)
+    .join(', ')
+}
+
 // One row per transaction; amount in its payment column (L–Q only).
-// R and S are manual columns — never touched by sync.
+// R (Other) and S (descriptions) are handled separately after this write.
 function buildRows(transactions: any[]): (number | string)[][] {
   const rows: (number | string)[][] = []
 
@@ -179,6 +193,50 @@ export const syncEODToSheet = async (
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: rows }
     })
+
+    // R column: append Other transactions after existing entries (never clear)
+    const existingRResp = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${todayTab}'!R4:R28`
+    })
+    const rValues = existingRResp.data.values || []
+    const nextEmptyR = rValues.length
+
+    const otherRows = transactions
+      .filter(t => (t.method || '').toLowerCase() === 'other')
+      .map(t => [Number(t.total_amount) || 0])
+
+    if (otherRows.length > 0 && nextEmptyR < 25) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `'${todayTab}'!R${4 + nextEmptyR}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: otherRows }
+      })
+    }
+
+    // S column: write descriptions to empty cells only, aligned with L:Q rows
+    const existingSResp = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${todayTab}'!S4:S28`
+    })
+    const sValues = existingSResp.data.values || []
+
+    const sUpdates = transactions
+      .map((t, i) => {
+        if (sValues[i]?.[0]) return null
+        const desc = getDescription(t)
+        if (!desc) return null
+        return { range: `'${todayTab}'!S${4 + i}`, values: [[desc]] }
+      })
+      .filter((u): u is NonNullable<typeof u> => u !== null)
+
+    if (sUpdates.length > 0) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        requestBody: { valueInputOption: 'USER_ENTERED', data: sUpdates }
+      })
+    }
 
     // Step 3: Always write F19 (over/short) and F20 (deposit)
     await sheets.spreadsheets.values.batchUpdate({
