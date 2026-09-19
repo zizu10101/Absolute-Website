@@ -19,30 +19,14 @@ const getOAuthClient = () => {
 
 const getSheetClient = () => google.sheets({ version: 'v4', auth: getOAuthClient() })
 
-function getDescription(transaction: any): string {
-  const items = transaction.items
-  if (!items || !Array.isArray(items) || items.length === 0) return ''
-  return items
-    .map((item: any) => {
-      const name = item.name || item.product_name || ''
-      const size = item.size ? `(${item.size})` : ''
-      const qty = item.quantity > 1 ? `x${item.quantity}` : ''
-      return [name, size, qty].filter(Boolean).join(' ').trim()
-    })
-    .filter(Boolean)
-    .join(', ')
-}
-
-// Each transaction = one row: amount in its payment column (L–R), description in S.
-// existingS is S4:S28 fetched before clearing — non-empty cells are preserved as-is.
-function buildRows(transactions: any[], existingS: string[][] = []): (number | string)[][] {
+// One row per transaction; amount in its payment column (L–Q only).
+// R and S are manual columns — never touched by sync.
+function buildRows(transactions: any[]): (number | string)[][] {
   const rows: (number | string)[][] = []
 
-  for (let i = 0; i < transactions.length; i++) {
-    const t = transactions[i]
-    const existingCell = existingS[i]?.[0] || ''
-    // indices: 0=L(Cash) 1=M(Debit) 2=N(Visa) 3=O(MC) 4=P(Amex) 5=Q(Cheque) 6=R(Other) 7=S(Desc)
-    const row: (number | string)[] = ['', '', '', '', '', '', '', existingCell || getDescription(t)]
+  for (const t of transactions) {
+    // indices: 0=L(Cash) 1=M(Debit) 2=N(Visa) 3=O(MC) 4=P(Amex) 5=Q(Cheque)
+    const row: (number | string)[] = ['', '', '', '', '', '']
     const amount = Number(t.total_amount) || 0
 
     if (t.payment_splits && Array.isArray(t.payment_splits) && t.payment_splits.length > 0) {
@@ -56,7 +40,6 @@ function buildRows(transactions: any[], existingS: string[][] = []): (number | s
           case 'mastercard': case 'mc':   row[3] = a; break
           case 'amex':                    row[4] = a; break
           case 'cheque': case 'check':    row[5] = a; break
-          case 'other':                   row[6] = a; break
         }
       })
     } else {
@@ -68,14 +51,13 @@ function buildRows(transactions: any[], existingS: string[][] = []): (number | s
         case 'mastercard': case 'mc':   row[3] = amount; break
         case 'amex':                    row[4] = amount; break
         case 'cheque': case 'check':    row[5] = amount; break
-        case 'other':                   row[6] = amount; break
       }
     }
 
     rows.push(row)
   }
 
-  while (rows.length < 25) rows.push(['', '', '', '', '', '', '', ''])
+  while (rows.length < 25) rows.push(['', '', '', '', '', ''])
   return rows.slice(0, 25)
 }
 
@@ -153,7 +135,7 @@ async function syncEODToSheet(
         spreadsheetId,
         requestBody: {
           ranges: [
-            `'${todayTab}'!L4:S28`,
+            `'${todayTab}'!L4:Q28`,
             `'${todayTab}'!J4:J14`
           ]
         }
@@ -170,27 +152,20 @@ async function syncEODToSheet(
 
       console.log(`Created new tab: ${todayTab}`)
     } else {
-      // Tab exists: clear payment columns only, leave S so manual entries survive
+      // Tab exists: clear L4:Q28 only — R and S are manual, never touched
       await sheets.spreadsheets.values.clear({
         spreadsheetId,
-        range: `'${todayTab}'!L4:R28`
+        range: `'${todayTab}'!L4:Q28`
       })
     }
 
-    // Fetch existing S values before writing — non-empty cells are kept as-is
-    const existingSResp = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `'${todayTab}'!S4:S28`
-    })
-    const existingS = (existingSResp.data.values || []) as string[][]
-
-    const rows = buildRows(transactions, existingS)
+    const rows = buildRows(transactions)
 
     console.log('Rows written:', rows.length, '| Transactions:', transactions.length)
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `'${todayTab}'!L4:S28`,
+      range: `'${todayTab}'!L4:Q28`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: rows }
     })
