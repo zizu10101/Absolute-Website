@@ -30,6 +30,7 @@ function buildColumnArrays(transactions: any[]) {
   const colO: (number | string)[] = [] // MC
   const colP: (number | string)[] = [] // Amex
   const colQ: (number | string)[] = [] // Cheque
+  const colR: (number | string)[] = [] // Other
 
   transactions.forEach(t => {
     const method = (t.method || '').toLowerCase()
@@ -46,6 +47,7 @@ function buildColumnArrays(transactions: any[]) {
           case 'mastercard': case 'mc':   colO.push(a); break
           case 'amex':                    colP.push(a); break
           case 'cheque': case 'check':    colQ.push(a); break
+          case 'other':                   colR.push(a); break
         }
       })
     } else {
@@ -56,11 +58,12 @@ function buildColumnArrays(transactions: any[]) {
         case 'mastercard': case 'mc':   colO.push(amount); break
         case 'amex':                    colP.push(amount); break
         case 'cheque': case 'check':    colQ.push(amount); break
+        case 'other':                   colR.push(amount); break
       }
     }
   })
 
-  return { colL, colM, colN, colO, colP, colQ }
+  return { colL, colM, colN, colO, colP, colQ, colR }
 }
 
 export const syncEODToSheet = async (
@@ -141,8 +144,8 @@ export const syncEODToSheet = async (
         spreadsheetId,
         requestBody: {
           ranges: [
-            `'${todayTab}'!L4:Q28`,
-            `'${todayTab}'!R4:S28`,
+            `'${todayTab}'!L4:R28`,
+            `'${todayTab}'!S4:S28`,
             `'${todayTab}'!J4:J14`
           ]
         }
@@ -160,15 +163,15 @@ export const syncEODToSheet = async (
 
       console.log(`Created new tab: ${todayTab}`)
     } else {
-      // Tab exists: clear only transaction columns, leave R/S (manual) untouched
+      // Tab exists: clear transaction columns (L–R), leave S (manual) untouched
       await sheets.spreadsheets.values.clear({
         spreadsheetId,
-        range: `'${todayTab}'!L4:Q28`
+        range: `'${todayTab}'!L4:R28`
       })
     }
 
     // Step 2: Build per-column arrays then combine into 25 rows
-    const { colL, colM, colN, colO, colP, colQ } = buildColumnArrays(transactions)
+    const { colL, colM, colN, colO, colP, colQ, colR } = buildColumnArrays(transactions)
 
     const rows: (number | string)[][] = []
     for (let i = 0; i < 25; i++) {
@@ -178,15 +181,16 @@ export const syncEODToSheet = async (
         colN[i] ?? '',
         colO[i] ?? '',
         colP[i] ?? '',
-        colQ[i] ?? ''
+        colQ[i] ?? '',
+        colR[i] ?? ''
       ])
     }
 
-    console.log('Rows written: 25 | Cash:', colL.length, 'Debit:', colM.length, 'Visa:', colN.length, 'MC:', colO.length, 'Amex:', colP.length, 'Cheque:', colQ.length)
+    console.log('Rows written: 25 | Cash:', colL.length, 'Debit:', colM.length, 'Visa:', colN.length, 'MC:', colO.length, 'Amex:', colP.length, 'Cheque:', colQ.length, 'Other:', colR.length)
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `'${todayTab}'!L4:Q28`,
+      range: `'${todayTab}'!L4:R28`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: rows }
     })

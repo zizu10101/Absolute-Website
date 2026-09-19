@@ -26,6 +26,7 @@ function buildColumnArrays(transactions: any[]) {
   const colO: (number | string)[] = []
   const colP: (number | string)[] = []
   const colQ: (number | string)[] = []
+  const colR: (number | string)[] = []
 
   transactions.forEach(t => {
     const method = (t.method || '').toLowerCase()
@@ -42,6 +43,7 @@ function buildColumnArrays(transactions: any[]) {
           case 'mastercard': case 'mc':   colO.push(a); break
           case 'amex':                    colP.push(a); break
           case 'cheque': case 'check':    colQ.push(a); break
+          case 'other':                   colR.push(a); break
         }
       })
     } else {
@@ -52,11 +54,12 @@ function buildColumnArrays(transactions: any[]) {
         case 'mastercard': case 'mc':   colO.push(amount); break
         case 'amex':                    colP.push(amount); break
         case 'cheque': case 'check':    colQ.push(amount); break
+        case 'other':                   colR.push(amount); break
       }
     }
   })
 
-  return { colL, colM, colN, colO, colP, colQ }
+  return { colL, colM, colN, colO, colP, colQ, colR }
 }
 
 async function syncEODToSheet(
@@ -133,8 +136,8 @@ async function syncEODToSheet(
         spreadsheetId,
         requestBody: {
           ranges: [
-            `'${todayTab}'!L4:Q28`,
-            `'${todayTab}'!R4:S28`,
+            `'${todayTab}'!L4:R28`,
+            `'${todayTab}'!S4:S28`,
             `'${todayTab}'!J4:J14`
           ]
         }
@@ -153,11 +156,11 @@ async function syncEODToSheet(
     } else {
       await sheets.spreadsheets.values.clear({
         spreadsheetId,
-        range: `'${todayTab}'!L4:Q28`
+        range: `'${todayTab}'!L4:R28`
       })
     }
 
-    const { colL, colM, colN, colO, colP, colQ } = buildColumnArrays(transactions)
+    const { colL, colM, colN, colO, colP, colQ, colR } = buildColumnArrays(transactions)
 
     const rows: (number | string)[][] = []
     for (let i = 0; i < 25; i++) {
@@ -167,15 +170,16 @@ async function syncEODToSheet(
         colN[i] ?? '',
         colO[i] ?? '',
         colP[i] ?? '',
-        colQ[i] ?? ''
+        colQ[i] ?? '',
+        colR[i] ?? ''
       ])
     }
 
-    console.log('Rows written: 25 | Cash:', colL.length, 'Debit:', colM.length, 'Visa:', colN.length, 'MC:', colO.length, 'Amex:', colP.length, 'Cheque:', colQ.length)
+    console.log('Rows written: 25 | Cash:', colL.length, 'Debit:', colM.length, 'Visa:', colN.length, 'MC:', colO.length, 'Amex:', colP.length, 'Cheque:', colQ.length, 'Other:', colR.length)
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `'${todayTab}'!L4:Q28`,
+      range: `'${todayTab}'!L4:R28`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: rows }
     })
