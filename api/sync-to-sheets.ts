@@ -153,7 +153,7 @@ async function syncEODToSheet(
         spreadsheetId,
         requestBody: {
           ranges: [
-            `'${todayTab}'!L4:Q28`,
+            `'${todayTab}'!L4:S28`,
             `'${todayTab}'!J4:J14`
           ]
         }
@@ -199,12 +199,15 @@ async function syncEODToSheet(
     })
 
     if (otherTransactions.length > 0) {
-      const existingR = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: `'${todayTab}'!R4:R28`
-      })
-      const rValues = existingR.data.values || []
-      const nextEmptyR = rValues.filter((r: any[]) => r[0]).length
+      let startRow = 4
+      if (tabExists) {
+        const existingR = await sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: `'${todayTab}'!R4:R28`
+        })
+        const rValues = existingR.data.values || []
+        startRow = 4 + rValues.filter((r: any[]) => r[0]).length
+      }
 
       const otherAmounts = otherTransactions.map((t: any) => [Number(t.total_amount) || 0])
       const otherDescs = otherTransactions.map((t: any) => {
@@ -221,13 +224,13 @@ async function syncEODToSheet(
 
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `'${todayTab}'!R${4 + nextEmptyR}:R28`,
+        range: `'${todayTab}'!R${startRow}:R28`,
         valueInputOption: 'USER_ENTERED',
         requestBody: { values: otherAmounts }
       })
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `'${todayTab}'!S${4 + nextEmptyR}:S28`,
+        range: `'${todayTab}'!S${startRow}:S28`,
         valueInputOption: 'USER_ENTERED',
         requestBody: { values: otherDescs }
       })

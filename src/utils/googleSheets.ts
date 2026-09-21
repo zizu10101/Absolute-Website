@@ -117,6 +117,11 @@ export const syncEODToSheet = async (
       }
 
       console.log(`Created new tab: ${todayTab}`)
+    } else {
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: `'${todayTab}'!L4:Q28`
+      })
     }
 
     // Build per-column arrays — each method fills its column independently from the top
@@ -194,22 +199,25 @@ export const syncEODToSheet = async (
     })
 
     if (otherEntries.length > 0) {
-      const existingR = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: `'${todayTab}'!R4:R28`
-      })
-      const rValues = existingR.data.values || []
-      const nextEmptyR = rValues.filter((r: any[]) => r[0]).length
+      let startRow = 4
+      if (tabExists) {
+        const existingR = await sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: `'${todayTab}'!R4:R28`
+        })
+        const rValues = existingR.data.values || []
+        startRow = 4 + rValues.filter((r: any[]) => r[0]).length
+      }
 
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `'${todayTab}'!R${4 + nextEmptyR}:R28`,
+        range: `'${todayTab}'!R${startRow}:R28`,
         valueInputOption: 'USER_ENTERED',
         requestBody: { values: otherEntries.map(e => [e.amount]) }
       })
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `'${todayTab}'!S${4 + nextEmptyR}:S28`,
+        range: `'${todayTab}'!S${startRow}:S28`,
         valueInputOption: 'USER_ENTERED',
         requestBody: { values: otherEntries.map(e => [e.desc]) }
       })
