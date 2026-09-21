@@ -77,14 +77,23 @@ while (true) {
 
 ## Google Sheets EOD Sync
 
+### Column Mapping (Final)
+- L = Cash — stacks independently from row 4 down
+- M = Debit — stacks independently from row 4 down
+- N = Visa — stacks independently from row 4 down
+- O = MC — stacks independently from row 4 down
+- P = Amex — stacks independently from row 4 down
+- Q = Cheque — stacks independently from row 4 down
+- R = Other — appends to next empty row, never cleared, preserves manual entries
+- S = Description — matches R row for Other transactions, never cleared
+- Each column fills from row 4 downward independently; no empty rows between same-method entries
+- Split payments go to multiple columns (each split part to its method's column)
+- Sync clears L4:Q28 before rewriting; R and S are never cleared, only appended
+
 ### Daily Sync
 - Sync button in locked Cash Report (PIN 0852)
 - Pulls `completed` transactions from Supabase using EST timezone via luxon (`America/Toronto`)
-- Each payment method fills its own column independently — transactions stack down each column, no empty rows between same-method entries:
-  - L = Cash, M = Debit, N = Visa, O = MC, P = Amex, Q = Cheque
-- Split payments (`payment_splits` JSONB array) go to multiple columns
 - J4:J9 SUM formulas calculate column totals automatically — never written directly
-- R4:S28 untouched (manual cash count entries)
 - F19 = Over/Short, F20 = Deposit
 - Tab exists → clears L4:Q28 then refills; R4:S28 left alone
 - Tab doesn't exist → duplicates previous day tab, reads J4:J9 with `valueRenderOption: 'FORMULA'` to preserve SUM formulas, clears L4:Q28 + R4:S28 + J4:J14, restores J4:J9 formulas, then fills L4:Q28
@@ -109,6 +118,7 @@ while (true) {
 - `GOOGLE_DRIVE_FOLDER_ID=1G9DUF6igOHt00Kb48XzuTfeuzZF24kXG`
 
 ## Recent Changes (last 3 sessions)
+- **Session 83:** Google Sheets sync column stacking rewrite. Both `api/sync-to-sheets.ts` and `src/utils/googleSheets.ts` now fill each payment column (L–Q) independently from row 4 — only the matching column gets a value per transaction, so Debit stacks in M, Visa stacks in N, etc. with no empty rows. Other transactions go to R/S by finding the next empty R row and appending (R/S never cleared). Previously both files pushed empty strings to all 6 columns per transaction, causing one-row-per-transaction layout with gaps.
 - **Session 82:** Google Sheets EOD sync complete. OAuth2 replaces service account (quota issue). Per-column transaction stacking: each payment method fills its own column (L–Q), split payments go to multiple columns. Luxon timezone fix for EST date range. New month creates copy of current sheet in Drive folder, clears data columns, copies closing→opening counts. Tab creation reads J4:J9 formulas with `FORMULA` render option to preserve SUM formulas after clear.
 - **Session 81:** ProductCard.tsx + ProductGridPage.tsx — three rounds of size-filter swatch improvements (all confirmed working, all pushed). (1) **Swatch isDefault bug fix** — removed the separate "default" button (which always showed regardless of filter) and the `nonDefaultColors` exemption; replaced with `allColors` (all product.colors with a name) filtered uniformly by `visibleColorSet`. All colors, including `isDefault`, now go through the same size filter. `allColors.map()` with `!visibleColorSet.has(color) → null` preserves original `product.colors[idx]` indices so `?color=N` in the link is correct. (2) **N/A thumbnails removed + card image follows filter** — `visibleColorSet` also requires `c.images?.length > 0` so image-less colors are never rendered. Added `cardImage` IIFE: when `filteredSize` and `sizeVariants` are both set, finds the first matching color with an image and uses its `images[0]` as the resting card image; falls back to `product.image`. `displayImage` now uses `cardImage` instead of `product.image`. (3) **ProductGridPage.tsx sizeVariants loading guard** — `sizeVariants` prop now passes `productVariantData.size > 0 ? (productVariantData.get(id) ?? []) : undefined` so during data load `sizeVariants` is `undefined` (swatches show all), and after load a product with no color-tagged variants gets `[]` (swatches correctly hide). The `sizeVariants?.some()` optional-chain in ProductCard handles the `undefined` loading state without a separate guard branch.
 - **Session 80:** Four fixes across product detail, admin image upload, layaway EOD, and size-filter navigation. (1) **ProductDetailPage.tsx size filter by color** — `displayedSizesList` now adds `stockMatch = !selectedColor || stock_quantity > 0` so only in-stock sizes show for the selected color; `setSelectedSize(null)` added to the color-change effect so stale selections clear. (2) **ProductDetailPage.tsx default color auto-select** — new `useEffect` on `[product?.id]` sets `selectedColor` to the `isDefault` color (fallback: first color) as soon as the product loads, before variants arrive, so the size filter is already active when variants finish fetching; skipped when `?color=` or `?size=` URL params are present. (3) **AdminPage.tsx async image upload stale closure fix** — `handleProductImageUpload`, `handleAdditionalImageUpload`, `handleColorImageUpload`, and `updateEditingProductImage` all switched from `setEditingProduct({ ...editingProduct, ... })` to functional `setEditingProduct(prev => ({ ...prev, ... }))` so concurrent uploads or any intervening re-render cannot overwrite color images with stale state. (4) **LayawayPayLaterModal.tsx EOD deposit tracking** — added `depositMethod` state (default `'Cash'`) with a 5-button selector (Cash / Debit / Visa / Mastercard / Amex); when a layaway is saved, a `transactions` row is inserted (`total_amount = deposit_paid`, `method = depositMethod`) so it naturally appears in EOD under the correct payment method column without any CashReport changes. (5) **ProductCard.tsx + ProductDetailPage.tsx size-filter URL passthrough** — ProductCard builds `productLink` with `URLSearchParams` combining existing `?color=N` and new `?size=X` (when `filteredSize` active); ProductDetailPage reads `sizeParam`, has a new `useEffect([variants.length, sizeParam])` that finds the first in-stock variant for that size and sets both `selectedColor` and `selectedSize`.

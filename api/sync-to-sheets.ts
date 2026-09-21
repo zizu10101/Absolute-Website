@@ -19,60 +19,64 @@ const getOAuthClient = () => {
 
 const getSheetClient = () => google.sheets({ version: 'v4', auth: getOAuthClient() })
 
-function getDescription(transaction: any): string {
-  const items = transaction.items
-  if (!items || !Array.isArray(items) || items.length === 0) return ''
-  return items
-    .map((item: any) => {
-      const name = item.name || item.product_name || ''
-      const size = item.size ? `(${item.size})` : ''
-      const qty = item.quantity > 1 ? `x${item.quantity}` : ''
-      return [name, size, qty].filter(Boolean).join(' ').trim()
-    })
-    .filter(Boolean)
-    .join(', ')
-}
+// Each payment method fills its column independently from the top.
+// Other transactions are returned separately for R/S column handling.
+function buildRows(transactions: any[]): {
+  rows: (number | string)[][]
+  otherTransactions: any[]
+} {
+  const colL: (number | string)[] = []
+  const colM: (number | string)[] = []
+  const colN: (number | string)[] = []
+  const colO: (number | string)[] = []
+  const colP: (number | string)[] = []
+  const colQ: (number | string)[] = []
+  const otherTransactions: any[] = []
 
-// One row per transaction; amount in its payment column (L–Q only).
-// R (Other) and S (descriptions) are handled separately after this write.
-function buildRows(transactions: any[]): (number | string)[][] {
-  const rows: (number | string)[][] = []
-
-  for (const t of transactions) {
-    // indices: 0=L(Cash) 1=M(Debit) 2=N(Visa) 3=O(MC) 4=P(Amex) 5=Q(Cheque)
-    const row: (number | string)[] = ['', '', '', '', '', '']
+  transactions.forEach((t: any) => {
     const amount = Number(t.total_amount) || 0
 
     if (t.payment_splits && Array.isArray(t.payment_splits) && t.payment_splits.length > 0) {
       t.payment_splits.forEach((split: any) => {
-        const m = (split.method || '').toLowerCase()
-        const a = Number(split.amount) || 0
-        switch (m) {
-          case 'cash':                    row[0] = a; break
-          case 'debit':                   row[1] = a; break
-          case 'visa':                    row[2] = a; break
-          case 'mastercard': case 'mc':   row[3] = a; break
-          case 'amex':                    row[4] = a; break
-          case 'cheque': case 'check':    row[5] = a; break
+        const sm = (split.method || '').toLowerCase().trim()
+        const sa = Number(split.amount) || 0
+        switch (sm) {
+          case 'cash':                    colL.push(sa); break
+          case 'debit':                   colM.push(sa); break
+          case 'visa':                    colN.push(sa); break
+          case 'mastercard': case 'mc':   colO.push(sa); break
+          case 'amex':                    colP.push(sa); break
+          case 'cheque': case 'check':    colQ.push(sa); break
+          case 'other':                   otherTransactions.push({ ...t, total_amount: sa }); break
         }
       })
     } else {
-      const method = (t.method || '').toLowerCase()
+      const method = (t.method || '').toLowerCase().trim()
       switch (method) {
-        case 'cash':                    row[0] = amount; break
-        case 'debit':                   row[1] = amount; break
-        case 'visa':                    row[2] = amount; break
-        case 'mastercard': case 'mc':   row[3] = amount; break
-        case 'amex':                    row[4] = amount; break
-        case 'cheque': case 'check':    row[5] = amount; break
+        case 'cash':                    colL.push(amount); break
+        case 'debit':                   colM.push(amount); break
+        case 'visa':                    colN.push(amount); break
+        case 'mastercard': case 'mc':   colO.push(amount); break
+        case 'amex':                    colP.push(amount); break
+        case 'cheque': case 'check':    colQ.push(amount); break
+        case 'other':                   otherTransactions.push(t); break
       }
     }
+  })
 
-    rows.push(row)
+  const rows: (number | string)[][] = []
+  for (let i = 0; i < 25; i++) {
+    rows.push([
+      i < colL.length ? colL[i] : '',
+      i < colM.length ? colM[i] : '',
+      i < colN.length ? colN[i] : '',
+      i < colO.length ? colO[i] : '',
+      i < colP.length ? colP[i] : '',
+      i < colQ.length ? colQ[i] : '',
+    ])
   }
 
-  while (rows.length < 25) rows.push(['', '', '', '', '', ''])
-  return rows.slice(0, 25)
+  return { rows, otherTransactions }
 }
 
 async function syncEODToSheet(
@@ -173,9 +177,19 @@ async function syncEODToSheet(
       })
     }
 
-    const rows = buildRows(transactions)
+    const { rows, otherTransactions } = buildRows(transactions)
 
-    console.log('Rows written:', rows.length, '| Transactions:', transactions.length)
+    console.log('=== BUILD ROWS DEBUG ===')
+    console.log('Total transactions:', transactions.length)
+    console.log('Rows built:', rows.length)
+    console.log('First 5 rows:')
+    rows.slice(0, 5).forEach((row, i) => {
+      console.log(`Row ${i+4}:`, JSON.stringify(row))
+    })
+    console.log('Other transactions:', otherTransactions.length)
+
+    console.log('Rows written:', rows.length, '| Transactions:', transactions.length,
+      '| Other:', otherTransactions.length)
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -184,47 +198,38 @@ async function syncEODToSheet(
       requestBody: { values: rows }
     })
 
-    // R column: append Other transactions after existing entries (never clear)
-    const existingRResp = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `'${todayTab}'!R4:R28`
-    })
-    const rValues = existingRResp.data.values || []
-    const nextEmptyR = rValues.length
+    if (otherTransactions.length > 0) {
+      const existingR = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `'${todayTab}'!R4:R28`
+      })
+      const rValues = existingR.data.values || []
+      const nextEmptyR = rValues.filter((r: any[]) => r[0]).length
 
-    const otherRows = transactions
-      .filter(t => (t.method || '').toLowerCase() === 'other')
-      .map(t => [Number(t.total_amount) || 0])
+      const otherAmounts = otherTransactions.map((t: any) => [Number(t.total_amount) || 0])
+      const otherDescs = otherTransactions.map((t: any) => {
+        const desc = t.items && Array.isArray(t.items)
+          ? t.items.map((item: any) => {
+              const name = item.name || item.product_name || ''
+              const size = item.size ? `(${item.size})` : ''
+              const qty = item.quantity > 1 ? `x${item.quantity}` : ''
+              return [name, size, qty].filter(Boolean).join(' ').trim()
+            }).filter(Boolean).join(', ')
+          : ''
+        return [desc]
+      })
 
-    if (otherRows.length > 0 && nextEmptyR < 25) {
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `'${todayTab}'!R${4 + nextEmptyR}`,
+        range: `'${todayTab}'!R${4 + nextEmptyR}:R28`,
         valueInputOption: 'USER_ENTERED',
-        requestBody: { values: otherRows }
+        requestBody: { values: otherAmounts }
       })
-    }
-
-    // S column: write descriptions to empty cells only, aligned with L:Q rows
-    const existingSResp = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `'${todayTab}'!S4:S28`
-    })
-    const sValues = existingSResp.data.values || []
-
-    const sUpdates = transactions
-      .map((t, i) => {
-        if (sValues[i]?.[0]) return null
-        const desc = getDescription(t)
-        if (!desc) return null
-        return { range: `'${todayTab}'!S${4 + i}`, values: [[desc]] }
-      })
-      .filter((u): u is NonNullable<typeof u> => u !== null)
-
-    if (sUpdates.length > 0) {
-      await sheets.spreadsheets.values.batchUpdate({
+      await sheets.spreadsheets.values.update({
         spreadsheetId,
-        requestBody: { valueInputOption: 'USER_ENTERED', data: sUpdates }
+        range: `'${todayTab}'!S${4 + nextEmptyR}:S28`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: otherDescs }
       })
     }
 
@@ -252,6 +257,10 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  console.log('=== SYNC CALLED ===')
+  console.log('Sheet ID:', process.env.GOOGLE_SHEET_ID)
+  console.log('Request body keys:', Object.keys(req.body))
+
   try {
     const { data: setting } = await supabase
       .from('settings')
@@ -272,6 +281,9 @@ export default async function handler(req: any, res: any) {
       .eq('status', 'completed')
       .gte('created_at', startOfDay)
       .lte('created_at', endOfDay)
+
+    console.log('Transactions count:', transactions?.length)
+    console.log('First transaction:', JSON.stringify(transactions?.[0]))
 
     const result = await syncEODToSheet(req.body, transactions || [])
     res.json(result)
