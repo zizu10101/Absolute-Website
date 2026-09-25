@@ -202,8 +202,9 @@ export interface ReceiptData {
     size?: string;
     ageGroup?: string;
     discount?: { type: 'percent' | 'fixed' | 'newprice'; value: number };
-    priceOverridden?: boolean; // true when staff manually set a price
-    originalPrice?: number; // pre-override price shown alongside the note
+    priceOverride?: number; // set when staff manually overrides the price; hides original on receipt
+    priceOverridden?: boolean;
+    originalPrice?: number;
   }>;
   subtotal: number;
   hst: number;
@@ -241,9 +242,12 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
 
   const itemsHtml = data.items
     .map((item) => {
-      // item.price is always the final (post-discount) price; item.originalPrice set when discounted
+      // item.price is always the final price. priceOverride means staff corrected the price —
+      // show only the final price with no mention of original. discount means intentional reduction
+      // — show original, discount amount, and final.
+      const isOverride = item.priceOverride !== undefined;
       const originalUnitPrice = item.originalPrice ?? item.price;
-      const discountPerUnit = item.originalPrice !== undefined
+      const discountPerUnit = (!isOverride && item.originalPrice !== undefined)
         ? Math.max(0, item.originalPrice - item.price)
         : 0;
       const originalLineTotal = originalUnitPrice * item.quantity;
@@ -254,7 +258,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
         item.size ? `Size: ${item.size}` : '',
         item.ageGroup || '',
         item.quantity > 1
-          ? `${item.quantity} @ ${money(originalUnitPrice)}`
+          ? `${item.quantity} @ ${money(isOverride ? item.price : originalUnitPrice)}`
           : `Qty: ${item.quantity}`,
       ].filter(Boolean);
 

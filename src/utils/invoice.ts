@@ -17,6 +17,9 @@ export interface InvoiceData {
     price: number;
     size?: string;
     color?: string;
+    originalPrice?: number;
+    discount?: { type: 'percent' | 'fixed' | 'newprice'; value: number };
+    priceOverride?: number;
   }>;
   subtotal: number;
   tax: number;
@@ -37,15 +40,39 @@ export const generateInvoiceHTML = (data: InvoiceData, type: 'invoice' | 'estima
     ? '<span style="display: inline-block; padding: 4px 12px; background: #d4edda; color: #155724; border-radius: 4px; font-weight: bold; font-size: 12px; margin-top: 10px;">PAID</span>'
     : '<span style="display: inline-block; padding: 4px 12px; background: #fff3cd; color: #856404; border-radius: 4px; font-weight: bold; font-size: 12px; margin-top: 10px;">ESTIMATE</span>';
 
-  const itemsHtml = data.items.map(item => `
+  const itemsHtml = data.items.map(item => {
+    const isOverride = item.priceOverride !== undefined;
+    const originalUnitPrice = item.originalPrice ?? item.price;
+    const discountPerUnit = (!isOverride && item.originalPrice !== undefined)
+      ? Math.max(0, item.originalPrice - item.price)
+      : 0;
+    const hasDiscount = discountPerUnit > 0;
+    const finalLineTotal = item.price * item.quantity;
+    const originalLineTotal = originalUnitPrice * item.quantity;
+    const discountLabel = item.discount
+      ? item.discount.type === 'percent'
+        ? `Discount (${item.discount.value}%)`
+        : 'Discount'
+      : 'Discount';
+    const sep = `1px solid #eee`;
+
+    const mainRow = `
     <tr>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #eee;">${escapeHtml(item.name)}</td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #eee;">${[item.size, item.color].filter(Boolean).join(' / ') || '-'}</td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #eee; text-align: right;">${item.quantity}</td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #eee; text-align: right;">$${Number(item.price).toFixed(2)}</td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #eee; text-align: right;">$${(Number(item.price) * item.quantity).toFixed(2)}</td>
-    </tr>
-  `).join('');
+      <td style="padding: 10px 12px; border-bottom: ${hasDiscount ? 'none' : sep};">${escapeHtml(item.name)}</td>
+      <td style="padding: 10px 12px; border-bottom: ${hasDiscount ? 'none' : sep};">${[item.size, item.color].filter(Boolean).join(' / ') || '-'}</td>
+      <td style="padding: 10px 12px; border-bottom: ${hasDiscount ? 'none' : sep}; text-align: right;">${item.quantity}</td>
+      <td style="padding: 10px 12px; border-bottom: ${hasDiscount ? 'none' : sep}; text-align: right;">$${Number(hasDiscount ? originalUnitPrice : item.price).toFixed(2)}</td>
+      <td style="padding: 10px 12px; border-bottom: ${hasDiscount ? 'none' : sep}; text-align: right;">$${Number(hasDiscount ? originalLineTotal : finalLineTotal).toFixed(2)}</td>
+    </tr>`;
+
+    if (!hasDiscount) return mainRow;
+
+    return mainRow + `
+    <tr>
+      <td colspan="4" style="padding: 3px 12px; border-bottom: ${sep}; text-align: right; color: #b90014; font-style: italic; font-size: 12px;">${discountLabel}</td>
+      <td style="padding: 3px 12px; border-bottom: ${sep}; text-align: right; color: #b90014;">-$${(discountPerUnit * item.quantity).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
 
   const billToHtml = data.customerInfo && (data.customerInfo.firstName || data.customerInfo.lastName)
     ? `
