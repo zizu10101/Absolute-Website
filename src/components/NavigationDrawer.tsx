@@ -76,6 +76,14 @@ export function NavigationDrawer({ isOpen, onClose }: Props) {
                   Gear Guides
                 </Link>
 
+                <Link
+                  to="/portal"
+                  onClick={onClose}
+                  className="flex items-center gap-4 px-4 py-3 min-h-[48px] text-zinc-900 hover:bg-zinc-50 transition-colors font-headline uppercase font-black text-base border-l-4 border-transparent hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]"
+                >
+                  Club Portal
+                </Link>
+
                 {/* Brand Navigation Section */}
                 <BrandNavigation onNavigate={onClose} />
 

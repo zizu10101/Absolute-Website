@@ -120,6 +120,14 @@ export function Header({ onMenuClick }: Props) {
                 Gear Guides
               </Link>
             </div>
+            <div className="relative flex items-center" onMouseEnter={() => setActiveMenu(null)}>
+              <Link
+                to="/portal"
+                className="text-[11px] font-black uppercase tracking-normal whitespace-nowrap transition-all py-2 border-b-2 text-zinc-900 border-transparent hover:text-[var(--primary-color)]"
+              >
+                Club Portal
+              </Link>
+            </div>
           </nav>
         </div>
 

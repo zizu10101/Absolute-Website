@@ -30,6 +30,13 @@ import { BrandPage } from './pages/BrandPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { BlogListPage } from './pages/BlogListPage';
 import { BlogPostPage } from './pages/BlogPostPage';
+import { ClubLandingPage } from './pages/portal/ClubLandingPage';
+import { ClubPortalLoginPage } from './pages/portal/ClubPortalLoginPage';
+import { ClubHomePage } from './pages/portal/ClubHomePage';
+import { ClubOverviewPage } from './pages/portal/ClubOverviewPage';
+import { ClubOrderPage } from './pages/portal/ClubOrderPage';
+import { ClubOrdersPage } from './pages/portal/ClubOrdersPage';
+import { ClubNewArrivalsPage } from './pages/portal/ClubNewArrivalsPage';
 import { useSEO } from './hooks/useSEO';
 
 // Paths that exist as DB-driven navigation_menus rows but must render their own dedicated
@@ -63,7 +70,7 @@ function AppContent() {
   }, [productsLoading, settingsLoading]);
 
   // Bypass safety check: If the user is trying to go to the admin panel or /pos, don't show the loading gate at all
-  if (window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/pos') || window.location.pathname.startsWith('/inventory-count') || window.location.hash.includes('/admin')) {
+  if (window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/pos') || window.location.pathname.startsWith('/inventory-count') || window.location.pathname.startsWith('/portal') || window.location.hash.includes('/admin')) {
     return <AppRoutes />;
   }
 
@@ -209,6 +216,17 @@ function AppRoutes() {
         <Route path="/pos" element={isAdminDomain ? <POSPage /> : <AdminAccessDenied />} />
         <Route path="/reports" element={isAdminDomain ? <ReportsPageFull /> : <AdminAccessDenied />} />
         <Route path="/inventory-count" element={canUseInventoryCount ? <InventoryCountPage /> : <AdminAccessDenied />} />
+
+        {/* Club Portal - branded per-club team store, entirely separate from admin.
+            /portal is the single universal login every club uses; /portal/:slug is an
+            optional branded welcome screen a club can still be linked to directly. */}
+        <Route path="/portal" element={<ClubPortalLoginPage />} />
+        <Route path="/portal/:slug" element={<ClubLandingPage />} />
+        <Route path="/portal/:slug/dashboard" element={<ClubHomePage />} />
+        <Route path="/portal/:slug/overview" element={<ClubOverviewPage />} />
+        <Route path="/portal/:slug/order" element={<ClubOrderPage />} />
+        <Route path="/portal/:slug/orders" element={<ClubOrdersPage />} />
+        <Route path="/portal/:slug/new-arrivals" element={<ClubNewArrivalsPage />} />
       </Routes>
     </>
   );

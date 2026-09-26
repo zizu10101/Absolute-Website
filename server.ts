@@ -6,6 +6,7 @@ import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import printer from "node-printer";
+import bcrypt from "bcryptjs";
 import { syncEODToSheet, createNewMonthSheet } from "./src/utils/googleSheets";
 import { DateTime } from "luxon";
 
@@ -1924,6 +1925,183 @@ async function startServer() {
     } catch (err: any) {
       console.error("❌ [FAILED] Store credit redemption error:", err.message);
       return res.status(500).json({ error: err.message || "Failed to redeem store credit" });
+    }
+  });
+
+  // --- CLUB PORTAL ---
+  // clubs/club_items only grant anon SELECT and club_orders only grants anon SELECT+INSERT
+  // (see docs/club-portal-migration.sql) - password hashing and every other mutation goes
+  // through these service-role-backed routes so the browser never needs write access to
+  // password_hash or to another club's order status.
+
+  app.post("/api/club-login", async (req, res) => {
+    const { slug, username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username and password are required" });
+    }
+    if (!supabase) return res.status(500).json({ error: "Database not configured" });
+
+    try {
+      // slug is optional: username has a UNIQUE constraint (docs/club-portal-migration.sql),
+      // so the universal /portal login can look a club up by username alone. A slug is still
+      // accepted (and cross-checked) for the legacy per-club login path.
+      let query = supabase.from("clubs").select("*").eq("username", username);
+      if (slug) query = query.eq("slug", slug);
+      const { data: club, error } = await query.maybeSingle();
+
+      if (error) throw error;
+      if (!club || !club.is_active) {
+        return res.status(401).json({ error: "Invalid username or password" });
+      }
+
+      const valid = await bcrypt.compare(password, club.password_hash);
+      if (!valid) {
+        return res.status(401).json({ error: "Invalid username or password" });
+      }
+
+      const { password_hash, username: _u, ...safeClub } = club;
+      return res.json({ success: true, club: safeClub });
+    } catch (err: any) {
+      console.error("Error during club login:", err);
+      res.status(500).json({ error: err.message || "Login failed" });
+    }
+  });
+
+  app.post("/api/clubs", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Database not configured" });
+    const { password, ...clubData } = req.body || {};
+    if (!clubData.name || !clubData.slug || !clubData.username || !password) {
+      return res.status(400).json({ error: "Name, slug, username and password are required" });
+    }
+
+    try {
+      const password_hash = await bcrypt.hash(password, 10);
+      const { data, error } = await supabase
+        .from("clubs")
+        .insert([{ ...clubData, password_hash }])
+        .select();
+      if (error) throw error;
+      const created = data?.[0];
+      if (created) delete created.password_hash;
+      return res.json(created);
+    } catch (err: any) {
+      console.error("Error creating club:", err);
+      if (err.message?.includes("duplicate")) {
+        return res.status(409).json({ error: "That slug or username is already in use." });
+      }
+      res.status(500).json({ error: err.message || "Failed to create club" });
+    }
+  });
+
+  app.put("/api/clubs/:id", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Database not configured" });
+    const { id } = req.params;
+    const { password, ...clubData } = req.body || {};
+    delete clubData.id;
+
+    try {
+      const payload: any = { ...clubData };
+      if (password && password.trim()) {
+        payload.password_hash = await bcrypt.hash(password, 10);
+      }
+      const { data, error } = await supabase.from("clubs").update(payload).eq("id", id).select();
+      if (error) throw error;
+      const updated = data?.[0];
+      if (updated) delete updated.password_hash;
+      return res.json(updated);
+    } catch (err: any) {
+      console.error("Error updating club:", err);
+      if (err.message?.includes("duplicate")) {
+        return res.status(409).json({ error: "That slug or username is already in use." });
+      }
+      res.status(500).json({ error: err.message || "Failed to update club" });
+    }
+  });
+
+  app.delete("/api/clubs/:id", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Database not configured" });
+    const { id } = req.params;
+    try {
+      const { error } = await supabase.from("clubs").delete().eq("id", id);
+      if (error) throw error;
+      return res.json({ success: true });
+    } catch (err: any) {
+      console.error("Error deleting club:", err);
+      res.status(500).json({ error: err.message || "Failed to delete club" });
+    }
+  });
+
+  app.post("/api/club-items", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Database not configured" });
+    const itemData = req.body || {};
+    if (!itemData.club_id || !itemData.name) {
+      return res.status(400).json({ error: "club_id and name are required" });
+    }
+    try {
+      const { data, error } = await supabase.from("club_items").insert([itemData]).select();
+      if (error) throw error;
+      return res.json(data?.[0]);
+    } catch (err: any) {
+      console.error("Error creating club item:", err);
+      res.status(500).json({ error: err.message || "Failed to create item" });
+    }
+  });
+
+  app.put("/api/club-items/:id", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Database not configured" });
+    const { id } = req.params;
+    const itemData = { ...(req.body || {}) };
+    delete itemData.id;
+    try {
+      const { data, error } = await supabase.from("club_items").update(itemData).eq("id", id).select();
+      if (error) throw error;
+      return res.json(data?.[0]);
+    } catch (err: any) {
+      console.error("Error updating club item:", err);
+      res.status(500).json({ error: err.message || "Failed to update item" });
+    }
+  });
+
+  app.delete("/api/club-items/:id", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Database not configured" });
+    const { id } = req.params;
+    try {
+      const { error } = await supabase.from("club_items").delete().eq("id", id);
+      if (error) throw error;
+      return res.json({ success: true });
+    } catch (err: any) {
+      console.error("Error deleting club item:", err);
+      res.status(500).json({ error: err.message || "Failed to delete item" });
+    }
+  });
+
+  app.put("/api/club-orders/:id", async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: "Database not configured" });
+    const { id } = req.params;
+    const updateData = { ...(req.body || {}) };
+    delete updateData.id;
+    try {
+      const { data: existing, error: fetchErr } = await supabase
+        .from("club_orders")
+        .select("*")
+        .eq("id", id)
+        .single();
+      if (fetchErr) throw fetchErr;
+
+      const totalAmount = updateData.total_amount !== undefined ? Number(updateData.total_amount) : Number(existing.total_amount || 0);
+      const depositPaid = updateData.deposit_paid !== undefined ? Number(updateData.deposit_paid) : Number(existing.deposit_paid || 0);
+      updateData.balance_owing = Math.max(0, totalAmount - depositPaid);
+
+      if (updateData.status === "confirmed" && !existing.confirmed_at) {
+        updateData.confirmed_at = new Date().toISOString();
+      }
+
+      const { data, error } = await supabase.from("club_orders").update(updateData).eq("id", id).select();
+      if (error) throw error;
+      return res.json(data?.[0]);
+    } catch (err: any) {
+      console.error("Error updating club order:", err);
+      res.status(500).json({ error: err.message || "Failed to update order" });
     }
   });
 
