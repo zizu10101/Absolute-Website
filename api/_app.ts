@@ -143,14 +143,19 @@ app.put('/api/club-items/:id', async (req, res) => {
 });
 
 app.delete('/api/club-items/:id', async (req, res) => {
-  const id = cleanId(req.params.id);
-  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
   try {
-    const { error } = await supabase.from('club_items').delete().eq('id', id);
-    if (error) throw error;
-    return res.json({ success: true });
+    const id = cleanId(req.params.id);
+    console.log('DELETE club-items, id:', id);
+    const { data, error } = await supabase.from('club_items').delete().eq('id', id).select();
+    if (error) {
+      console.error('Supabase error:', JSON.stringify(error));
+      return res.status(400).json({ message: error.message, details: error.details, code: error.code });
+    }
+    console.log('Deleted successfully:', data);
+    return res.status(200).json({ success: true, deleted: data });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to delete item' });
+    console.error('Unhandled error:', err.message);
+    return res.status(500).json({ error: err.message });
   }
 });
 
