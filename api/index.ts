@@ -1,8 +1,13 @@
 import { app, appReady } from '../server';
 
 export default async (req: any, res: any) => {
-  // Await full server initialization so all routes are registered
-  // before we handle the request (prevents race on Vercel cold starts).
-  await appReady;
-  return app(req, res);
+  try {
+    await appReady;
+    return app(req, res);
+  } catch (err: any) {
+    console.error('api/index fatal error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err?.message || String(err) });
+    }
+  }
 };
