@@ -23,6 +23,15 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
 
+const cleanId = (id: string) => {
+  if (id && id.includes(':')) id = id.split(':')[0];
+  return id;
+};
+
+const isValidUUID = (id: string) => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+};
+
 // --- CLUB PORTAL ---
 
 app.post('/api/club-login', async (req, res) => {
@@ -63,8 +72,8 @@ app.post('/api/clubs', async (req, res) => {
 });
 
 app.put('/api/clubs/:id', async (req, res) => {
-
-  const { id } = req.params;
+  const id = cleanId(req.params.id);
+  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
   const { password, ...clubData } = req.body || {};
   delete clubData.id;
   try {
@@ -82,8 +91,8 @@ app.put('/api/clubs/:id', async (req, res) => {
 });
 
 app.delete('/api/clubs/:id', async (req, res) => {
-
-  const { id } = req.params;
+  const id = cleanId(req.params.id);
+  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
   try {
     const { error } = await supabase.from('clubs').delete().eq('id', id);
     if (error) throw error;
@@ -120,8 +129,8 @@ app.post('/api/club-items', async (req, res) => {
 });
 
 app.put('/api/club-items/:id', async (req, res) => {
-
-  const { id } = req.params;
+  const id = cleanId(req.params.id);
+  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
   const itemData = { ...(req.body || {}) };
   delete itemData.id;
   try {
@@ -134,8 +143,8 @@ app.put('/api/club-items/:id', async (req, res) => {
 });
 
 app.delete('/api/club-items/:id', async (req, res) => {
-
-  const { id } = req.params;
+  const id = cleanId(req.params.id);
+  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
   try {
     const { error } = await supabase.from('club_items').delete().eq('id', id);
     if (error) throw error;
@@ -146,8 +155,8 @@ app.delete('/api/club-items/:id', async (req, res) => {
 });
 
 app.put('/api/club-orders/:id', async (req, res) => {
-
-  const { id } = req.params;
+  const id = cleanId(req.params.id);
+  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
   const updateData = { ...(req.body || {}) };
   delete updateData.id;
   try {
