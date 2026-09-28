@@ -6,6 +6,7 @@ export interface ClubItem {
   image_url: string | null;
   sizes_available: string[];
   price: number;
+  discount_percentage: number | null;
   is_suggested: boolean;
   sort_order: number;
   created_at: string;

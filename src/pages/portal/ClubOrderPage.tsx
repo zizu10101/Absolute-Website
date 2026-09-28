@@ -59,10 +59,16 @@ export const ClubOrderPage: React.FC = () => {
     }));
   };
 
+  const discountedPrice = (item: ClubItem) => {
+    const base = Number(item.price || 0);
+    const pct = item.discount_percentage || 0;
+    return pct > 0 ? base * (1 - pct / 100) : base;
+  };
+
   const lineItems: ClubOrderLineItem[] = displayedItems.flatMap(item =>
     Object.entries(quantities[item.id] || {})
       .filter(([, qty]) => qty > 0)
-      .map(([size, qty]) => ({ name: item.name, size, qty, price: Number(item.price || 0) }))
+      .map(([size, qty]) => ({ name: item.name, size, qty, price: discountedPrice(item) }))
   );
 
   const estimatedTotal = lineItems.reduce((sum, li) => sum + li.qty * li.price, 0);
@@ -142,7 +148,15 @@ export const ClubOrderPage: React.FC = () => {
                   />
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-zinc-900">{item.name}</h3>
-                    <p className="text-sm text-zinc-500">${Number(item.price || 0).toFixed(2)}/unit</p>
+                    {(item.discount_percentage || 0) > 0 ? (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm line-through text-zinc-400">${Number(item.price || 0).toFixed(2)}</p>
+                        <p className="text-sm font-bold" style={{ color: club?.primary_color }}>${discountedPrice(item).toFixed(2)}/unit</p>
+                        <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ backgroundColor: club?.primary_color, color: '#fff' }}>{item.discount_percentage}% off</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-zinc-500">${Number(item.price || 0).toFixed(2)}/unit</p>
+                    )}
                     <div className="grid grid-cols-4 gap-2 mt-3">
                       {(item.sizes_available || []).map(size => (
                         <div key={size} className="text-center">
@@ -181,6 +195,9 @@ export const ClubOrderPage: React.FC = () => {
               <div>
                 <p className="text-sm text-zinc-500">Estimated Total</p>
                 <p className="text-2xl font-black text-zinc-900">${estimatedTotal.toFixed(2)}</p>
+                {lineItems.length > 0 && displayedItems.some(i => (i.discount_percentage || 0) > 0 && Object.values(quantities[i.id] || {}).some(q => q > 0)) && (
+                  <p className="text-xs font-bold" style={{ color: club?.primary_color }}>Discounts applied</p>
+                )}
                 <p className="text-xs text-zinc-400">* Final price confirmed by store</p>
               </div>
               <button

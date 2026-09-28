@@ -48,6 +48,7 @@ const EMPTY_ITEM_FORM = {
   image_url: '',
   sizes_available: [] as string[],
   price: '',
+  discount_percentage: '',
   is_suggested: false,
 };
 
@@ -499,6 +500,7 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
       image_url: item.image_url || '',
       sizes_available: item.sizes_available || [],
       price: String(item.price ?? ''),
+      discount_percentage: item.discount_percentage != null ? String(item.discount_percentage) : '',
       is_suggested: item.is_suggested,
     });
     setSizeCategory('');
@@ -539,6 +541,7 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
         image_url: form.image_url || null,
         sizes_available: form.sizes_available,
         price: form.price ? Number(form.price) : 0,
+        discount_percentage: form.discount_percentage !== '' ? Math.min(100, Math.max(0, Number(form.discount_percentage))) : null,
         is_suggested: form.is_suggested,
         sort_order: items.length,
       };
@@ -650,9 +653,32 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
                     <input type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={handleImageUpload} />
                   </label>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1.5">Price</label>
-                  <input type="number" step="0.01" value={form.price} onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))} className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1.5">Price</label>
+                    <input type="number" step="0.01" value={form.price} onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))} className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1.5">Discount %</label>
+                    <div className="flex items-center border border-zinc-200 rounded-lg overflow-hidden">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        placeholder="0"
+                        value={form.discount_percentage}
+                        onChange={e => setForm(prev => ({ ...prev, discount_percentage: e.target.value }))}
+                        className="flex-1 px-3 py-2 text-sm focus:outline-none"
+                      />
+                      <span className="px-2 py-2 text-sm font-bold text-zinc-500 bg-zinc-50 border-l border-zinc-200">%</span>
+                    </div>
+                    {form.discount_percentage !== '' && Number(form.discount_percentage) > 0 && form.price !== '' && (
+                      <p className="text-[10px] text-emerald-600 font-bold mt-1">
+                        → ${(Number(form.price) * (1 - Number(form.discount_percentage) / 100)).toFixed(2)} after discount
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1.5">Sizes</label>
