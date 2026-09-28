@@ -1,13 +1,3 @@
-import { app, appReady } from '../server';
+import app from './_app';
 
-export default async (req: any, res: any) => {
-  try {
-    await appReady;
-    return app(req, res);
-  } catch (err: any) {
-    console.error('api/[...slug] fatal error:', err);
-    if (!res.headersSent) {
-      res.status(500).json({ error: err?.message || String(err) });
-    }
-  }
-};
+export default (req: any, res: any) => app(req, res);
