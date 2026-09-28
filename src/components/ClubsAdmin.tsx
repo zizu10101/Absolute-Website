@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Plus, Edit2, Trash2, X, Save, Upload, Package, ClipboardList, RefreshCw, FileText } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Upload, Package, ClipboardList, RefreshCw, FileText, ChevronLeft } from 'lucide-react';
 import { supabase, uploadImage } from '../supabase';
 import { compressToWebP } from '../lib/imageUtils';
 import { slugify } from '../utils/slugify';
@@ -76,6 +76,7 @@ export const ClubsAdmin: React.FC = () => {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [clubsLoading, setClubsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedClub, setSelectedClub] = useState<Club | null>(null);
 
   const [showClubForm, setShowClubForm] = useState(false);
   const [clubForm, setClubForm] = useState(EMPTY_CLUB_FORM);
@@ -87,19 +88,22 @@ export const ClubsAdmin: React.FC = () => {
   const [managingItemsFor, setManagingItemsFor] = useState<Club | null>(null);
   const [viewingOrdersFor, setViewingOrdersFor] = useState<Club | null>(null);
 
-  const loadClubs = useCallback(async () => {
+  const loadClubs = useCallback(async (): Promise<Club[]> => {
     setClubsLoading(true);
     setError(null);
     try {
       const { data, error } = await supabase.from('clubs').select(CLUB_COLUMNS).order('created_at', { ascending: false });
       if (error) throw error;
-      setClubs((data || []) as unknown as Club[]);
+      const fresh = (data || []) as unknown as Club[];
+      setClubs(fresh);
+      return fresh;
     } catch (err: any) {
       setError(
         err?.message?.includes('relation "clubs" does not exist')
           ? 'Table "clubs" not found. Run docs/club-portal-migration.sql in Supabase first.'
           : (err?.message || 'Failed to load clubs')
       );
+      return [];
     } finally {
       setClubsLoading(false);
     }
@@ -221,7 +225,11 @@ export const ClubsAdmin: React.FC = () => {
         if (error) throw error;
       }
       setShowClubForm(false);
-      await loadClubs();
+      const fresh = await loadClubs();
+      if (selectedClub && clubForm.id === selectedClub.id) {
+        const updated = fresh.find(c => c.id === clubForm.id);
+        if (updated) setSelectedClub(updated);
+      }
     } catch (err: any) {
       console.error('Error saving club:', err);
       setError(err.message || 'Failed to save club.');
@@ -244,95 +252,108 @@ export const ClubsAdmin: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">Club Portal</h3>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setView('clubs')}
-            className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all ${view === 'clubs' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
-          >
-            Clubs
-          </button>
-          <button
-            onClick={() => setView('orders')}
-            className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all ${view === 'orders' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
-          >
-            Orders
-          </button>
-        </div>
-      </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm font-bold">{error}</div>
-      )}
-
-      {view === 'clubs' ? (
-        <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-zinc-200">
-            <p className="text-xs text-zinc-500">{clubs.length} club{clubs.length === 1 ? '' : 's'}</p>
-            <button
-              onClick={openNewClub}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs bg-zinc-900 text-white hover:bg-zinc-800"
-            >
-              <Plus size={14} /> Add New Club
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-200 text-left text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                  <th className="py-2 px-3">Club</th>
-                  <th className="py-2 px-3">Portal URL</th>
-                  <th className="py-2 px-3">Status</th>
-                  <th className="py-2 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!clubsLoading && clubs.length === 0 && (
-                  <tr><td colSpan={4} className="text-center py-8 text-zinc-400">No clubs yet</td></tr>
-                )}
-                {clubs.map((club, idx) => (
-                  <tr key={club.id} className={idx % 2 === 0 ? 'bg-zinc-50' : ''}>
-                    <td className="py-2 px-3">
-                      <div className="flex items-center gap-2">
-                        {club.logo_url ? (
-                          <img src={club.logo_url} alt="" className="w-8 h-8 object-contain rounded bg-zinc-100" />
-                        ) : (
-                          <div className="w-8 h-8 rounded bg-zinc-200" />
-                        )}
-                        <span className="font-bold text-zinc-900">{club.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-2 px-3 text-zinc-500 font-mono text-xs">/portal/{club.slug}</td>
-                    <td className="py-2 px-3">
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${club.is_active ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                        {club.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3">
-                      <div className="flex justify-end gap-3">
-                        <button onClick={() => setManagingItemsFor(club)} className="text-[11px] font-bold text-zinc-600 hover:text-zinc-900 underline flex items-center gap-1">
-                          <Package size={12} /> Items
-                        </button>
-                        <button onClick={() => setViewingOrdersFor(club)} className="text-[11px] font-bold text-zinc-600 hover:text-zinc-900 underline flex items-center gap-1">
-                          <ClipboardList size={12} /> Orders
-                        </button>
-                        <button onClick={() => openEditClub(club)} className="text-zinc-500 hover:text-zinc-900" aria-label="Edit club">
-                          <Edit2 size={15} />
-                        </button>
-                        <button onClick={() => handleDeleteClub(club)} className="text-red-500 hover:text-red-700" aria-label="Delete club">
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {selectedClub ? (
+        <ClubDashboard
+          key={selectedClub.id}
+          club={selectedClub}
+          onBack={() => setSelectedClub(null)}
+          onEdit={() => openEditClub(selectedClub)}
+          onManageItems={() => setManagingItemsFor(selectedClub)}
+        />
       ) : (
-        <ClubOrdersManager clubs={clubs} />
+        <>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">Club Portal</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setView('clubs')}
+                className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all ${view === 'clubs' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
+              >
+                Clubs
+              </button>
+              <button
+                onClick={() => setView('orders')}
+                className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all ${view === 'orders' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
+              >
+                Orders
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm font-bold">{error}</div>
+          )}
+
+          {view === 'clubs' ? (
+            <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
+              <div className="flex items-center justify-between p-4 border-b border-zinc-200">
+                <p className="text-xs text-zinc-500">{clubs.length} club{clubs.length === 1 ? '' : 's'}</p>
+                <button
+                  onClick={openNewClub}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs bg-zinc-900 text-white hover:bg-zinc-800"
+                >
+                  <Plus size={14} /> Add New Club
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 text-left text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                      <th className="py-2 px-3">Club</th>
+                      <th className="py-2 px-3">Portal URL</th>
+                      <th className="py-2 px-3">Status</th>
+                      <th className="py-2 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!clubsLoading && clubs.length === 0 && (
+                      <tr><td colSpan={4} className="text-center py-8 text-zinc-400">No clubs yet</td></tr>
+                    )}
+                    {clubs.map((club, idx) => (
+                      <tr key={club.id} className={`${idx % 2 === 0 ? 'bg-zinc-50' : ''} hover:bg-zinc-100/60 cursor-pointer`} onClick={() => setSelectedClub(club)}>
+                        <td className="py-2 px-3">
+                          <div className="flex items-center gap-2">
+                            {club.logo_url ? (
+                              <img src={club.logo_url} alt="" className="w-8 h-8 object-contain rounded bg-zinc-100" />
+                            ) : (
+                              <div className="w-8 h-8 rounded bg-zinc-200" />
+                            )}
+                            <span className="font-bold text-zinc-900 hover:underline">{club.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-2 px-3 text-zinc-500 font-mono text-xs">/portal/{club.slug}</td>
+                        <td className="py-2 px-3">
+                          <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${club.is_active ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                            {club.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3" onClick={e => e.stopPropagation()}>
+                          <div className="flex justify-end gap-3">
+                            <button onClick={() => setManagingItemsFor(club)} className="text-[11px] font-bold text-zinc-600 hover:text-zinc-900 underline flex items-center gap-1">
+                              <Package size={12} /> Items
+                            </button>
+                            <button onClick={() => setViewingOrdersFor(club)} className="text-[11px] font-bold text-zinc-600 hover:text-zinc-900 underline flex items-center gap-1">
+                              <ClipboardList size={12} /> Orders
+                            </button>
+                            <button onClick={() => openEditClub(club)} className="text-zinc-500 hover:text-zinc-900" aria-label="Edit club">
+                              <Edit2 size={15} />
+                            </button>
+                            <button onClick={() => handleDeleteClub(club)} className="text-red-500 hover:text-red-700" aria-label="Delete club">
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <ClubOrdersManager clubs={clubs} />
+          )}
+        </>
       )}
 
       {showClubForm && (
@@ -1179,6 +1200,340 @@ const ClubOrdersPerClub: React.FC<{ club: Club; onClose: () => void }> = ({ club
           })}
         </div>
       </div>
+    </div>
+  );
+};
+
+// ─── Club Dashboard (full-page view) ────────────────────────────────────────
+
+const ClubDashboard: React.FC<{
+  club: Club;
+  onBack: () => void;
+  onEdit: () => void;
+  onManageItems: () => void;
+}> = ({ club, onBack, onEdit, onManageItems }) => {
+  const [tab, setTab] = useState<'overview' | 'orders' | 'history'>('overview');
+  const [orders, setOrders] = useState<ClubOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, {
+    status: string; total_amount: string; deposit_paid: string; notes: string;
+  }>>({});
+
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('club_orders')
+      .select('*')
+      .eq('club_id', club.id)
+      .order('created_at', { ascending: false });
+    const loaded = (data || []) as ClubOrder[];
+    setOrders(loaded);
+    const newDrafts: typeof drafts = {};
+    loaded.forEach(o => {
+      newDrafts[o.id] = {
+        status: o.status,
+        total_amount: String(o.total_amount ?? ''),
+        deposit_paid: String(o.deposit_paid ?? ''),
+        notes: o.notes || '',
+      };
+    });
+    setDrafts(newDrafts);
+    setLoading(false);
+  }, [club.id]);
+
+  useEffect(() => { loadOrders(); }, [loadOrders]);
+
+  const patch = (id: string, field: string, value: string) =>
+    setDrafts(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+
+  const saveOrder = async (order: ClubOrder) => {
+    const d = drafts[order.id];
+    if (!d) return;
+    setSavingId(order.id);
+    try {
+      const total = Number(d.total_amount) || 0;
+      const deposit = Number(d.deposit_paid) || 0;
+      const payload: any = {
+        status: d.status,
+        total_amount: total,
+        deposit_paid: deposit,
+        balance_owing: Math.max(0, total - deposit),
+        notes: d.notes.trim() || null,
+      };
+      if (d.status === 'confirmed' && !order.confirmed_at) payload.confirmed_at = new Date().toISOString();
+      const { error } = await supabase.from('club_orders').update(payload).eq('id', order.id);
+      if (error) throw error;
+      await loadOrders();
+    } catch (err: any) {
+      alert(err.message || 'Failed to save order.');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const generateInvoice = async (order: ClubOrder) => {
+    const html = buildClubInvoiceHTML(order, club);
+    printInvoice(html);
+    if (!order.invoice_url) {
+      await supabase.from('club_orders').update({ invoice_url: order.order_number }).eq('id', order.id);
+      await loadOrders();
+    }
+  };
+
+  const activeOrders = orders.filter(o => o.status !== 'delivered');
+  const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+  const totalPaid = orders.reduce((sum, o) => sum + Number(o.deposit_paid || 0), 0);
+  const totalBalance = orders.reduce((sum, o) => sum + Number(o.balance_owing || 0), 0);
+
+  const tabOrders = tab === 'orders'
+    ? orders.filter(o => o.status !== 'delivered')
+    : orders.filter(o => o.status === 'delivered');
+
+  const renderOrderCard = (order: ClubOrder, readOnly: boolean) => {
+    const d = drafts[order.id];
+    if (!d) return null;
+    const dTotal = Number(d.total_amount) || 0;
+    const dDeposit = Number(d.deposit_paid) || 0;
+    const dBalance = Math.max(0, dTotal - dDeposit);
+    const grouped = groupLineItems(order.items);
+    return (
+      <div key={order.id} className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
+        <div className="flex justify-between items-center px-4 py-3 border-b border-zinc-100">
+          <div>
+            <p className="font-bold text-zinc-900">{order.order_number}</p>
+            <p className="text-xs text-zinc-500">{new Date(order.created_at).toLocaleDateString()}</p>
+          </div>
+          {readOnly ? (
+            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded ${STATUS_COLORS[order.status] || 'bg-zinc-100 text-zinc-500'}`}>
+              {STATUS_LABELS[order.status] || order.status}
+            </span>
+          ) : (
+            <select
+              value={d.status}
+              onChange={e => patch(order.id, 'status', e.target.value)}
+              className="border border-zinc-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+            >
+              {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                <option key={val} value={val}>{label}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className="p-4 space-y-4">
+          <div className="bg-zinc-50 rounded-lg p-3">
+            {grouped.map((g, i) => (
+              <div key={i} className="text-sm mb-1 last:mb-0 flex flex-wrap gap-x-2">
+                <span className="font-semibold text-zinc-800">{g.name}</span>
+                {Object.entries(g.sizes).map(([size, qty]) => (
+                  <span key={size} className="text-zinc-500">{size}×{qty}</span>
+                ))}
+                <span className="text-zinc-400 text-xs">${g.price.toFixed(2)}/unit</span>
+              </div>
+            ))}
+            {order.notes && (
+              <p className="text-xs text-zinc-400 italic mt-2 pt-2 border-t border-zinc-200">"{order.notes}"</p>
+            )}
+          </div>
+
+          {readOnly ? (
+            <div className="flex justify-between items-center flex-wrap gap-3">
+              <div className="flex gap-4 text-sm flex-wrap">
+                <span className="text-zinc-600">Total: <strong>${Number(order.total_amount || 0).toFixed(2)}</strong></span>
+                <span className="text-zinc-600">Paid: <strong>${Number(order.deposit_paid || 0).toFixed(2)}</strong></span>
+                <span className="text-zinc-600">Balance: <strong className={Number(order.balance_owing) > 0 ? 'text-red-600' : 'text-green-600'}>${Number(order.balance_owing || 0).toFixed(2)}</strong></span>
+              </div>
+              {order.invoice_url && (
+                <button
+                  onClick={() => generateInvoice(order)}
+                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                >
+                  <FileText size={13} /> Print Invoice
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Amount</label>
+                  <input
+                    type="number" step="0.01"
+                    value={d.total_amount}
+                    onChange={e => patch(order.id, 'total_amount', e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Deposit Paid</label>
+                  <input
+                    type="number" step="0.01"
+                    value={d.deposit_paid}
+                    onChange={e => patch(order.id, 'deposit_paid', e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Balance Owing</label>
+                  <p className={`text-sm font-bold mt-2 ${dBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    ${dBalance.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Notes</label>
+                <textarea
+                  rows={2}
+                  value={d.notes}
+                  onChange={e => patch(order.id, 'notes', e.target.value)}
+                  className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10 resize-none"
+                />
+              </div>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-xs text-zinc-400 font-mono">
+                  {order.invoice_url ? `Invoice: #${order.invoice_url}` : 'No invoice yet'}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => generateInvoice(order)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs bg-zinc-800 text-white hover:bg-zinc-900"
+                  >
+                    <FileText size={13} /> {order.invoice_url ? 'Reprint' : 'Generate Invoice'}
+                  </button>
+                  <button
+                    onClick={() => saveOrder(order)}
+                    disabled={savingId === order.id}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs bg-[var(--primary-color)] text-white hover:bg-red-800 disabled:opacity-50"
+                  >
+                    <Save size={13} /> {savingId === order.id ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div>
+        <button onClick={onBack} className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-zinc-900 mb-4">
+          <ChevronLeft size={14} /> Back to All Clubs
+        </button>
+        <div className="flex items-start gap-4">
+          {club.logo_url ? (
+            <img src={club.logo_url} alt="" className="w-14 h-14 object-contain rounded-xl bg-zinc-100 shrink-0" />
+          ) : (
+            <div className="w-14 h-14 rounded-xl bg-zinc-200 shrink-0" />
+          )}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-xl font-black uppercase tracking-tight text-zinc-900">{club.name}</h3>
+            {(club.contact_name || club.contact_phone) && (
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Contact: {[club.contact_name, club.contact_phone].filter(Boolean).join(' · ')}
+              </p>
+            )}
+            {club.contact_email && <p className="text-xs text-zinc-400">{club.contact_email}</p>}
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button onClick={onManageItems} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-600 hover:bg-zinc-50">
+              <Package size={13} /> Items
+            </button>
+            <button onClick={onEdit} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-600 hover:bg-zinc-50">
+              <Edit2 size={13} /> Edit
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-0 border-b border-zinc-200">
+        {(['overview', 'orders', 'history'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-5 py-2.5 text-xs font-black uppercase tracking-widest border-b-2 -mb-px transition-colors ${
+              tab === t ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-zinc-400 hover:text-zinc-600'
+            }`}
+          >
+            {t === 'overview' ? 'Overview' : t === 'orders' ? `Orders${activeOrders.length > 0 ? ` (${activeOrders.length})` : ''}` : 'History'}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview Tab */}
+      {tab === 'overview' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: 'Total Orders', value: String(orders.length) },
+              { label: 'Active Orders', value: String(activeOrders.length) },
+              { label: 'Total Revenue', value: `$${totalRevenue.toFixed(2)}` },
+              { label: 'Total Paid', value: `$${totalPaid.toFixed(2)}` },
+            ].map(stat => (
+              <div key={stat.label} className="bg-white border border-zinc-200 rounded-xl p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">{stat.label}</p>
+                <p className="text-lg font-black text-zinc-900">{stat.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className={`rounded-xl p-4 border ${totalBalance > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Balance Owing</p>
+            <p className={`text-2xl font-black ${totalBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>${totalBalance.toFixed(2)}</p>
+          </div>
+
+          {loading && <p className="text-sm text-zinc-400 py-4">Loading orders...</p>}
+          {!loading && activeOrders.length === 0 && (
+            <p className="text-sm text-zinc-400 py-4">No active orders.</p>
+          )}
+          {activeOrders.length > 0 && (
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">Active Orders</p>
+              <div className="space-y-2">
+                {activeOrders.map(order => (
+                  <div
+                    key={order.id}
+                    className="bg-white border border-zinc-200 rounded-xl px-4 py-3 flex items-center justify-between gap-4 cursor-pointer hover:bg-zinc-50"
+                    onClick={() => setTab('orders')}
+                  >
+                    <div>
+                      <p className="font-bold text-zinc-900 text-sm">{order.order_number}</p>
+                      <p className="text-xs text-zinc-500">{new Date(order.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <StatusBadge status={order.status} />
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-zinc-900">${Number(order.total_amount || 0).toFixed(2)}</p>
+                      {Number(order.balance_owing) > 0 && (
+                        <p className="text-xs font-bold text-red-600">Owing: ${Number(order.balance_owing).toFixed(2)}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Orders / History tabs */}
+      {(tab === 'orders' || tab === 'history') && (
+        <div className="space-y-4">
+          {loading && <p className="text-sm text-zinc-400 text-center py-8">Loading...</p>}
+          {!loading && tabOrders.length === 0 && (
+            <p className="text-sm text-zinc-400 text-center py-8">
+              {tab === 'orders' ? 'No active orders.' : 'No completed orders.'}
+            </p>
+          )}
+          {tabOrders.map(order => renderOrderCard(order, tab === 'history'))}
+        </div>
+      )}
     </div>
   );
 };
