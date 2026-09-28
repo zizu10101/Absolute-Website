@@ -1,197 +1,23 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
-import bcrypt from 'bcryptjs';
-
-console.log('=== _app.ts initializing ===');
-console.log('SUPABASE_URL:', !!process.env.SUPABASE_URL);
-console.log('VITE_SUPABASE_URL:', !!process.env.VITE_SUPABASE_URL);
-console.log('SERVICE_ROLE_KEY:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 const app = express();
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json());
 
-app.use((req, res, next) => {
-  console.log('Express received:', req.method, req.url);
-  next();
-});
-
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-console.log('Creating supabase client with url length:', supabaseUrl.length);
-
-let supabase: any;
-try {
-  supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
-  console.log('Supabase client created successfully');
-} catch (err: any) {
-  console.error('FAILED to create Supabase client:', err.message);
-}
-
-const cleanId = (id: string) => {
-  if (id && id.includes(':')) id = id.split(':')[0];
-  return id;
-};
-
-const isValidUUID = (id: string) => {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-};
-
-// --- CLUB PORTAL ---
-
-app.post('/api/club-login', async (req, res) => {
-  const { slug, username, password } = req.body || {};
-  if (!username || !password) return res.status(400).json({ error: 'Username and password are required' });
-
-  try {
-    let query = supabase.from('clubs').select('*').eq('username', username);
-    if (slug) query = query.eq('slug', slug);
-    const { data: club, error } = await query.maybeSingle();
-    if (error) throw error;
-    if (!club || !club.is_active) return res.status(401).json({ error: 'Invalid username or password' });
-    const valid = await bcrypt.compare(password, club.password_hash);
-    if (!valid) return res.status(401).json({ error: 'Invalid username or password' });
-    const { password_hash: _ph, username: _u, ...safeClub } = club;
-    return res.json({ success: true, club: safeClub });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Login failed' });
-  }
-});
-
-app.post('/api/clubs', async (req, res) => {
-
-  const { password, ...clubData } = req.body || {};
-  if (!clubData.name || !clubData.slug || !clubData.username || !password)
-    return res.status(400).json({ error: 'Name, slug, username and password are required' });
-  try {
-    const password_hash = await bcrypt.hash(password, 10);
-    const { data, error } = await supabase.from('clubs').insert([{ ...clubData, password_hash }]).select();
-    if (error) throw error;
-    const created = data?.[0];
-    if (created) delete created.password_hash;
-    return res.json(created);
-  } catch (err: any) {
-    if (err.message?.includes('duplicate')) return res.status(409).json({ error: 'That slug or username is already in use.' });
-    res.status(500).json({ error: err.message || 'Failed to create club' });
-  }
-});
-
-app.put('/api/clubs/:id', async (req, res) => {
-  const id = cleanId(req.params.id);
-  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
-  const { password, ...clubData } = req.body || {};
-  delete clubData.id;
-  try {
-    const payload: any = { ...clubData };
-    if (password && password.trim()) payload.password_hash = await bcrypt.hash(password, 10);
-    const { data, error } = await supabase.from('clubs').update(payload).eq('id', id).select();
-    if (error) throw error;
-    const updated = data?.[0];
-    if (updated) delete updated.password_hash;
-    return res.json(updated);
-  } catch (err: any) {
-    if (err.message?.includes('duplicate')) return res.status(409).json({ error: 'That slug or username is already in use.' });
-    res.status(500).json({ error: err.message || 'Failed to update club' });
-  }
-});
-
-app.delete('/api/clubs/:id', async (req, res) => {
-  const id = cleanId(req.params.id);
-  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
-  try {
-    const { error } = await supabase.from('clubs').delete().eq('id', id);
-    if (error) throw error;
-    return res.json({ success: true });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to delete club' });
-  }
-});
-
-app.get('/api/club-items', async (req, res) => {
-
-  const { club_id } = req.query;
-  if (!club_id) return res.status(400).json({ error: 'club_id is required' });
-  try {
-    const { data, error } = await supabase.from('club_items').select('*').eq('club_id', club_id).order('sort_order');
-    if (error) throw error;
-    return res.json(data);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to fetch items' });
-  }
-});
-
-app.post('/api/club-items', async (req, res) => {
-
-  const itemData = req.body || {};
-  if (!itemData.club_id || !itemData.name) return res.status(400).json({ error: 'club_id and name are required' });
-  try {
-    const { data, error } = await supabase.from('club_items').insert([itemData]).select();
-    if (error) throw error;
-    return res.json(data?.[0]);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to create item' });
-  }
-});
-
-app.put('/api/club-items/:id', async (req, res) => {
-  const id = cleanId(req.params.id);
-  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
-  const itemData = { ...(req.body || {}) };
-  delete itemData.id;
-  try {
-    const { data, error } = await supabase.from('club_items').update(itemData).eq('id', id).select();
-    if (error) throw error;
-    return res.json(data?.[0]);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to update item' });
-  }
-});
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
 
 app.delete('/api/club-items/:id', async (req, res) => {
   try {
-    const id = cleanId(req.params.id);
-    console.log('DELETE club-items, id:', id);
-    const { data, error } = await supabase.from('club_items').delete().eq('id', id).select();
-    if (error) {
-      console.error('Supabase error:', JSON.stringify(error));
-      return res.status(400).json({ message: error.message, details: error.details, code: error.code });
-    }
-    console.log('Deleted successfully:', data);
-    return res.status(200).json({ success: true, deleted: data });
+    const { id } = req.params;
+    const { error } = await supabase.from('club_items').delete().eq('id', id);
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
   } catch (err: any) {
-    console.error('Unhandled error:', err.message);
-    return res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
-});
-
-app.put('/api/club-orders/:id', async (req, res) => {
-  const id = cleanId(req.params.id);
-  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
-  const updateData = { ...(req.body || {}) };
-  delete updateData.id;
-  try {
-    const { data: existing, error: fetchErr } = await supabase.from('club_orders').select('*').eq('id', id).single();
-    if (fetchErr) throw fetchErr;
-    const totalAmount = updateData.total_amount !== undefined ? Number(updateData.total_amount) : Number(existing.total_amount || 0);
-    const depositPaid = updateData.deposit_paid !== undefined ? Number(updateData.deposit_paid) : Number(existing.deposit_paid || 0);
-    updateData.balance_owing = Math.max(0, totalAmount - depositPaid);
-    if (updateData.status === 'confirmed' && !existing.confirmed_at) updateData.confirmed_at = new Date().toISOString();
-    const { data, error } = await supabase.from('club_orders').update(updateData).eq('id', id).select();
-    if (error) throw error;
-    return res.json(data?.[0]);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to update order' });
-  }
-});
-
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ error: `API route ${req.method} ${req.path} not found` });
-});
-
-app.use((err: any, req: any, res: any, _next: any) => {
-  console.error('Global Express error:', err);
-  res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
 export default app;
