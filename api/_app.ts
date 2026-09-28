@@ -87,6 +87,19 @@ app.delete('/clubs/:id', async (req, res) => {
   }
 });
 
+app.get('/club-items', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+  const { club_id } = req.query;
+  if (!club_id) return res.status(400).json({ error: 'club_id is required' });
+  try {
+    const { data, error } = await supabase.from('club_items').select('*').eq('club_id', club_id).order('sort_order');
+    if (error) throw error;
+    return res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch items' });
+  }
+});
+
 app.post('/club-items', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Database not configured' });
   const itemData = req.body || {};
