@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Plus, Edit2, Trash2, X, Save, Upload, Package, ClipboardList, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Upload, Package, ClipboardList, RefreshCw, FileText } from 'lucide-react';
 import { supabase, uploadImage } from '../supabase';
 import { compressToWebP } from '../lib/imageUtils';
 import { slugify } from '../utils/slugify';
 import { StatusBadge, ORDER_STATUSES } from './portal/StatusBadge';
 import { ClubItem, ClubOrder } from '../types/clubPortal';
 import bcrypt from 'bcryptjs';
+import { generateInvoiceHTML, printInvoice } from '../utils/invoice';
 
 interface Club {
   id: string;
@@ -84,6 +85,7 @@ export const ClubsAdmin: React.FC = () => {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const [managingItemsFor, setManagingItemsFor] = useState<Club | null>(null);
+  const [viewingOrdersFor, setViewingOrdersFor] = useState<Club | null>(null);
 
   const loadClubs = useCallback(async () => {
     setClubsLoading(true);
@@ -312,6 +314,9 @@ export const ClubsAdmin: React.FC = () => {
                         <button onClick={() => setManagingItemsFor(club)} className="text-[11px] font-bold text-zinc-600 hover:text-zinc-900 underline flex items-center gap-1">
                           <Package size={12} /> Items
                         </button>
+                        <button onClick={() => setViewingOrdersFor(club)} className="text-[11px] font-bold text-zinc-600 hover:text-zinc-900 underline flex items-center gap-1">
+                          <ClipboardList size={12} /> Orders
+                        </button>
                         <button onClick={() => openEditClub(club)} className="text-zinc-500 hover:text-zinc-900" aria-label="Edit club">
                           <Edit2 size={15} />
                         </button>
@@ -456,6 +461,9 @@ export const ClubsAdmin: React.FC = () => {
 
       {managingItemsFor && (
         <ClubItemsManager club={managingItemsFor} onClose={() => setManagingItemsFor(null)} />
+      )}
+      {viewingOrdersFor && (
+        <ClubOrdersPerClub club={viewingOrdersFor} onClose={() => setViewingOrdersFor(null)} />
       )}
     </div>
   );
@@ -938,6 +946,239 @@ const ClubOrdersManager: React.FC<{ clubs: Club[] }> = ({ clubs }) => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// ─── Per-club orders modal ───────────────────────────────────────────────────
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  in_production: 'In Production',
+  ready: 'Ready for Pickup',
+  delivered: 'Delivered',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: 'bg-amber-100 text-amber-700',
+  confirmed: 'bg-blue-100 text-blue-700',
+  in_production: 'bg-purple-100 text-purple-700',
+  ready: 'bg-emerald-100 text-emerald-700',
+  delivered: 'bg-zinc-100 text-zinc-500',
+};
+
+function groupLineItems(items: ClubOrder['items']) {
+  const map: Record<string, { sizes: Record<string, number>; price: number }> = {};
+  for (const li of items || []) {
+    if (!map[li.name]) map[li.name] = { sizes: {}, price: li.price };
+    map[li.name].sizes[li.size] = (map[li.name].sizes[li.size] || 0) + li.qty;
+  }
+  return Object.entries(map).map(([name, { sizes, price }]) => ({ name, sizes, price }));
+}
+
+function buildClubInvoiceHTML(order: ClubOrder, club: Club): string {
+  const total = Number(order.total_amount || 0);
+  const deposit = Number(order.deposit_paid || 0);
+  const balance = Math.max(0, total - deposit);
+  const subtotal = total / 1.13;
+  const tax = total - subtotal;
+  const logoUrl = `${window.location.origin}/logo-black.png`;
+
+  const paymentLine = deposit > 0
+    ? `Deposit Paid: $${deposit.toFixed(2)} · Balance Owing: $${balance.toFixed(2)}`
+    : `Balance Owing: $${balance.toFixed(2)}`;
+
+  return generateInvoiceHTML({
+    invoiceNumber: order.order_number,
+    createdAt: new Date(order.created_at),
+    logoUrl,
+    customerInfo: {
+      firstName: club.name,
+      email: club.contact_email || undefined,
+      phone: club.contact_phone || undefined,
+    },
+    items: (order.items || []).map(li => ({
+      name: li.name,
+      quantity: li.qty,
+      price: li.price,
+      size: li.size,
+    })),
+    subtotal,
+    tax,
+    total,
+    paymentMethod: paymentLine,
+  }, 'invoice');
+}
+
+const ClubOrdersPerClub: React.FC<{ club: Club; onClose: () => void }> = ({ club, onClose }) => {
+  const [orders, setOrders] = useState<ClubOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, {
+    status: string; total_amount: string; deposit_paid: string; invoice_url: string; notes: string;
+  }>>({});
+
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('club_orders')
+      .select('*')
+      .eq('club_id', club.id)
+      .order('created_at', { ascending: false });
+    const rows = (data || []) as unknown as ClubOrder[];
+    setOrders(rows);
+    const init: typeof drafts = {};
+    rows.forEach(o => {
+      init[o.id] = {
+        status: o.status,
+        total_amount: String(o.total_amount ?? ''),
+        deposit_paid: String(o.deposit_paid ?? ''),
+        invoice_url: o.invoice_url || '',
+        notes: o.notes || '',
+      };
+    });
+    setDrafts(init);
+    setLoading(false);
+  }, [club.id]);
+
+  useEffect(() => { loadOrders(); }, [loadOrders]);
+
+  const patch = (id: string, field: string, value: string) =>
+    setDrafts(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+
+  const saveOrder = async (order: ClubOrder) => {
+    const d = drafts[order.id];
+    if (!d) return;
+    setSavingId(order.id);
+    try {
+      const total = Number(d.total_amount) || 0;
+      const deposit = Number(d.deposit_paid) || 0;
+      const payload: any = {
+        status: d.status,
+        total_amount: total,
+        deposit_paid: deposit,
+        balance_owing: Math.max(0, total - deposit),
+        invoice_url: d.invoice_url.trim() || null,
+        notes: d.notes.trim() || null,
+      };
+      if (d.status === 'confirmed' && !order.confirmed_at) payload.confirmed_at = new Date().toISOString();
+      const { error } = await supabase.from('club_orders').update(payload).eq('id', order.id);
+      if (error) throw error;
+      await loadOrders();
+    } catch (err: any) {
+      alert(err.message || 'Failed to save order.');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const generateInvoice = async (order: ClubOrder) => {
+    const html = buildClubInvoiceHTML(order, club);
+    printInvoice(html);
+    if (!order.invoice_url) {
+      await supabase.from('club_orders').update({ invoice_url: order.order_number }).eq('id', order.id);
+      await loadOrders();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b border-zinc-100 shrink-0">
+          <div>
+            <h3 className="text-lg font-black uppercase tracking-tight text-zinc-900">{club.name} — Orders</h3>
+            <p className="text-xs text-zinc-500 mt-0.5">{orders.length} order{orders.length !== 1 ? 's' : ''}</p>
+          </div>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-900"><X size={20} /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+          {loading && <p className="text-center text-zinc-400 py-8 text-sm">Loading orders...</p>}
+          {!loading && orders.length === 0 && (
+            <p className="text-center text-zinc-400 py-8 text-sm">No orders yet for this club.</p>
+          )}
+          {orders.map(order => {
+            const d = drafts[order.id];
+            if (!d) return null;
+            const totalNum = Number(d.total_amount) || 0;
+            const depositNum = Number(d.deposit_paid) || 0;
+            const balance = Math.max(0, totalNum - depositNum);
+            const grouped = groupLineItems(order.items);
+            return (
+              <div key={order.id} className="border border-zinc-200 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 border-b border-zinc-200">
+                  <div className="flex items-center gap-3">
+                    <span className="font-black text-zinc-900 text-sm">{order.order_number}</span>
+                    <span className="text-zinc-400 text-xs">{new Date(order.created_at).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                  </div>
+                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${STATUS_COLORS[order.status] || 'bg-zinc-100 text-zinc-500'}`}>
+                    {STATUS_LABELS[order.status] || order.status}
+                  </span>
+                </div>
+
+                <div className="p-4 space-y-4">
+                  <div className="space-y-1">
+                    {grouped.map(({ name, sizes, price }) => (
+                      <div key={name} className="flex items-baseline gap-2 text-sm">
+                        <span className="font-bold text-zinc-900">{name}</span>
+                        <span className="text-zinc-500">{Object.entries(sizes).map(([sz, qty]) => `${sz}×${qty}`).join(', ')}</span>
+                        <span className="text-zinc-400 text-xs ml-auto">${price.toFixed(2)}/unit</span>
+                      </div>
+                    ))}
+                    {order.notes && <p className="text-xs text-zinc-400 italic pt-1">"{order.notes}"</p>}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total ($)</label>
+                      <input type="number" step="0.01" min="0" value={d.total_amount} onChange={e => patch(order.id, 'total_amount', e.target.value)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Deposit Paid ($)</label>
+                      <input type="number" step="0.01" min="0" value={d.deposit_paid} onChange={e => patch(order.id, 'deposit_paid', e.target.value)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Balance Owing</label>
+                      <div className={`px-2 py-1.5 rounded-lg text-sm font-black border ${balance > 0 ? 'border-red-200 bg-red-50 text-red-600' : 'border-emerald-200 bg-emerald-50 text-emerald-600'}`}>${balance.toFixed(2)}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Status</label>
+                      <select value={d.status} onChange={e => patch(order.id, 'status', e.target.value)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none">
+                        {Object.entries(STATUS_LABELS).map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Invoice</label>
+                      {order.invoice_url
+                        ? <p className="text-xs text-zinc-500 py-1 font-mono">#{order.invoice_url}</p>
+                        : <p className="text-xs text-zinc-400 py-1 italic">Not generated yet</p>
+                      }
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Notes</label>
+                    <textarea rows={2} value={d.notes} onChange={e => patch(order.id, 'notes', e.target.value)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10 resize-none" />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => generateInvoice(order)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs bg-zinc-800 text-white hover:bg-zinc-900">
+                      <FileText size={13} /> {order.invoice_url ? 'Reprint Invoice' : 'Generate Invoice'}
+                    </button>
+                    <button onClick={() => saveOrder(order)} disabled={savingId === order.id} className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs bg-[var(--primary-color)] text-white hover:bg-red-800 disabled:opacity-50">
+                      <Save size={13} /> {savingId === order.id ? 'Saving...' : 'Save Order'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

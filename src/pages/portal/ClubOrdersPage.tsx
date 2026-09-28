@@ -1,10 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { FileText } from 'lucide-react';
 import { supabase } from '../../supabase';
-import { useClub } from '../../hooks/useClub';
+import { useClub, Club } from '../../hooks/useClub';
 import { ClubPortalLayout } from '../../components/portal/ClubPortalLayout';
 import { StatusBadge } from '../../components/portal/StatusBadge';
 import { ClubOrder } from '../../types/clubPortal';
+import { generateInvoiceHTML, printInvoice } from '../../utils/invoice';
+
+function printOrderInvoice(order: ClubOrder, club: Club) {
+  const total = Number(order.total_amount || 0);
+  const deposit = Number(order.deposit_paid || 0);
+  const balance = Math.max(0, total - deposit);
+  const subtotal = total / 1.13;
+  const tax = total - subtotal;
+  const logoUrl = `${window.location.origin}/logo-black.png`;
+  const paymentLine = deposit > 0
+    ? `Deposit Paid: $${deposit.toFixed(2)} · Balance Owing: $${balance.toFixed(2)}`
+    : `Balance Owing: $${balance.toFixed(2)}`;
+  const html = generateInvoiceHTML({
+    invoiceNumber: order.order_number,
+    createdAt: new Date(order.created_at),
+    logoUrl,
+    customerInfo: { firstName: club.name, email: club.contact_email || undefined, phone: club.contact_phone || undefined },
+    items: (order.items || []).map(li => ({ name: li.name, quantity: li.qty, price: li.price, size: li.size })),
+    subtotal, tax, total,
+    paymentMethod: paymentLine,
+  }, 'invoice');
+  printInvoice(html);
+}
 
 export const ClubOrdersPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -74,14 +98,12 @@ export const ClubOrdersPage: React.FC = () => {
                 </div>
 
                 {order.invoice_url && (
-                  <a
-                    href={order.invoice_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-block text-sm text-blue-600 underline"
+                  <button
+                    onClick={() => printOrderInvoice(order, club)}
+                    className="mt-2 flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
                   >
-                    Download Invoice
-                  </a>
+                    <FileText size={14} /> Print Invoice
+                  </button>
                 )}
               </div>
             ))
