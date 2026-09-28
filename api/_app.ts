@@ -2,6 +2,11 @@ import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 
+console.log('=== _app.ts initializing ===');
+console.log('SUPABASE_URL:', !!process.env.SUPABASE_URL);
+console.log('VITE_SUPABASE_URL:', !!process.env.VITE_SUPABASE_URL);
+console.log('SERVICE_ROLE_KEY:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+
 const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -14,14 +19,15 @@ app.use((req, res, next) => {
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('CRITICAL: Missing Supabase env vars!', {
-    hasUrl: !!supabaseUrl,
-    hasKey: !!supabaseKey,
-  });
-}
+console.log('Creating supabase client with url length:', supabaseUrl.length);
 
-const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+let supabase: any;
+try {
+  supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+  console.log('Supabase client created successfully');
+} catch (err: any) {
+  console.error('FAILED to create Supabase client:', err.message);
+}
 
 const cleanId = (id: string) => {
   if (id && id.includes(':')) id = id.split(':')[0];
