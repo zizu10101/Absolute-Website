@@ -1,16 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
 import { useClub } from '../../hooks/useClub';
 import { getClubSession } from '../../utils/clubAuth';
+import { supabase } from '../../supabase';
 
-// Gated behind login: this is the branded "welcome" screen a club sees right after
-// authenticating, not a public marketing splash. Visiting /portal/:slug while logged out
-// redirects to the universal /portal login instead of showing this page.
 export const ClubLandingPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { club, isLoading, error } = useClub(slug);
+  const [itemPhotos, setItemPhotos] = useState<string[]>([]);
 
   useEffect(() => {
     if (!club) return;
@@ -18,6 +16,19 @@ export const ClubLandingPage: React.FC = () => {
       navigate('/portal', { replace: true });
     }
   }, [club, navigate]);
+
+  useEffect(() => {
+    if (!club || (club.photos && club.photos.length > 0)) return;
+    supabase
+      .from('club_items')
+      .select('image_url')
+      .eq('club_id', club.id)
+      .not('image_url', 'is', null)
+      .limit(4)
+      .then(({ data }) => {
+        if (data) setItemPhotos(data.map((i: any) => i.image_url).filter(Boolean));
+      });
+  }, [club]);
 
   if (isLoading) {
     return (
@@ -40,42 +51,76 @@ export const ClubLandingPage: React.FC = () => {
 
   if (!getClubSession(club.slug)) return null;
 
-  const enterPortal = () => navigate(`/portal/${club.slug}/dashboard`);
+  const displayPhotos = (club.photos?.length > 0 ? club.photos : itemPhotos).filter(Boolean);
 
   return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center px-4 py-16 text-center relative overflow-hidden"
-      style={{
-        background: club.primary_color,
-        backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 2px, transparent 2px, transparent 24px)',
-      }}
-    >
-      {club.logo_url && (
-        <img src={club.logo_url} alt={club.name} className="w-32 h-32 md:w-48 md:h-48 object-contain mx-auto mb-6 drop-shadow-lg" />
-      )}
-      <h1 className="text-white text-3xl md:text-5xl font-black uppercase tracking-tight mb-2">{club.name}</h1>
-      <p className="text-white/70 text-sm md:text-base mb-10 uppercase tracking-widest font-bold">Team Store Portal</p>
+    <div className="h-screen overflow-hidden flex flex-col md:flex-row">
 
-      {club.photos && club.photos.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 max-w-2xl w-full mb-10">
-          {club.photos.slice(0, 6).map((photo, i) => (
-            <img
-              key={i}
-              src={photo}
-              alt=""
-              className="w-full aspect-square object-cover rounded-lg shadow-md"
-            />
-          ))}
-        </div>
-      )}
-
-      <button
-        onClick={enterPortal}
-        className="flex items-center gap-2 bg-white px-8 py-4 rounded-xl font-black uppercase tracking-widest text-sm shadow-xl hover:scale-105 transition-transform"
-        style={{ color: club.primary_color }}
+      {/* LEFT — Branding */}
+      <div
+        className="w-full md:w-1/2 h-[55vh] md:h-full flex flex-col items-center justify-center p-8 md:p-16 relative"
+        style={{ backgroundColor: club.primary_color }}
       >
-        Enter Portal <ArrowRight size={18} />
-      </button>
+        {club.logo_url && (
+          <img
+            src={club.logo_url}
+            alt={club.name}
+            className="w-[280px] h-[280px] md:w-[440px] md:h-[440px] object-contain mb-10 drop-shadow-2xl"
+          />
+        )}
+        <h1 className="text-white text-4xl md:text-5xl font-black text-center uppercase tracking-tight mb-2">
+          {club.name}
+        </h1>
+        <p className="text-white/60 text-xs mb-10 tracking-[0.3em] uppercase font-bold">
+          Your Club Portal
+        </p>
+        <button
+          onClick={() => navigate(`/portal/${club.slug}/dashboard`)}
+          className="bg-white font-black uppercase tracking-widest px-10 py-4 rounded-full text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
+          style={{ color: club.primary_color }}
+        >
+          Enter Portal →
+        </button>
+        <p className="text-white/25 text-[10px] mt-16 tracking-[0.25em] uppercase absolute bottom-6">
+          Powered by Absolute Soccer
+        </p>
+      </div>
+
+      {/* RIGHT — Photo Collage */}
+      <div className="w-full md:w-1/2 h-[45vh] md:h-full">
+        {displayPhotos.length >= 4 ? (
+          <div className="grid grid-cols-2 grid-rows-2 gap-1 h-full">
+            {displayPhotos.slice(0, 4).map((photo, i) => (
+              <div key={i} className="overflow-hidden">
+                <img src={photo} alt="" className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
+        ) : displayPhotos.length === 3 ? (
+          <div className="grid grid-cols-2 grid-rows-2 gap-1 h-full">
+            <div className="row-span-2 overflow-hidden">
+              <img src={displayPhotos[0]} alt="" className="w-full h-full object-cover" />
+            </div>
+            {displayPhotos.slice(1).map((photo, i) => (
+              <div key={i} className="overflow-hidden">
+                <img src={photo} alt="" className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
+        ) : displayPhotos.length > 0 ? (
+          <img
+            src={displayPhotos[0]}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div
+            className="w-full h-full"
+            style={{ backgroundColor: club.secondary_color || '#f0f0f0' }}
+          />
+        )}
+      </div>
+
     </div>
   );
 };
