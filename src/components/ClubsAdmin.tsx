@@ -52,6 +52,23 @@ const EMPTY_ITEM_FORM = {
   is_suggested: false,
 };
 
+function getSizesForCategory(category: string): string[] {
+  if (category === 'Adult') return ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL'];
+  if (category === 'Youth') return ['YXS', 'YS', 'YM', 'YL', 'YXL'];
+  if (category === 'Adult Footwear') {
+    const sizes: string[] = [];
+    for (let s = 3; s <= 15; s += 0.5) sizes.push(s % 1 === 0 ? s.toString() : s.toFixed(1));
+    return sizes;
+  }
+  if (category === 'Youth Footwear') return [
+    '8K','8.5K','9K','9.5K','10K','10.5K','11K','11.5K','12K','12.5K','13K','13.5K',
+    '1Y','1.5Y','2Y','2.5Y','3Y','3.5Y','4Y','4.5Y','5Y','5.5Y','6Y','6.5Y','7Y',
+  ];
+  if (category === 'Gloves') return ['3','4','5','6','7','8','9','10','11'];
+  if (category === 'One Size') return ['One Size'];
+  return [];
+}
+
 async function apiCall(url: string, options: RequestInit = {}) {
   const res = await fetch(url, {
     ...options,
@@ -457,7 +474,7 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
   const [showForm, setShowForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [sizeInput, setSizeInput] = useState('');
+  const [sizeCategory, setSizeCategory] = useState('');
 
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -476,7 +493,7 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
 
   const openNewItem = () => {
     setForm(EMPTY_ITEM_FORM);
-    setSizeInput('');
+    setSizeCategory('');
     setShowForm(true);
   };
 
@@ -490,7 +507,7 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
       price: String(item.price ?? ''),
       is_suggested: item.is_suggested,
     });
-    setSizeInput((item.sizes_available || []).join(', '));
+    setSizeCategory('');
     setShowForm(true);
   };
 
@@ -521,13 +538,12 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
     setIsSaving(true);
     setError(null);
     try {
-      const sizes = sizeInput.split(',').map(s => s.trim()).filter(Boolean);
       const payload = {
         club_id: club.id,
         name: form.name.trim(),
         description: form.description.trim() || null,
         image_url: form.image_url || null,
-        sizes_available: sizes,
+        sizes_available: form.sizes_available,
         price: form.price ? Number(form.price) : 0,
         is_suggested: form.is_suggested,
         sort_order: items.length,
@@ -557,8 +573,8 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-zinc-100 sticky top-0 bg-white z-10">
           <div>
             <h3 className="text-lg font-black uppercase tracking-tight text-zinc-900">{club.name} — Items</h3>
@@ -604,8 +620,8 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
         </div>
 
         {showForm && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForm(false)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowForm(false); }}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
               <div className="flex items-center justify-between p-5 border-b border-zinc-100">
                 <h4 className="font-black uppercase tracking-tight text-zinc-900">{form.id ? 'Edit Item' : 'Add Item'}</h4>
                 <button onClick={() => setShowForm(false)}><X size={18} className="text-zinc-500" /></button>
@@ -637,14 +653,61 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
                     <input type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={handleImageUpload} />
                   </label>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1.5">Price</label>
-                    <input type="number" step="0.01" value={form.price} onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))} className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1.5">Sizes (comma separated)</label>
-                    <input type="text" value={sizeInput} onChange={e => setSizeInput(e.target.value)} placeholder="S, M, L, XL" className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm" />
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1.5">Price</label>
+                  <input type="number" step="0.01" value={form.price} onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))} className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1.5">Sizes</label>
+                  <div className="space-y-2">
+                    <select
+                      value={sizeCategory}
+                      onChange={e => setSizeCategory(e.target.value)}
+                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm"
+                    >
+                      <option value="">Pick a category to add sizes…</option>
+                      <option value="Adult">Adult (XS – 3XL)</option>
+                      <option value="Youth">Youth (YXS – YXL)</option>
+                      <option value="Adult Footwear">Adult Footwear</option>
+                      <option value="Youth Footwear">Youth Footwear</option>
+                      <option value="Gloves">Gloves</option>
+                      <option value="One Size">One Size</option>
+                    </select>
+                    {sizeCategory && (
+                      <div className="flex flex-wrap gap-1.5 p-3 border border-zinc-200 rounded-lg bg-zinc-50">
+                        {getSizesForCategory(sizeCategory).map(size => {
+                          const checked = form.sizes_available.includes(size);
+                          return (
+                            <button
+                              key={size}
+                              type="button"
+                              onClick={() => setForm(prev => ({
+                                ...prev,
+                                sizes_available: checked
+                                  ? prev.sizes_available.filter(s => s !== size)
+                                  : [...prev.sizes_available, size],
+                              }))}
+                              className={`px-2 py-1 rounded text-[11px] font-bold border transition-colors ${checked ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400'}`}
+                            >
+                              {size}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {form.sizes_available.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 self-center mr-1">Selected:</span>
+                        {form.sizes_available.map(size => (
+                          <span key={size} className="flex items-center gap-1 px-2 py-0.5 bg-zinc-100 rounded text-[11px] font-bold text-zinc-700">
+                            {size}
+                            <button type="button" onClick={() => setForm(prev => ({ ...prev, sizes_available: prev.sizes_available.filter(s => s !== size) }))}>
+                              <X size={10} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <label className="flex items-center gap-3 cursor-pointer pt-1">
