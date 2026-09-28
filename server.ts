@@ -5,7 +5,8 @@ import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
-import printer from "node-printer";
+let printer: any = null;
+try { printer = require("node-printer"); } catch { /* not available in serverless/non-Windows environments */ }
 import bcrypt from "bcryptjs";
 import { syncEODToSheet, createNewMonthSheet } from "./src/utils/googleSheets";
 import { DateTime } from "luxon";
@@ -1184,6 +1185,10 @@ async function startServer() {
     console.log("🔵 [DRAWER] POST /api/open-drawer called");
 
     try {
+      if (!printer) {
+        return res.status(503).json({ error: "Printer not available in this environment" });
+      }
+
       // ESC/POS drawer kick command
       const drawerCommand = Buffer.from([0x1B, 0x70, 0x00, 0x19, 0xFA]);
       console.log("🔵 [DRAWER] ESC/POS command prepared:", drawerCommand);
