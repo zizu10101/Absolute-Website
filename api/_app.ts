@@ -14,7 +14,7 @@ const supabase = supabaseUrl && supabaseKey
 
 // --- CLUB PORTAL ---
 
-app.post('/api/club-login', async (req, res) => {
+app.post('/club-login', async (req, res) => {
   const { slug, username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'Username and password are required' });
   if (!supabase) return res.status(500).json({ error: 'Database not configured' });
@@ -33,7 +33,7 @@ app.post('/api/club-login', async (req, res) => {
   }
 });
 
-app.post('/api/clubs', async (req, res) => {
+app.post('/clubs', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Database not configured' });
   const { password, ...clubData } = req.body || {};
   if (!clubData.name || !clubData.slug || !clubData.username || !password)
@@ -51,7 +51,7 @@ app.post('/api/clubs', async (req, res) => {
   }
 });
 
-app.put('/api/clubs/:id', async (req, res) => {
+app.put('/clubs/:id', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Database not configured' });
   const { id } = req.params;
   const { password, ...clubData } = req.body || {};
@@ -70,7 +70,7 @@ app.put('/api/clubs/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/clubs/:id', async (req, res) => {
+app.delete('/clubs/:id', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Database not configured' });
   const { id } = req.params;
   try {
@@ -82,7 +82,7 @@ app.delete('/api/clubs/:id', async (req, res) => {
   }
 });
 
-app.post('/api/club-items', async (req, res) => {
+app.post('/club-items', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Database not configured' });
   const itemData = req.body || {};
   if (!itemData.club_id || !itemData.name) return res.status(400).json({ error: 'club_id and name are required' });
@@ -95,7 +95,7 @@ app.post('/api/club-items', async (req, res) => {
   }
 });
 
-app.put('/api/club-items/:id', async (req, res) => {
+app.put('/club-items/:id', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Database not configured' });
   const { id } = req.params;
   const itemData = { ...(req.body || {}) };
@@ -109,7 +109,7 @@ app.put('/api/club-items/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/club-items/:id', async (req, res) => {
+app.delete('/club-items/:id', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Database not configured' });
   const { id } = req.params;
   try {
@@ -121,7 +121,7 @@ app.delete('/api/club-items/:id', async (req, res) => {
   }
 });
 
-app.put('/api/club-orders/:id', async (req, res) => {
+app.put('/club-orders/:id', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Database not configured' });
   const { id } = req.params;
   const updateData = { ...(req.body || {}) };
@@ -141,7 +141,7 @@ app.put('/api/club-orders/:id', async (req, res) => {
   }
 });
 
-app.use('/api/*', (req, res) => {
+app.use('*', (req, res) => {
   res.status(404).json({ error: `API route ${req.method} ${req.path} not found` });
 });
 
