@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { setClubSession } from '../../utils/clubAuth';
+import { supabase } from '../../supabase';
+import bcrypt from 'bcryptjs';
 
 // Single entry point for every club: /portal. Looks a club up by username alone (globally
 // unique - see docs/club-portal-migration.sql) and redirects to that club's branded landing
@@ -17,25 +19,30 @@ export const ClubPortalLoginPage: React.FC = () => {
     setIsSubmitting(true);
     setError(null);
     try {
-      const res = await fetch('/api/club-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Login failed');
+      const { data: club, error: dbError } = await supabase
+        .from('clubs')
+        .select('*')
+        .eq('username', username)
+        .maybeSingle();
+      if (dbError) throw dbError;
+      if (!club || !club.is_active) {
+        setError('Invalid username or password');
+        return;
+      }
+      const valid = await bcrypt.compare(password, club.password_hash);
+      if (!valid) {
+        setError('Invalid username or password');
         return;
       }
       setClubSession({
-        clubId: data.club.id,
-        clubSlug: data.club.slug,
-        clubName: data.club.name,
-        logoUrl: data.club.logo_url,
-        primaryColor: data.club.primary_color,
-        secondaryColor: data.club.secondary_color,
+        clubId: club.id,
+        clubSlug: club.slug,
+        clubName: club.name,
+        logoUrl: club.logo_url,
+        primaryColor: club.primary_color,
+        secondaryColor: club.secondary_color,
       });
-      navigate(`/portal/${data.club.slug}`, { replace: true });
+      navigate(`/portal/${club.slug}`, { replace: true });
     } catch (err) {
       console.error('Club portal login error:', err);
       setError('Something went wrong. Please try again.');

@@ -5,6 +5,7 @@ import { compressToWebP } from '../lib/imageUtils';
 import { slugify } from '../utils/slugify';
 import { StatusBadge, ORDER_STATUSES } from './portal/StatusBadge';
 import { ClubItem, ClubOrder } from '../types/clubPortal';
+import bcrypt from 'bcryptjs';
 
 interface Club {
   id: string;
@@ -22,8 +23,6 @@ interface Club {
   created_at: string;
 }
 
-// Every field except password_hash - it never needs to reach the browser (mutations go
-// through /api/clubs, which hashes server-side).
 const CLUB_COLUMNS = 'id, name, slug, logo_url, primary_color, secondary_color, photos, contact_name, contact_email, contact_phone, username, is_active, created_at';
 
 const EMPTY_CLUB_FORM = {
@@ -69,15 +68,6 @@ function getSizesForCategory(category: string): string[] {
   return [];
 }
 
-async function apiCall(url: string, options: RequestInit = {}) {
-  const res = await fetch(url, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
-  return data;
-}
 
 export const ClubsAdmin: React.FC = () => {
   const [view, setView] = useState<'clubs' | 'orders'>('clubs');
@@ -217,12 +207,15 @@ export const ClubsAdmin: React.FC = () => {
         username: clubForm.username.trim(),
         is_active: clubForm.is_active,
       };
-      if (clubForm.password.trim()) payload.password = clubForm.password.trim();
-
       if (clubForm.id) {
-        await apiCall(`/api/clubs/${clubForm.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        const updatePayload: any = { ...payload };
+        if (clubForm.password.trim()) updatePayload.password_hash = await bcrypt.hash(clubForm.password.trim(), 10);
+        const { error } = await supabase.from('clubs').update(updatePayload).eq('id', clubForm.id);
+        if (error) throw error;
       } else {
-        await apiCall('/api/clubs', { method: 'POST', body: JSON.stringify(payload) });
+        const password_hash = await bcrypt.hash(clubForm.password.trim(), 10);
+        const { error } = await supabase.from('clubs').insert([{ ...payload, password_hash }]);
+        if (error) throw error;
       }
       setShowClubForm(false);
       await loadClubs();
@@ -237,7 +230,8 @@ export const ClubsAdmin: React.FC = () => {
   const handleDeleteClub = async (club: Club) => {
     if (!window.confirm(`Delete "${club.name}"? This removes their portal, items and order history. This cannot be undone.`)) return;
     try {
-      await apiCall(`/api/clubs/${club.id}`, { method: 'DELETE' });
+      const { error } = await supabase.from('clubs').delete().eq('id', club.id);
+      if (error) throw error;
       setClubs(prev => prev.filter(c => c.id !== club.id));
     } catch (err: any) {
       console.error('Error deleting club:', err);
@@ -549,9 +543,11 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
         sort_order: items.length,
       };
       if (form.id) {
-        await apiCall(`/api/club-items/${form.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        const { error } = await supabase.from('club_items').update(payload).eq('id', form.id);
+        if (error) throw error;
       } else {
-        await apiCall('/api/club-items', { method: 'POST', body: JSON.stringify(payload) });
+        const { error } = await supabase.from('club_items').insert([payload]);
+        if (error) throw error;
       }
       setShowForm(false);
       await loadItems();
@@ -565,7 +561,8 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
   const handleDeleteItem = async (item: ClubItem) => {
     if (!window.confirm(`Delete "${item.name}"?`)) return;
     try {
-      await apiCall(`/api/club-items/${item.id}`, { method: 'DELETE' });
+      const { error } = await supabase.from('club_items').delete().eq('id', item.id);
+      if (error) throw error;
       setItems(prev => prev.filter(i => i.id !== item.id));
     } catch (err: any) {
       alert(err.message || 'Failed to delete item.');
@@ -778,15 +775,20 @@ const ClubOrdersManager: React.FC<{ clubs: Club[] }> = ({ clubs }) => {
     if (!editingOrder) return;
     setIsSaving(true);
     try {
-      await apiCall(`/api/club-orders/${editingOrder.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          status: orderForm.status,
-          total_amount: Number(orderForm.total_amount) || 0,
-          deposit_paid: Number(orderForm.deposit_paid) || 0,
-          invoice_url: orderForm.invoice_url.trim() || null,
-        }),
-      });
+      const totalAmount = Number(orderForm.total_amount) || 0;
+      const depositPaid = Number(orderForm.deposit_paid) || 0;
+      const updatePayload: any = {
+        status: orderForm.status,
+        total_amount: totalAmount,
+        deposit_paid: depositPaid,
+        balance_owing: Math.max(0, totalAmount - depositPaid),
+        invoice_url: orderForm.invoice_url.trim() || null,
+      };
+      if (orderForm.status === 'confirmed' && !editingOrder.confirmed_at) {
+        updatePayload.confirmed_at = new Date().toISOString();
+      }
+      const { error } = await supabase.from('club_orders').update(updatePayload).eq('id', editingOrder.id);
+      if (error) throw error;
       setEditingOrder(null);
       await loadOrders();
     } catch (err: any) {
