@@ -11,18 +11,24 @@ app.use((req, res, next) => {
   next();
 });
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = supabaseUrl && supabaseKey
-  ? createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
-  : null;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('CRITICAL: Missing Supabase env vars!', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseKey,
+  });
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
 
 // --- CLUB PORTAL ---
 
 app.post('/api/club-login', async (req, res) => {
   const { slug, username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'Username and password are required' });
-  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+
   try {
     let query = supabase.from('clubs').select('*').eq('username', username);
     if (slug) query = query.eq('slug', slug);
@@ -39,7 +45,7 @@ app.post('/api/club-login', async (req, res) => {
 });
 
 app.post('/api/clubs', async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+
   const { password, ...clubData } = req.body || {};
   if (!clubData.name || !clubData.slug || !clubData.username || !password)
     return res.status(400).json({ error: 'Name, slug, username and password are required' });
@@ -57,7 +63,7 @@ app.post('/api/clubs', async (req, res) => {
 });
 
 app.put('/api/clubs/:id', async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+
   const { id } = req.params;
   const { password, ...clubData } = req.body || {};
   delete clubData.id;
@@ -76,7 +82,7 @@ app.put('/api/clubs/:id', async (req, res) => {
 });
 
 app.delete('/api/clubs/:id', async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+
   const { id } = req.params;
   try {
     const { error } = await supabase.from('clubs').delete().eq('id', id);
@@ -88,7 +94,7 @@ app.delete('/api/clubs/:id', async (req, res) => {
 });
 
 app.get('/api/club-items', async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+
   const { club_id } = req.query;
   if (!club_id) return res.status(400).json({ error: 'club_id is required' });
   try {
@@ -101,7 +107,7 @@ app.get('/api/club-items', async (req, res) => {
 });
 
 app.post('/api/club-items', async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+
   const itemData = req.body || {};
   if (!itemData.club_id || !itemData.name) return res.status(400).json({ error: 'club_id and name are required' });
   try {
@@ -114,7 +120,7 @@ app.post('/api/club-items', async (req, res) => {
 });
 
 app.put('/api/club-items/:id', async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+
   const { id } = req.params;
   const itemData = { ...(req.body || {}) };
   delete itemData.id;
@@ -128,7 +134,7 @@ app.put('/api/club-items/:id', async (req, res) => {
 });
 
 app.delete('/api/club-items/:id', async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+
   const { id } = req.params;
   try {
     const { error } = await supabase.from('club_items').delete().eq('id', id);
@@ -140,7 +146,7 @@ app.delete('/api/club-items/:id', async (req, res) => {
 });
 
 app.put('/api/club-orders/:id', async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+
   const { id } = req.params;
   const updateData = { ...(req.body || {}) };
   delete updateData.id;
@@ -161,6 +167,11 @@ app.put('/api/club-orders/:id', async (req, res) => {
 
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: `API route ${req.method} ${req.path} not found` });
+});
+
+app.use((err: any, req: any, res: any, _next: any) => {
+  console.error('Global Express error:', err);
+  res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
 export default app;
