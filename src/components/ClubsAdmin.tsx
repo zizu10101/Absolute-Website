@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Plus, Edit2, Trash2, X, Save, Upload, Package, ClipboardList, RefreshCw, FileText, ChevronLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Upload, Package, ClipboardList, RefreshCw, FileText, ChevronLeft, GripVertical } from 'lucide-react';
 import { supabase, uploadImage } from '../supabase';
 import { compressToWebP } from '../lib/imageUtils';
 import { slugify } from '../utils/slugify';
 import { StatusBadge, ORDER_STATUSES } from './portal/StatusBadge';
-import { ClubItem, ClubOrder } from '../types/clubPortal';
+import { ClubItem, ClubOrder, PrintType, PrintAddon } from '../types/clubPortal';
 import bcrypt from 'bcryptjs';
 import { generateInvoiceHTML, printInvoice } from '../utils/invoice';
 
@@ -49,8 +49,10 @@ const EMPTY_ITEM_FORM = {
   image_url: '',
   sizes_available: [] as string[],
   price: '',
-  discount_percentage: '',
+  discount_value: '',
+  discount_type: '%' as '%' | '$',
   is_suggested: false,
+  print_addons: [] as PrintAddon[],
 };
 
 function getSizesForCategory(category: string): string[] {
@@ -72,7 +74,7 @@ function getSizesForCategory(category: string): string[] {
 
 
 export const ClubsAdmin: React.FC = () => {
-  const [view, setView] = useState<'clubs' | 'orders'>('clubs');
+  const [view, setView] = useState<'clubs' | 'orders' | 'print_types'>('clubs');
   const [clubs, setClubs] = useState<Club[]>([]);
   const [clubsLoading, setClubsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -278,6 +280,12 @@ export const ClubsAdmin: React.FC = () => {
               >
                 Orders
               </button>
+              <button
+                onClick={() => setView('print_types')}
+                className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all ${view === 'print_types' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
+              >
+                Print Types
+              </button>
             </div>
           </div>
 
@@ -350,8 +358,10 @@ export const ClubsAdmin: React.FC = () => {
                 </table>
               </div>
             </div>
-          ) : (
+          ) : view === 'orders' ? (
             <ClubOrdersManager clubs={clubs} />
+          ) : (
+            <PrintTypesManager />
           )}
         </>
       )}
@@ -499,6 +509,11 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [sizeCategory, setSizeCategory] = useState('');
+  const [printTypes, setPrintTypes] = useState<PrintType[]>([]);
+
+  useEffect(() => {
+    supabase.from('print_types').select('*').order('sort_order').then(({ data }) => setPrintTypes((data || []) as PrintType[]));
+  }, []);
 
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -529,11 +544,34 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
       image_url: item.image_url || '',
       sizes_available: item.sizes_available || [],
       price: String(item.price ?? ''),
-      discount_percentage: item.discount_percentage != null ? String(item.discount_percentage) : '',
+      discount_value: item.discount_value != null ? String(item.discount_value) : '',
+      discount_type: (item.discount_type === '$' ? '$' : '%') as '%' | '$',
       is_suggested: item.is_suggested,
+      print_addons: item.print_addons || [],
     });
     setSizeCategory('');
     setShowForm(true);
+  };
+
+  const addPrintAddon = () => {
+    setForm(prev => ({ ...prev, print_addons: [...prev.print_addons, { print_type_id: '', print_type_name: '', cost_per_unit: 0 }] }));
+  };
+
+  const updateAddon = (i: number, field: string, value: string) => {
+    setForm(prev => {
+      const addons = [...prev.print_addons];
+      if (field === 'print_type_id') {
+        const pt = printTypes.find(p => p.id === value);
+        addons[i] = { ...addons[i], print_type_id: value, print_type_name: pt?.name || '' };
+      } else if (field === 'cost_per_unit') {
+        addons[i] = { ...addons[i], cost_per_unit: Number(value) || 0 };
+      }
+      return { ...prev, print_addons: addons };
+    });
+  };
+
+  const removeAddon = (i: number) => {
+    setForm(prev => ({ ...prev, print_addons: prev.print_addons.filter((_, idx) => idx !== i) }));
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -570,9 +608,11 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
         image_url: form.image_url || null,
         sizes_available: form.sizes_available,
         price: form.price ? Number(form.price) : 0,
-        discount_percentage: form.discount_percentage !== '' ? Math.min(100, Math.max(0, Number(form.discount_percentage))) : null,
+        discount_value: form.discount_value !== '' ? Math.max(0, Number(form.discount_value)) : 0,
+        discount_type: form.discount_type,
         is_suggested: form.is_suggested,
         sort_order: items.length,
+        print_addons: form.print_addons.filter(a => a.print_type_id),
       };
       if (form.id) {
         const { error } = await supabase.from('club_items').update(payload).eq('id', form.id);
@@ -688,23 +728,40 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
                     <input type="number" step="0.01" value={form.price} onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))} className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm" />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1.5">Discount %</label>
-                    <div className="flex items-center border border-zinc-200 rounded-lg overflow-hidden">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1.5">Discount</label>
+                    <div className="flex gap-1.5">
                       <input
                         type="number"
                         min="0"
-                        max="100"
-                        step="1"
+                        step={form.discount_type === '$' ? '0.01' : '1'}
                         placeholder="0"
-                        value={form.discount_percentage}
-                        onChange={e => setForm(prev => ({ ...prev, discount_percentage: e.target.value }))}
-                        className="flex-1 px-3 py-2 text-sm focus:outline-none"
+                        value={form.discount_value}
+                        onChange={e => setForm(prev => ({ ...prev, discount_value: e.target.value }))}
+                        className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none"
                       />
-                      <span className="px-2 py-2 text-sm font-bold text-zinc-500 bg-zinc-50 border-l border-zinc-200">%</span>
+                      <div className="flex border border-zinc-200 rounded-lg overflow-hidden shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setForm(prev => ({ ...prev, discount_type: '%' }))}
+                          className={`px-3 py-2 text-sm font-bold transition-colors ${form.discount_type === '%' ? 'bg-zinc-800 text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50'}`}
+                        >
+                          %
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setForm(prev => ({ ...prev, discount_type: '$' }))}
+                          className={`px-3 py-2 text-sm font-bold transition-colors border-l border-zinc-200 ${form.discount_type === '$' ? 'bg-zinc-800 text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50'}`}
+                        >
+                          $
+                        </button>
+                      </div>
                     </div>
-                    {form.discount_percentage !== '' && Number(form.discount_percentage) > 0 && form.price !== '' && (
+                    {form.discount_value !== '' && Number(form.discount_value) > 0 && form.price !== '' && (
                       <p className="text-[10px] text-emerald-600 font-bold mt-1">
-                        → ${(Number(form.price) * (1 - Number(form.discount_percentage) / 100)).toFixed(2)} after discount
+                        → ${form.discount_type === '$'
+                          ? Math.max(0, Number(form.price) - Number(form.discount_value)).toFixed(2)
+                          : Math.max(0, Number(form.price) * (1 - Number(form.discount_value) / 100)).toFixed(2)
+                        } after discount
                       </p>
                     )}
                   </div>
@@ -772,6 +829,63 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
                     )}
                   </div>
                 </div>
+                {/* Print Add-ons */}
+                <div className="border-t border-zinc-100 pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Print Add-ons</p>
+                    <button type="button" onClick={addPrintAddon} className="text-xs font-bold text-zinc-700 hover:text-zinc-900 border border-zinc-200 rounded px-2 py-1">+ Add Print</button>
+                  </div>
+                  {form.print_addons.map((addon, i) => (
+                    <div key={i} className="flex gap-2 mb-2 items-center">
+                      <select
+                        value={addon.print_type_id}
+                        onChange={e => updateAddon(i, 'print_type_id', e.target.value)}
+                        className="flex-1 border border-zinc-200 rounded px-2 py-1.5 text-sm"
+                      >
+                        <option value="">Select Print Type</option>
+                        {printTypes.map(pt => (
+                          <option key={pt.id} value={pt.id}>{pt.name}</option>
+                        ))}
+                      </select>
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm text-zinc-500">$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={addon.cost_per_unit || ''}
+                          onChange={e => updateAddon(i, 'cost_per_unit', e.target.value)}
+                          placeholder="0.00"
+                          className="w-20 border border-zinc-200 rounded px-2 py-1.5 text-sm"
+                        />
+                        <span className="text-xs text-zinc-400">/unit</span>
+                      </div>
+                      <button type="button" onClick={() => removeAddon(i)} className="text-red-400 hover:text-red-600 text-sm font-bold">✕</button>
+                    </div>
+                  ))}
+                  {form.print_addons.length > 0 && (
+                    <div className="mt-1 text-xs text-zinc-500">
+                      Print cost/unit: <span className="font-bold text-zinc-900">
+                        ${form.print_addons.reduce((s, a) => s + (Number(a.cost_per_unit) || 0), 0).toFixed(2)}
+                      </span>
+                      {form.price !== '' && (
+                        <span className="ml-2 text-zinc-400">
+                          → Total/unit: <span className="font-bold text-zinc-800">
+                            ${(() => {
+                              const base = Number(form.price || 0);
+                              const dv = Number(form.discount_value) || 0;
+                              const discBase = form.discount_type === '$'
+                                ? Math.max(0, base - dv)
+                                : Math.max(0, base * (1 - dv / 100));
+                              return (discBase + form.print_addons.reduce((s, a) => s + (Number(a.cost_per_unit) || 0), 0)).toFixed(2);
+                            })()}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <label className="flex items-center gap-3 cursor-pointer pt-1">
                   <input type="checkbox" checked={form.is_suggested} onChange={e => setForm(prev => ({ ...prev, is_suggested: e.target.checked }))} className="w-4 h-4" />
                   <span className="text-xs font-bold uppercase tracking-widest text-zinc-700">Suggested upsell item (shown under "You Might Also Like")</span>
@@ -935,9 +1049,23 @@ const ClubOrdersManager: React.FC<{ clubs: Club[] }> = ({ clubs }) => {
               <button onClick={() => setEditingOrder(null)}><X size={18} className="text-zinc-500" /></button>
             </div>
             <div className="p-5 space-y-3">
-              <div className="space-y-1">
-                {(editingOrder.items || []).map((li, i) => (
-                  <p key={i} className="text-sm text-zinc-700">{li.name} - {li.size} x{li.qty} (${li.price.toFixed(2)})</p>
+              <div className="space-y-1 border border-zinc-100 rounded-lg p-2">
+                {((editingOrder.items || []) as any[]).map((li: any, i: number) => (
+                  <div key={i} className="flex justify-between text-sm py-0.5">
+                    <div>
+                      <span className="font-medium text-zinc-900">{li.name}</span>
+                      {li.sizes && typeof li.sizes === 'object' && (
+                        <div className="text-xs text-zinc-400 mt-0.5">
+                          {Object.entries(li.sizes as Record<string, number>).filter(([, q]) => Number(q) > 0).map(([sz, qty]) => `${sz}:${qty}`).join(' | ')}
+                        </div>
+                      )}
+                      {li.size && <span className="text-xs text-zinc-400 ml-2">{li.size}</span>}
+                    </div>
+                    <div className="text-right shrink-0 ml-4">
+                      <div className="text-zinc-500 text-xs">{getItemQty(li)} × ${getItemPrice(li).toFixed(2)}</div>
+                      <div className="font-medium text-zinc-800">${(getItemQty(li) * getItemPrice(li)).toFixed(2)}</div>
+                    </div>
+                  </div>
                 ))}
               </div>
               {editingOrder.notes && <p className="text-xs text-zinc-400 italic border-t border-zinc-100 pt-2">"{editingOrder.notes}"</p>}
@@ -999,13 +1127,119 @@ const STATUS_COLORS: Record<string, string> = {
   delivered: 'bg-zinc-100 text-zinc-500',
 };
 
-function groupLineItems(items: ClubOrder['items']) {
+function getItemQty(item: any): number {
+  if (item.qty !== undefined) return Number(item.qty) || 0;
+  if (item.quantity !== undefined) return Number(item.quantity) || 0;
+  if (item.sizes && typeof item.sizes === 'object') {
+    return Object.values(item.sizes as Record<string, unknown>).reduce<number>((s, q) => s + Number(q), 0);
+  }
+  return 0;
+}
+
+function getItemPrice(item: any): number {
+  return Number(item.price) || Number(item.base_price) || Number(item.unit_total) || 0;
+}
+
+function groupLineItems(items: any[]) {
   const map: Record<string, { sizes: Record<string, number>; price: number }> = {};
   for (const li of items || []) {
-    if (!map[li.name]) map[li.name] = { sizes: {}, price: li.price };
-    map[li.name].sizes[li.size] = (map[li.name].sizes[li.size] || 0) + li.qty;
+    const price = getItemPrice(li);
+    if (!map[li.name]) map[li.name] = { sizes: {}, price };
+    if (li.size !== undefined && li.qty !== undefined) {
+      const sz = li.size || '—';
+      map[li.name].sizes[sz] = (map[li.name].sizes[sz] || 0) + Number(li.qty);
+    } else if (li.sizes && typeof li.sizes === 'object') {
+      for (const [sz, qty] of Object.entries(li.sizes as Record<string, unknown>)) {
+        if (Number(qty) > 0) map[li.name].sizes[sz] = (map[li.name].sizes[sz] || 0) + Number(qty);
+      }
+    } else {
+      map[li.name].sizes['—'] = (map[li.name].sizes['—'] || 0) + Number(li.quantity || 1);
+    }
   }
   return Object.entries(map).map(([name, { sizes, price }]) => ({ name, sizes, price }));
+}
+
+function downloadCSV(data: any[][], filename: string) {
+  const csv = data.map(row => row.map((v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportOrderCSV(order: any, club: any) {
+  const matrix = order.customization_matrix || [];
+  if (matrix.length === 0) {
+    const headers = ['Club', 'Order#', 'Item', 'Qty', 'Size', 'Price'];
+    const rows = (order.items || []).map((item: any) => [
+      club.name, order.order_number, item.name,
+      getItemQty(item), item.size || 'Various', getItemPrice(item),
+    ]);
+    downloadCSV([headers, ...rows], `${order.order_number}_order.csv`);
+    return;
+  }
+  const headers = ['Club', 'Order#', 'Item', 'Size', 'Player Name', 'Number', 'Initials', 'Sponsor', 'Print Types', 'Unit Cost'];
+  const rows = matrix.map((row: any) => {
+    const item = (order.items || []).find((i: any) => i.name === row.itemName);
+    const prints = (item?.print_addons || []).map((a: any) => a.print_type_name).join('+');
+    return [
+      club.name, order.order_number, row.itemName, row.size,
+      row.playerName || '', row.playerNumber || '', row.initials || '',
+      row.sponsorName || '', prints, (Number(item?.unit_total) || 0).toFixed(2),
+    ];
+  });
+  downloadCSV([headers, ...rows], `${order.order_number}_production.csv`);
+}
+
+function printOrderProof(order: any, club: any) {
+  const matrix = order.customization_matrix || [];
+  const pw = window.open('', '_blank');
+  if (!pw) return;
+  const itemRows = (order.items || []).map((item: any) =>
+    `<tr><td>${item.name}</td><td>${item.size || 'Various'}</td><td>${getItemQty(item)}</td><td>$${getItemPrice(item).toFixed(2)}</td><td>$${(getItemQty(item) * getItemPrice(item)).toFixed(2)}</td></tr>`
+  ).join('');
+  const matrixRows = matrix.map((row: any, i: number) =>
+    `<tr><td>${i + 1}</td><td>${row.itemName}</td><td>${row.size}</td><td>${row.playerName || '—'}</td><td>${row.playerNumber || '—'}</td><td>${row.initials || '—'}</td><td>${row.sponsorName || '—'}</td></tr>`
+  ).join('');
+  pw.document.write(`<!DOCTYPE html><html><head><title>${order.order_number} - Club Proof</title><style>
+    body{font-family:Arial,sans-serif;padding:20px;color:#000}
+    h1{font-size:18px;margin-bottom:4px}h2{font-size:14px;color:#666;margin-bottom:20px}
+    table{width:100%;border-collapse:collapse;margin-bottom:20px}
+    th{background:#f0f0f0;padding:8px;text-align:left;font-size:11px;border:1px solid #ddd}
+    td{padding:8px;font-size:11px;border:1px solid #ddd}
+    .total{font-size:14px;font-weight:bold;margin-top:10px}
+    .signoff{margin-top:40px;border-top:1px solid #000;padding-top:20px}
+    .footer{font-size:10px;color:#999;margin-top:20px}
+  </style></head><body>
+    <h1>ABSOLUTE SOCCER MISSISSAUGA</h1>
+    <h2>Club Order Proof — ${club.name}</h2>
+    <table><tr>
+      <td><strong>Order #:</strong> ${order.order_number}</td>
+      <td><strong>Date:</strong> ${new Date(order.created_at).toLocaleDateString()}</td>
+      <td><strong>Status:</strong> ${(order.status || '').toUpperCase()}</td>
+    </tr></table>
+    ${matrix.length > 0
+      ? `<table><thead><tr><th>#</th><th>Item</th><th>Size</th><th>Player Name</th><th>Number</th><th>Initials</th><th>Sponsor</th></tr></thead><tbody>${matrixRows}</tbody></table>`
+      : `<table><thead><tr><th>Item</th><th>Size</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${itemRows}</tbody></table>`
+    }
+    <div class="total">
+      Total: $${(Number(order.total_amount) || 0).toFixed(2)}
+      ${Number(order.deposit_paid) > 0 ? `<br>Deposit Paid: $${(Number(order.deposit_paid) || 0).toFixed(2)}` : ''}
+      ${Number(order.balance_owing) > 0 ? `<br>Balance Owing: $${(Number(order.balance_owing) || 0).toFixed(2)}` : ''}
+    </div>
+    ${order.notes ? `<p><strong>Notes:</strong> ${order.notes}</p>` : ''}
+    <div class="signoff">
+      <p><strong>Club Confirmation:</strong></p>
+      <p>I confirm all names, sizes, numbers and details are correct.</p>
+      <br><p>Signature: _______________________________</p>
+      <p>Name: ___________________________________</p>
+      <p>Date: ___________________________________</p>
+    </div>
+    <div class="footer">Absolute Soccer Mississauga | 5600 Rose Cherry Place, Mississauga ON | 905-593-3600</div>
+  </body></html>`);
+  pw.document.close();
+  pw.print();
 }
 
 function buildClubInvoiceHTML(order: ClubOrder, club: Club): string {
@@ -1135,7 +1369,6 @@ const ClubOrdersPerClub: React.FC<{ club: Club; onClose: () => void }> = ({ club
             const totalNum = Number(d.total_amount) || 0;
             const depositNum = Number(d.deposit_paid) || 0;
             const balance = Math.max(0, totalNum - depositNum);
-            const grouped = groupLineItems(order.items);
             return (
               <div key={order.id} className="border border-zinc-200 rounded-xl overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 border-b border-zinc-200">
@@ -1150,11 +1383,21 @@ const ClubOrdersPerClub: React.FC<{ club: Club; onClose: () => void }> = ({ club
 
                 <div className="p-4 space-y-4">
                   <div className="space-y-1">
-                    {grouped.map(({ name, sizes, price }) => (
-                      <div key={name} className="flex items-baseline gap-2 text-sm">
-                        <span className="font-bold text-zinc-900">{name}</span>
-                        <span className="text-zinc-500">{Object.entries(sizes).map(([sz, qty]) => `${sz}×${qty}`).join(', ')}</span>
-                        <span className="text-zinc-400 text-xs ml-auto">${price.toFixed(2)}/unit</span>
+                    {((order.items || []) as any[]).map((item: any, i: number) => (
+                      <div key={i} className="flex justify-between text-sm py-0.5">
+                        <div>
+                          <span className="font-medium text-zinc-900">{item.name}</span>
+                          {item.sizes && typeof item.sizes === 'object' && (
+                            <div className="text-xs text-zinc-400 mt-0.5">
+                              {Object.entries(item.sizes as Record<string, number>).filter(([, q]) => Number(q) > 0).map(([sz, qty]) => `${sz}:${qty}`).join(' | ')}
+                            </div>
+                          )}
+                          {item.size && <span className="text-xs text-zinc-400 ml-2">{item.size}</span>}
+                        </div>
+                        <div className="text-right shrink-0 ml-4">
+                          <div className="text-zinc-500 text-xs">{getItemQty(item)} × ${getItemPrice(item).toFixed(2)}</div>
+                          <div className="font-medium text-zinc-800">${(getItemQty(item) * getItemPrice(item)).toFixed(2)}</div>
+                        </div>
                       </div>
                     ))}
                     {order.notes && <p className="text-xs text-zinc-400 italic pt-1">"{order.notes}"</p>}
@@ -1196,7 +1439,13 @@ const ClubOrdersPerClub: React.FC<{ club: Club; onClose: () => void }> = ({ club
                     <textarea rows={2} value={d.notes} onChange={e => patch(order.id, 'notes', e.target.value)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10 resize-none" />
                   </div>
 
-                  <div className="flex justify-end gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button onClick={() => exportOrderCSV(order, club)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                      CSV
+                    </button>
+                    <button onClick={() => printOrderProof(order, club)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                      Print Proof
+                    </button>
                     <button onClick={() => generateInvoice(order)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs bg-zinc-800 text-white hover:bg-zinc-900">
                       <FileText size={13} /> {order.invoice_url ? 'Reprint Invoice' : 'Generate Invoice'}
                     </button>
@@ -1306,7 +1555,6 @@ const ClubDashboard: React.FC<{
     const dTotal = Number(d.total_amount) || 0;
     const dDeposit = Number(d.deposit_paid) || 0;
     const dBalance = Math.max(0, dTotal - dDeposit);
-    const grouped = groupLineItems(order.items);
     return (
       <div key={order.id} className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
         <div className="flex justify-between items-center px-4 py-3 border-b border-zinc-100">
@@ -1332,14 +1580,22 @@ const ClubDashboard: React.FC<{
         </div>
 
         <div className="p-4 space-y-4">
-          <div className="bg-zinc-50 rounded-lg p-3">
-            {grouped.map((g, i) => (
-              <div key={i} className="text-sm mb-1 last:mb-0 flex flex-wrap gap-x-2">
-                <span className="font-semibold text-zinc-800">{g.name}</span>
-                {Object.entries(g.sizes).map(([size, qty]) => (
-                  <span key={size} className="text-zinc-500">{size}×{qty}</span>
-                ))}
-                <span className="text-zinc-400 text-xs">${g.price.toFixed(2)}/unit</span>
+          <div className="bg-zinc-50 rounded-lg p-3 space-y-1">
+            {((order.items || []) as any[]).map((item: any, i: number) => (
+              <div key={i} className="flex justify-between text-sm py-0.5">
+                <div>
+                  <span className="font-medium text-zinc-800">{item.name}</span>
+                  {item.sizes && typeof item.sizes === 'object' && (
+                    <div className="text-xs text-zinc-400 mt-0.5">
+                      {Object.entries(item.sizes as Record<string, number>).filter(([, q]) => Number(q) > 0).map(([sz, qty]) => `${sz}:${qty}`).join(' | ')}
+                    </div>
+                  )}
+                  {item.size && <span className="text-xs text-zinc-400 ml-2">{item.size}</span>}
+                </div>
+                <div className="text-right shrink-0 ml-4">
+                  <div className="text-zinc-400 text-xs">{getItemQty(item)} × ${getItemPrice(item).toFixed(2)}</div>
+                  <div className="font-medium text-zinc-700">${(getItemQty(item) * getItemPrice(item)).toFixed(2)}</div>
+                </div>
               </div>
             ))}
             {order.notes && (
@@ -1348,20 +1604,25 @@ const ClubDashboard: React.FC<{
           </div>
 
           {readOnly ? (
-            <div className="flex justify-between items-center flex-wrap gap-3">
+            <div className="space-y-2">
               <div className="flex gap-4 text-sm flex-wrap">
                 <span className="text-zinc-600">Total: <strong>${Number(order.total_amount || 0).toFixed(2)}</strong></span>
                 <span className="text-zinc-600">Paid: <strong>${Number(order.deposit_paid || 0).toFixed(2)}</strong></span>
                 <span className="text-zinc-600">Balance: <strong className={Number(order.balance_owing) > 0 ? 'text-red-600' : 'text-green-600'}>${Number(order.balance_owing || 0).toFixed(2)}</strong></span>
               </div>
-              {order.invoice_url && (
-                <button
-                  onClick={() => generateInvoice(order)}
-                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
-                >
-                  <FileText size={13} /> Print Invoice
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => exportOrderCSV(order, club)} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                  CSV
                 </button>
-              )}
+                <button onClick={() => printOrderProof(order, club)} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                  Print Proof
+                </button>
+                {order.invoice_url && (
+                  <button onClick={() => generateInvoice(order)} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                    <FileText size={13} /> Print Invoice
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <>
@@ -1406,7 +1667,13 @@ const ClubDashboard: React.FC<{
                 <span className="text-xs text-zinc-400 font-mono">
                   {order.invoice_url ? `Invoice: #${order.invoice_url}` : 'No invoice yet'}
                 </span>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => exportOrderCSV(order, club)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                    CSV
+                  </button>
+                  <button onClick={() => printOrderProof(order, club)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                    Print Proof
+                  </button>
                   <button
                     onClick={() => generateInvoice(order)}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs bg-zinc-800 text-white hover:bg-zinc-900"
@@ -1521,7 +1788,7 @@ const ClubDashboard: React.FC<{
                     <div className="text-right">
                       <p className="text-sm font-bold text-zinc-900">${Number(order.total_amount || 0).toFixed(2)}</p>
                       {Number(order.balance_owing) > 0 && (
-                        <p className="text-xs font-bold text-red-600">Owing: ${Number(order.balance_owing).toFixed(2)}</p>
+                        <p className="text-xs font-bold text-red-600">Owing: ${(Number(order.balance_owing) || 0).toFixed(2)}</p>
                       )}
                     </div>
                   </div>
@@ -1544,6 +1811,114 @@ const ClubDashboard: React.FC<{
           {tabOrders.map(order => renderOrderCard(order, tab === 'history'))}
         </div>
       )}
+    </div>
+  );
+};
+
+
+// ─── Print Types Manager ─────────────────────────────────────────────────────
+
+const PrintTypesManager: React.FC = () => {
+  const [printTypes, setPrintTypes] = useState<PrintType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [newName, setNewName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase.from('print_types').select('*').order('sort_order');
+    setPrintTypes((data || []) as PrintType[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const addType = async () => {
+    if (!newName.trim()) return;
+    setIsSaving(true);
+    const maxOrder = printTypes.reduce((m, p) => Math.max(m, p.sort_order), 0);
+    const { error } = await supabase.from('print_types').insert([{ name: newName.trim(), sort_order: maxOrder + 1 }]);
+    if (!error) { setNewName(''); await load(); }
+    setIsSaving(false);
+  };
+
+  const saveEdit = async (id: string) => {
+    if (!editName.trim()) return;
+    const { error } = await supabase.from('print_types').update({ name: editName.trim() }).eq('id', id);
+    if (!error) { setEditingId(null); await load(); }
+  };
+
+  const deleteType = async (id: string, name: string) => {
+    if (!window.confirm(`Delete "${name}"?`)) return;
+    await supabase.from('print_types').delete().eq('id', id);
+    await load();
+  };
+
+  return (
+    <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-zinc-200">
+        <div>
+          <p className="text-xs font-black uppercase tracking-widest text-zinc-900">Print Types</p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">Global list used across all club items</p>
+        </div>
+      </div>
+      <div className="p-4 space-y-2">
+        {loading ? (
+          <p className="text-sm text-zinc-400 py-4 text-center">Loading...</p>
+        ) : printTypes.length === 0 ? (
+          <p className="text-sm text-zinc-400 py-4 text-center">No print types yet.</p>
+        ) : (
+          printTypes.map((pt, idx) => (
+            <div key={pt.id} className="flex items-center gap-2 py-1.5 border-b border-zinc-100 last:border-0">
+              <GripVertical size={14} className="text-zinc-300 shrink-0" />
+              <span className="text-[11px] text-zinc-400 w-5 shrink-0">{idx + 1}</span>
+              {editingId === pt.id ? (
+                <>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(pt.id); if (e.key === 'Escape') setEditingId(null); }}
+                    className="flex-1 border border-zinc-200 rounded px-2 py-1 text-sm"
+                  />
+                  <button onClick={() => saveEdit(pt.id)} className="text-emerald-600 hover:text-emerald-700 text-xs font-bold px-2">Save</button>
+                  <button onClick={() => setEditingId(null)} className="text-zinc-400 hover:text-zinc-600 text-xs px-1">x</button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 text-sm font-medium text-zinc-800">{pt.name}</span>
+                  <button onClick={() => { setEditingId(pt.id); setEditName(pt.name); }} className="text-zinc-400 hover:text-zinc-700">
+                    <Edit2 size={13} />
+                  </button>
+                  <button onClick={() => deleteType(pt.id, pt.name)} className="text-red-400 hover:text-red-600">
+                    <Trash2 size={13} />
+                  </button>
+                </>
+              )}
+            </div>
+          ))
+        )}
+        <div className="flex gap-2 pt-3 border-t border-zinc-100">
+          <input
+            type="text"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addType(); }}
+            placeholder="New print type name..."
+            className="flex-1 border border-zinc-200 rounded-lg px-3 py-2 text-sm"
+          />
+          <button
+            onClick={addType}
+            disabled={isSaving || !newName.trim()}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50"
+          >
+            <Plus size={13} /> Add
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
