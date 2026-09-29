@@ -714,7 +714,17 @@ const ClubItemsManager: React.FC<{ club: Club; onClose: () => void }> = ({ club,
                   <div className="space-y-2">
                     <select
                       value={sizeCategory}
-                      onChange={e => setSizeCategory(e.target.value)}
+                      onChange={e => {
+                        const cat = e.target.value;
+                        setSizeCategory(cat);
+                        const catSizes = getSizesForCategory(cat);
+                        if (catSizes.length === 1) {
+                          setForm(prev => ({
+                            ...prev,
+                            sizes_available: [...new Set([...prev.sizes_available, catSizes[0]])],
+                          }));
+                        }
+                      }}
                       className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm"
                     >
                       <option value="">Pick a category to add sizes…</option>
