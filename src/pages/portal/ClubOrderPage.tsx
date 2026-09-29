@@ -245,8 +245,19 @@ const Step2: React.FC<{
   setMatrix: React.Dispatch<React.SetStateAction<MatrixRow[]>>;
   sponsors: SponsorEntry[];
   primaryColor: string;
-}> = ({ matrix, setMatrix, sponsors, primaryColor }) => {
-  const [viewMode, setViewMode] = useState<'flat' | 'player'>('flat');
+}> = ({ matrix, setMatrix, sponsors: _sponsors, primaryColor }) => {
+  const [viewMode, setViewMode] = useState<'portrait' | 'landscape'>('portrait');
+  const [showNames, setShowNames] = useState(true);
+
+  const sizeOrder = ['XXXS','XXS','XS','S','M','L','XL','XXL','XXXL','XS/S','S/M','M/L','L/XL','XL/XXL','YXS','YS','YM','YL','YXL','6','7','8','9','10','11','12','13','1','2','3','4','5'];
+  const sortSizes = (sizes: string[]) => [...sizes].sort((a, b) => {
+    const ai = sizeOrder.indexOf(a);
+    const bi = sizeOrder.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
 
   const updateRow = (id: string, field: keyof MatrixRow, value: string) => {
     setMatrix(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
@@ -254,25 +265,16 @@ const Step2: React.FC<{
 
   const autoUppercase = () => setMatrix(prev => prev.map(r => ({ ...r, playerName: r.playerName.toUpperCase() })));
 
-  const autoInitials = () => setMatrix(prev => prev.map(r => ({
-    ...r,
-    initials: r.playerName.trim()
-      ? r.playerName.trim().split(/\s+/).map(w => w[0].toUpperCase()).join('')
-      : r.initials,
-  })));
-
-  const bulkApplySponsor = (name: string) => {
-    if (!name) return;
-    setMatrix(prev => prev.map(r => r.allowSponsor ? { ...r, sponsorName: name } : r));
+  const handleToggleNames = () => {
+    if (showNames) {
+      const hasNames = matrix.some(r => r.playerName);
+      if (hasNames) {
+        if (!confirm('This will clear all player names. Continue?')) return;
+        setMatrix(prev => prev.map(r => ({ ...r, playerName: '' })));
+      }
+    }
+    setShowNames(v => !v);
   };
-
-  const duplicateNumbers = matrix
-    .filter(r => r.playerNumber)
-    .reduce((acc, r) => {
-      const key = `${r.itemId}_${r.playerNumber}`;
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
 
   const handleCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -296,40 +298,108 @@ const Step2: React.FC<{
     e.target.value = '';
   };
 
-  const renderTable = (rows: MatrixRow[], showIndex = true) => (
+  const duplicateNumbers = matrix
+    .filter(r => r.playerNumber)
+    .reduce((acc, r) => {
+      const key = `${r.itemId}_${r.playerNumber}`;
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+  const hasDuplicates = Object.values(duplicateNumbers).some(v => v > 1);
+
+  const renderPortrait = () => {
+    const itemGroups = Array.from(
+      matrix.reduce((map, r) => {
+        if (!map.has(r.itemId)) map.set(r.itemId, r.itemName);
+        return map;
+      }, new Map<string, string>())
+    );
+    return (
+      <div className="space-y-4">
+        {itemGroups.map(([itemId, itemName]) => {
+          const itemRows = matrix.filter(r => r.itemId === itemId);
+          const allSizes = [...new Set(itemRows.map(r => r.size))];
+          const sortedSizes = sortSizes(allSizes);
+          return (
+            <div key={itemId} className="rounded-xl overflow-hidden border border-zinc-200">
+              <div className="px-4 py-2.5 flex items-center justify-between" style={{ backgroundColor: primaryColor }}>
+                <span className="text-sm font-black text-white uppercase tracking-wide">{itemName}</span>
+                <span className="text-xs font-bold" style={{ color: 'rgba(255,255,255,0.7)' }}>{itemRows.length} pc{itemRows.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="divide-y divide-zinc-100">
+                {sortedSizes.map(size => {
+                  const sizeRows = itemRows.filter(r => r.size === size);
+                  return (
+                    <div key={size} className="flex items-start gap-3 px-4 py-3">
+                      <div className="shrink-0 w-12 pt-1">
+                        <span className="bg-zinc-100 text-zinc-700 text-[10px] font-black px-2 py-1 rounded uppercase">{size}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 flex-1">
+                        {sizeRows.map(row => (
+                          <div key={row.id} title={`${row.playerName}${row.playerNumber ? ' #' + row.playerNumber : ''}`}>
+                            <input
+                              type="text"
+                              value={showNames ? (row.playerName || '') : (row.playerNumber || '')}
+                              onChange={e => {
+                                if (showNames) {
+                                  updateRow(row.id, 'playerName', e.target.value.toUpperCase());
+                                } else {
+                                  updateRow(row.id, 'playerNumber', e.target.value);
+                                }
+                              }}
+                              placeholder={showNames ? 'NAME' : '#'}
+                              className="w-24 border border-zinc-200 rounded px-2 py-1 text-xs text-center uppercase focus:outline-none focus:border-zinc-400"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderLandscape = () => (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
           <tr className="border-b border-zinc-200 text-[10px] font-black uppercase tracking-widest text-zinc-400">
-            {showIndex && <th className="py-2 px-2 text-left w-8">#</th>}
+            <th className="py-2 px-2 text-left w-8">#</th>
             <th className="py-2 px-2 text-left">Item</th>
             <th className="py-2 px-2 text-left">Size</th>
-            <th className="py-2 px-2 text-left">Player Name</th>
+            {showNames && <th className="py-2 px-2 text-left">Player Name</th>}
             <th className="py-2 px-2 text-left">Number</th>
             <th className="py-2 px-2 text-left">Initials</th>
-            {sponsors.length > 0 && <th className="py-2 px-2 text-left">Sponsor</th>}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, idx) => {
+          {matrix.map((row, idx) => {
             const isDup = duplicateNumbers[`${row.itemId}_${row.playerNumber}`] > 1;
             return (
               <tr key={row.id} className="border-b border-zinc-100 hover:bg-zinc-50">
-                {showIndex && <td className="py-1.5 px-2 text-zinc-400">{idx + 1}</td>}
+                <td className="py-1.5 px-2 text-zinc-400">{idx + 1}</td>
                 <td className="py-1.5 px-2 text-zinc-600 max-w-[120px] truncate">{row.itemName}</td>
                 <td className="py-1.5 px-2">
                   <span className="bg-zinc-100 text-zinc-700 text-[10px] font-bold px-2 py-0.5 rounded">{row.size}</span>
                 </td>
-                <td className="py-1.5 px-2">
-                  <input
-                    type="text"
-                    value={row.playerName}
-                    disabled={!row.allowName}
-                    onChange={e => updateRow(row.id, 'playerName', e.target.value.toUpperCase())}
-                    placeholder={row.allowName ? 'LASTNAME' : 'N/A'}
-                    className={`w-full border rounded px-2 py-1 text-xs uppercase focus:outline-none focus:border-zinc-400 ${!row.allowName ? 'opacity-40 bg-zinc-50' : 'border-zinc-200'}`}
-                  />
-                </td>
+                {showNames && (
+                  <td className="py-1.5 px-2">
+                    <input
+                      type="text"
+                      value={row.playerName}
+                      disabled={!row.allowName}
+                      onChange={e => updateRow(row.id, 'playerName', e.target.value.toUpperCase())}
+                      placeholder={row.allowName ? 'LASTNAME' : 'N/A'}
+                      className={`w-full border rounded px-2 py-1 text-xs uppercase focus:outline-none focus:border-zinc-400 ${!row.allowName ? 'opacity-40 bg-zinc-50' : 'border-zinc-200'}`}
+                    />
+                  </td>
+                )}
                 <td className="py-1.5 px-2">
                   <input
                     type="text"
@@ -346,18 +416,6 @@ const Step2: React.FC<{
                     className="w-14 border border-zinc-200 rounded px-2 py-1 text-xs text-center uppercase focus:outline-none focus:border-zinc-400"
                   />
                 </td>
-                {sponsors.length > 0 && (
-                  <td className="py-1.5 px-2">
-                    <select
-                      value={row.sponsorName}
-                      onChange={e => updateRow(row.id, 'sponsorName', e.target.value)}
-                      className="border border-zinc-200 rounded px-2 py-1 text-xs"
-                    >
-                      <option value="">None</option>
-                      {sponsors.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-                    </select>
-                  </td>
-                )}
               </tr>
             );
           })}
@@ -365,8 +423,6 @@ const Step2: React.FC<{
       </table>
     </div>
   );
-
-  const hasDuplicates = Object.values(duplicateNumbers).some(v => v > 1);
 
   return (
     <div>
@@ -377,29 +433,35 @@ const Step2: React.FC<{
       )}
 
       {/* Toolbar */}
-      <div className="flex gap-2 flex-wrap mb-4">
-        <button
-          onClick={() => setViewMode(v => v === 'flat' ? 'player' : 'flat')}
-          className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs font-bold text-zinc-600 hover:bg-zinc-50"
-        >
-          {viewMode === 'flat' ? 'By Player' : 'Flat List'}
-        </button>
+      <div className="flex gap-2 flex-wrap mb-4 items-center">
+        <div className="flex rounded-lg overflow-hidden border border-zinc-200">
+          <button
+            onClick={() => setViewMode('portrait')}
+            className="px-3 py-1.5 text-xs font-bold transition-colors"
+            style={viewMode === 'portrait' ? { backgroundColor: primaryColor, color: '#fff' } : { color: '#52525b' }}
+          >
+            Portrait
+          </button>
+          <button
+            onClick={() => setViewMode('landscape')}
+            className="px-3 py-1.5 text-xs font-bold transition-colors border-l border-zinc-200"
+            style={viewMode === 'landscape' ? { backgroundColor: primaryColor, color: '#fff' } : { color: '#52525b' }}
+          >
+            Landscape
+          </button>
+        </div>
+        <div className="flex items-center gap-2 border border-zinc-200 rounded-lg px-3 py-1.5">
+          <span className="text-xs text-zinc-500">Player Names</span>
+          <button
+            onClick={handleToggleNames}
+            className={`relative w-10 h-5 rounded-full transition-colors ${showNames ? 'bg-zinc-800' : 'bg-zinc-200'}`}
+          >
+            <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showNames ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </button>
+        </div>
         <button onClick={autoUppercase} className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs font-bold text-zinc-600 hover:bg-zinc-50">
           Auto UPPERCASE
         </button>
-        <button onClick={autoInitials} className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs font-bold text-zinc-600 hover:bg-zinc-50">
-          Generate Initials
-        </button>
-        {sponsors.length > 0 && (
-          <select
-            onChange={e => bulkApplySponsor(e.target.value)}
-            className="border border-zinc-200 rounded-lg px-3 py-1.5 text-xs font-bold text-zinc-600"
-            defaultValue=""
-          >
-            <option value="">Apply Sponsor to All...</option>
-            {sponsors.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-          </select>
-        )}
         <label className="cursor-pointer border border-zinc-200 rounded-lg px-3 py-1.5 text-xs font-bold text-zinc-600 hover:bg-zinc-50 flex items-center gap-1">
           📥 Import CSV
           <input type="file" accept=".csv" className="hidden" onChange={handleCsvImport} />
@@ -408,36 +470,7 @@ const Step2: React.FC<{
 
       <div className="text-xs text-zinc-400 mb-2 font-bold">{matrix.length} garment{matrix.length !== 1 ? 's' : ''}</div>
 
-      {viewMode === 'flat' ? (
-        renderTable(matrix)
-      ) : (
-        (() => {
-          // Group by player index across items — player i gets one entry from each item
-          const itemIds = [...new Set(matrix.map(r => r.itemId))];
-          const playerCount = Math.max(...itemIds.map(id => matrix.filter(r => r.itemId === id).length), 0);
-          const groups: MatrixRow[][] = [];
-          for (let p = 0; p < playerCount; p++) {
-            const playerRows = itemIds.flatMap(id => {
-              const itemRows = matrix.filter(r => r.itemId === id);
-              return itemRows[p] ? [itemRows[p]] : [];
-            });
-            if (playerRows.length) groups.push(playerRows);
-          }
-          return (
-            <div className="space-y-4">
-              {groups.map((group, gi) => (
-                <div key={gi} className="border border-zinc-200 rounded-xl overflow-hidden">
-                  <div className="px-3 py-2 bg-zinc-50 border-b border-zinc-100">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Player {gi + 1}</span>
-                    {group[0]?.playerName && <span className="ml-2 text-sm font-bold text-zinc-800">{group[0].playerName}</span>}
-                  </div>
-                  {renderTable(group, false)}
-                </div>
-              ))}
-            </div>
-          );
-        })()
-      )}
+      {viewMode === 'portrait' ? renderPortrait() : renderLandscape()}
     </div>
   );
 };

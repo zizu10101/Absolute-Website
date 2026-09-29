@@ -1192,52 +1192,165 @@ function exportOrderCSV(order: any, club: any) {
   downloadCSV([headers, ...rows], `${order.order_number}_production.csv`);
 }
 
-function printOrderProof(order: any, club: any) {
+function printOrderProof(order: any, club: any, orientation: 'portrait' | 'landscape' = 'portrait') {
   const matrix = order.customization_matrix || [];
+
+  // Group matrix by item → size
+  const grouped: Record<string, Record<string, any[]>> = {};
+  matrix.forEach((row: any) => {
+    if (!grouped[row.itemName]) grouped[row.itemName] = {};
+    if (!grouped[row.itemName][row.size]) grouped[row.itemName][row.size] = [];
+    grouped[row.itemName][row.size].push(row);
+  });
+
+  const sizeOrder = [
+    '8K','8.5K','9K','9.5K','10K','10.5K','11K','11.5K',
+    '12K','12.5K','13K','13.5K',
+    '1Y','1.5Y','2Y','2.5Y','3Y','3.5Y',
+    '4Y','4.5Y','5Y','5.5Y','6Y','6.5Y','7Y',
+    'XS','S','M','L','XL','XXL','2XL','3XL',
+  ];
+  const sortSizes = (sizes: string[]) =>
+    sizes.sort((a, b) => {
+      const ai = sizeOrder.indexOf(a);
+      const bi = sizeOrder.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+
   const pw = window.open('', '_blank');
   if (!pw) return;
-  const itemRows = (order.items || []).map((item: any) =>
-    `<tr><td>${item.name}</td><td>${item.size || 'Various'}</td><td>${getItemQty(item)}</td><td>$${getItemPrice(item).toFixed(2)}</td><td>$${(getItemQty(item) * getItemPrice(item)).toFixed(2)}</td></tr>`
-  ).join('');
-  const matrixRows = matrix.map((row: any, i: number) =>
-    `<tr><td>${i + 1}</td><td>${row.itemName}</td><td>${row.size}</td><td>${row.playerName || '—'}</td><td>${row.playerNumber || '—'}</td><td>${row.initials || '—'}</td><td>${row.sponsorName || '—'}</td></tr>`
-  ).join('');
-  pw.document.write(`<!DOCTYPE html><html><head><title>${order.order_number} - Club Proof</title><style>
-    body{font-family:Arial,sans-serif;padding:20px;color:#000}
-    h1{font-size:18px;margin-bottom:4px}h2{font-size:14px;color:#666;margin-bottom:20px}
-    table{width:100%;border-collapse:collapse;margin-bottom:20px}
-    th{background:#f0f0f0;padding:8px;text-align:left;font-size:11px;border:1px solid #ddd}
-    td{padding:8px;font-size:11px;border:1px solid #ddd}
-    .total{font-size:14px;font-weight:bold;margin-top:10px}
-    .signoff{margin-top:40px;border-top:1px solid #000;padding-top:20px}
-    .footer{font-size:10px;color:#999;margin-top:20px}
-  </style></head><body>
-    <h1>ABSOLUTE SOCCER MISSISSAUGA</h1>
-    <h2>Club Order Proof — ${club.name}</h2>
-    <table><tr>
-      <td><strong>Order #:</strong> ${order.order_number}</td>
-      <td><strong>Date:</strong> ${new Date(order.created_at).toLocaleDateString()}</td>
-      <td><strong>Status:</strong> ${(order.status || '').toUpperCase()}</td>
-    </tr></table>
-    ${matrix.length > 0
-      ? `<table><thead><tr><th>#</th><th>Item</th><th>Size</th><th>Player Name</th><th>Number</th><th>Initials</th><th>Sponsor</th></tr></thead><tbody>${matrixRows}</tbody></table>`
-      : `<table><thead><tr><th>Item</th><th>Size</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${itemRows}</tbody></table>`
-    }
-    <div class="total">
-      Total: $${(Number(order.total_amount) || 0).toFixed(2)}
-      ${Number(order.deposit_paid) > 0 ? `<br>Deposit Paid: $${(Number(order.deposit_paid) || 0).toFixed(2)}` : ''}
-      ${Number(order.balance_owing) > 0 ? `<br>Balance Owing: $${(Number(order.balance_owing) || 0).toFixed(2)}` : ''}
-    </div>
-    ${order.notes ? `<p><strong>Notes:</strong> ${order.notes}</p>` : ''}
-    <div class="signoff">
-      <p><strong>Club Confirmation:</strong></p>
-      <p>I confirm all names, sizes, numbers and details are correct.</p>
-      <br><p>Signature: _______________________________</p>
-      <p>Name: ___________________________________</p>
-      <p>Date: ___________________________________</p>
-    </div>
-    <div class="footer">Absolute Soccer Mississauga | 5600 Rose Cherry Place, Mississauga ON | 905-593-3600</div>
-  </body></html>`);
+
+  // Build items HTML (grouped layout)
+  let itemsHTML = '';
+  if (matrix.length > 0) {
+    Object.entries(grouped).forEach(([itemName, sizes]) => {
+      const sortedSizes = sortSizes(Object.keys(sizes));
+      const orderItem = (order.items || []).find((i: any) => i.name === itemName);
+      const prints = (orderItem?.print_addons || []).map((a: any) =>
+        `${a.print_type_name} ($${(Number(a.cost_per_unit) || 0).toFixed(2)}/unit)`
+      ).join(', ');
+
+      const sizeRows = sortedSizes.map(size => {
+        const players = sizes[size];
+        const playerList = players.map((p: any) => {
+          const name = p.playerName || '';
+          const number = p.playerNumber || '';
+          if (name && number) return `${name}(${number})`;
+          if (name) return name;
+          if (number) return `#${number}`;
+          return '—';
+        }).join(',  ');
+        return `<tr><td class="size-cell">${size}</td><td class="players-cell">${playerList}</td><td class="qty-cell">${players.length} pcs</td></tr>`;
+      }).join('');
+
+      itemsHTML += `
+        <div class="item-section">
+          <div class="item-header">
+            <span class="item-name">${itemName.toUpperCase()}</span>
+            ${prints ? `<span class="item-prints">Prints: ${prints}</span>` : ''}
+          </div>
+          <table class="size-table"><tbody>${sizeRows}</tbody></table>
+        </div>`;
+    });
+  } else {
+    // Old-format fallback: simple item table
+    const rows = (order.items || []).map((item: any) =>
+      `<tr><td>${item.name}</td><td>${item.size || 'Various'}</td><td>${getItemQty(item)}</td><td>$${getItemPrice(item).toFixed(2)}</td><td>$${(getItemQty(item) * getItemPrice(item)).toFixed(2)}</td></tr>`
+    ).join('');
+    itemsHTML = `<table class="size-table"><thead><tr><th>Item</th><th>Size</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  const sponsorsHTML = (order.sponsors || []).length > 0
+    ? `<div class="sponsors-section"><div class="section-title">SPONSOR LOGOS</div>${(order.sponsors || []).map((s: any) => `<div class="sponsor-row">${s.name}</div>`).join('')}</div>`
+    : '';
+
+  const totalNum = Number(order.total_amount) || 0;
+  const depositNum = Number(order.deposit_paid) || 0;
+  const balanceNum = Number(order.balance_owing) || 0;
+  const subtotal = totalNum / 1.13;
+  const hst = totalNum - subtotal;
+
+  pw.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<title>${order.order_number} - Production Sheet</title>
+<style>
+  @page{size:${orientation};margin:15mm}
+  body{font-family:Arial,sans-serif;color:#000;font-size:12px;line-height:1.4}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #000;padding-bottom:12px;margin-bottom:20px}
+  .store-name{font-size:18px;font-weight:900;letter-spacing:-0.5px}
+  .club-name{font-size:14px;font-weight:bold;color:#333;margin-top:4px}
+  .order-meta{text-align:right;font-size:11px;color:#555}
+  .order-number{font-size:16px;font-weight:900;color:#000}
+  .item-section{margin-bottom:24px;break-inside:avoid}
+  .item-header{background:#000;color:#fff;padding:6px 10px;display:flex;justify-content:space-between;align-items:center}
+  .item-name{font-weight:900;font-size:13px;letter-spacing:1px}
+  .item-prints{font-size:9px;color:#ccc}
+  .size-table{width:100%;border-collapse:collapse;border:1px solid #000}
+  .size-table tr{border-bottom:1px solid #ccc}
+  .size-table tr:last-child{border-bottom:none}
+  .size-table th{background:#f0f0f0;padding:6px 10px;text-align:left;font-size:11px;border:1px solid #ddd}
+  .size-cell{width:50px;font-weight:900;font-size:12px;padding:6px 10px;border-right:2px solid #000;background:#f5f5f5;white-space:nowrap}
+  .players-cell{padding:6px 12px;font-size:11px;color:#222;letter-spacing:0.3px}
+  .qty-cell{width:50px;text-align:right;padding:6px 10px;font-size:10px;color:#666;border-left:1px solid #eee;white-space:nowrap}
+  .sponsors-section{margin-top:20px;border-top:2px solid #000;padding-top:12px}
+  .section-title{font-weight:900;font-size:11px;letter-spacing:1px;margin-bottom:6px;color:#555}
+  .sponsor-row{font-size:11px;padding:2px 0}
+  .notes-section{margin-top:16px;padding:8px 12px;background:#f9f9f9;border:1px solid #ddd;border-radius:4px;font-size:11px}
+  .totals-section{margin-top:20px;border-top:2px solid #000;padding-top:12px;text-align:right}
+  .total-row{font-size:12px;margin-bottom:4px}
+  .grand-total{font-size:16px;font-weight:900;margin-top:6px}
+  .balance{color:#cc0000}
+  .signoff{margin-top:30px;border-top:1px solid #ccc;padding-top:20px;display:flex;justify-content:space-between}
+  .signoff-line{font-size:11px;margin-bottom:20px}
+  .footer{margin-top:20px;font-size:9px;color:#999;text-align:center;border-top:1px solid #eee;padding-top:8px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="store-name">ABSOLUTE SOCCER MISSISSAUGA</div>
+    <div class="club-name">${club.name}</div>
+  </div>
+  <div class="order-meta">
+    <div class="order-number">${order.order_number}</div>
+    <div>Date: ${new Date(order.created_at).toLocaleDateString('en-CA')}</div>
+    <div>Status: ${(order.status || '').toUpperCase()}</div>
+  </div>
+</div>
+
+${itemsHTML}
+${sponsorsHTML}
+${order.notes ? `<div class="notes-section"><strong>Notes:</strong> ${order.notes}</div>` : ''}
+
+${totalNum > 0 ? `
+<div class="totals-section">
+  <div class="total-row">Subtotal: $${subtotal.toFixed(2)}</div>
+  <div class="total-row">HST (13%): $${hst.toFixed(2)}</div>
+  <div class="grand-total">TOTAL: $${totalNum.toFixed(2)}</div>
+  ${depositNum > 0 ? `<div class="total-row" style="margin-top:8px">Deposit Paid: $${depositNum.toFixed(2)}</div><div class="total-row balance">Balance Owing: $${balanceNum.toFixed(2)}</div>` : ''}
+</div>` : ''}
+
+<div class="signoff">
+  <div>
+    <div class="signoff-line">Club Representative: _______________________________</div>
+    <div class="signoff-line">Signature: _______________________________</div>
+    <div class="signoff-line">Date: _______________________________</div>
+  </div>
+  <div>
+    <div class="signoff-line">Store Representative: _______________________________</div>
+    <div class="signoff-line">Date: _______________________________</div>
+  </div>
+</div>
+
+<div class="footer">Absolute Soccer Mississauga | 5600 Rose Cherry Place, Mississauga ON L4Z 4B6 | 905-593-3600 | torontosoccershop.com</div>
+
+</body>
+</html>`);
   pw.document.close();
   pw.print();
 }
@@ -1443,8 +1556,11 @@ const ClubOrdersPerClub: React.FC<{ club: Club; onClose: () => void }> = ({ club
                     <button onClick={() => exportOrderCSV(order, club)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
                       CSV
                     </button>
-                    <button onClick={() => printOrderProof(order, club)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
-                      Print Proof
+                    <button onClick={() => printOrderProof(order, club, 'portrait')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                      Portrait
+                    </button>
+                    <button onClick={() => printOrderProof(order, club, 'landscape')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                      Landscape
                     </button>
                     <button onClick={() => generateInvoice(order)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs bg-zinc-800 text-white hover:bg-zinc-900">
                       <FileText size={13} /> {order.invoice_url ? 'Reprint Invoice' : 'Generate Invoice'}
@@ -1458,6 +1574,209 @@ const ClubOrdersPerClub: React.FC<{ club: Club; onClose: () => void }> = ({ club
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Print Preview Content ───────────────────────────────────────────────────
+
+const SIZE_ORDER = [
+  '8K','8.5K','9K','9.5K','10K','10.5K','11K','11.5K',
+  '12K','12.5K','13K','13.5K',
+  '1Y','1.5Y','2Y','2.5Y','3Y','3.5Y',
+  '4Y','4.5Y','5Y','5.5Y','6Y','6.5Y','7Y',
+  'XS','S','M','L','XL','XXL','2XL','3XL',
+];
+const sortSizesArr = (sizes: string[]) =>
+  [...sizes].sort((a, b) => {
+    const ai = SIZE_ORDER.indexOf(a);
+    const bi = SIZE_ORDER.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+
+const PrintPreviewContent: React.FC<{
+  order: any;
+  club: any;
+  orientation: 'portrait' | 'landscape';
+}> = ({ order, club, orientation }) => {
+  const matrix: any[] = order.customization_matrix || [];
+
+  const grouped: Record<string, Record<string, any[]>> = {};
+  matrix.forEach((row: any) => {
+    if (!grouped[row.itemName]) grouped[row.itemName] = {};
+    if (!grouped[row.itemName][row.size]) grouped[row.itemName][row.size] = [];
+    grouped[row.itemName][row.size].push(row);
+  });
+
+  const totalNum = Number(order.total_amount) || 0;
+  const depositNum = Number(order.deposit_paid) || 0;
+  const balanceNum = Number(order.balance_owing) || 0;
+  const subtotal = totalNum / 1.13;
+  const hst = totalNum - subtotal;
+
+  return (
+    <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '3px solid #000', paddingBottom: '12px', marginBottom: '16px' }}>
+        <div>
+          <div style={{ fontSize: '16px', fontWeight: 900 }}>ABSOLUTE SOCCER MISSISSAUGA</div>
+          <div style={{ fontSize: '12px', color: '#333', marginTop: '3px' }}>{club.name}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '14px', fontWeight: 900 }}>{order.order_number}</div>
+          <div style={{ fontSize: '10px', color: '#555' }}>{new Date(order.created_at).toLocaleDateString('en-CA')}</div>
+          <div style={{ fontSize: '10px', color: '#555' }}>Status: {(order.status || '').toUpperCase()}</div>
+        </div>
+      </div>
+
+      {orientation === 'portrait' ? (
+        /* Portrait: grouped by item → size */
+        <div>
+          {matrix.length === 0 ? (
+            /* Old-format fallback */
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '16px' }}>
+              <thead>
+                <tr>{['Item','Size','Qty','Unit Price','Total'].map(h => (
+                  <th key={h} style={{ background: '#000', color: '#fff', padding: '6px 8px', fontSize: '10px', textAlign: 'left' }}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {(order.items || []).map((item: any, i: number) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ padding: '6px 8px', fontSize: '10px' }}>{item.name}</td>
+                    <td style={{ padding: '6px 8px', fontSize: '10px' }}>{item.size || 'Various'}</td>
+                    <td style={{ padding: '6px 8px', fontSize: '10px' }}>{getItemQty(item)}</td>
+                    <td style={{ padding: '6px 8px', fontSize: '10px' }}>${getItemPrice(item).toFixed(2)}</td>
+                    <td style={{ padding: '6px 8px', fontSize: '10px' }}>${(getItemQty(item) * getItemPrice(item)).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            Object.entries(grouped).map(([itemName, sizes]) => {
+              const sortedSizes = sortSizesArr(Object.keys(sizes));
+              const orderItem = (order.items || []).find((i: any) => i.name === itemName);
+              const prints = (orderItem?.print_addons || []).map((a: any) =>
+                `${a.print_type_name} ($${(Number(a.cost_per_unit) || 0).toFixed(2)}/unit)`
+              ).join(', ');
+              return (
+                <div key={itemName} style={{ marginBottom: '20px' }}>
+                  <div style={{ background: '#000', color: '#fff', padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 900, letterSpacing: '1px', fontSize: '12px' }}>{itemName.toUpperCase()}</span>
+                    {prints && <span style={{ fontSize: '9px', color: '#ccc' }}>{prints}</span>}
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000' }}>
+                    <tbody>
+                      {sortedSizes.map(size => {
+                        const players: any[] = sizes[size];
+                        const playerList = players.map((p: any) => {
+                          const name = p.playerName || '';
+                          const num = p.playerNumber || '';
+                          if (name && num) return `${name}(${num})`;
+                          if (name) return name;
+                          if (num) return `#${num}`;
+                          return '—';
+                        }).join(',  ');
+                        return (
+                          <tr key={size} style={{ borderBottom: '1px solid #ddd' }}>
+                            <td style={{ width: '50px', fontWeight: 900, padding: '6px 10px', borderRight: '2px solid #000', background: '#f5f5f5', whiteSpace: 'nowrap' }}>{size}</td>
+                            <td style={{ padding: '6px 12px', fontSize: '11px' }}>{playerList}</td>
+                            <td style={{ width: '50px', textAlign: 'right', padding: '6px 10px', fontSize: '10px', color: '#666', whiteSpace: 'nowrap' }}>{players.length} pcs</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })
+          )}
+        </div>
+      ) : (
+        /* Landscape: one row per player */
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              {['#', 'Item', 'Size', 'Player Name', 'Number', 'Initials', 'Sponsor', 'Print Type'].map(h => (
+                <th key={h} style={{ background: '#000', color: '#fff', padding: '7px 8px', fontSize: '10px', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {matrix.map((row: any, i: number) => {
+              const item = (order.items || []).find((it: any) => it.name === row.itemName);
+              const prints = (item?.print_addons || []).map((a: any) => a.print_type_name).join(', ') || '—';
+              return (
+                <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9f9', borderBottom: '1px solid #eee' }}>
+                  <td style={{ padding: '6px 8px', fontSize: '10px' }}>{i + 1}</td>
+                  <td style={{ padding: '6px 8px', fontSize: '10px' }}>{row.itemName}</td>
+                  <td style={{ padding: '6px 8px' }}>
+                    <span style={{ background: '#f0f0f0', fontWeight: 'bold', padding: '2px 6px', borderRadius: '3px', fontSize: '10px' }}>{row.size}</span>
+                  </td>
+                  <td style={{ padding: '6px 8px', fontSize: '10px' }}>{row.playerName || '—'}</td>
+                  <td style={{ padding: '6px 8px', fontSize: '10px', fontWeight: 'bold' }}>{row.playerNumber || '—'}</td>
+                  <td style={{ padding: '6px 8px', fontSize: '10px' }}>{row.initials || '—'}</td>
+                  <td style={{ padding: '6px 8px', fontSize: '10px' }}>{row.sponsorName || '—'}</td>
+                  <td style={{ padding: '6px 8px', fontSize: '10px' }}>{prints}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+
+      {/* Sponsors */}
+      {(order.sponsors || []).length > 0 && (
+        <div style={{ marginTop: '16px', borderTop: '2px solid #000', paddingTop: '10px' }}>
+          <div style={{ fontWeight: 900, fontSize: '10px', letterSpacing: '1px', color: '#555', marginBottom: '6px' }}>SPONSOR LOGOS</div>
+          {(order.sponsors || []).map((s: any, i: number) => (
+            <div key={i} style={{ fontSize: '11px', padding: '2px 0' }}>{s.name}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Notes */}
+      {order.notes && (
+        <div style={{ marginTop: '12px', padding: '8px 12px', background: '#f9f9f9', border: '1px solid #ddd', fontSize: '10px' }}>
+          <strong>Notes:</strong> {order.notes}
+        </div>
+      )}
+
+      {/* Totals */}
+      {totalNum > 0 && (
+        <div style={{ marginTop: '12px', textAlign: 'right' }}>
+          <div style={{ fontSize: '11px' }}>Subtotal: ${subtotal.toFixed(2)}</div>
+          <div style={{ fontSize: '11px' }}>HST (13%): ${hst.toFixed(2)}</div>
+          <div style={{ fontSize: '14px', fontWeight: 900, marginTop: '4px' }}>TOTAL: ${totalNum.toFixed(2)}</div>
+          {depositNum > 0 && (
+            <>
+              <div style={{ fontSize: '11px', marginTop: '6px' }}>Deposit Paid: ${depositNum.toFixed(2)}</div>
+              <div style={{ fontSize: '11px', color: '#cc0000' }}>Balance Owing: ${balanceNum.toFixed(2)}</div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Sign-off */}
+      <div style={{ marginTop: '24px', borderTop: '1px solid #ccc', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+        <div>
+          <div style={{ marginBottom: '16px' }}>Club Representative: _______________________________</div>
+          <div style={{ marginBottom: '16px' }}>Signature: _______________________________</div>
+          <div>Date: _______________________________</div>
+        </div>
+        <div>
+          <div style={{ marginBottom: '16px' }}>Store Representative: _______________________________</div>
+          <div>Date: _______________________________</div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ marginTop: '16px', fontSize: '9px', color: '#999', textAlign: 'center', borderTop: '1px solid #eee', paddingTop: '8px' }}>
+        Absolute Soccer Mississauga | 5600 Rose Cherry Place, Mississauga ON L4Z 4B6 | 905-593-3600 | torontosoccershop.com
       </div>
     </div>
   );
@@ -1478,6 +1797,13 @@ const ClubDashboard: React.FC<{
   const [drafts, setDrafts] = useState<Record<string, {
     status: string; total_amount: string; deposit_paid: string; notes: string;
   }>>({});
+  const [editingOrder, setEditingOrder] = useState<any>(null);
+  const [editingMatrix, setEditingMatrix] = useState<any[]>([]);
+  const [editingItems, setEditingItems] = useState<any[]>([]);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [printPreview, setPrintPreview] = useState<{
+    order: any; club: any; orientation: 'portrait' | 'landscape';
+  } | null>(null);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -1540,6 +1866,75 @@ const ClubDashboard: React.FC<{
     }
   };
 
+  const startEditOrder = (order: ClubOrder) => {
+    setEditingOrder({ ...order });
+    setEditingMatrix(((order as any).customization_matrix || []).map((r: any) => ({ ...r })));
+    setEditingItems(((order.items as any[]) || []).map((i: any) => ({ ...i })));
+  };
+
+  const updateMatrixRow = (index: number, field: string, value: string) => {
+    setEditingMatrix(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const updateEditItemSize = (itemIndex: number, size: string, qty: string) => {
+    setEditingItems(prev => {
+      const updated = [...prev];
+      updated[itemIndex] = { ...updated[itemIndex], sizes: { ...updated[itemIndex].sizes, [size]: Number(qty) } };
+      return updated;
+    });
+  };
+
+  const updateEditItemQty = (index: number, qty: string) => {
+    setEditingItems(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], qty: Number(qty) };
+      return updated;
+    });
+  };
+
+  const updateEditItemPrice = (index: number, price: string) => {
+    setEditingItems(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], price: Number(price), base_price: Number(price) };
+      return updated;
+    });
+  };
+
+  const removeEditItem = (index: number) => {
+    setEditingItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const saveEditedOrder = async () => {
+    if (!editingOrder) return;
+    setIsSavingEdit(true);
+    try {
+      const balanceOwing = Math.max(0, Number(editingOrder.total_amount) - Number(editingOrder.deposit_paid));
+      const { error } = await supabase
+        .from('club_orders')
+        .update({
+          items: editingItems,
+          customization_matrix: editingMatrix.length > 0 ? editingMatrix : null,
+          notes: editingOrder.notes || null,
+          total_amount: Number(editingOrder.total_amount),
+          deposit_paid: Number(editingOrder.deposit_paid),
+          balance_owing: balanceOwing,
+          status: editingOrder.status,
+        })
+        .eq('id', editingOrder.id);
+      if (error) throw error;
+      await loadOrders();
+      setEditingOrder(null);
+    } catch (err: any) {
+      alert('Failed to save: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   const activeOrders = orders.filter(o => o.status !== 'delivered');
   const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
   const totalPaid = orders.reduce((sum, o) => sum + Number(o.deposit_paid || 0), 0);
@@ -1562,21 +1957,29 @@ const ClubDashboard: React.FC<{
             <p className="font-bold text-zinc-900">{order.order_number}</p>
             <p className="text-xs text-zinc-500">{new Date(order.created_at).toLocaleDateString()}</p>
           </div>
-          {readOnly ? (
-            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded ${STATUS_COLORS[order.status] || 'bg-zinc-100 text-zinc-500'}`}>
-              {STATUS_LABELS[order.status] || order.status}
-            </span>
-          ) : (
-            <select
-              value={d.status}
-              onChange={e => patch(order.id, 'status', e.target.value)}
-              className="border border-zinc-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => startEditOrder(order)}
+              className="flex items-center gap-1 text-xs border border-zinc-200 rounded-lg px-3 py-1.5 text-zinc-600 hover:bg-zinc-50"
             >
-              {Object.entries(STATUS_LABELS).map(([val, label]) => (
-                <option key={val} value={val}>{label}</option>
-              ))}
-            </select>
-          )}
+              <Edit2 size={12} /> Edit
+            </button>
+            {readOnly ? (
+              <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded ${STATUS_COLORS[order.status] || 'bg-zinc-100 text-zinc-500'}`}>
+                {STATUS_LABELS[order.status] || order.status}
+              </span>
+            ) : (
+              <select
+                value={d.status}
+                onChange={e => patch(order.id, 'status', e.target.value)}
+                className="border border-zinc-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+              >
+                {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
 
         <div className="p-4 space-y-4">
@@ -1614,8 +2017,11 @@ const ClubDashboard: React.FC<{
                 <button onClick={() => exportOrderCSV(order, club)} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
                   CSV
                 </button>
-                <button onClick={() => printOrderProof(order, club)} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
-                  Print Proof
+                <button onClick={() => setPrintPreview({ order, club, orientation: 'portrait' })} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                  Portrait
+                </button>
+                <button onClick={() => setPrintPreview({ order, club, orientation: 'landscape' })} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                  Landscape
                 </button>
                 {order.invoice_url && (
                   <button onClick={() => generateInvoice(order)} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
@@ -1671,8 +2077,11 @@ const ClubDashboard: React.FC<{
                   <button onClick={() => exportOrderCSV(order, club)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
                     CSV
                   </button>
-                  <button onClick={() => printOrderProof(order, club)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
-                    Print Proof
+                  <button onClick={() => setPrintPreview({ order, club, orientation: 'portrait' })} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                    Portrait
+                  </button>
+                  <button onClick={() => setPrintPreview({ order, club, orientation: 'landscape' })} className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-widest text-xs border border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                    Landscape
                   </button>
                   <button
                     onClick={() => generateInvoice(order)}
@@ -1809,6 +2218,259 @@ const ClubDashboard: React.FC<{
             </p>
           )}
           {tabOrders.map(order => renderOrderCard(order, tab === 'history'))}
+        </div>
+      )}
+
+      {/* Edit Order Modal */}
+      {editingOrder && (
+        <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto" onClick={() => setEditingOrder(null)}>
+          <div className="bg-white max-w-4xl mx-auto my-8 rounded-2xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="font-black text-xl text-zinc-900">Edit Order {editingOrder.order_number}</h2>
+              <button onClick={() => setEditingOrder(null)} className="text-zinc-400 hover:text-zinc-700 text-xl leading-none">✕</button>
+            </div>
+
+            {/* Status */}
+            <div className="mb-6">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1.5">Status</label>
+              <select
+                value={editingOrder.status}
+                onChange={e => setEditingOrder({ ...editingOrder, status: e.target.value })}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+              >
+                {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Items */}
+            <div className="mb-6">
+              <h3 className="font-bold text-zinc-900 mb-3">Items &amp; Quantities</h3>
+              {editingItems.map((item: any, i: number) => (
+                <div key={i} className="border border-zinc-200 rounded-xl p-4 mb-3">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="font-medium text-zinc-900">{item.name}</span>
+                    <button onClick={() => removeEditItem(i)} className="text-red-400 text-xs hover:text-red-600">Remove</button>
+                  </div>
+                  {item.sizes && typeof item.sizes === 'object' ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      {Object.entries(item.sizes as Record<string, number>).map(([size, qty]) => (
+                        <div key={size} className="text-center">
+                          <label className="block text-xs text-zinc-400 mb-1">{size}</label>
+                          <input
+                            type="number" min="0"
+                            value={qty}
+                            onChange={e => updateEditItemSize(i, size, e.target.value)}
+                            className="w-full border border-zinc-200 rounded text-center py-1 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex gap-3 items-center">
+                      {item.size && <span className="text-sm text-zinc-500">Size: {item.size}</span>}
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-zinc-500">Qty:</label>
+                        <input
+                          type="number" min="0"
+                          value={item.qty ?? item.quantity ?? 0}
+                          onChange={e => updateEditItemQty(i, e.target.value)}
+                          className="w-20 border border-zinc-200 rounded text-center py-1 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mt-3">
+                    <label className="text-xs text-zinc-500">Unit Price ($):</label>
+                    <input
+                      type="number" step="0.01" min="0"
+                      value={item.price ?? item.base_price ?? 0}
+                      onChange={e => updateEditItemPrice(i, e.target.value)}
+                      className="w-24 border border-zinc-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                    />
+                  </div>
+                </div>
+              ))}
+              {editingItems.length === 0 && (
+                <p className="text-sm text-zinc-400 italic py-2">No items.</p>
+              )}
+            </div>
+
+            {/* Customization Matrix */}
+            {editingMatrix.length > 0 && (
+              <div className="mb-6">
+                <h3 className="font-bold text-zinc-900 mb-3">Player Customization</h3>
+                <div className="overflow-x-auto rounded-xl border border-zinc-200">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-xs text-zinc-400 bg-zinc-50 border-b border-zinc-200">
+                        <th className="text-left py-2 px-3 font-black uppercase tracking-widest">#</th>
+                        <th className="text-left py-2 px-3 font-black uppercase tracking-widest">Item</th>
+                        <th className="text-left py-2 px-3 font-black uppercase tracking-widest">Size</th>
+                        <th className="text-left py-2 px-3 font-black uppercase tracking-widest">Player Name</th>
+                        <th className="text-left py-2 px-3 font-black uppercase tracking-widest">Number</th>
+                        <th className="text-left py-2 px-3 font-black uppercase tracking-widest">Initials</th>
+                        <th className="text-left py-2 px-3 font-black uppercase tracking-widest">Sponsor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {editingMatrix.map((row: any, i: number) => (
+                        <tr key={i} className="border-b border-zinc-100 hover:bg-zinc-50">
+                          <td className="py-2 px-3 text-zinc-400 text-xs">{i + 1}</td>
+                          <td className="py-2 px-3 text-xs text-zinc-700">{row.itemName}</td>
+                          <td className="py-2 px-3">
+                            <span className="bg-zinc-100 text-zinc-700 text-xs font-bold px-2 py-0.5 rounded">{row.size}</span>
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="text"
+                              value={row.playerName || ''}
+                              onChange={e => updateMatrixRow(i, 'playerName', e.target.value.toUpperCase())}
+                              placeholder="Name"
+                              className="w-full border border-zinc-200 rounded px-2 py-1 text-xs uppercase focus:outline-none focus:border-zinc-400"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="text"
+                              value={row.playerNumber || ''}
+                              onChange={e => updateMatrixRow(i, 'playerNumber', e.target.value)}
+                              placeholder="#"
+                              className="w-16 border border-zinc-200 rounded px-2 py-1 text-xs text-center focus:outline-none focus:border-zinc-400"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="text"
+                              maxLength={3}
+                              value={row.initials || ''}
+                              onChange={e => updateMatrixRow(i, 'initials', e.target.value.toUpperCase())}
+                              placeholder="JS"
+                              className="w-14 border border-zinc-200 rounded px-2 py-1 text-xs text-center uppercase focus:outline-none focus:border-zinc-400"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="text"
+                              value={row.sponsorName || ''}
+                              onChange={e => updateMatrixRow(i, 'sponsorName', e.target.value)}
+                              placeholder="Sponsor"
+                              className="w-full border border-zinc-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-zinc-400"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div className="mb-6">
+              <h3 className="font-bold text-zinc-900 mb-2">Notes</h3>
+              <textarea
+                value={editingOrder.notes || ''}
+                onChange={e => setEditingOrder({ ...editingOrder, notes: e.target.value })}
+                rows={3}
+                placeholder="Order notes..."
+                className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10 resize-none"
+              />
+            </div>
+
+            {/* Financials */}
+            <div className="mb-6 grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">Total Amount ($)</label>
+                <input
+                  type="number" step="0.01" min="0"
+                  value={editingOrder.total_amount ?? 0}
+                  onChange={e => setEditingOrder({ ...editingOrder, total_amount: e.target.value })}
+                  className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">Deposit Paid ($)</label>
+                <input
+                  type="number" step="0.01" min="0"
+                  value={editingOrder.deposit_paid ?? 0}
+                  onChange={e => setEditingOrder({ ...editingOrder, deposit_paid: e.target.value })}
+                  className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">Balance Owing</label>
+                <p className={`text-lg font-black mt-2 ${Math.max(0, Number(editingOrder.total_amount) - Number(editingOrder.deposit_paid)) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  ${Math.max(0, Number(editingOrder.total_amount) - Number(editingOrder.deposit_paid)).toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 justify-end border-t border-zinc-100 pt-4">
+              <button
+                onClick={() => setEditingOrder(null)}
+                className="px-6 py-2 border border-zinc-200 rounded-xl text-sm text-zinc-700 hover:bg-zinc-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEditedOrder}
+                disabled={isSavingEdit}
+                className="px-6 py-2 bg-zinc-900 text-white rounded-xl text-sm font-bold hover:bg-zinc-700 disabled:opacity-50"
+              >
+                {isSavingEdit ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Preview Modal */}
+      {printPreview && (
+        <div className="fixed inset-0 bg-black/70 z-[60] flex flex-col">
+          <div className="bg-zinc-900 text-white px-6 py-3 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-4">
+              <span className="font-bold text-sm">
+                Print Preview — {printPreview.orientation === 'portrait' ? '📄 Portrait' : '📋 Landscape'}
+              </span>
+              <span className="text-zinc-400 text-xs">
+                {printPreview.order.order_number} — {printPreview.club.name}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setPrintPreview(prev => prev ? { ...prev, orientation: prev.orientation === 'portrait' ? 'landscape' : 'portrait' } : null)}
+                className="text-xs bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded transition"
+              >
+                Switch to {printPreview.orientation === 'portrait' ? 'Landscape' : 'Portrait'}
+              </button>
+              <button
+                onClick={() => printOrderProof(printPreview.order, printPreview.club, printPreview.orientation)}
+                className="bg-[var(--primary-color)] hover:bg-red-700 text-white font-bold px-4 py-1.5 rounded text-sm transition flex items-center gap-2"
+              >
+                🖨️ Print
+              </button>
+              <button
+                onClick={() => setPrintPreview(null)}
+                className="text-zinc-400 hover:text-white text-xl transition ml-2 leading-none"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto bg-zinc-800 p-8">
+            <div className={`bg-white shadow-2xl mx-auto min-h-[400px] p-8 ${printPreview.orientation === 'portrait' ? 'max-w-[595px]' : 'max-w-[842px]'}`}>
+              <PrintPreviewContent
+                order={printPreview.order}
+                club={printPreview.club}
+                orientation={printPreview.orientation}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
