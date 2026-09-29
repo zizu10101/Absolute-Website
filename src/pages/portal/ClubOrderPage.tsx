@@ -34,6 +34,13 @@ function getTotalQty(quantities: Record<string, Record<string, number>>, itemId:
   return Object.values(quantities[itemId] || {}).reduce((s, q) => s + (q || 0), 0);
 }
 
+const ITEM_RULES = {
+  jersey:  { name: true,  number: true,  initials: true,  sponsor: true },
+  jacket:  { name: false, number: false, initials: true,  sponsor: true },
+  bag:     { name: false, number: true,  initials: true,  sponsor: true },
+  default: { name: true,  number: true,  initials: true,  sponsor: true },
+};
+
 function generateMatrix(
   items: ClubItem[],
   quantities: Record<string, Record<string, number>>,
@@ -42,9 +49,18 @@ function generateMatrix(
   const rows: MatrixRow[] = [];
   items.forEach(item => {
     const itemQty = quantities[item.id] || {};
-    ALL_SIZES.forEach(size => {
-      const qty = itemQty[size] || 0;
-      for (let i = 0; i < qty; i++) {
+    const t = item.name.toLowerCase();
+    let rules = ITEM_RULES.default;
+    if (t.includes('jersey') || t.includes('shirt')) {
+      rules = ITEM_RULES.jersey;
+    } else if (t.includes('jacket') || t.includes('hoodie') || t.includes('top')) {
+      rules = ITEM_RULES.jacket;
+    } else if (t.includes('bag') || t.includes('backpack') || t.includes('kit bag') || t.includes('duffle')) {
+      rules = ITEM_RULES.bag;
+    }
+    Object.entries(itemQty).forEach(([size, qty]) => {
+      const quantity = Number(qty) || 0;
+      for (let i = 0; i < quantity; i++) {
         rows.push({
           id: `${item.id}_${size}_${i}`,
           itemId: item.id,
@@ -54,10 +70,10 @@ function generateMatrix(
           playerNumber: '',
           initials: '',
           sponsorName: '',
-          allowName: !item.name.toLowerCase().includes('bag'),
-          allowNumber: true,
-          allowInitials: true,
-          allowSponsor: sponsors.length > 0,
+          allowName: rules.name,
+          allowNumber: rules.number,
+          allowInitials: rules.initials,
+          allowSponsor: rules.sponsor && sponsors.length > 0,
         });
       }
     });
