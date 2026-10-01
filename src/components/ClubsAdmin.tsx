@@ -1495,21 +1495,45 @@ const ClubOrdersPerClub: React.FC<{ club: Club; onClose: () => void }> = ({ club
                 </div>
 
                 <div className="p-4 space-y-4">
-                  <div className="space-y-1">
+                  <div>
                     {((order.items || []) as any[]).map((item: any, i: number) => (
-                      <div key={i} className="flex justify-between text-sm py-0.5">
-                        <div>
-                          <span className="font-medium text-zinc-900">{item.name}</span>
-                          {item.sizes && typeof item.sizes === 'object' && (
-                            <div className="text-xs text-zinc-400 mt-0.5">
-                              {Object.entries(item.sizes as Record<string, number>).filter(([, q]) => Number(q) > 0).map(([sz, qty]) => `${sz}:${qty}`).join(' | ')}
+                      <div key={i} className="border rounded-xl p-4 mb-3 bg-zinc-50">
+                        <div className="flex justify-between items-start mb-3">
+                          <h4 className="font-bold text-zinc-900">{item.name}</h4>
+                          <span className="font-bold text-zinc-900">${(getItemQty(item) * getItemPrice(item)).toFixed(2)}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {item.sizes ? (
+                            Object.entries(item.sizes as Record<string, any>)
+                              .filter(([, qty]) => Number(qty) > 0)
+                              .sort(([a], [b]) => {
+                                const ai = SIZE_ORDER.indexOf(a);
+                                const bi = SIZE_ORDER.indexOf(b);
+                                if (ai === -1 && bi === -1) return a.localeCompare(b);
+                                if (ai === -1) return 1;
+                                if (bi === -1) return -1;
+                                return ai - bi;
+                              })
+                              .map(([size, qty]) => (
+                                <div key={size} className="bg-white border rounded-lg px-3 py-1.5 text-center min-w-[60px]">
+                                  <div className="text-xs text-zinc-400 font-medium">{size}</div>
+                                  <div className="font-black text-zinc-900 text-lg">{String(qty)}</div>
+                                </div>
+                              ))
+                          ) : (
+                            <div className="bg-white border rounded-lg px-3 py-1.5">
+                              <div className="text-xs text-zinc-400">Qty</div>
+                              <div className="font-black text-lg">{item.qty || item.quantity || 0}</div>
                             </div>
                           )}
-                          {item.size && <span className="text-xs text-zinc-400 ml-2">{item.size}</span>}
                         </div>
-                        <div className="text-right shrink-0 ml-4">
-                          <div className="text-zinc-500 text-xs">{getItemQty(item)} × ${getItemPrice(item).toFixed(2)}</div>
-                          <div className="font-medium text-zinc-800">${(getItemQty(item) * getItemPrice(item)).toFixed(2)}</div>
+                        <div className="flex justify-between text-sm text-zinc-500 border-t pt-2">
+                          <span>{getItemQty(item)} units × ${getItemPrice(item).toFixed(2)}/unit</span>
+                          {item.print_addons?.length > 0 && (
+                            <span className="text-xs text-zinc-400">
+                              Incl. {item.print_addons.map((a: any) => a.print_type_name).join(', ')}
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1983,21 +2007,45 @@ const ClubDashboard: React.FC<{
         </div>
 
         <div className="p-4 space-y-4">
-          <div className="bg-zinc-50 rounded-lg p-3 space-y-1">
+          <div>
             {((order.items || []) as any[]).map((item: any, i: number) => (
-              <div key={i} className="flex justify-between text-sm py-0.5">
-                <div>
-                  <span className="font-medium text-zinc-800">{item.name}</span>
-                  {item.sizes && typeof item.sizes === 'object' && (
-                    <div className="text-xs text-zinc-400 mt-0.5">
-                      {Object.entries(item.sizes as Record<string, number>).filter(([, q]) => Number(q) > 0).map(([sz, qty]) => `${sz}:${qty}`).join(' | ')}
+              <div key={i} className="border rounded-xl p-4 mb-3 bg-zinc-50">
+                <div className="flex justify-between items-start mb-3">
+                  <h4 className="font-bold text-zinc-900">{item.name}</h4>
+                  <span className="font-bold text-zinc-900">${(getItemQty(item) * getItemPrice(item)).toFixed(2)}</span>
+                </div>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {item.sizes ? (
+                    Object.entries(item.sizes as Record<string, any>)
+                      .filter(([, qty]) => Number(qty) > 0)
+                      .sort(([a], [b]) => {
+                        const ai = SIZE_ORDER.indexOf(a);
+                        const bi = SIZE_ORDER.indexOf(b);
+                        if (ai === -1 && bi === -1) return a.localeCompare(b);
+                        if (ai === -1) return 1;
+                        if (bi === -1) return -1;
+                        return ai - bi;
+                      })
+                      .map(([size, qty]) => (
+                        <div key={size} className="bg-white border rounded-lg px-3 py-1.5 text-center min-w-[60px]">
+                          <div className="text-xs text-zinc-400 font-medium">{size}</div>
+                          <div className="font-black text-zinc-900 text-lg">{String(qty)}</div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="bg-white border rounded-lg px-3 py-1.5">
+                      <div className="text-xs text-zinc-400">Qty</div>
+                      <div className="font-black text-lg">{item.qty || item.quantity || 0}</div>
                     </div>
                   )}
-                  {item.size && <span className="text-xs text-zinc-400 ml-2">{item.size}</span>}
                 </div>
-                <div className="text-right shrink-0 ml-4">
-                  <div className="text-zinc-400 text-xs">{getItemQty(item)} × ${getItemPrice(item).toFixed(2)}</div>
-                  <div className="font-medium text-zinc-700">${(getItemQty(item) * getItemPrice(item)).toFixed(2)}</div>
+                <div className="flex justify-between text-sm text-zinc-500 border-t pt-2">
+                  <span>{getItemQty(item)} units × ${getItemPrice(item).toFixed(2)}/unit</span>
+                  {item.print_addons?.length > 0 && (
+                    <span className="text-xs text-zinc-400">
+                      Incl. {item.print_addons.map((a: any) => a.print_type_name).join(', ')}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
