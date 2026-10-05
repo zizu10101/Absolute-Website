@@ -30,12 +30,14 @@ export const PosLayawayTab: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<LayawayPayLaterRecord | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [paymentReceiptData, setPaymentReceiptData] = useState<{
     record: LayawayPayLaterRecord;
     paymentAmount: number;
+    paymentMethod: string;
     previousBalance: number;
     newBalance: number;
     isFullyPaid: boolean;
@@ -75,6 +77,7 @@ export const PosLayawayTab: React.FC = () => {
   const openRecord = (r: LayawayPayLaterRecord) => {
     setSelected(r);
     setPaymentAmount('');
+    setPaymentMethod('Cash');
     setError(null);
   };
 
@@ -106,6 +109,17 @@ export const PosLayawayTab: React.FC = () => {
       const { error: updateError } = await supabase.from(table).update(update).eq('id', selected.id);
       if (updateError) throw updateError;
 
+      const { error: txError } = await supabase.from('transactions').insert({
+        method: paymentMethod,
+        payment_method: paymentMethod,
+        total_amount: amount,
+        status: 'completed',
+        items: selected.items || [],
+        created_at: new Date().toISOString(),
+        invoice_number: `LAY-${selected.id.slice(0, 8)}`,
+      });
+      if (txError) throw txError;
+
       const updatedRecord: LayawayPayLaterRecord = {
         ...selected,
         [paidFieldName]: update[paidFieldName],
@@ -119,6 +133,7 @@ export const PosLayawayTab: React.FC = () => {
       setPaymentReceiptData({
         record: updatedRecord,
         paymentAmount: amount,
+        paymentMethod,
         previousBalance,
         newBalance,
         isFullyPaid,
@@ -243,7 +258,7 @@ export const PosLayawayTab: React.FC = () => {
   };
 
   if (paymentReceiptData) {
-    const { record, paymentAmount, previousBalance, newBalance, isFullyPaid } = paymentReceiptData;
+    const { record, paymentAmount, paymentMethod: paidMethod, previousBalance, newBalance, isFullyPaid } = paymentReceiptData;
     const title = record.type === 'layaway' ? 'Layaway' : 'Pay Later';
     return (
       <div className="flex flex-col h-full bg-zinc-50">
@@ -256,6 +271,7 @@ export const PosLayawayTab: React.FC = () => {
             <p className="text-sm font-black text-zinc-900">Payment recorded successfully!</p>
             <div className="text-left text-[11px] space-y-1.5 bg-zinc-50 rounded-lg p-4 mt-2">
               <div className="flex justify-between"><span className="text-zinc-500">Payment Made</span><span className="font-black text-emerald-600">${paymentAmount.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-zinc-500">Method</span><span className="font-bold text-zinc-700">{paidMethod}</span></div>
               <div className="flex justify-between"><span className="text-zinc-500">Previous Balance</span><span className="font-bold text-zinc-700">${previousBalance.toFixed(2)}</span></div>
               <div className="flex justify-between border-t border-zinc-200 pt-1.5"><span className="text-zinc-500 font-bold">New Balance</span><span className="font-black text-[var(--primary-color)]">${newBalance.toFixed(2)}</span></div>
             </div>
@@ -325,7 +341,7 @@ export const PosLayawayTab: React.FC = () => {
           </div>
 
           {!isComplete && !isCancelled && (
-            <div className="bg-white rounded-xl border border-zinc-100 p-5 space-y-2">
+            <div className="bg-white rounded-xl border border-zinc-100 p-5 space-y-3">
               <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Take Payment</p>
               <input
                 type="number"
@@ -334,6 +350,24 @@ export const PosLayawayTab: React.FC = () => {
                 placeholder="0.00"
                 className="w-full text-xs text-zinc-900 border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-800"
               />
+              <div>
+                <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest mb-2">Payment Method</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex'].map(method => (
+                    <button
+                      key={method}
+                      onClick={() => setPaymentMethod(method)}
+                      className={`py-2 px-3 rounded-lg text-[10px] font-black uppercase border transition ${
+                        paymentMethod === method
+                          ? 'bg-[var(--primary-color)] text-white border-[var(--primary-color)]'
+                          : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-400'
+                      }`}
+                    >
+                      {method}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {error && <p className="text-[11px] text-red-600 font-bold">{error}</p>}
               <button
                 onClick={handleTakePayment}
