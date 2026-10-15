@@ -229,6 +229,9 @@ export interface ReceiptData {
   copies?: 1 | 2; // Number of copies: 1 = customer only, 2 = customer + merchant
   cashTendered?: number; // Amount of cash given for payment
   changeDue?: number; // Change amount due to customer
+  refundedItems?: Array<{ name: string; size?: string; quantity: number; amount: number }>;
+  refundAmount?: number;
+  refundPaymentMethod?: string;
 }
 
 export const generateThermalReceiptHTML = (data: ReceiptData): string => {
@@ -304,6 +307,22 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
       <div class="payments">
         <div class="row"><span>Cash Tendered:</span><span>${money(data.cashTendered)}</span></div>
         ${data.changeDue !== undefined ? `<div class="row"><span>Change Due:</span><span>${money(data.changeDue)}</span></div>` : ''}
+      </div>
+    ` : ''}
+    ${data.refundedItems && data.refundedItems.length > 0 ? `
+      <div class="divider"></div>
+      <div class="row items-head"><span>Returned Items</span><span>Amount</span></div>
+      ${data.refundedItems.map(item => `
+        <div class="item">
+          <div class="item-row"><span class="item-name">${item.name}</span><span class="item-price">-${money(item.amount)}</span></div>
+          ${item.size ? `<div class="item-detail">Size: ${item.size}</div>` : ''}
+        </div>
+      `).join('')}
+      <div class="divider"></div>
+      <div class="totals">
+        <div class="row"><span>Amount Refunded:</span><span>-${money(data.refundAmount || 0)}</span></div>
+        ${data.refundPaymentMethod ? `<div class="row"><span>Refund Method:</span><span>${data.refundPaymentMethod}</span></div>` : ''}
+        <div class="row"><span>Remaining Total:</span><span>${money(Math.max(0, data.total - (data.refundAmount || 0)))}</span></div>
       </div>
     ` : ''}
     <div class="divider"></div>

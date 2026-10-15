@@ -20,11 +20,15 @@ interface Transaction {
   invoice_number?: string;
   total_amount: number;
   method: string;
+  payment_method?: string;
   status: string;
   items: any[];
   customer_id: string | null;
   created_at: string;
   customers?: { first_name: string; last_name: string } | null;
+  refund_amount?: number;
+  refunded_items?: any[];
+  refunded_at?: string;
 }
 
 
@@ -45,6 +49,8 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
   const [showReturnsModal, setShowReturnsModal] = useState(false);
   const [returnsTransactionId, setReturnsTransactionId] = useState<string | null>(null);
   const [refundTx, setRefundTx] = useState<Transaction | null>(null);
+  const [editingMOP, setEditingMOP] = useState<string | null>(null);
+  const [newMOP, setNewMOP] = useState('');
 
   // Gift receipt modal
   const [giftTx, setGiftTx] = useState<Transaction | null>(null);
@@ -222,6 +228,23 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
     setShowReturnsModal(true);
   };
 
+  const saveMOPChange = async (transactionId: string) => {
+    if (!newMOP) return;
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ method: newMOP, payment_method: newMOP })
+        .eq('id', transactionId);
+      if (error) throw error;
+      setEditingMOP(null);
+      setNewMOP('');
+      flash(`Payment method updated to ${newMOP}`);
+      await fetchTransactions();
+    } catch (e: any) {
+      flash(e.message, true);
+    }
+  };
+
   const handleReturnsComplete = () => {
     setShowReturnsModal(false);
     fetchTransactions();
@@ -312,6 +335,15 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
         logoUrl: logo,
         isReprint: true,
         copies,
+        refundedItems: fullTx.refunded_items && Array.isArray(fullTx.refunded_items)
+          ? fullTx.refunded_items.map((item: any) => ({
+              name: item.name || 'Unknown',
+              size: item.size,
+              quantity: item.returnQuantity || item.quantity || 1,
+              amount: parseFloat(((item.pricePerUnit || item.price || 0) * (item.returnQuantity || item.quantity || 1) * 1.13).toFixed(2)),
+            }))
+          : undefined,
+        refundAmount: fullTx.refund_amount ? Number(fullTx.refund_amount) : undefined,
       });
 
       const win = window.open('', '_blank', 'width=300,height=600');
@@ -503,10 +535,10 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
           const customerName = getCustomerName(tx);
           const canVoid = tx.status === 'completed';
           const canRefund = tx.status === 'completed';
-          const canReturn = tx.status === 'completed';
+          const canReturn = tx.status === 'completed' || tx.status === 'partial_return';
 
           return (
-            <div key={tx.id} className={`bg-white rounded-xl border transition-all ${expanded ? 'border-zinc-300 shadow-md' : 'border-zinc-100 hover:border-zinc-200'}`}>
+            <div key={tx.id} className={`rounded-xl border transition-all ${tx.total_amount < 0 ? (expanded ? 'bg-red-50 border-red-200 shadow-md' : 'bg-red-50 border-red-100 hover:border-red-200') : (expanded ? 'bg-white border-zinc-300 shadow-md' : 'bg-white border-zinc-100 hover:border-zinc-200')}`}>
               {/* Row summary */}
               <div
                 className="flex items-center gap-4 p-4 cursor-pointer"
@@ -642,6 +674,46 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
                       <span className="text-[10px] text-purple-600 font-bold self-center">Partially returned</span>
                     )}
                   </div>
+
+                  {/* Fix MOP */}
+                  {editingMOP === tx.id ? (
+                    <div className="p-3 bg-zinc-50 rounded-lg border border-zinc-200 mt-2">
+                      <p className="text-xs text-zinc-500 mb-2 font-medium">Change Payment Method</p>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Other'].map(method => (
+                          <button
+                            key={method}
+                            onClick={() => setNewMOP(method)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${newMOP === method ? 'bg-[#b90014] text-white border-[#b90014]' : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400'}`}
+                          >
+                            {method}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => saveMOPChange(tx.id)}
+                          disabled={!newMOP}
+                          className="bg-zinc-800 disabled:bg-zinc-400 text-white text-xs px-4 py-1.5 rounded-lg font-medium"
+                        >
+                          Save Change
+                        </button>
+                        <button
+                          onClick={() => { setEditingMOP(null); setNewMOP(''); }}
+                          className="text-zinc-500 text-xs px-3 py-1.5 hover:text-zinc-700"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setEditingMOP(tx.id); setNewMOP(tx.method || ''); }}
+                      className="text-xs text-zinc-400 hover:text-zinc-600 mt-1"
+                    >
+                      ✏️ Fix MOP
+                    </button>
+                  )}
                 </div>
               )}
             </div>

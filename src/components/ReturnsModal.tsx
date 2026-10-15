@@ -27,6 +27,9 @@ interface Transaction {
   subtotal?: number;
   hst?: number;
   isTaxExempt?: boolean;
+  status?: string;
+  refunded_items?: any[];
+  refund_amount?: number;
 }
 
 type Step = 'lookup' | 'select-items' | 'choose-refund' | 'choose-payment-type' | 'confirm' | 'complete';
@@ -122,13 +125,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         return;
       }
 
-      if (data.status === 'partial_return') {
-        setError('This transaction has already been partially returned. Full returns cannot be processed again.');
-        setLoading(false);
-        return;
-      }
-
-      if (data.status !== 'completed') {
+      if (data.status !== 'completed' && data.status !== 'partial_return') {
         setError(`This transaction cannot be returned (status: ${data.status})`);
         setLoading(false);
         return;
@@ -201,13 +198,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         return;
       }
 
-      if (data.status === 'partial_return') {
-        setError('This transaction has already been partially returned');
-        setLoading(false);
-        return;
-      }
-
-      if (data.status !== 'completed') {
+      if (data.status !== 'completed' && data.status !== 'partial_return') {
         setError(`This transaction cannot be returned (status: ${data.status})`);
         setLoading(false);
         return;
@@ -225,15 +216,32 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
   const initializeReturnItems = (tx: Transaction) => {
     const items = Array.isArray(tx.items) ? tx.items : [];
-    const returnItems: ReturnItem[] = items.map((item, idx) => ({
-      id: `${item.id || idx}`,
-      name: item.name || 'Unknown Item',
-      size: item.size,
-      originalQuantity: item.quantity || 1,
-      returnQuantity: 0,
-      pricePerUnit: item.price || 0,
-      variantId: item.variantId,
-    }));
+    const alreadyRefunded = Array.isArray(tx.refunded_items) ? tx.refunded_items : [];
+
+    // Build map of already-returned quantity per item id
+    const returnedQtyMap = new Map<string, number>();
+    alreadyRefunded.forEach((r: any) => {
+      const key = String(r.id);
+      returnedQtyMap.set(key, (returnedQtyMap.get(key) || 0) + (r.returnQuantity || r.quantity || 1));
+    });
+
+    const returnItems: ReturnItem[] = items
+      .map((item, idx) => {
+        const key = `${item.id || idx}`;
+        const alreadyQty = returnedQtyMap.get(key) || 0;
+        const availableQty = Math.max(0, (item.quantity || 1) - alreadyQty);
+        return {
+          id: key,
+          name: item.name || 'Unknown Item',
+          size: item.size,
+          originalQuantity: availableQty,
+          returnQuantity: 0,
+          pricePerUnit: item.price || 0,
+          variantId: item.variantId,
+        };
+      })
+      .filter(item => item.originalQuantity > 0);
+
     setReturnItems(returnItems);
   };
 
@@ -348,6 +356,25 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           setCompletionData({ type: 'refund', amount: amounts.total, method: refundPaymentMethod || transaction.method });
         }
 
+        // Record RTN transaction in history
+        const rtnMethod = refundMethod === 'store-credit' ? 'Store Credit' : (refundPaymentMethod || transaction.method);
+        await supabase.from('transactions').insert({
+          method: rtnMethod,
+          payment_method: rtnMethod,
+          total_amount: -amounts.total,
+          customer_id: transaction.customer_id,
+          items: Array.isArray(transaction.items) ? transaction.items : [],
+          invoice_number: 'RTN-' + transaction.id.slice(0, 8),
+          status: 'completed',
+          created_at: new Date().toISOString(),
+        });
+        // Update original transaction with refund metadata
+        await supabase.from('transactions').update({
+          refund_amount: amounts.total,
+          refunded_items: Array.isArray(transaction.items) ? transaction.items : [],
+          refunded_at: new Date().toISOString(),
+        }).eq('id', transaction.id);
+
         setCurrentStep('complete');
         generateReturnReceipt(issuedSCCardNumber || undefined, true);
         setTimeout(() => { if (onComplete) onComplete(); }, 1500);
@@ -362,11 +389,15 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         return;
       }
 
-      // Determine if full or partial return
-      const totalOriginalQty = returnItems.reduce((sum, item) => sum + item.originalQuantity, 0);
-      const totalReturnedQty = selectedItems.reduce((sum, item) => sum + item.returnQuantity, 0);
-      const isFullReturn = totalReturnedQty === totalOriginalQty;
+      // Determine if all items (across all return sessions) are now returned
+      const allOriginalItems = Array.isArray(transaction.items) ? transaction.items : [];
+      const totalOriginalQty = allOriginalItems.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+      const existingRefunded = Array.isArray(transaction.refunded_items) ? transaction.refunded_items : [];
+      const existingRefundedQty = existingRefunded.reduce((sum: number, r: any) => sum + (r.returnQuantity || r.quantity || 1), 0);
+      const newReturnedQty = selectedItems.reduce((sum, item) => sum + item.returnQuantity, 0);
+      const isFullReturn = (existingRefundedQty + newReturnedQty) >= totalOriginalQty;
       const newTransactionStatus = isFullReturn ? 'returned' : 'partial_return';
+      const newRefundedItems = [...existingRefunded, ...selectedItems];
 
       // 1. Create return record
       const { data: returnRecord, error: returnError } = await supabase
@@ -395,6 +426,13 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         .update({ status: newTransactionStatus })
         .eq('id', transaction.id);
       if (statusError) console.error('ERROR: [Returns] Error updating status:', statusError);
+
+      // Update original transaction with accumulated refund metadata
+      await supabase.from('transactions').update({
+        refund_amount: (transaction.refund_amount || 0) + amounts.total,
+        refunded_items: newRefundedItems,
+        refunded_at: new Date().toISOString(),
+      }).eq('id', transaction.id);
 
       // 2. Restore inventory
       for (const item of selectedItems) {
@@ -452,6 +490,18 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         issuedSCCardNumber = scData.card_number;
         setIssuedStoreCreditCardNumber(scData.card_number);
 
+        // Record RTN transaction in history
+        await supabase.from('transactions').insert({
+          method: 'Store Credit',
+          payment_method: 'Store Credit',
+          total_amount: -amounts.total,
+          customer_id: transaction.customer_id,
+          items: selectedItems,
+          invoice_number: 'RTN-' + transaction.id.slice(0, 8),
+          status: 'completed',
+          created_at: new Date().toISOString(),
+        });
+
         setCompletionData({
           type: 'store-credit',
           returnId: returnRecord.id,
@@ -461,14 +511,14 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         });
       } else {
         // Refund to original payment method
-        // Create refund audit record
+        // Record RTN transaction in history (negative amount, actual refund MOP)
         await supabase.from('transactions').insert({
-          type: 'refund',
-          original_transaction_id: transaction.id,
-          method: transaction.method,
-          total_amount: amounts.total,
+          method: refundPaymentMethod || transaction.method,
+          payment_method: refundPaymentMethod || transaction.method,
+          total_amount: -amounts.total,
           customer_id: transaction.customer_id,
           items: selectedItems,
+          invoice_number: 'RTN-' + transaction.id.slice(0, 8),
           status: 'completed',
           created_at: new Date().toISOString(),
         });
@@ -558,17 +608,11 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
     const returnHtml = generateThermalReceiptHTML(returnReceiptData);
 
-    // Open and print the return receipt
-    const returnWin = window.open('', '_blank');
-    if (returnWin) {
-      returnWin.document.write(returnHtml);
-      returnWin.document.close();
-    }
+    printInIframe(returnHtml);
 
     // If store credit, print SC receipt as second receipt after delay
     if (refundMethod === 'store-credit' && scCardNumber) {
       setTimeout(() => {
-
         const scReceiptData: any = {
           customerName,
           storeCreditCardNumber: scCardNumber,
@@ -580,17 +624,30 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           createdAt: new Date(),
         };
 
-
         const scHtml = generateStoreCreditReceiptHTML(scReceiptData);
-
-        // Open and print the SC receipt
-        const scWin = window.open('', '_blank');
-        if (scWin) {
-          scWin.document.write(scHtml);
-          scWin.document.close();
-        }
+        printInIframe(scHtml);
       }, 1500); // Delay so return receipt prints first
     }
+  };
+
+  const printInIframe = (html: string) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    iframe.onload = function() {
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        }, 1000);
+      }, 500);
+    };
   };
 
   const handleReset = () => {
