@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Search, AlertCircle, Check, ChevronRight, Package, Undo2 } from 'lucide-react';
+import { X, AlertCircle, Check, ChevronRight, Undo2, ArrowLeftRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../supabase';
 import { useCustomers } from '../context/CustomerContext';
@@ -32,7 +32,18 @@ interface Transaction {
   refund_amount?: number;
 }
 
-type Step = 'lookup' | 'select-items' | 'choose-refund' | 'choose-payment-type' | 'confirm' | 'complete';
+type Step =
+  | 'lookup'
+  | 'mode-select'
+  | 'select-items'
+  | 'choose-refund'
+  | 'choose-payment-type'
+  | 'confirm'
+  | 'complete'
+  | 'exchange-select'
+  | 'exchange-scan'
+  | 'exchange-confirm'
+  | 'exchange-complete';
 
 interface ReturnsModalProps {
   isOpen: boolean;
@@ -55,8 +66,10 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 }) => {
   const { customers } = useCustomers();
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const exchangeScanRef = useRef<HTMLInputElement>(null);
+
   const [currentStep, setCurrentStep] = useState<Step>(
-    mode === 'refund' ? 'choose-refund' : (prefilledTransactionId ? 'select-items' : 'lookup')
+    mode === 'refund' ? 'choose-refund' : (prefilledTransactionId ? 'mode-select' : 'lookup')
   );
   const [invoiceInput, setInvoiceInput] = useState(prefilledTransactionId || '');
   const [transaction, setTransaction] = useState<Transaction | null>(null);
@@ -68,6 +81,18 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
   const [processing, setProcessing] = useState(false);
   const [completionData, setCompletionData] = useState<any>(null);
   const [issuedStoreCreditCardNumber, setIssuedStoreCreditCardNumber] = useState<string | null>(null);
+
+  // Exchange-specific state
+  const [exchangeFromItem, setExchangeFromItem] = useState<ReturnItem | null>(null);
+  const [exchangeScanInput, setExchangeScanInput] = useState('');
+  const [exchangeToVariant, setExchangeToVariant] = useState<any | null>(null);
+  const [exchangeSearching, setExchangeSearching] = useState(false);
+  const [exchangeError, setExchangeError] = useState<string | null>(null);
+  const [exchangePriceDiff, setExchangePriceDiff] = useState(0);
+  const [scanMode, setScanMode] = useState<'barcode' | 'search'>('barcode');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const exchangeSearchRef = useRef<HTMLInputElement>(null);
 
   // Refund mode: set transaction directly from prop
   useEffect(() => {
@@ -87,7 +112,13 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     if (isOpen && currentStep === 'lookup') {
       setTimeout(() => barcodeInputRef.current?.focus(), 100);
     }
-  }, [isOpen, currentStep]);
+    if (isOpen && currentStep === 'exchange-scan') {
+      setTimeout(() => {
+        if (scanMode === 'barcode') exchangeScanRef.current?.focus();
+        else exchangeSearchRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen, currentStep, scanMode]);
 
   const loadTransactionByIdDirect = async (txId: string) => {
     setLoading(true);
@@ -106,7 +137,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         return;
       }
 
-      // Check status AFTER finding the record
       if (data.status === 'voided') {
         setError('This transaction has been voided and cannot be returned.');
         setLoading(false);
@@ -133,7 +163,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
       setTransaction(data);
       initializeReturnItems(data);
-      setCurrentStep('select-items');
+      setCurrentStep('mode-select');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error looking up invoice');
     } finally {
@@ -152,7 +182,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     setError(null);
 
     try {
-      // Detect format: UUID (UUID will be 36 chars), INV-XXXXX, or just XXXXX
       const isUUID = input.length === 36 && input.includes('-') && !input.startsWith('INV-');
       if (isUUID) {
         setError('Error: Please scan the invoice barcode, not the transaction UUID');
@@ -160,11 +189,9 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         return;
       }
 
-      // Normalize invoice number
       const normalizedInvoice = input.startsWith('INV-')
         ? input
         : 'INV-' + input.padStart(5, '0');
-
 
       const { data, error } = await supabase
         .from('transactions')
@@ -172,14 +199,12 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         .eq('invoice_number', normalizedInvoice)
         .maybeSingle();
 
-
       if (!data) {
         setError(`Invoice ${normalizedInvoice} not found`);
         setLoading(false);
         return;
       }
 
-      // Check status AFTER finding the record
       if (data.status === 'voided') {
         setError('This transaction has been voided');
         setLoading(false);
@@ -206,7 +231,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
       setTransaction(data);
       initializeReturnItems(data);
-      setCurrentStep('select-items');
+      setCurrentStep('mode-select');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error looking up invoice');
     } finally {
@@ -218,14 +243,13 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     const items = Array.isArray(tx.items) ? tx.items : [];
     const alreadyRefunded = Array.isArray(tx.refunded_items) ? tx.refunded_items : [];
 
-    // Build map of already-returned quantity per item id
     const returnedQtyMap = new Map<string, number>();
     alreadyRefunded.forEach((r: any) => {
       const key = String(r.id);
       returnedQtyMap.set(key, (returnedQtyMap.get(key) || 0) + (r.returnQuantity || r.quantity || 1));
     });
 
-    const returnItems: ReturnItem[] = items
+    const items2: ReturnItem[] = items
       .map((item, idx) => {
         const key = `${item.id || idx}`;
         const alreadyQty = returnedQtyMap.get(key) || 0;
@@ -242,7 +266,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       })
       .filter(item => item.originalQuantity > 0);
 
-    setReturnItems(returnItems);
+    setReturnItems(items2);
   };
 
   const updateReturnQuantity = (itemId: string, qty: number) => {
@@ -285,16 +309,12 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
     const selectedItems = getSelectedItems();
     let subtotal = 0;
-
     selectedItems.forEach(item => {
       subtotal += item.pricePerUnit * item.returnQuantity;
     });
 
-    // Calculate proportional tax
     const originalSubtotal = transaction.subtotal || transaction.total_amount / 1.13;
     const originalTax = transaction.hst || transaction.total_amount - originalSubtotal;
-
-    // Tax as percentage
     const taxRate = originalSubtotal > 0 ? originalTax / originalSubtotal : 0.13;
     const tax = transaction.isTaxExempt ? 0 : subtotal * taxRate;
 
@@ -308,11 +328,248 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
   const handleRefundMethodSelect = (method: 'store-credit' | 'original-payment') => {
     setRefundMethod(method);
     if (method === 'original-payment') {
-      setRefundPaymentMethod(null); // clear any prior selection
+      setRefundPaymentMethod(null);
       setCurrentStep('choose-payment-type');
     } else {
       setCurrentStep('confirm');
     }
+  };
+
+  // EXCHANGE: look up replacement item by barcode
+  const lookupExchangeVariant = async () => {
+    const barcode = exchangeScanInput.trim();
+    if (!barcode) return;
+
+    setExchangeSearching(true);
+    setExchangeError(null);
+
+    try {
+      const { data: exact } = await supabase
+        .from('product_variants')
+        .select('*, products(*)')
+        .eq('barcode', barcode)
+        .maybeSingle();
+
+      let variantData = exact;
+      if (!variantData) {
+        const { data: fuzzy } = await supabase
+          .from('product_variants')
+          .select('*, products(*)')
+          .ilike('barcode', barcode)
+          .maybeSingle();
+        variantData = fuzzy;
+      }
+
+      if (!variantData) {
+        setExchangeError(`No product found for barcode: ${barcode}`);
+        return;
+      }
+
+      setExchangeToVariant(variantData);
+
+      if (exchangeFromItem) {
+        const newPrice = variantData.products?.price || 0;
+        const oldPrice = exchangeFromItem.pricePerUnit;
+        const taxMult = transaction?.isTaxExempt ? 1 : 1.13;
+        const diff = parseFloat(((newPrice - oldPrice) * taxMult).toFixed(2));
+        setExchangePriceDiff(diff);
+      }
+
+      setCurrentStep('exchange-confirm');
+    } catch (err) {
+      setExchangeError(err instanceof Error ? err.message : 'Error looking up item');
+    } finally {
+      setExchangeSearching(false);
+    }
+  };
+
+  // EXCHANGE: search products by name or product code
+  const searchProducts = async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, price, product_code, product_variants(id, size, color, stock_quantity, barcode)')
+        .or(`name.ilike.%${query}%,product_code.ilike.%${query}%`)
+        .limit(8);
+      setSearchResults(data || []);
+    } catch {
+      // silently ignore search errors
+    }
+  };
+
+  // EXCHANGE: select replacement from search results
+  const selectReplacementProduct = (product: any, variant: any) => {
+    const variantObj = {
+      id: variant.id,
+      size: variant.size,
+      color: variant.color,
+      stock_quantity: variant.stock_quantity,
+      barcode: variant.barcode,
+      products: {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+      },
+    };
+    setExchangeToVariant(variantObj);
+
+    if (exchangeFromItem) {
+      const newPrice = product.price || 0;
+      const oldPrice = exchangeFromItem.pricePerUnit;
+      const taxMult = transaction?.isTaxExempt ? 1 : 1.13;
+      const diff = parseFloat(((newPrice - oldPrice) * taxMult).toFixed(2));
+      setExchangePriceDiff(diff);
+    }
+
+    setCurrentStep('exchange-confirm');
+  };
+
+  // EXCHANGE: complete the exchange
+  const handleCompleteExchange = async () => {
+    if (!transaction || !exchangeFromItem || !exchangeToVariant) return;
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      // 1. Restore old item inventory
+      if (exchangeFromItem.variantId) {
+        const { data: oldVariant } = await supabase
+          .from('product_variants')
+          .select('stock_quantity')
+          .eq('id', exchangeFromItem.variantId)
+          .single();
+        if (oldVariant) {
+          await supabase.from('product_variants')
+            .update({ stock_quantity: (oldVariant.stock_quantity || 0) + 1 })
+            .eq('id', exchangeFromItem.variantId);
+        }
+      }
+
+      // 2. Reduce new item inventory
+      const { data: newVariantRow } = await supabase
+        .from('product_variants')
+        .select('stock_quantity')
+        .eq('id', exchangeToVariant.id)
+        .single();
+      if (newVariantRow) {
+        await supabase.from('product_variants')
+          .update({ stock_quantity: Math.max(0, (newVariantRow.stock_quantity || 0) - 1) })
+          .eq('id', exchangeToVariant.id);
+      }
+
+      // 3. Update original transaction status
+      const existingRefunded = Array.isArray(transaction.refunded_items) ? transaction.refunded_items : [];
+      const exchangedEntry = { ...exchangeFromItem, returnQuantity: 1, exchanged: true };
+      const newRefundedItems = [...existingRefunded, exchangedEntry];
+
+      const allOriginalItems = Array.isArray(transaction.items) ? transaction.items : [];
+      const totalOriginalQty = allOriginalItems.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+      const newReturnedQty = newRefundedItems.reduce((sum: number, r: any) => sum + (r.returnQuantity || 1), 0);
+      const isFullExchange = newReturnedQty >= totalOriginalQty;
+
+      await supabase.from('transactions').update({
+        status: isFullExchange ? 'returned' : 'partial_return',
+        refunded_items: newRefundedItems,
+        refunded_at: new Date().toISOString(),
+      }).eq('id', transaction.id);
+
+      // 4. Insert returns record
+      await supabase.from('returns').insert({
+        transaction_id: transaction.id,
+        customer_id: transaction.customer_id,
+        refund_method: 'exchange',
+        items: [{ ...exchangeFromItem, returnQuantity: 1 }],
+        refund_amount: exchangePriceDiff,
+        status: 'completed',
+        created_at: new Date().toISOString(),
+      });
+
+      // 5. Record exchange transaction in history
+      const newProduct = exchangeToVariant.products;
+      await supabase.from('transactions').insert({
+        method: 'Exchange',
+        payment_method: 'Exchange',
+        total_amount: exchangePriceDiff,
+        customer_id: transaction.customer_id,
+        items: [{
+          name: newProduct?.name || 'Unknown',
+          size: exchangeToVariant.size,
+          quantity: 1,
+          price: newProduct?.price || 0,
+          variantId: exchangeToVariant.id,
+        }],
+        invoice_number: 'EXC-' + transaction.id.slice(0, 8),
+        status: 'completed',
+        created_at: new Date().toISOString(),
+      });
+
+      setCompletionData({
+        type: 'exchange',
+        fromItem: exchangeFromItem,
+        toItem: {
+          name: newProduct?.name || 'Unknown',
+          size: exchangeToVariant.size,
+          price: newProduct?.price || 0,
+        },
+        priceDiff: exchangePriceDiff,
+      });
+
+      setCurrentStep('exchange-complete');
+      generateExchangeReceipt();
+      if (onComplete) setTimeout(onComplete, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error processing exchange');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const generateExchangeReceipt = () => {
+    if (!transaction || !exchangeFromItem || !exchangeToVariant) return;
+
+    const newProduct = exchangeToVariant.products;
+    const customerName = transaction.customers
+      ? `${transaction.customers.first_name} ${transaction.customers.last_name}`
+      : 'Walk-in';
+
+    const receiptData: any = {
+      transactionId: transaction.id,
+      invoiceNumber: 'EXC-' + transaction.id.slice(0, 8),
+      barcodeValue: transaction.invoice_number,
+      customerName,
+      items: [
+        {
+          name: `${exchangeFromItem.name} (Returned)`,
+          quantity: 1,
+          price: -exchangeFromItem.pricePerUnit,
+          size: exchangeFromItem.size,
+        },
+        {
+          name: `${newProduct?.name || 'New Item'} (Exchange)`,
+          quantity: 1,
+          price: newProduct?.price || 0,
+          size: exchangeToVariant.size,
+        },
+      ],
+      subtotal: parseFloat((exchangePriceDiff / 1.13).toFixed(2)),
+      hst: parseFloat((exchangePriceDiff - exchangePriceDiff / 1.13).toFixed(2)),
+      total: exchangePriceDiff,
+      paymentMethod:
+        exchangePriceDiff > 0
+          ? 'Exchange (Difference Owed)'
+          : exchangePriceDiff < 0
+          ? 'Exchange (Difference Refunded)'
+          : 'Even Exchange',
+      createdAt: new Date(),
+      status: 'exchange',
+    };
+
+    printInIframe(generateThermalReceiptHTML(receiptData));
   };
 
   const handleCompleteReturn = async () => {
@@ -322,7 +579,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     setError(null);
 
     try {
-
       let issuedSCCardNumber: string | null = null;
       const amounts = calculateReturnAmount();
 
@@ -356,7 +612,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           setCompletionData({ type: 'refund', amount: amounts.total, method: refundPaymentMethod || transaction.method });
         }
 
-        // Record RTN transaction in history
         const rtnMethod = refundMethod === 'store-credit' ? 'Store Credit' : (refundPaymentMethod || transaction.method);
         await supabase.from('transactions').insert({
           method: rtnMethod,
@@ -368,7 +623,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           status: 'completed',
           created_at: new Date().toISOString(),
         });
-        // Update original transaction with refund metadata
         await supabase.from('transactions').update({
           refund_amount: amounts.total,
           refunded_items: Array.isArray(transaction.items) ? transaction.items : [],
@@ -389,7 +643,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         return;
       }
 
-      // Determine if all items (across all return sessions) are now returned
       const allOriginalItems = Array.isArray(transaction.items) ? transaction.items : [];
       const totalOriginalQty = allOriginalItems.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
       const existingRefunded = Array.isArray(transaction.refunded_items) ? transaction.refunded_items : [];
@@ -427,7 +680,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         .eq('id', transaction.id);
       if (statusError) console.error('ERROR: [Returns] Error updating status:', statusError);
 
-      // Update original transaction with accumulated refund metadata
       await supabase.from('transactions').update({
         refund_amount: (transaction.refund_amount || 0) + amounts.total,
         refunded_items: newRefundedItems,
@@ -455,7 +707,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
       // 3. Process refund based on method
       if (refundMethod === 'store-credit') {
-        // Issue store credit via Supabase
         const { data: scData, error: scError } = await supabase
           .from('store_credits')
           .insert([{
@@ -474,8 +725,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           throw new Error('Failed to create store credit');
         }
 
-
-        // Update returns record with store_credit_id
         const { error: updateReturnError } = await supabase
           .from('returns')
           .update({ store_credit_id: scData.id })
@@ -483,14 +732,11 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
         if (updateReturnError) {
           console.error('ERROR: [Returns] Error updating return with store_credit_id:', updateReturnError);
-        } else {
         }
 
-        // Store the SC card number for the receipt
         issuedSCCardNumber = scData.card_number;
         setIssuedStoreCreditCardNumber(scData.card_number);
 
-        // Record RTN transaction in history
         await supabase.from('transactions').insert({
           method: 'Store Credit',
           payment_method: 'Store Credit',
@@ -510,8 +756,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           cardNumber: scData.card_number,
         });
       } else {
-        // Refund to original payment method
-        // Record RTN transaction in history (negative amount, actual refund MOP)
         await supabase.from('transactions').insert({
           method: refundPaymentMethod || transaction.method,
           payment_method: refundPaymentMethod || transaction.method,
@@ -523,9 +767,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           created_at: new Date().toISOString(),
         });
 
-        // If original payment was Gift Card or Store Credit, restore balance
         if (transaction.method === 'Gift Card') {
-          // Find and restore gift card
           const gcItem = transaction.items.find((i: any) => i.type === 'gift_card');
           if (gcItem) {
             const { data: gc } = await supabase
@@ -538,17 +780,10 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
               const newBalance = (gc.current_balance || 0) + amounts.total;
               await supabase
                 .from('gift_cards')
-                .update({
-                  current_balance: newBalance,
-                  is_active: newBalance > 0,
-                })
+                .update({ current_balance: newBalance, is_active: newBalance > 0 })
                 .eq('id', gc.id);
             }
           }
-        } else if (transaction.method === 'Store Credit') {
-          // Find and restore store credit
-          // This would be the reference to the original SC used
-          // For now, we'd need to track which SC was used in the transaction
         }
 
         setCompletionData({
@@ -561,14 +796,12 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
       setCurrentStep('complete');
       generateReturnReceipt(issuedSCCardNumber || undefined);
-      // Call onComplete callback if provided (for customer profile refresh)
       setTimeout(() => {
         if (onComplete) onComplete();
       }, 1500);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : JSON.stringify(err);
       console.error('ERROR [Returns] ERROR:', errorMsg);
-      console.error('ERROR [Returns] Full error object:', err);
       setError(err instanceof Error ? err.message : 'Error processing return');
     } finally {
       setProcessing(false);
@@ -607,10 +840,8 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     };
 
     const returnHtml = generateThermalReceiptHTML(returnReceiptData);
-
     printInIframe(returnHtml);
 
-    // If store credit, print SC receipt as second receipt after delay
     if (refundMethod === 'store-credit' && scCardNumber) {
       setTimeout(() => {
         const scReceiptData: any = {
@@ -623,10 +854,8 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           invoiceNumber: undefined,
           createdAt: new Date(),
         };
-
-        const scHtml = generateStoreCreditReceiptHTML(scReceiptData);
-        printInIframe(scHtml);
-      }, 1500); // Delay so return receipt prints first
+        printInIframe(generateStoreCreditReceiptHTML(scReceiptData));
+      }, 1500);
     }
   };
 
@@ -639,7 +868,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     doc.open();
     doc.write(html);
     doc.close();
-    iframe.onload = function() {
+    iframe.onload = function () {
       setTimeout(() => {
         iframe.contentWindow?.focus();
         iframe.contentWindow?.print();
@@ -651,7 +880,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
   };
 
   const handleReset = () => {
-    setCurrentStep(mode === 'refund' ? 'choose-refund' : (prefilledTransactionId ? 'select-items' : 'lookup'));
+    setCurrentStep(mode === 'refund' ? 'choose-refund' : (prefilledTransactionId ? 'mode-select' : 'lookup'));
     setInvoiceInput(prefilledTransactionId || '');
     setTransaction(null);
     setReturnItems([]);
@@ -660,6 +889,14 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     setError(null);
     setCompletionData(null);
     setIssuedStoreCreditCardNumber(null);
+    setExchangeFromItem(null);
+    setExchangeScanInput('');
+    setExchangeToVariant(null);
+    setExchangeError(null);
+    setExchangePriceDiff(0);
+    setScanMode('barcode');
+    setSearchQuery('');
+    setSearchResults([]);
   };
 
   const handleClose = () => {
@@ -671,6 +908,22 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
   const amounts = calculateReturnAmount();
   const selectedItemsCount = getSelectedItems().length;
+
+  const headerSubtitle = (() => {
+    switch (currentStep) {
+      case 'lookup': return 'Find the original invoice';
+      case 'mode-select': return 'Return or exchange?';
+      case 'select-items': return 'Select items to return';
+      case 'choose-refund': return 'Choose refund method';
+      case 'choose-payment-type': return 'How will refund be given?';
+      case 'confirm': return 'Review and confirm';
+      case 'complete': return mode === 'refund' ? 'Refund processed' : 'Return processed';
+      case 'exchange-select': return 'Select item to exchange';
+      case 'exchange-scan': return 'Scan replacement item';
+      case 'exchange-confirm': return 'Review exchange';
+      case 'exchange-complete': return 'Exchange complete';
+    }
+  })();
 
   return (
     <AnimatePresence>
@@ -686,15 +939,8 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
             <div className="flex items-center gap-3">
               <Undo2 size={24} />
               <div>
-                <h2 className="font-bold text-lg">{mode === 'refund' ? 'Process Refund' : 'Process Return'}</h2>
-                <p className="text-sm opacity-90">
-                  {currentStep === 'lookup' && 'Find the original invoice'}
-                  {currentStep === 'select-items' && 'Select items to return'}
-                  {currentStep === 'choose-refund' && 'Choose refund method'}
-                  {currentStep === 'choose-payment-type' && 'How will refund be given?'}
-                  {currentStep === 'confirm' && 'Review and confirm'}
-                  {currentStep === 'complete' && (mode === 'refund' ? 'Refund processed' : 'Return processed')}
-                </p>
+                <h2 className="font-bold text-lg">{mode === 'refund' ? 'Process Refund' : 'Process Return / Exchange'}</h2>
+                <p className="text-sm opacity-90">{headerSubtitle}</p>
               </div>
             </div>
             <button onClick={handleClose} className="p-2 hover:bg-white/20 rounded-lg transition">
@@ -704,6 +950,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
+
             {/* STEP 1: LOOKUP INVOICE */}
             {currentStep === 'lookup' && (
               <div className="space-y-4">
@@ -744,10 +991,66 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
               </div>
             )}
 
-            {/* STEP 2: SELECT ITEMS */}
+            {/* MODE SELECTOR */}
+            {currentStep === 'mode-select' && transaction && (
+              <div className="space-y-4">
+                {/* Transaction summary */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-gray-500">Invoice #</p>
+                      <p className="font-mono font-bold text-gray-900">{transaction.invoice_number || transaction.id.slice(0, 8)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Date</p>
+                      <p className="font-bold text-gray-900">{new Date(transaction.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Payment</p>
+                      <p className="font-bold text-gray-900">{transaction.method}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Total</p>
+                      <p className="font-bold text-gray-900">${transaction.total_amount.toFixed(2)}</p>
+                    </div>
+                  </div>
+                  {transaction.customers && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 text-sm">
+                      <p className="text-gray-500">Customer</p>
+                      <p className="font-bold text-gray-900">
+                        {transaction.customers.first_name} {transaction.customers.last_name}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <h3 className="font-semibold text-gray-800 text-center mt-2">What would you like to do?</h3>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setCurrentStep('select-items')}
+                    className="flex flex-col items-center gap-2 border-2 border-gray-200 rounded-xl p-6 hover:border-blue-400 hover:bg-blue-50 transition"
+                  >
+                    <span className="text-3xl">↩️</span>
+                    <span className="font-bold text-gray-900">Return Items</span>
+                    <span className="text-xs text-gray-400 text-center">Refund to customer</span>
+                  </button>
+
+                  <button
+                    onClick={() => setCurrentStep('exchange-select')}
+                    className="flex flex-col items-center gap-2 border-2 border-gray-200 rounded-xl p-6 hover:border-purple-400 hover:bg-purple-50 transition"
+                  >
+                    <span className="text-3xl">↔️</span>
+                    <span className="font-bold text-gray-900">Exchange Item</span>
+                    <span className="text-xs text-gray-400 text-center">Swap for different item</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* RETURN: STEP 2: SELECT ITEMS */}
             {currentStep === 'select-items' && transaction && (
               <div className="space-y-4">
-                {/* Transaction Summary */}
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
@@ -777,7 +1080,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                   )}
                 </div>
 
-                {/* Items Checklist */}
                 <div className="space-y-3">
                   <h3 className="font-semibold text-black">Items Purchased</h3>
                   {returnItems.map((item) => {
@@ -852,7 +1154,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                   })}
                 </div>
 
-                {/* Return Total */}
                 {selectedItemsCount > 0 && (
                   <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="space-y-2 text-sm">
@@ -874,14 +1175,12 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
               </div>
             )}
 
-            {/* STEP 3: CHOOSE REFUND METHOD */}
+            {/* RETURN: STEP 3: CHOOSE REFUND METHOD */}
             {currentStep === 'choose-refund' && transaction && (
               <div className="space-y-4">
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-4">How would you like to process this {mode === 'refund' ? 'refund' : 'return'}?</h3>
-
                   <div className="space-y-3">
-                    {/* Store Credit Option */}
                     <button
                       onClick={() => handleRefundMethodSelect('store-credit')}
                       className="w-full p-4 rounded-lg border-2 border-blue-300 hover:border-blue-500 hover:bg-blue-50 transition text-left"
@@ -899,7 +1198,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                       </div>
                     </button>
 
-                    {/* Refund to Original Payment Option */}
                     <button
                       onClick={() => handleRefundMethodSelect('original-payment')}
                       className="w-full p-4 rounded-lg border-2 border-green-300 hover:border-green-500 hover:bg-green-50 transition text-left"
@@ -925,7 +1223,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
               </div>
             )}
 
-            {/* STEP 3b: CHOOSE PAYMENT TYPE (only when Original Payment selected) */}
+            {/* RETURN: STEP 3b: CHOOSE PAYMENT TYPE */}
             {currentStep === 'choose-payment-type' && transaction && (
               <div className="space-y-4">
                 <div>
@@ -956,12 +1254,11 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
               </div>
             )}
 
-            {/* STEP 4: CONFIRMATION */}
+            {/* RETURN: STEP 4: CONFIRMATION */}
             {currentStep === 'confirm' && transaction && refundMethod && (
               <div className="space-y-4">
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <h3 className="font-semibold text-gray-900 mb-3">Return Summary</h3>
-
                   <div className="space-y-3 text-sm">
                     <div>
                       <p className="text-gray-600">Items</p>
@@ -973,7 +1270,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                         ))}
                       </ul>
                     </div>
-
                     <div className="border-t border-gray-200 pt-3">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Subtotal</span>
@@ -988,7 +1284,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                         <span className="text-blue-600">${amounts.total.toFixed(2)}</span>
                       </div>
                     </div>
-
                     <div className="border-t border-gray-200 pt-3">
                       <p className="text-gray-600">Refund Method</p>
                       <p className="font-semibold text-gray-900 mt-1">
@@ -1009,8 +1304,250 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
               </div>
             )}
 
-            {/* STEP 5: COMPLETE */}
-            {currentStep === 'complete' && completionData && (
+            {/* EXCHANGE: STEP 1 — SELECT ITEM */}
+            {currentStep === 'exchange-select' && transaction && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">Select the item the customer is bringing back:</p>
+                <div className="space-y-3">
+                  {returnItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setExchangeFromItem({ ...item, returnQuantity: 1 });
+                        setExchangeScanInput('');
+                        setExchangeToVariant(null);
+                        setExchangeError(null);
+                        setCurrentStep('exchange-scan');
+                      }}
+                      className={`w-full p-4 border-2 rounded-lg text-left transition hover:border-purple-400 hover:bg-purple-50 ${
+                        exchangeFromItem?.id === item.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-semibold text-gray-900">{item.name}</p>
+                          {item.size && <p className="text-sm text-gray-600">Size: {item.size}</p>}
+                          <p className="text-sm text-gray-500 mt-1">${item.pricePerUnit.toFixed(2)} + tax</p>
+                        </div>
+                        <ChevronRight className="text-purple-400" size={20} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* EXCHANGE: STEP 2 — SCAN / SEARCH NEW ITEM */}
+            {currentStep === 'exchange-scan' && exchangeFromItem && (
+              <div className="space-y-4">
+                {/* Returning item pill */}
+                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-sm">
+                  <p className="text-purple-700 font-semibold">Returning:</p>
+                  <p className="text-purple-900 font-bold">
+                    {exchangeFromItem.name}{exchangeFromItem.size ? ` — Size ${exchangeFromItem.size}` : ''}
+                  </p>
+                  <p className="text-purple-600">${exchangeFromItem.pricePerUnit.toFixed(2)} + tax</p>
+                </div>
+
+                {/* Mode toggle */}
+                <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => { setScanMode('barcode'); setExchangeError(null); }}
+                    className={`flex-1 py-2 text-sm font-medium transition ${
+                      scanMode === 'barcode' ? 'bg-zinc-800 text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50'
+                    }`}
+                  >
+                    📷 Scan Barcode
+                  </button>
+                  <button
+                    onClick={() => { setScanMode('search'); setExchangeError(null); }}
+                    className={`flex-1 py-2 text-sm font-medium transition ${
+                      scanMode === 'search' ? 'bg-zinc-800 text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50'
+                    }`}
+                  >
+                    🔍 Search Product
+                  </button>
+                </div>
+
+                {/* BARCODE mode */}
+                {scanMode === 'barcode' && (
+                  <div className="flex gap-2">
+                    <input
+                      ref={exchangeScanRef}
+                      type="text"
+                      value={exchangeScanInput}
+                      onChange={(e) => setExchangeScanInput(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && lookupExchangeVariant()}
+                      placeholder="Scan replacement item barcode"
+                      className="flex-1 px-4 py-3 border border-zinc-300 rounded-lg bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-500 focus:ring-2 focus:ring-purple-500 text-sm"
+                    />
+                    <button
+                      onClick={lookupExchangeVariant}
+                      disabled={exchangeSearching}
+                      className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition font-semibold"
+                    >
+                      {exchangeSearching ? 'Looking up...' : 'Look Up'}
+                    </button>
+                  </div>
+                )}
+
+                {/* SEARCH mode */}
+                {scanMode === 'search' && (
+                  <div>
+                    <input
+                      ref={exchangeSearchRef}
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        searchProducts(e.target.value);
+                      }}
+                      placeholder="Search by name or product code..."
+                      className="w-full px-4 py-3 border border-zinc-300 rounded-lg bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-500 focus:ring-2 focus:ring-purple-500 text-sm"
+                    />
+
+                    {searchResults.length > 0 && (
+                      <div className="mt-2 border border-gray-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+                        {searchResults.map((product: any) => {
+                          const inStockVariants = (product.product_variants || []).filter(
+                            (v: any) => v.stock_quantity > 0
+                          );
+                          if (inStockVariants.length === 0) return null;
+                          return inStockVariants.map((variant: any) => (
+                            <button
+                              key={variant.id}
+                              onClick={() => selectReplacementProduct(product, variant)}
+                              className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 border-b border-gray-100 last:border-b-0 text-left transition"
+                            >
+                              <div>
+                                <p className="font-medium text-sm text-zinc-900">{product.name}</p>
+                                <p className="text-xs text-zinc-400">
+                                  Size: {variant.size}{variant.color ? ` · ${variant.color}` : ''} · Stock: {variant.stock_quantity}
+                                </p>
+                              </div>
+                              <span className="font-bold text-zinc-900 ml-4 flex-shrink-0">
+                                ${Number(product.price).toFixed(2)}
+                              </span>
+                            </button>
+                          ));
+                        })}
+                      </div>
+                    )}
+
+                    {searchQuery.length >= 2 && searchResults.length === 0 && (
+                      <p className="mt-2 text-sm text-zinc-400 text-center">No products found</p>
+                    )}
+                  </div>
+                )}
+
+                {exchangeError && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 text-red-700">
+                    <AlertCircle size={20} />
+                    {exchangeError}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* EXCHANGE: STEP 3 — CONFIRM */}
+            {currentStep === 'exchange-confirm' && exchangeFromItem && exchangeToVariant && (
+              <div className="space-y-4">
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+                  <h3 className="font-semibold text-gray-900">Exchange Summary</h3>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
+                      <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Returning</p>
+                      <p className="font-bold text-gray-900">{exchangeFromItem.name}</p>
+                      {exchangeFromItem.size && <p className="text-gray-600">Size: {exchangeFromItem.size}</p>}
+                      <p className="text-gray-700 font-semibold mt-1">${(exchangeFromItem.pricePerUnit * 1.13).toFixed(2)}</p>
+                    </div>
+
+                    <ArrowLeftRight size={20} className="text-gray-400 flex-shrink-0" />
+
+                    <div className="flex-1 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                      <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Exchanging For</p>
+                      <p className="font-bold text-gray-900">{exchangeToVariant.products?.name || 'Unknown'}</p>
+                      {exchangeToVariant.size && <p className="text-gray-600">Size: {exchangeToVariant.size}</p>}
+                      <p className="text-gray-700 font-semibold mt-1">
+                        ${((exchangeToVariant.products?.price || 0) * 1.13).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-3">
+                    {exchangePriceDiff === 0 && (
+                      <p className="text-center font-bold text-green-700 text-lg">✓ Even Exchange — no payment needed</p>
+                    )}
+                    {exchangePriceDiff > 0 && (
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600">Price difference — collect from customer:</p>
+                        <p className="font-bold text-red-600 text-2xl mt-1">+${exchangePriceDiff.toFixed(2)}</p>
+                      </div>
+                    )}
+                    {exchangePriceDiff < 0 && (
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600">Price difference — refund to customer:</p>
+                        <p className="font-bold text-blue-600 text-2xl mt-1">${Math.abs(exchangePriceDiff).toFixed(2)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {exchangeToVariant.stock_quantity !== undefined && exchangeToVariant.stock_quantity < 1 && (
+                  <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg text-sm text-amber-700 flex items-center gap-2">
+                    <AlertCircle size={16} />
+                    <span>Warning: replacement item shows 0 stock in inventory</span>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 text-red-700">
+                    <AlertCircle size={20} />
+                    {error}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* EXCHANGE: STEP 4 — COMPLETE */}
+            {currentStep === 'exchange-complete' && completionData?.type === 'exchange' && (
+              <div className="space-y-4 text-center">
+                <div className="flex justify-center">
+                  <div className="rounded-full bg-green-100 p-6">
+                    <Check size={48} className="text-green-600" />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Exchange Complete</h3>
+                  <p className="text-gray-600 mt-2">
+                    {completionData.fromItem.name} → {completionData.toItem.name}
+                    {completionData.toItem.size ? ` (Size ${completionData.toItem.size})` : ''}
+                  </p>
+                  {completionData.priceDiff !== 0 && (
+                    <p className={`mt-2 font-bold text-lg ${completionData.priceDiff > 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                      {completionData.priceDiff > 0
+                        ? `Collected $${completionData.priceDiff.toFixed(2)} from customer`
+                        : `Refunded $${Math.abs(completionData.priceDiff).toFixed(2)} to customer`}
+                    </p>
+                  )}
+                </div>
+
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200 text-sm text-gray-900">
+                  <p className="font-semibold mb-2">What to do next:</p>
+                  <ul className="text-left space-y-1">
+                    <li>✓ Exchange receipt has been printed</li>
+                    <li>✓ Inventory updated (old item restored, new item deducted)</li>
+                    {completionData.priceDiff > 0 && <li>✓ Collect ${completionData.priceDiff.toFixed(2)} difference from customer</li>}
+                    {completionData.priceDiff < 0 && <li>✓ Return ${Math.abs(completionData.priceDiff).toFixed(2)} difference to customer</li>}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* RETURN/REFUND: STEP 5 — COMPLETE */}
+            {currentStep === 'complete' && completionData && completionData.type !== 'exchange' && (
               <div className="space-y-4 text-center">
                 <div className="flex justify-center">
                   <div className="rounded-full bg-green-100 p-6">
@@ -1045,12 +1582,13 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                       <li>✓ {transaction?.customer_id ? 'Store credit linked to customer account' : 'Note the SC card number from the receipt'}</li>
                     )}
                     {completionData.type === 'refund' && (
-                      <li>✓ {mode === 'refund' ? 'Refund recorded' : 'Refund will appear in customer\'s account within 1-2 business days'}</li>
+                      <li>✓ {mode === 'refund' ? 'Refund recorded' : "Refund will appear in customer's account within 1-2 business days"}</li>
                     )}
                   </ul>
                 </div>
               </div>
             )}
+
           </div>
 
           {/* Footer */}
@@ -1062,17 +1600,27 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
               Close
             </button>
 
-            {currentStep === 'lookup' && (
-              <div />
+            {currentStep === 'lookup' && <div />}
+
+            {currentStep === 'mode-select' && (
+              <button
+                onClick={() => {
+                  setTransaction(null);
+                  setCurrentStep('lookup');
+                }}
+                className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+              >
+                ← Back
+              </button>
             )}
 
             {currentStep === 'select-items' && (
               <div className="flex gap-2">
                 <button
-                  onClick={() => setCurrentStep('lookup')}
+                  onClick={() => setCurrentStep('mode-select')}
                   className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
                 >
-                  Back
+                  ← Back
                 </button>
                 <button
                   onClick={() => setCurrentStep('choose-refund')}
@@ -1089,7 +1637,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                 onClick={() => setCurrentStep('select-items')}
                 className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
               >
-                Back
+                ← Back
               </button>
             )}
 
@@ -1099,7 +1647,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                   onClick={() => setCurrentStep('choose-refund')}
                   className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
                 >
-                  Back
+                  ← Back
                 </button>
                 <button
                   onClick={() => setCurrentStep('confirm')}
@@ -1117,7 +1665,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                   onClick={() => setCurrentStep(refundMethod === 'original-payment' ? 'choose-payment-type' : 'choose-refund')}
                   className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
                 >
-                  Back
+                  ← Back
                 </button>
                 <button
                   onClick={handleCompleteReturn}
@@ -1135,6 +1683,52 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
               >
                 {mode === 'refund' ? 'Done' : 'Process Another Return'}
+              </button>
+            )}
+
+            {/* Exchange footer buttons */}
+            {currentStep === 'exchange-select' && (
+              <button
+                onClick={() => setCurrentStep('mode-select')}
+                className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+              >
+                ← Back
+              </button>
+            )}
+
+            {currentStep === 'exchange-scan' && (
+              <button
+                onClick={() => setCurrentStep('exchange-select')}
+                className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+              >
+                ← Back
+              </button>
+            )}
+
+            {currentStep === 'exchange-confirm' && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentStep('exchange-scan')}
+                  className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={handleCompleteExchange}
+                  disabled={processing}
+                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition font-semibold"
+                >
+                  {processing ? 'Processing...' : 'Complete Exchange'}
+                </button>
+              </div>
+            )}
+
+            {currentStep === 'exchange-complete' && (
+              <button
+                onClick={handleReset}
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold"
+              >
+                Process Another
               </button>
             )}
           </div>
