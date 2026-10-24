@@ -1,6 +1,6 @@
 ﻿import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useProducts, mapProductFromDb } from '../context/ProductContext';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '../supabase';
 import { ShoppingBag, ChevronRight, ChevronLeft, ShieldCheck, Store, RotateCcw, ChevronDown, CheckCircle2, AlertTriangle, Phone, MapPin } from 'lucide-react';
@@ -518,6 +518,23 @@ export function ProductDetailPage() {
     setImageMousePos({ x, y });
   };
 
+  const INVALID_COLOR_VALUES = new Set(['NA', 'N/A', 'none', 'null', 'undefined']);
+
+  // Merge JSONB color objects (with images) + any variant-only colors not already in JSONB
+  const allColors = useMemo(() => {
+    const fromJSONB = (product?.colors || []).filter(
+      (c: any) => c.name && c.name.trim() !== '' && !INVALID_COLOR_VALUES.has(c.name)
+    );
+    const jsonbNames = new Set(fromJSONB.map((c: any) => c.name as string));
+    const fromVariants = Array.from(new Set(
+      (variants || [])
+        .map((v: any) => v.color as string)
+        .filter((c: string) => c && c.trim() !== '' && !INVALID_COLOR_VALUES.has(c) && !jsonbNames.has(c))
+    )).map((name: string) => ({ name, images: [] as string[] }));
+    const merged = [...fromJSONB, ...fromVariants];
+    return merged;
+  }, [product?.colors, variants]);
+
   if (isPageLoading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
@@ -539,17 +556,7 @@ export function ProductDetailPage() {
   // Grouping sizes
   const uniqueAgeGroups = Array.from(new Set(variants.map(v => v.age_group))) as string[];
 
-  // Derive all available color names: from product.colors JSONB + from variant color field
-  const INVALID_COLOR_VALUES = new Set(['NA', 'N/A', 'none', 'null', 'undefined']);
-  const jsonbColorNames = (product.colors || [])
-    .map((c: any) => c.name as string)
-    .filter((n: string) => n && n.trim() !== '' && !INVALID_COLOR_VALUES.has(n));
-  const variantColorNames = Array.from(new Set(
-    variants
-      .filter((v: any) => v.color && !INVALID_COLOR_VALUES.has(v.color))
-      .map((v: any) => v.color as string)
-  ));
-  const allColorNames = Array.from(new Set([...jsonbColorNames, ...variantColorNames]));
+  const allColorNames = allColors.map((c: any) => c.name as string);
 
   // Sizes list based on active/fallback structures
   const shoeSizes = ['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '12.5', '13'];
@@ -757,7 +764,7 @@ export function ProductDetailPage() {
           </div>
 
           {/* Color Selection */}
-          {allColorNames.length > 0 && (
+          {allColors.length > 1 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Select Color</span>
@@ -767,22 +774,25 @@ export function ProductDetailPage() {
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap gap-3">
-                {variants.some((v: any) => !v.color || v.color === '' || INVALID_COLOR_VALUES.has(v.color)) && (
+              <div className="flex flex-wrap gap-2">
+                {allColors.map((color: any) => (
                   <button
-                    onClick={() => setSelectedColor(null)}
-                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === null ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-400 hover:border-zinc-200'}`}
+                    key={color.name}
+                    onClick={() => setSelectedColor(color.name)}
+                    className={`w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${selectedColor === color.name ? 'border-zinc-900' : 'border-zinc-200 hover:border-zinc-400'}`}
+                    title={color.name}
                   >
-                    Default
-                  </button>
-                )}
-                {allColorNames.map((colorName: string) => (
-                  <button
-                    key={colorName}
-                    onClick={() => setSelectedColor(selectedColor === colorName ? null : colorName)}
-                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedColor === colorName ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/5 text-[var(--primary-color)]' : 'border-zinc-100 text-zinc-600 hover:border-zinc-200'}`}
-                  >
-                    {colorName}
+                    {color.images?.[0] ? (
+                      <img
+                        src={color.images[0]}
+                        alt={color.name}
+                        className="w-full h-full object-contain bg-[#f6f6f6]"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-[#f6f6f6] flex items-center justify-center text-xs text-zinc-400 p-1 text-center leading-tight">
+                        {color.name}
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>

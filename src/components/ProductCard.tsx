@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Product, ColorVariant } from '../context/ProductContext';
 import { buildProductUrl } from '../utils/slugify';
 
@@ -11,17 +11,35 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = false, filteredSize, sizeVariants }) => {
+  const navigate = useNavigate();
   const [isHovered, setIsHovered] = React.useState(false);
   const [activeImage, setActiveImage] = React.useState<string | null>(null);
   const [activeColorIdx, setActiveColorIdx] = React.useState<number | null>(null);
   const [hoveredColor, setHoveredColor] = React.useState<ColorVariant | null>(null);
 
-  const allColors = ((product.colors || []) as any[]).filter((c: any) => typeof c === 'object' && c.name);
-  const visibleColorSet = new Set(allColors.filter((c: any) => (
-    (!filteredSize || sizeVariants?.some((v: any) => v.color === c.name && v.size === filteredSize)) &&
-    c.images?.length > 0
-  )));
-  const shouldShowSwatches = allColors.length > 1 && visibleColorSet.size > 0;
+  const INVALID_COLORS = new Set(['NA', 'N/A', 'none', 'null', 'undefined']);
+  const jsonbColors = ((product.colors || []) as any[]).filter((c: any) => typeof c === 'object' && c.name);
+  const variantColorNames = [...new Set(
+    (sizeVariants || [])
+      .map((v: any) => v.color as string)
+      .filter((c: string) => c && c.trim() !== '' && !INVALID_COLORS.has(c))
+  )];
+  // JSONB colors (with images) take priority; fall back to variant color names as text swatches
+  const allColors = jsonbColors.length > 0
+    ? jsonbColors
+    : variantColorNames.map((name: string) => ({ name, images: [] as string[] }));
+
+  const defaultColor = allColors.find((c: any) => c.isDefault) ?? allColors[0] ?? null;
+  const getSwatchImage = (color: any): string | null => {
+    if (color.images?.[0]) return color.images[0];
+    if (color.name === defaultColor?.name && product.image) return product.image;
+    return null;
+  };
+
+  const sizeFilteredColors = allColors.filter((c: any) =>
+    !filteredSize || sizeVariants?.some((v: any) => v.color === c.name && v.size === filteredSize)
+  );
+  const visibleColors = sizeFilteredColors.length > 1 ? sizeFilteredColors : [];
 
   const cardImage = (() => {
     if (!filteredSize || !sizeVariants) return product.image;
@@ -40,6 +58,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
   if (filteredSize) productLinkParams.set('size', filteredSize);
   const productLinkQs = productLinkParams.toString();
   const productLink = `${productUrl}${productLinkQs ? `?${productLinkQs}` : ''}`;
+
+  const navigateToColor = (color: any) => {
+    const colorIndex = (product.colors || []).findIndex((c: any) => c.name === color.name);
+    const params = new URLSearchParams();
+    if (colorIndex >= 0) params.set('color', String(colorIndex));
+    if (filteredSize) params.set('size', filteredSize);
+    const qs = params.toString();
+    navigate(`${productUrl}${qs ? `?${qs}` : ''}`);
+  };
 
   // Compute lowest price, considering color-specific sale prices
   const colorSalePrices = (product.colors || []).filter(c => c.salePrice).map(c => c.salePrice!);
@@ -94,26 +121,34 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isSoldOut = f
 
       {/* Always-rendered swatch area — fixed h-8 keeps all card titles aligned */}
       <div className="px-3 h-8 flex items-center relative z-20">
-        {shouldShowSwatches ? (
-          <div className="flex gap-2 overflow-x-auto no-scrollbar w-full">
-            {allColors.map((color, idx) => {
-              if (!visibleColorSet.has(color)) return null;
-              return (
-                <button
-                  key={idx}
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveImage(color.images[0] || null); setActiveColorIdx(idx); }}
-                  onMouseEnter={() => { setActiveImage(color.images[0] || null); setHoveredColor(color); }}
-                  onMouseLeave={() => setHoveredColor(null)}
-                  className={`w-7 h-7 flex-shrink-0 border-2 transition-all p-0.5 rounded-sm ${activeImage === (color.images[0] || '___none___') ? 'border-[var(--primary-color)]' : 'border-zinc-100 hover:border-zinc-200'}`}
+        {visibleColors.length > 1 ? (
+          <div className="flex gap-1 flex-wrap overflow-x-auto no-scrollbar w-full items-center">
+            {visibleColors.map((color: any) => {
+              const swatchImage = getSwatchImage(color);
+              const isActive = hoveredColor?.name === color.name || activeImage === swatchImage;
+              return swatchImage ? (
+                <img
+                  key={color.name}
+                  src={swatchImage}
+                  alt={color.name}
+                  onMouseEnter={() => { setActiveImage(swatchImage); setHoveredColor(color); }}
+                  onMouseLeave={() => { setActiveImage(null); setHoveredColor(null); }}
+                  onClick={() => navigateToColor(color)}
+                  className={`w-7 h-7 object-contain rounded border p-0.5 cursor-pointer transition-all ${isActive ? 'border-zinc-800' : 'border-zinc-200 bg-[#f6f6f6]'}`}
                   title={color.name}
-                  aria-label={`Show ${color.name} color`}
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <span
+                  key={color.name}
+                  onMouseEnter={() => setHoveredColor(color)}
+                  onMouseLeave={() => setHoveredColor(null)}
+                  onClick={() => navigateToColor(color)}
+                  className={`text-[10px] border rounded px-1.5 py-0.5 whitespace-nowrap cursor-pointer transition-all leading-none ${isActive ? 'border-zinc-800 bg-zinc-100 text-zinc-900' : 'border-zinc-200 bg-zinc-50 text-zinc-500'}`}
+                  title={color.name}
                 >
-                  {color.images[0] ? (
-                    <img src={color.images[0]} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt={color.name} />
-                  ) : (
-                    <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-[8px] text-zinc-600 uppercase">N/A</div>
-                  )}
-                </button>
+                  {color.name}
+                </span>
               );
             })}
           </div>

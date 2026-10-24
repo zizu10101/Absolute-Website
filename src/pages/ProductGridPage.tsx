@@ -248,6 +248,37 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     fetchSizes();
   }, [category, products.length, isLoading]);
 
+  // Fetch variant colors for non-footwear categories (for color swatch display on cards)
+  useEffect(() => {
+    if (category?.toLowerCase() === 'footwear') return; // footwear handled above
+    if (isLoading || products.length === 0) return;
+
+    const productIds = products.filter(p => p.is_online !== false).map(p => p.id);
+    if (productIds.length === 0) return;
+
+    const fetchColors = async () => {
+      const colorData = new Map<string, Array<{ color: string; size: string }>>();
+      const CHUNK = 200;
+      for (let i = 0; i < productIds.length; i += CHUNK) {
+        const chunk = productIds.slice(i, i + CHUNK);
+        const { data } = await supabase
+          .from('product_variants')
+          .select('product_id, color, size')
+          .in('product_id', chunk)
+          .gt('stock_quantity', 0);
+        if (!data) continue;
+        for (const { product_id, color, size } of data) {
+          if (!color) continue;
+          if (!colorData.has(product_id)) colorData.set(product_id, []);
+          colorData.get(product_id)!.push({ color, size: size || '' });
+        }
+      }
+      setProductVariantData(colorData);
+    };
+
+    fetchColors();
+  }, [category, products.length, isLoading]);
+
   // Fetch which show_sizes products have zero stock
   useEffect(() => {
     if (isLoading || products.length === 0) return;
@@ -812,7 +843,7 @@ export function ProductGridPage({ title, category, submenu }: Props) {
                       product={product}
                       isSoldOut={soldOutProductIds.has(product.id)}
                       filteredSize={filteredSize}
-                      sizeVariants={filteredSize ? (productVariantData.size > 0 ? (productVariantData.get(product.id) ?? []) : undefined) : undefined}
+                      sizeVariants={productVariantData.size > 0 ? (productVariantData.get(product.id) ?? []) : undefined}
                     />
                   </motion.div>
                   ));
