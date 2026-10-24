@@ -4635,7 +4635,7 @@ function AdminPageInner() {
                                   <option value="">Add tag...</option>
                                   {menu.submenus.map(sub => (
                                     <React.Fragment key={sub.heading}>
-                                      <option value={sub.heading} className="font-bold">{sub.heading}</option>
+                                      <option disabled value="" style={{ fontWeight: 'bold', color: '#666' }}>{sub.heading}</option>
                                       {sub.items.map((item, itemIdx) => (
                                         <option key={item.label + itemIdx} value={item.label}>&nbsp;&nbsp;{item.label}</option>
                                       ))}
@@ -5815,7 +5815,7 @@ function AdminPageInner() {
                                 <option value="">Add Submenu...</option>
                                 {menu.submenus.map(sub => (
                                   <React.Fragment key={sub.heading}>
-                                    <option value={sub.heading} className="font-bold">{sub.heading} (Column Heading)</option>
+                                    <option disabled value="" style={{ fontWeight: 'bold', color: '#666' }}>{sub.heading}</option>
                                     {sub.items.map((item, itemIdx) => (
                                       <option key={item.label + itemIdx} value={item.label}>&nbsp;&nbsp;{item.label}</option>
                                     ))}
