@@ -93,17 +93,20 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
 
   // Calculate metrics
   const metrics = useMemo(() => {
-    const completed = transactions.filter(t => t.status === 'completed');
-    const totalRevenue = completed.reduce((sum, t) => sum + Math.abs(Number(t.total_amount)), 0);
-    const netSales = totalRevenue / 1.13;
-    const hstCollected = totalRevenue - netSales;
+    // Exclude $0 transactions (personal use / gifts); use signed amounts so returns reduce tax
+    const completed = transactions.filter(t => t.status === 'completed' && Number(t.total_amount) !== 0);
+    const signedTotal = completed.reduce((sum, t) => sum + Number(t.total_amount), 0);
+    const netSales = signedTotal / 1.13;
+    const hstCollected = signedTotal - netSales;
+    const positiveOnly = completed.filter(t => Number(t.total_amount) > 0);
+    const grossSales = positiveOnly.reduce((sum, t) => sum + Number(t.total_amount), 0);
 
     return {
-      totalRevenue,
+      totalRevenue: signedTotal,
       totalTransactions: completed.length,
       hstCollected,
       netSales,
-      avgTransaction: completed.length > 0 ? totalRevenue / completed.length : 0,
+      avgTransaction: positiveOnly.length > 0 ? grossSales / positiveOnly.length : 0,
       voidedCount: transactions.filter(t => t.status === 'voided').length,
       voidedAmount: transactions
         .filter(t => t.status === 'voided')
@@ -114,14 +117,14 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
   // Payment breakdown
   const paymentBreakdown = useMemo(() => {
     const breakdown: Record<string, PaymentMethodData> = {};
-    const completed = transactions.filter(t => t.status === 'completed');
-    const total = completed.reduce((sum, t) => sum + Math.abs(Number(t.total_amount)), 0);
+    const completed = transactions.filter(t => t.status === 'completed' && Number(t.total_amount) !== 0);
+    const total = completed.reduce((sum, t) => sum + Number(t.total_amount), 0);
 
     completed.forEach(t => {
       const method = t.method || 'Other';
       if (!breakdown[method]) breakdown[method] = { count: 0, amount: 0, percentage: 0 };
       breakdown[method].count += 1;
-      breakdown[method].amount += Math.abs(Number(t.total_amount));
+      breakdown[method].amount += Number(t.total_amount);
     });
 
     Object.entries(breakdown).forEach(([_, data]) => {
@@ -137,7 +140,7 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
     const methods = ['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Gift Card', 'Other'];
 
     transactions
-      .filter(t => t.status === 'completed')
+      .filter(t => t.status === 'completed' && Number(t.total_amount) !== 0)
       .forEach(t => {
         const date = formatEasternDate(t.created_at);
         if (!breakdown[date]) {
@@ -147,10 +150,11 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
           };
           methods.forEach(m => (breakdown[date][m] = 0));
         }
+        const amount = Number(t.total_amount);
         breakdown[date].transactions += 1;
-        breakdown[date].total += Math.abs(Number(t.total_amount));
+        breakdown[date].total += amount;
         const method = t.method || 'Other';
-        breakdown[date][method] = (breakdown[date][method] || 0) + Math.abs(Number(t.total_amount));
+        breakdown[date][method] = (breakdown[date][method] || 0) + amount;
       });
 
     return Object.entries(breakdown)
@@ -180,11 +184,11 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
       ['Sales Report', formatEasternDate(exportStart), 'to', formatEasternDate(exportEnd)],
       [],
       ['Summary'],
+      ['Subtotal (pre-tax)', `$${metrics.netSales.toFixed(2)}`],
+      ['HST Collected (13%)', `$${metrics.hstCollected.toFixed(2)}`],
       ['Total Revenue', `$${metrics.totalRevenue.toFixed(2)}`],
       ['Total Transactions', metrics.totalTransactions],
       ['Average Transaction', `$${metrics.avgTransaction.toFixed(2)}`],
-      ['Net Sales', `$${metrics.netSales.toFixed(2)}`],
-      ['HST Collected', `$${metrics.hstCollected.toFixed(2)}`],
       [],
       ['Payment Method Breakdown'],
       ['Method', 'Transactions', 'Amount', 'Percentage'],
@@ -196,18 +200,24 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
       ]),
       [],
       ['Daily Breakdown'],
-      ['Date', 'Transactions', 'Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Gift Card', 'Total'],
-      ...dailyBreakdown.map(d => [
-        d.date,
-        d.transactions,
-        `$${(d.Cash || 0).toFixed(2)}`,
-        `$${(d.Debit || 0).toFixed(2)}`,
-        `$${(d.Visa || 0).toFixed(2)}`,
-        `$${(d.Mastercard || 0).toFixed(2)}`,
-        `$${(d.Amex || 0).toFixed(2)}`,
-        `$${(d['Gift Card'] || 0).toFixed(2)}`,
-        `$${(d.total || 0).toFixed(2)}`,
-      ]),
+      ['Date', 'Transactions', 'Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Gift Card', 'Subtotal', 'HST (13%)', 'Total'],
+      ...dailyBreakdown.map(d => {
+        const dayHst = (d.total || 0) - (d.total || 0) / 1.13;
+        const daySubtotal = (d.total || 0) / 1.13;
+        return [
+          d.date,
+          d.transactions,
+          `$${(d.Cash || 0).toFixed(2)}`,
+          `$${(d.Debit || 0).toFixed(2)}`,
+          `$${(d.Visa || 0).toFixed(2)}`,
+          `$${(d.Mastercard || 0).toFixed(2)}`,
+          `$${(d.Amex || 0).toFixed(2)}`,
+          `$${(d['Gift Card'] || 0).toFixed(2)}`,
+          `$${daySubtotal.toFixed(2)}`,
+          `$${dayHst.toFixed(2)}`,
+          `$${(d.total || 0).toFixed(2)}`,
+        ];
+      }),
     ];
 
     downloadCSV(data, `sales-report-${formatEasternDate(exportStart)}.csv`);
@@ -221,10 +231,11 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
         {
           type: 'summary-cards',
           cards: [
-            { label: 'Total Revenue', value: `$${metrics.totalRevenue.toFixed(2)}`,icon: '' },
-            { label: 'Transactions', value: metrics.totalTransactions.toString(),icon: '' },
+            { label: 'Subtotal (pre-tax)', value: `$${metrics.netSales.toFixed(2)}`, icon: '' },
+            { label: 'HST Collected (13%)', value: `$${metrics.hstCollected.toFixed(2)}`, icon: '🧮' },
+            { label: 'Total Revenue', value: `$${metrics.totalRevenue.toFixed(2)}`, icon: '' },
+            { label: 'Transactions', value: metrics.totalTransactions.toString(), icon: '' },
             { label: 'Avg Transaction', value: `$${metrics.avgTransaction.toFixed(2)}`, icon: '📈' },
-            { label: 'HST Collected', value: `$${metrics.hstCollected.toFixed(2)}`, icon: '🧮' },
           ],
         },
         {
@@ -241,18 +252,24 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
         {
           type: 'table',
           title: 'Daily Breakdown',
-          headers: ['Date', 'Txns', 'Cash', 'Debit', 'Visa', 'MC', 'Amex', 'GC', 'Total'],
-          rows: dailyBreakdown.slice(0, 30).map(d => [
-            d.date,
-            d.transactions.toString(),
-            `$${(d.Cash || 0).toFixed(2)}`,
-            `$${(d.Debit || 0).toFixed(2)}`,
-            `$${(d.Visa || 0).toFixed(2)}`,
-            `$${(d.Mastercard || 0).toFixed(2)}`,
-            `$${(d.Amex || 0).toFixed(2)}`,
-            `$${(d['Gift Card'] || 0).toFixed(2)}`,
-            `$${(d.total || 0).toFixed(2)}`,
-          ]),
+          headers: ['Date', 'Txns', 'Cash', 'Debit', 'Visa', 'MC', 'Amex', 'GC', 'Subtotal', 'HST', 'Total'],
+          rows: dailyBreakdown.slice(0, 30).map(d => {
+            const dayHst = (d.total || 0) - (d.total || 0) / 1.13;
+            const daySubtotal = (d.total || 0) / 1.13;
+            return [
+              d.date,
+              d.transactions.toString(),
+              `$${(d.Cash || 0).toFixed(2)}`,
+              `$${(d.Debit || 0).toFixed(2)}`,
+              `$${(d.Visa || 0).toFixed(2)}`,
+              `$${(d.Mastercard || 0).toFixed(2)}`,
+              `$${(d.Amex || 0).toFixed(2)}`,
+              `$${(d['Gift Card'] || 0).toFixed(2)}`,
+              `$${daySubtotal.toFixed(2)}`,
+              `$${dayHst.toFixed(2)}`,
+              `$${(d.total || 0).toFixed(2)}`,
+            ];
+          }),
         },
       ],
     });
@@ -333,6 +350,25 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
         </button>
       </div>
 
+      {/* Tax Summary */}
+      <div className="bg-white rounded-lg border border-zinc-200 p-6">
+        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 mb-4">Tax Summary</h3>
+        <div className="flex flex-col gap-3 max-w-xs">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-zinc-600">Subtotal (pre-tax)</span>
+            <span className="text-sm font-bold text-zinc-900">${metrics.netSales.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-zinc-600">HST (13%)</span>
+            <span className="text-sm font-bold text-zinc-900">${metrics.hstCollected.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center border-t border-zinc-200 pt-3">
+            <span className="text-sm font-black text-zinc-900">Total (incl. tax)</span>
+            <span className="text-sm font-black text-zinc-900">${metrics.totalRevenue.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MetricCard label="Total Revenue" value={`$${metrics.totalRevenue.toFixed(2)}`} icon="" />
@@ -387,23 +423,32 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
                 <th className="text-right py-2 px-2 font-bold text-zinc-600">MC</th>
                 <th className="text-right py-2 px-2 font-bold text-zinc-600">Amex</th>
                 <th className="text-right py-2 px-2 font-bold text-zinc-600">GC</th>
+                <th className="text-right py-2 px-2 font-bold text-zinc-600">Subtotal</th>
+                <th className="text-right py-2 px-2 font-bold text-zinc-600">HST</th>
                 <th className="text-right py-2 px-2 font-bold text-zinc-600">Total</th>
               </tr>
             </thead>
             <tbody>
-              {dailyBreakdown.map((day, idx) => (
-                <tr key={day.date} className={idx % 2 === 0 ? 'bg-zinc-50' : ''}>
-                  <td className="py-2 px-2 font-bold text-zinc-900">{day.date}</td>
-                  <td className="text-right py-2 px-2">{day.transactions}</td>
-                  <td className="text-right py-2 px-2">${(day.Cash || 0).toFixed(2)}</td>
-                  <td className="text-right py-2 px-2">${(day.Debit || 0).toFixed(2)}</td>
-                  <td className="text-right py-2 px-2">${(day.Visa || 0).toFixed(2)}</td>
-                  <td className="text-right py-2 px-2">${(day.Mastercard || 0).toFixed(2)}</td>
-                  <td className="text-right py-2 px-2">${(day.Amex || 0).toFixed(2)}</td>
-                  <td className="text-right py-2 px-2">${(day['Gift Card'] || 0).toFixed(2)}</td>
-                  <td className="text-right py-2 px-2 font-bold">${day.total.toFixed(2)}</td>
-                </tr>
-              ))}
+              {dailyBreakdown.map((day, idx) => {
+                const dayTotal = day.total || 0;
+                const daySubtotal = dayTotal / 1.13;
+                const dayHst = dayTotal - daySubtotal;
+                return (
+                  <tr key={day.date} className={idx % 2 === 0 ? 'bg-zinc-50' : ''}>
+                    <td className="py-2 px-2 font-bold text-zinc-900">{day.date}</td>
+                    <td className="text-right py-2 px-2">{day.transactions}</td>
+                    <td className="text-right py-2 px-2">${(day.Cash || 0).toFixed(2)}</td>
+                    <td className="text-right py-2 px-2">${(day.Debit || 0).toFixed(2)}</td>
+                    <td className="text-right py-2 px-2">${(day.Visa || 0).toFixed(2)}</td>
+                    <td className="text-right py-2 px-2">${(day.Mastercard || 0).toFixed(2)}</td>
+                    <td className="text-right py-2 px-2">${(day.Amex || 0).toFixed(2)}</td>
+                    <td className="text-right py-2 px-2">${(day['Gift Card'] || 0).toFixed(2)}</td>
+                    <td className="text-right py-2 px-2">${daySubtotal.toFixed(2)}</td>
+                    <td className="text-right py-2 px-2">${dayHst.toFixed(2)}</td>
+                    <td className="text-right py-2 px-2 font-bold">${dayTotal.toFixed(2)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
