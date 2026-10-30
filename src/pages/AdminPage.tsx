@@ -4635,10 +4635,16 @@ function AdminPageInner() {
                                   <option value="">Add tag...</option>
                                   {menu.submenus.map(sub => (
                                     <React.Fragment key={sub.heading}>
-                                      <option disabled value="" style={{ fontWeight: 'bold', color: '#666' }}>{sub.heading}</option>
-                                      {sub.items.map((item, itemIdx) => (
-                                        <option key={item.label + itemIdx} value={item.label}>&nbsp;&nbsp;{item.label}</option>
-                                      ))}
+                                      {sub.items.length === 0 ? (
+                                        <option value={sub.heading.toLowerCase()}>{sub.heading}</option>
+                                      ) : (
+                                        <>
+                                          <option disabled value="" style={{ fontWeight: 'bold', color: '#666' }}>{sub.heading}</option>
+                                          {sub.items.map((item, itemIdx) => (
+                                            <option key={item.label + itemIdx} value={item.label}>&nbsp;&nbsp;{item.label}</option>
+                                          ))}
+                                        </>
+                                      )}
                                     </React.Fragment>
                                   ))}
                                 </select>
@@ -5815,10 +5821,16 @@ function AdminPageInner() {
                                 <option value="">Add Submenu...</option>
                                 {menu.submenus.map(sub => (
                                   <React.Fragment key={sub.heading}>
-                                    <option disabled value="" style={{ fontWeight: 'bold', color: '#666' }}>{sub.heading}</option>
-                                    {sub.items.map((item, itemIdx) => (
-                                      <option key={item.label + itemIdx} value={item.label}>&nbsp;&nbsp;{item.label}</option>
-                                    ))}
+                                    {sub.items.length === 0 ? (
+                                      <option value={sub.heading.toLowerCase()}>{sub.heading}</option>
+                                    ) : (
+                                      <>
+                                        <option disabled value="" style={{ fontWeight: 'bold', color: '#666' }}>{sub.heading}</option>
+                                        {sub.items.map((item, itemIdx) => (
+                                          <option key={item.label + itemIdx} value={item.label}>&nbsp;&nbsp;{item.label}</option>
+                                        ))}
+                                      </>
+                                    )}
                                   </React.Fragment>
                                 ))}
                               </select>
