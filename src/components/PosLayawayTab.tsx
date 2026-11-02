@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Clock, Package, Printer, ArrowLeft, CheckCircle2, XCircle, Eye, DollarSign } from 'lucide-react';
+import { Search, Clock, Package, Printer, ArrowLeft, CheckCircle2, XCircle, Eye, DollarSign, ShoppingCart } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useSettings } from '../context/SettingsContext';
 import { generateLayawayReceiptHTML, generatePayLaterReceiptHTML, generateLayawayPaymentReceiptHTML } from '../utils/thermalReceipt';
 
 type RecordType = 'layaway' | 'pay_later';
 
-interface LayawayPayLaterRecord {
+export interface LayawayPayLaterRecord {
   id: string;
   type: RecordType;
   customer_id: string | null;
@@ -23,7 +23,11 @@ interface LayawayPayLaterRecord {
 
 const paidField = (r: LayawayPayLaterRecord) => (r.type === 'layaway' ? r.deposit_paid || 0 : r.amount_paid || 0);
 
-export const PosLayawayTab: React.FC = () => {
+interface PosLayawayTabProps {
+  onRecallToCart?: (record: LayawayPayLaterRecord) => void;
+}
+
+export const PosLayawayTab: React.FC<PosLayawayTabProps> = ({ onRecallToCart }) => {
   const { footerLogo } = useSettings();
   const [records, setRecords] = useState<LayawayPayLaterRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -379,6 +383,15 @@ export const PosLayawayTab: React.FC = () => {
             </div>
           )}
 
+          {selected.type === 'pay_later' && !isComplete && !isCancelled && onRecallToCart && (
+            <button
+              onClick={() => onRecallToCart(selected)}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[11px] font-black uppercase transition-colors"
+            >
+              <ShoppingCart size={13} /> Recall to Cart (Apply Discount)
+            </button>
+          )}
+
           <button
             onClick={() => printReceipt(selected)}
             className="w-full flex items-center justify-center gap-2 py-3 border border-zinc-200 rounded-xl text-[11px] font-black uppercase text-zinc-900 hover:bg-zinc-50"
@@ -456,7 +469,7 @@ export const PosLayawayTab: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-1.5 mt-3 pt-3 border-t border-zinc-100">
+              <div className={`grid gap-1.5 mt-3 pt-3 border-t border-zinc-100 ${r.type === 'pay_later' && !rowDone && !rowCancelled && onRecallToCart ? 'grid-cols-5' : 'grid-cols-4'}`}>
                 <button
                   onClick={() => openRecord(r)}
                   className="flex items-center justify-center gap-1 py-2 border border-zinc-200 rounded-lg text-[9px] font-black uppercase text-zinc-600 hover:bg-zinc-50"
@@ -470,6 +483,14 @@ export const PosLayawayTab: React.FC = () => {
                 >
                   <DollarSign size={11} /> {payLabel}
                 </button>
+                {r.type === 'pay_later' && !rowDone && !rowCancelled && onRecallToCart && (
+                  <button
+                    onClick={() => onRecallToCart(r)}
+                    className="flex items-center justify-center gap-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[9px] font-black uppercase transition-colors"
+                  >
+                    <ShoppingCart size={11} /> Recall
+                  </button>
+                )}
                 <button
                   onClick={() => printReceipt(r)}
                   className="flex items-center justify-center gap-1 py-2 border border-zinc-200 rounded-lg text-[9px] font-black uppercase text-zinc-600 hover:bg-zinc-50"

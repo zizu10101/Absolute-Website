@@ -4639,7 +4639,7 @@ function AdminPageInner() {
                                         <option value={sub.heading.toLowerCase()}>{sub.heading}</option>
                                       ) : (
                                         <>
-                                          <option disabled value="" style={{ fontWeight: 'bold', color: '#666' }}>{sub.heading}</option>
+                                          <option value={sub.heading.toLowerCase()} style={{ fontWeight: 'bold' }}>{sub.heading}</option>
                                           {sub.items.map((item, itemIdx) => (
                                             <option key={item.label + itemIdx} value={item.label}>&nbsp;&nbsp;{item.label}</option>
                                           ))}
@@ -5825,7 +5825,7 @@ function AdminPageInner() {
                                       <option value={sub.heading.toLowerCase()}>{sub.heading}</option>
                                     ) : (
                                       <>
-                                        <option disabled value="" style={{ fontWeight: 'bold', color: '#666' }}>{sub.heading}</option>
+                                        <option value={sub.heading.toLowerCase()} style={{ fontWeight: 'bold' }}>{sub.heading}</option>
                                         {sub.items.map((item, itemIdx) => (
                                           <option key={item.label + itemIdx} value={item.label}>&nbsp;&nbsp;{item.label}</option>
                                         ))}

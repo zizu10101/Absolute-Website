@@ -232,6 +232,7 @@ export interface ReceiptData {
   refundedItems?: Array<{ name: string; size?: string; quantity: number; amount: number }>;
   refundAmount?: number;
   refundPaymentMethod?: string;
+  notes?: string; // Optional note printed below the payment section
 }
 
 export const generateThermalReceiptHTML = (data: ReceiptData): string => {
@@ -325,6 +326,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
         <div class="row"><span>Remaining Total:</span><span>${money(Math.max(0, data.total - (data.refundAmount || 0)))}</span></div>
       </div>
     ` : ''}
+    ${data.notes ? `<div class="divider"></div><div style="text-align:center;font-size:10px;color:#666;padding:4px 0;">${data.notes}</div>` : ''}
     <div class="divider"></div>
     ${buildBarcodeSection(ref)}
     ${buildFooter(STANDARD_FOOTER)}

@@ -16,7 +16,7 @@ import { GiftCardTab } from '../components/GiftCardTab';
 import { StoreCreditsTab } from '../components/StoreCreditsTab';
 import { ReturnsModal } from '../components/ReturnsModal';
 import { LayawayPayLaterModal } from '../components/LayawayPayLaterModal';
-import { PosLayawayTab } from '../components/PosLayawayTab';
+import { PosLayawayTab, LayawayPayLaterRecord } from '../components/PosLayawayTab';
 import { usePOSCart, CartItem, getItemUnitDiscount, getItemDiscountedPrice, formatItemDiscountLabel } from '../hooks/usePOSCart';
 import { useCustomers, Customer } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
@@ -57,6 +57,8 @@ interface Receipt {
   storeCreditCardNumber?: string; // SC card number for barcode on SC receipts
   barcodeValue?: string; // What to encode in barcode (transaction ID or SC card number)
   paymentSplits?: Array<{ method: string; amount: number }>; // For split payments
+  payLaterAmountPaid?: number; // previously paid on a recalled pay_later
+  payLaterNewTotal?: number; // new total (after discount) on a recalled pay_later
 }
 
 export function POSPage() {
@@ -187,6 +189,7 @@ export function POSPage() {
     updateItemDiscount,
     overrideItemPrice,
     clearCart,
+    loadCart,
     subtotal,
     totalDiscount,
     hst,
@@ -269,6 +272,11 @@ export function POSPage() {
   const [showLayawayModal, setShowLayawayModal] = useState(false);
   const [showPayLaterModal, setShowPayLaterModal] = useState(false);
   const [pendingSpecialCheckout, setPendingSpecialCheckout] = useState<'layaway' | 'pay_later' | null>(null);
+  const [recalledPayLater, setRecalledPayLater] = useState<{
+    id: string;
+    amountPaid: number;
+    customerName: string;
+  } | null>(null);
 
   const { customers, fetchCustomers } = useCustomers();
   const { logo, footerLogo } = useSettings();
@@ -1288,6 +1296,12 @@ export function POSPage() {
     // CRITICAL: Capture state values BEFORE any awaits - state can change during async operations
     const capturedStoreCredit = storeCredit || selectedStoreCredit;
     const capturedGiftCard = giftCard || selectedGiftCard;
+    const capturedRecalledPayLater = recalledPayLater;
+
+    // For recalled pay_later: only charge the balance (grandTotal minus what was already paid)
+    const effectiveTotal = capturedRecalledPayLater
+      ? Math.max(0, grandTotal - capturedRecalledPayLater.amountPaid)
+      : grandTotal;
 
     setIsConfirming(true);
     const cartItemsPayload = cart.map(item => ({
@@ -1299,8 +1313,8 @@ export function POSPage() {
     try {
       // Calculate actual amount to charge after gift card and store credit are applied
       let amountAfterGiftCard = capturedGiftCard
-        ? Math.max(0, grandTotal - capturedGiftCard.amount)
-        : grandTotal;
+        ? Math.max(0, effectiveTotal - capturedGiftCard.amount)
+        : effectiveTotal;
 
       let amountAfterStoreCredit = capturedStoreCredit
         ? Math.max(0, amountAfterGiftCard - capturedStoreCredit.amount)
@@ -1338,24 +1352,47 @@ export function POSPage() {
 
       const result = { data };
 
-      // Deduct stock
-      for (const item of cart) {
-        const variantId = item.variantId || (item.id.startsWith('var-') ? item.id.replace('var-', '') : null);
-        if (variantId) {
-          try {
-            const { data: variant } = await supabase
-              .from('product_variants')
-              .select('stock_quantity')
-              .eq('id', variantId)
-              .single();
-            if (variant) {
-              const newQty = Math.max(0, (variant.stock_quantity || 0) - (item.quantity || 1));
-              await supabase.from('product_variants').update({ stock_quantity: newQty }).eq('id', variantId);
-              applyLocalStockDelta(variantId, -(item.quantity || 1));
+      // Deduct stock — skip for recalled pay_later (stock was already deducted when the order was created)
+      if (!capturedRecalledPayLater) {
+        for (const item of cart) {
+          const variantId = item.variantId || (item.id.startsWith('var-') ? item.id.replace('var-', '') : null);
+          if (variantId) {
+            try {
+              const { data: variant } = await supabase
+                .from('product_variants')
+                .select('stock_quantity')
+                .eq('id', variantId)
+                .single();
+              if (variant) {
+                const newQty = Math.max(0, (variant.stock_quantity || 0) - (item.quantity || 1));
+                await supabase.from('product_variants').update({ stock_quantity: newQty }).eq('id', variantId);
+                applyLocalStockDelta(variantId, -(item.quantity || 1));
+              }
+            } catch (err) {
+              console.error('Stock deduction error:', err);
             }
-          } catch (err) {
-            console.error('Stock deduction error:', err);
           }
+        }
+      }
+
+      // Settle the recalled pay_later record
+      if (capturedRecalledPayLater) {
+        try {
+          const newTotal = Number(grandTotal.toFixed(2));
+          const newAmountPaid = Number((capturedRecalledPayLater.amountPaid + effectiveTotal).toFixed(2));
+          const newBalance = Math.max(0, Number((newTotal - newAmountPaid).toFixed(2)));
+          const isFullyPaid = newBalance <= 0.01;
+          const noteLine = `Settled via POS on ${new Date().toLocaleString()}`;
+          await supabase.from('pay_later').update({
+            total_amount: newTotal,
+            amount_paid: newAmountPaid,
+            balance_due: newBalance,
+            status: isFullyPaid ? 'paid' : 'partial',
+            notes: noteLine,
+          }).eq('id', capturedRecalledPayLater.id);
+          setRecalledPayLater(null);
+        } catch (err) {
+          console.error('Failed to settle pay_later record:', err);
         }
       }
 
@@ -1425,6 +1462,8 @@ export function POSPage() {
         storeCreditId: capturedStoreCredit?.id,
         storeCreditNewBalance: storeCreditNewBalance,
         paymentSplits: useSplitPayment ? paymentSplits : undefined,
+        payLaterAmountPaid: capturedRecalledPayLater?.amountPaid,
+        payLaterNewTotal: capturedRecalledPayLater ? grandTotal : undefined,
       });
 
       // Close cash calculator if it was open
@@ -1467,6 +1506,7 @@ export function POSPage() {
   // New transaction
   const handleNewTransaction = () => {
     clearCart();
+    setRecalledPayLater(null);
     setSelectedCustomerId('');
     setCustomerSearchTerm('');
     setShowCheckout(false);
@@ -1529,6 +1569,9 @@ export function POSPage() {
       copies,
       cashTendered: receipt.tenderedAmount,
       changeDue: receipt.changeGiven,
+      notes: receipt.payLaterAmountPaid !== undefined
+        ? `Pay Later Settled${receipt.payLaterAmountPaid > 0 ? ` · Prev. Paid: $${receipt.payLaterAmountPaid.toFixed(2)}` : ''}`
+        : undefined,
     });
 
     // Browser print dialog
@@ -1700,8 +1743,43 @@ export function POSPage() {
     setShowLayawayModal(false);
     setShowPayLaterModal(false);
     clearCart();
+    setRecalledPayLater(null);
     setSelectedCustomerId('');
     setCustomerSearchTerm('');
+    setTimeout(() => barcodeInputRef.current?.focus(), 100);
+  };
+
+  const handleRecallPayLaterToCart = (record: LayawayPayLaterRecord) => {
+    const cartItems: CartItem[] = record.items.map((item, idx) => ({
+      id: item.variantId ? `var-${item.variantId}` : `pl-${record.id}-${idx}`,
+      variantId: item.variantId,
+      name: item.name,
+      price: item.price,
+      originalPrice: item.price,
+      quantity: item.quantity,
+      category: '',
+      size: item.size,
+      color: item.color,
+      ageGroup: item.ageGroup,
+      barcode: item.barcode,
+      taxable: true,
+    }));
+    loadCart(cartItems);
+    if (record.customer_id) {
+      setSelectedCustomerId(record.customer_id);
+      const name = record.customers
+        ? `${record.customers.first_name} ${record.customers.last_name}`
+        : '';
+      setCustomerSearchTerm(name);
+    }
+    setRecalledPayLater({
+      id: record.id,
+      amountPaid: record.amount_paid || 0,
+      customerName: record.customers
+        ? `${record.customers.first_name} ${record.customers.last_name}`
+        : 'Unknown',
+    });
+    setPosTab('register');
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
@@ -1887,7 +1965,7 @@ export function POSPage() {
 
               {/* Clear Cart */}
               <button
-                onClick={() => clearCart()}
+                onClick={() => { clearCart(); setRecalledPayLater(null); }}
                 className={`rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14 ${isDarkMode ? 'bg-[#1e2d45] hover:bg-[#2a3954]' : 'bg-gray-200 hover:bg-gray-300'}`}
                 title="Remove all items from cart"
               >
@@ -1967,6 +2045,23 @@ export function POSPage() {
                   <X size={16} />
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Pay Later Recalled Banner */}
+          {recalledPayLater && (
+            <div className={`px-4 py-2 border-b flex items-center justify-between ${isDarkMode ? 'bg-blue-900/30 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
+              <div className={`text-[10px] font-bold uppercase flex items-center gap-1 ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>
+                <Package size={11} />
+                Pay Later · {recalledPayLater.customerName}
+                {recalledPayLater.amountPaid > 0 && ` · $${recalledPayLater.amountPaid.toFixed(2)} prev. paid`}
+              </div>
+              <button
+                onClick={() => { clearCart(); setRecalledPayLater(null); }}
+                className={`text-[10px] font-bold uppercase ${isDarkMode ? 'text-blue-400 hover:text-blue-200' : 'text-blue-600 hover:text-blue-900'}`}
+              >
+                Clear
+              </button>
             </div>
           )}
 
@@ -2205,6 +2300,27 @@ export function POSPage() {
                 <span className={isDarkMode ? '' : 'text-black'}>Total Due</span>
                 <span className="text-lg text-[var(--primary-color)]">${grandTotal.toFixed(2)}</span>
               </div>
+              {recalledPayLater && recalledPayLater.amountPaid > 0 && (
+                <div className={`flex justify-between text-xs font-bold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  <span>Previously Paid</span>
+                  <span>−${recalledPayLater.amountPaid.toFixed(2)}</span>
+                </div>
+              )}
+              {recalledPayLater && (
+                <div className={`flex justify-between text-sm font-black pt-1 border-t ${
+                  grandTotal < recalledPayLater.amountPaid
+                    ? isDarkMode ? 'border-red-700 text-red-400' : 'border-red-300 text-red-600'
+                    : isDarkMode ? 'border-blue-700 text-blue-300' : 'border-blue-300 text-blue-700'
+                }`}>
+                  <span>Balance Due Now</span>
+                  <span>${Math.max(0, grandTotal - recalledPayLater.amountPaid).toFixed(2)}</span>
+                </div>
+              )}
+              {recalledPayLater && grandTotal < recalledPayLater.amountPaid && (
+                <p className={`text-[10px] font-bold rounded px-2 py-1.5 ${isDarkMode ? 'text-red-400 bg-red-900/20 border border-red-700' : 'text-red-600 bg-red-50 border border-red-300'}`}>
+                  Discount reduces total below amount already paid (${recalledPayLater.amountPaid.toFixed(2)}). Reduce the discount.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-4 gap-2">
@@ -2217,7 +2333,7 @@ export function POSPage() {
               <button onClick={() => setShowDiscountModal(true)} className={`px-3 py-2 border rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-colors ${isDarkMode ? 'bg-[#2d3547] hover:bg-[#3d4557] border-[#2d3547] text-white' : 'bg-gray-200 hover:bg-gray-300 border-gray-300 text-black'}`}>
                 <Percent size={14} /> Disc
               </button>
-              <button onClick={() => { if (confirm('Clear all items?')) clearCart(); }} disabled={cart.length === 0} className={`px-3 py-2 rounded text-[10px] font-bold text-white ${isDarkMode ? 'bg-red-600 hover:bg-red-700 disabled:bg-gray-700' : 'bg-red-500 hover:bg-red-600 disabled:bg-gray-400'}`}>
+              <button onClick={() => { if (confirm('Clear all items?')) { clearCart(); setRecalledPayLater(null); } }} disabled={cart.length === 0} className={`px-3 py-2 rounded text-[10px] font-bold text-white ${isDarkMode ? 'bg-red-600 hover:bg-red-700 disabled:bg-gray-700' : 'bg-red-500 hover:bg-red-600 disabled:bg-gray-400'}`}>
                 Clear
               </button>
             </div>
@@ -2229,7 +2345,7 @@ export function POSPage() {
 
             <button
               onClick={() => setShowCheckout(true)}
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || (recalledPayLater !== null && grandTotal < recalledPayLater.amountPaid)}
               className="w-full py-3 bg-[var(--primary-color)] hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-sm uppercase"
             >
               Checkout ({totalCartItems})
@@ -2405,7 +2521,7 @@ export function POSPage() {
       {/* Layaway / Pay Later Management Tab */}
       {posTab === 'layaway' && (
         <div className="flex-1 flex flex-col overflow-hidden">
-          <PosLayawayTab />
+          <PosLayawayTab onRecallToCart={handleRecallPayLaterToCart} />
         </div>
       )}
 
@@ -2569,9 +2685,21 @@ export function POSPage() {
                         <div className="flex justify-between text-yellow-600"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>
                       )}
                       <div className="flex justify-between"><span>HST {receipt.isTaxExempt ? '(Exempt)' : '(13%)'}</span><span>${receipt.hst.toFixed(2)}</span></div>
-                      <div className="flex justify-between text-sm font-black text-black pt-1 border-t border-zinc-300">
-                        <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
-                      </div>
+                      {receipt.payLaterAmountPaid !== undefined && receipt.payLaterNewTotal !== undefined && (
+                        <>
+                          <div className="flex justify-between text-emerald-600 font-bold">
+                            <span>Previously Paid</span><span>−${receipt.payLaterAmountPaid.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm font-black text-black pt-1 border-t border-zinc-300">
+                            <span>BALANCE CHARGED</span><span>${receipt.total.toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
+                      {receipt.payLaterAmountPaid === undefined && (
+                        <div className="flex justify-between text-sm font-black text-black pt-1 border-t border-zinc-300">
+                          <span>TOTAL</span><span>${receipt.total.toFixed(2)}</span>
+                        </div>
+                      )}
                       {receipt.giftCardAmount && receipt.giftCardAmount > 0 && (
                         <div className="flex justify-between pt-2 border-t border-dashed border-zinc-300 text-amber-600"><span className="flex items-center gap-1"><CreditCard size={14} /> Gift Card</span><span>−${receipt.giftCardAmount.toFixed(2)}</span></div>
                       )}
@@ -2747,6 +2875,20 @@ export function POSPage() {
                       {discountAmount > 0 && <div className="flex justify-between text-yellow-400"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>}
                       <div className="flex justify-between"><span>HST</span><span>${hst.toFixed(2)}</span></div>
                       <div className="flex justify-between font-bold text-sm border-t border-[#2d3547] pt-1"><span>Total Due</span><span>${grandTotal.toFixed(2)}</span></div>
+                      {recalledPayLater && recalledPayLater.amountPaid > 0 && (
+                        <div className="flex justify-between text-emerald-400 font-bold"><span>Previously Paid</span><span>−${recalledPayLater.amountPaid.toFixed(2)}</span></div>
+                      )}
+                      {recalledPayLater && (
+                        <div className={`flex justify-between font-bold text-sm border-t border-[#2d3547] pt-1 ${grandTotal < recalledPayLater.amountPaid ? 'text-red-400' : 'text-blue-300'}`}>
+                          <span>Balance Due Now</span>
+                          <span>${Math.max(0, grandTotal - recalledPayLater.amountPaid).toFixed(2)}</span>
+                        </div>
+                      )}
+                      {recalledPayLater && grandTotal < recalledPayLater.amountPaid && (
+                        <p className="text-[10px] text-red-400 font-bold bg-red-900/20 border border-red-700 rounded px-2 py-1.5">
+                          Discount reduces total below amount already paid. Reduce the discount.
+                        </p>
+                      )}
                     </div>
 
                     {selectedGiftCard && (
@@ -3014,12 +3156,16 @@ export function POSPage() {
 
                   {/* Cash Calculator Modal */}
                   <AnimatePresence>
-                    {showCashCalculator && (
+                    {showCashCalculator && (() => {
+                      const cashDueAmount = recalledPayLater
+                        ? Math.max(0, grandTotal - recalledPayLater.amountPaid)
+                        : grandTotal;
+                      return (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 rounded-lg">
                         <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a2236] p-6 rounded-lg shadow-2xl w-full max-w-sm space-y-4 border border-[#2d3547]">
                           <div className="text-center">
                             <h2 className="text-sm font-black uppercase text-white mb-2">Cash Payment</h2>
-                            <p className="text-xs text-gray-300">Total Due: <span className="text-[var(--primary-color)] text-base">${grandTotal.toFixed(2)}</span></p>
+                            <p className="text-xs text-gray-300">{recalledPayLater ? 'Balance Due' : 'Total Due'}: <span className="text-[var(--primary-color)] text-base">${cashDueAmount.toFixed(2)}</span></p>
                           </div>
 
                           {/* Amount Tendered Input */}
@@ -3040,12 +3186,12 @@ export function POSPage() {
                             <p className="text-[8px] font-bold text-gray-500 uppercase">Quick Select</p>
                             <div className="grid grid-cols-2 gap-2">
                               {[
-                                { label: 'Exact', amount: grandTotal },
-                                { label: '+$5', amount: Math.ceil(grandTotal / 5) * 5 },
-                                { label: '+$10', amount: Math.ceil(grandTotal / 10) * 10 },
-                                { label: '+$20', amount: Math.ceil(grandTotal / 20) * 20 },
-                                { label: '+$50', amount: Math.ceil(grandTotal / 50) * 50 },
-                                { label: '+$100', amount: Math.ceil(grandTotal / 100) * 100 },
+                                { label: 'Exact', amount: cashDueAmount },
+                                { label: '+$5', amount: Math.ceil(cashDueAmount / 5) * 5 },
+                                { label: '+$10', amount: Math.ceil(cashDueAmount / 10) * 10 },
+                                { label: '+$20', amount: Math.ceil(cashDueAmount / 20) * 20 },
+                                { label: '+$50', amount: Math.ceil(cashDueAmount / 50) * 50 },
+                                { label: '+$100', amount: Math.ceil(cashDueAmount / 100) * 100 },
                               ].map(btn => (
                                 <button
                                   key={btn.label}
@@ -3062,15 +3208,15 @@ export function POSPage() {
                           {/* Change Due / Amount Short Display */}
                           {cashTendered !== '' && (
                             <div className="p-3 rounded text-center bg-[#0f1117] border-2 border-[#2d3547]">
-                              {cashTendered >= grandTotal ? (
+                              {cashTendered >= cashDueAmount ? (
                                 <div>
                                   <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Change Due</p>
-                                  <p className="text-2xl font-black text-emerald-500">${(cashTendered - grandTotal).toFixed(2)}</p>
+                                  <p className="text-2xl font-black text-emerald-500">${(cashTendered - cashDueAmount).toFixed(2)}</p>
                                 </div>
                               ) : (
                                 <div>
                                   <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Amount Short</p>
-                                  <p className="text-2xl font-black text-red-500">${(grandTotal - cashTendered).toFixed(2)}</p>
+                                  <p className="text-2xl font-black text-red-500">${(cashDueAmount - cashTendered).toFixed(2)}</p>
                                 </div>
                               )}
                             </div>
@@ -3089,7 +3235,7 @@ export function POSPage() {
                               Cancel
                             </button>
                             <button
-                              disabled={cashTendered === '' || (typeof cashTendered === 'number' && cashTendered < grandTotal) || isConfirming}
+                              disabled={cashTendered === '' || (typeof cashTendered === 'number' && cashTendered < cashDueAmount) || isConfirming}
                               onClick={() => {
                                 if (typeof cashTendered === 'number' && pendingPaymentMethod) {
                                   processPayment(pendingPaymentMethod, cashTendered);
@@ -3102,7 +3248,8 @@ export function POSPage() {
                           </div>
                         </motion.div>
                       </div>
-                    )}
+                      );
+                    })()}
                   </AnimatePresence>
 
                   {/* Store Credit Selection Modal - With Scan/Search Tabs */}

@@ -168,6 +168,12 @@ export function usePOSCart() {
     setDiscount(null);
   };
 
+  const loadCart = (items: CartItem[]) => {
+    setCart(items);
+    setDiscount(null);
+    setIsTaxExempt(false);
+  };
+
   const applyDiscount = (discountData: Discount) => {
     setDiscount(discountData);
   };
@@ -236,6 +242,7 @@ export function usePOSCart() {
     updateItemDiscount,
     updateItemQuantity,
     clearCart,
+    loadCart,
     subtotal,
     totalDiscount,
     hst,
