@@ -2356,8 +2356,9 @@ export const appReady: Promise<typeof app> = startServer().catch((err: any) => {
   return app;
 });
 
-// Local dev: also start the HTTP listener
-if (process.env.NODE_ENV !== 'production') {
+// Start the HTTP listener whenever we are not running on Vercel (covers both
+// local dev and self-hosted production via `npm start`).
+if (!process.env.VERCEL) {
   appReady.then(a => {
     a.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://0.0.0.0:${PORT}`);
