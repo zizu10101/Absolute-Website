@@ -111,7 +111,7 @@ function AppRoutes() {
 
   // Check if current domain is torontosoccershop.com (with or without www) or localhost for dev
   const hostname = window.location.hostname.replace(/^www\./, '');
-  const isAdminDomain = hostname === 'torontosoccershop.com' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const isAdminDomain = hostname === 'torontosoccershop.com' || window.location.hostname === 'torontosoccershop.edgedbs.com' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   // Inventory Count is used on staff phones, which reach the dev server over the store's Wi-Fi
   // by LAN IP rather than by hostname. It's PIN-gated, so also allow private-network addresses.
