@@ -239,13 +239,30 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
   const dateStr = formatReceiptDate(data.createdAt);
   const timeStr = formatReceiptTime(data.createdAt);
   const ref = data.invoiceNumber || data.transactionId.slice(0, 8).toUpperCase();
-  const transactionType = data.status && data.status.toUpperCase() !== 'COMPLETED' ? data.status.toUpperCase() : 'SALE';
+  const transactionType = data.status && data.status.toUpperCase() !== 'COMPLETED'
+    ? data.status.toUpperCase()
+    : 'SALE';
 
   const truncateName = (name: string, maxLength = 28): string =>
     name.length <= maxLength ? name : name.substring(0, maxLength - 3) + '...';
 
   const itemsHtml = data.items
     .map((item) => {
+      // Return lines have negative price (exchange refund). Render separately.
+      if (item.price < 0) {
+        const refundAmt = Math.abs(item.price * item.quantity);
+        const detailParts = [
+          item.size ? `Size: ${item.size}` : '',
+          item.ageGroup || '',
+          item.quantity > 1 ? `${item.quantity} returned` : 'Qty: 1',
+        ].filter(Boolean);
+        return `
+        <div class="item">
+          <div class="item-row"><span class="item-name">RETURN: ${truncateName(item.name)}</span><span class="item-price">-${money(refundAmt)}</span></div>
+          <div class="item-detail">${detailParts.join(' | ')}</div>
+        </div>`;
+      }
+
       // item.price is always the final price. priceOverride means staff corrected the price —
       // show only the final price with no mention of original. discount means intentional reduction
       // — show original, discount amount, and final.
@@ -300,7 +317,7 @@ export const generateThermalReceiptHTML = (data: ReceiptData): string => {
     <div class="totals">
       <div class="row"><span>Subtotal:</span><span>${money(data.subtotal)}</span></div>
       <div class="row"><span>HST (13%):</span><span>${money(data.hst)}</span></div>
-      <div class="row grand-total"><span>Total:</span><span>${money(data.total)}</span></div>
+      <div class="row grand-total"><span>${data.total < 0 ? 'REFUND DUE:' : 'Total:'}</span><span>${money(Math.abs(data.total))}</span></div>
     </div>
     ${buildPaymentMethods(data.paymentMethod, data.total, data.paymentSplits)}
     ${data.cashTendered !== undefined ? `

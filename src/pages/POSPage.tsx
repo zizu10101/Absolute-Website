@@ -22,7 +22,7 @@ import { useCustomers, Customer } from '../context/CustomerContext';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../supabase';
 import { mapProductFromDb } from '../context/ProductContext';
-import { generateThermalReceiptHTML, generateGiftReceiptHTML } from '../utils/thermalReceipt';
+import { generateThermalReceiptHTML, generateGiftReceiptHTML, generateStoreCreditReceiptHTML } from '../utils/thermalReceipt';
 import { generateInvoiceHTML, printInvoice, InvoiceCustomerInfo } from '../utils/invoice';
 import { InvoiceCustomerModal } from '../components/InvoiceCustomerModal';
 
@@ -1907,11 +1907,25 @@ export function POSPage() {
 
     const barcodeValue = receipt.storeCreditCardNumber || receipt.invoiceNumber || receipt.transactionId || 'N/A';
 
+    const hasReturnLines = receipt.items.some((item: any) => item.isReturnLine);
+
     const receiptHtml = generateThermalReceiptHTML({
       transactionId: receipt.transactionId || 'N/A',
       invoiceNumber: receipt.invoiceNumber,
       customerName: receipt.customer ? `${receipt.customer.first_name} ${receipt.customer.last_name}` : 'Walk-in',
+      status: hasReturnLines ? 'EXCHANGE' : undefined,
       items: receipt.items.map((item: any) => {
+        if (item.isReturnLine) {
+          // Return line: price already negative; no discount calculation needed
+          return {
+            ...item,
+            price: item.price,
+            originalPrice: undefined,
+            discount: undefined,
+            priceOverride: undefined,
+            priceOverridden: false,
+          };
+        }
         const unitDisc = getItemUnitDiscount(item);
         const isOverride = item.priceOverride !== undefined;
         const finalPrice = isOverride ? item.priceOverride : item.price - unitDisc;
@@ -1953,6 +1967,31 @@ export function POSPage() {
           };
         }, 500);
       };
+    }
+  };
+
+  // Print the store credit card issued as part of an exchange refund
+  const handlePrintIssuedStoreCreditReceipt = () => {
+    if (!receipt?.issuedStoreCreditCardNumber) return;
+    const html = generateStoreCreditReceiptHTML({
+      transactionId: receipt.transactionId || 'N/A',
+      customerName: receipt.customer
+        ? `${receipt.customer.first_name} ${receipt.customer.last_name}`
+        : 'Walk-in',
+      items: [],
+      subtotal: 0,
+      hst: 0,
+      total: receipt.issuedStoreCreditAmount || 0,
+      paymentMethod: 'Store Credit',
+      createdAt: new Date(),
+      storeCreditCardNumber: receipt.issuedStoreCreditCardNumber,
+      storeCreditAmount: receipt.issuedStoreCreditAmount,
+      storeCreditReason: 'Exchange Refund',
+    });
+    const printWindow = window.open('', '_blank', 'width=300,height=600');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
     }
   };
 
@@ -3223,6 +3262,14 @@ export function POSPage() {
                         <Printer size={13} /> 2 Copies
                       </button>
                     </div>
+                    {receipt.issuedStoreCreditCardNumber && (
+                      <button
+                        onClick={handlePrintIssuedStoreCreditReceipt}
+                        className="w-full flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors"
+                      >
+                        <Ticket size={13} /> Print Store Credit
+                      </button>
+                    )}
                     <div className="flex gap-2">
                       <button
                         onClick={handleOpenGiftReceipt}
