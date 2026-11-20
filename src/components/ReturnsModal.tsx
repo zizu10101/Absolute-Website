@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, AlertCircle, Check, ChevronRight, Undo2, ArrowLeftRight } from 'lucide-react';
+import { X, AlertCircle, Check, ChevronRight, Undo2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../supabase';
 import { useCustomers } from '../context/CustomerContext';
@@ -13,6 +13,15 @@ interface ReturnItem {
   returnQuantity: number;
   pricePerUnit: number;
   variantId?: string;
+}
+
+interface ExchangeCartItem {
+  variantId: string;
+  productName: string;
+  size?: string;
+  color?: string;
+  price: number;
+  stock_quantity?: number;
 }
 
 interface Transaction {
@@ -85,14 +94,37 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
   // Exchange-specific state
   const [exchangeFromItem, setExchangeFromItem] = useState<ReturnItem | null>(null);
   const [exchangeScanInput, setExchangeScanInput] = useState('');
-  const [exchangeToVariant, setExchangeToVariant] = useState<any | null>(null);
+  const [exchangeCartItems, setExchangeCartItems] = useState<ExchangeCartItem[]>([]);
   const [exchangeSearching, setExchangeSearching] = useState(false);
   const [exchangeError, setExchangeError] = useState<string | null>(null);
-  const [exchangePriceDiff, setExchangePriceDiff] = useState(0);
+  const [exchangePaymentMethod, setExchangePaymentMethod] = useState<string | null>(null);
+  const [exchangeRemainderMethod, setExchangeRemainderMethod] = useState<'store-credit' | 'refund' | null>(null);
+  const [exchangeRefundMOP, setExchangeRefundMOP] = useState<string | null>(null);
+  const [returnedItemCreditValue, setReturnedItemCreditValue] = useState(0);
   const [scanMode, setScanMode] = useState<'barcode' | 'search'>('barcode');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const exchangeSearchRef = useRef<HTMLInputElement>(null);
+
+  // Exchange computed values
+  const taxMult = transaction?.isTaxExempt ? 1 : 1.13;
+  const exchangeReturnedTotal = exchangeFromItem
+    ? parseFloat((returnedItemCreditValue * taxMult).toFixed(2))
+    : 0;
+  const exchangeReplacementTotal = parseFloat(
+    (exchangeCartItems.reduce((s, item) => s + item.price * taxMult, 0)).toFixed(2)
+  );
+  const exchangeDifference = parseFloat((exchangeReplacementTotal - exchangeReturnedTotal).toFixed(2));
+
+  const originalExchangeTxItem = exchangeFromItem && transaction
+    ? (Array.isArray(transaction.items) ? transaction.items : []).find((it: any) =>
+        String(it.id ?? it.variantId ?? '') === exchangeFromItem.id ||
+        (exchangeFromItem.variantId && it.variantId === exchangeFromItem.variantId)
+      ) ?? null
+    : null;
+  const exchangeFromItemHadDiscountOrOverride = !!(
+    originalExchangeTxItem?.discount || originalExchangeTxItem?.priceOverride !== undefined
+  );
 
   // Refund mode: set transaction directly from prop
   useEffect(() => {
@@ -335,6 +367,16 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     }
   };
 
+  const getEffectivePrice = (product: any, variantColor?: string): number => {
+    const colorEntry = variantColor
+      ? (product.colors || []).find((c: any) => c.name === variantColor)
+      : null;
+    if (colorEntry?.salePrice) return colorEntry.salePrice;
+    if (colorEntry?.price) return colorEntry.price;
+    if (product.isOnSale && product.salePrice) return product.salePrice;
+    return product.price ?? 0;
+  };
+
   // EXCHANGE: look up replacement item by barcode
   const lookupExchangeVariant = async () => {
     const barcode = exchangeScanInput.trim();
@@ -346,7 +388,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     try {
       const { data: exact } = await supabase
         .from('product_variants')
-        .select('*, products(*)')
+        .select('*, products(id, name, price, isOnSale, salePrice, colors)')
         .eq('barcode', barcode)
         .maybeSingle();
 
@@ -354,7 +396,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
       if (!variantData) {
         const { data: fuzzy } = await supabase
           .from('product_variants')
-          .select('*, products(*)')
+          .select('*, products(id, name, price, isOnSale, salePrice, colors)')
           .ilike('barcode', barcode)
           .maybeSingle();
         variantData = fuzzy;
@@ -365,16 +407,19 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         return;
       }
 
-      setExchangeToVariant(variantData);
-
-      if (exchangeFromItem) {
-        const newPrice = variantData.products?.price || 0;
-        const oldPrice = exchangeFromItem.pricePerUnit;
-        const taxMult = transaction?.isTaxExempt ? 1 : 1.13;
-        const diff = parseFloat(((newPrice - oldPrice) * taxMult).toFixed(2));
-        setExchangePriceDiff(diff);
-      }
-
+      const product = Array.isArray(variantData.products) ? variantData.products[0] : variantData.products;
+      setExchangeCartItems(prev => [
+        ...prev,
+        {
+          variantId: variantData.id,
+          productName: product?.name || 'Unknown',
+          size: variantData.size,
+          color: variantData.color,
+          price: getEffectivePrice(product || {}, variantData.color),
+          stock_quantity: variantData.stock_quantity,
+        },
+      ]);
+      setExchangeScanInput('');
       setCurrentStep('exchange-confirm');
     } catch (err) {
       setExchangeError(err instanceof Error ? err.message : 'Error looking up item');
@@ -392,7 +437,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     try {
       const { data } = await supabase
         .from('products')
-        .select('id, name, price, product_code, product_variants(id, size, color, stock_quantity, barcode)')
+        .select('id, name, price, isOnSale, salePrice, colors, product_code, product_variants(id, size, color, stock_quantity, barcode)')
         .or(`name.ilike.%${query}%,product_code.ilike.%${query}%`)
         .limit(8);
       setSearchResults(data || []);
@@ -403,173 +448,295 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
   // EXCHANGE: select replacement from search results
   const selectReplacementProduct = (product: any, variant: any) => {
-    const variantObj = {
-      id: variant.id,
-      size: variant.size,
-      color: variant.color,
-      stock_quantity: variant.stock_quantity,
-      barcode: variant.barcode,
-      products: {
-        id: product.id,
-        name: product.name,
-        price: product.price,
+    setExchangeCartItems(prev => [
+      ...prev,
+      {
+        variantId: variant.id,
+        productName: product.name,
+        size: variant.size,
+        color: variant.color,
+        price: getEffectivePrice(product, variant.color),
+        stock_quantity: variant.stock_quantity,
       },
-    };
-    setExchangeToVariant(variantObj);
-
-    if (exchangeFromItem) {
-      const newPrice = product.price || 0;
-      const oldPrice = exchangeFromItem.pricePerUnit;
-      const taxMult = transaction?.isTaxExempt ? 1 : 1.13;
-      const diff = parseFloat(((newPrice - oldPrice) * taxMult).toFixed(2));
-      setExchangePriceDiff(diff);
-    }
-
+    ]);
+    setSearchQuery('');
+    setSearchResults([]);
     setCurrentStep('exchange-confirm');
   };
 
   // EXCHANGE: complete the exchange
   const handleCompleteExchange = async () => {
-    if (!transaction || !exchangeFromItem || !exchangeToVariant) return;
+    if (!transaction || !exchangeFromItem || exchangeCartItems.length === 0) return;
+    if (exchangeDifference > 0 && !exchangePaymentMethod) return;
+    if (exchangeDifference < 0 && !exchangeRemainderMethod) return;
+    if (exchangeDifference < 0 && exchangeRemainderMethod === 'refund' && !exchangeRefundMOP) return;
 
     setProcessing(true);
     setError(null);
 
+    // Rollback tracking — SC and stock only; tx status / returns / EXC- are NOT rolled back
+    let scId: string | null = null;
+    let issuedExchangeSCCardNumber: string | null = null;
+    let returnedStockRestored = false;
+    const deductedVariantIds: string[] = [];
+    let pastPointOfNoReturn = false;
+
     try {
-      // 1. Restore old item inventory
+      // STEP 1: Create SC inactive — before any stock or transaction writes
+      if (exchangeDifference < 0 && exchangeRemainderMethod === 'store-credit') {
+        const { data: scData, error: scError } = await supabase
+          .from('store_credits')
+          .insert([{
+            customer_id: transaction.customer_id || null,
+            amount: Math.abs(exchangeDifference),
+            remaining_balance: Math.abs(exchangeDifference),
+            reason: 'Exchange Credit',
+            is_active: false,
+            card_number: 'SC-' + Math.random().toString(36).substr(2, 12).toUpperCase(),
+          }])
+          .select()
+          .single();
+        if (scError) throw new Error('Failed to create store credit: ' + scError.message);
+        scId = scData.id;
+        issuedExchangeSCCardNumber = scData.card_number;
+        setIssuedStoreCreditCardNumber(scData.card_number);
+      }
+
+      // STEP 2: Restore returned item inventory
       if (exchangeFromItem.variantId) {
-        const { data: oldVariant } = await supabase
+        const { data: oldVariant, error: fetchOldErr } = await supabase
           .from('product_variants')
           .select('stock_quantity')
           .eq('id', exchangeFromItem.variantId)
           .single();
+        if (fetchOldErr) throw new Error('Failed to fetch returned item stock: ' + fetchOldErr.message);
         if (oldVariant) {
-          await supabase.from('product_variants')
+          const { error: restoreErr } = await supabase
+            .from('product_variants')
             .update({ stock_quantity: (oldVariant.stock_quantity || 0) + 1 })
             .eq('id', exchangeFromItem.variantId);
+          if (restoreErr) throw new Error('Failed to restore returned item stock: ' + restoreErr.message);
+          returnedStockRestored = true;
         }
       }
 
-      // 2. Reduce new item inventory
-      const { data: newVariantRow } = await supabase
-        .from('product_variants')
-        .select('stock_quantity')
-        .eq('id', exchangeToVariant.id)
-        .single();
-      if (newVariantRow) {
-        await supabase.from('product_variants')
-          .update({ stock_quantity: Math.max(0, (newVariantRow.stock_quantity || 0) - 1) })
-          .eq('id', exchangeToVariant.id);
+      // STEP 3: Deduct inventory for all new items
+      for (const cartItem of exchangeCartItems) {
+        const { data: varRow, error: fetchNewErr } = await supabase
+          .from('product_variants')
+          .select('stock_quantity')
+          .eq('id', cartItem.variantId)
+          .single();
+        if (fetchNewErr) throw new Error(`Failed to fetch stock for ${cartItem.productName}: ` + fetchNewErr.message);
+        if (varRow) {
+          const { error: deductErr } = await supabase
+            .from('product_variants')
+            .update({ stock_quantity: Math.max(0, (varRow.stock_quantity || 0) - 1) })
+            .eq('id', cartItem.variantId);
+          if (deductErr) throw new Error(`Failed to deduct stock for ${cartItem.productName}: ` + deductErr.message);
+          deductedVariantIds.push(cartItem.variantId);
+        }
       }
 
-      // 3. Update original transaction status
+      pastPointOfNoReturn = true;
+
+      // STEP 4: Update original transaction status
       const existingRefunded = Array.isArray(transaction.refunded_items) ? transaction.refunded_items : [];
       const exchangedEntry = { ...exchangeFromItem, returnQuantity: 1, exchanged: true };
       const newRefundedItems = [...existingRefunded, exchangedEntry];
-
       const allOriginalItems = Array.isArray(transaction.items) ? transaction.items : [];
       const totalOriginalQty = allOriginalItems.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
       const newReturnedQty = newRefundedItems.reduce((sum: number, r: any) => sum + (r.returnQuantity || 1), 0);
       const isFullExchange = newReturnedQty >= totalOriginalQty;
 
-      await supabase.from('transactions').update({
-        status: isFullExchange ? 'returned' : 'partial_return',
-        refunded_items: newRefundedItems,
-        refunded_at: new Date().toISOString(),
-      }).eq('id', transaction.id);
+      const { error: txStatusErr } = await supabase
+        .from('transactions')
+        .update({
+          status: isFullExchange ? 'returned' : 'partial_return',
+          refunded_items: newRefundedItems,
+          refunded_at: new Date().toISOString(),
+        })
+        .eq('id', transaction.id);
+      if (txStatusErr) throw new Error('Failed to update original transaction status: ' + txStatusErr.message);
 
-      // 4. Insert returns record
-      await supabase.from('returns').insert({
-        transaction_id: transaction.id,
-        customer_id: transaction.customer_id,
-        refund_method: 'exchange',
-        items: [{ ...exchangeFromItem, returnQuantity: 1 }],
-        refund_amount: exchangePriceDiff,
-        status: 'completed',
-        created_at: new Date().toISOString(),
-      });
+      // STEP 5: Insert returns record
+      const { error: returnsErr } = await supabase
+        .from('returns')
+        .insert({
+          transaction_id: transaction.id,
+          customer_id: transaction.customer_id,
+          refund_method: 'exchange',
+          items: [{ ...exchangeFromItem, pricePerUnit: returnedItemCreditValue, returnQuantity: 1 }],
+          refund_amount: exchangeReturnedTotal,
+          status: 'completed',
+          created_at: new Date().toISOString(),
+        });
+      if (returnsErr) throw new Error('Failed to create returns record: ' + returnsErr.message);
 
-      // 5. Record exchange transaction in history
-      const newProduct = exchangeToVariant.products;
-      await supabase.from('transactions').insert({
-        method: 'Exchange',
-        payment_method: 'Exchange',
-        total_amount: exchangePriceDiff,
-        customer_id: transaction.customer_id,
-        items: [{
-          name: newProduct?.name || 'Unknown',
-          size: exchangeToVariant.size,
-          quantity: 1,
-          price: newProduct?.price || 0,
-          variantId: exchangeToVariant.id,
-        }],
-        invoice_number: 'EXC-' + transaction.id.slice(0, 8),
-        status: 'completed',
-        created_at: new Date().toISOString(),
-      });
+      // STEP 6: Insert EXC- transaction
+      let excMethod: string;
+      if (exchangeDifference > 0) {
+        excMethod = exchangePaymentMethod!;
+      } else if (exchangeDifference < 0 && exchangeRemainderMethod === 'store-credit') {
+        excMethod = 'Store Credit';
+      } else if (exchangeDifference < 0 && exchangeRemainderMethod === 'refund') {
+        excMethod = exchangeRefundMOP!;
+      } else {
+        excMethod = 'Exchange';
+      }
+
+      const excItems = exchangeCartItems.map(item => ({
+        name: item.productName,
+        size: item.size,
+        color: item.color,
+        quantity: 1,
+        price: item.price,
+        variantId: item.variantId,
+      }));
+      const newNetPreTax = parseFloat(
+        (exchangeCartItems.reduce((s, item) => s + item.price, 0) - returnedItemCreditValue).toFixed(2)
+      );
+      const excInvoiceNumber = 'EXC-' + transaction.id.slice(0, 6) + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+
+      const { error: excTxErr } = await supabase
+        .from('transactions')
+        .insert({
+          method: excMethod,
+          payment_method: excMethod,
+          total_amount: exchangeDifference,
+          customer_id: transaction.customer_id,
+          items: excItems,
+          subtotal: newNetPreTax,
+          hst: transaction.isTaxExempt ? 0 : parseFloat((newNetPreTax * 0.13).toFixed(2)),
+          invoice_number: excInvoiceNumber,
+          status: 'completed',
+          created_at: new Date().toISOString(),
+        });
+      if (excTxErr) throw new Error('Failed to record exchange transaction: ' + excTxErr.message);
+
+      // STEP 7: Activate store credit (last step)
+      if (scId) {
+        const { error: activateErr } = await supabase
+          .from('store_credits')
+          .update({ is_active: true })
+          .eq('id', scId);
+        if (activateErr) throw new Error('Failed to activate store credit: ' + activateErr.message);
+      }
 
       setCompletionData({
         type: 'exchange',
         fromItem: exchangeFromItem,
-        toItem: {
-          name: newProduct?.name || 'Unknown',
-          size: exchangeToVariant.size,
-          price: newProduct?.price || 0,
-        },
-        priceDiff: exchangePriceDiff,
+        newItems: exchangeCartItems,
+        difference: exchangeDifference,
+        remainderMethod: exchangeRemainderMethod,
+        paymentMethod: excMethod,
+        scCardNumber: issuedExchangeSCCardNumber,
       });
 
       setCurrentStep('exchange-complete');
-      generateExchangeReceipt();
+      generateExchangeReceipt(excInvoiceNumber, issuedExchangeSCCardNumber);
       if (onComplete) setTimeout(onComplete, 1500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error processing exchange');
+      // ROLLBACK: SC and stock only — tx status/returns/EXC- are NOT rolled back
+      if (scId) {
+        await supabase.from('store_credits').delete().eq('id', scId);
+        setIssuedStoreCreditCardNumber(null);
+      }
+      if (returnedStockRestored && exchangeFromItem.variantId) {
+        const { data: v } = await supabase
+          .from('product_variants').select('stock_quantity').eq('id', exchangeFromItem.variantId).single();
+        if (v) {
+          await supabase.from('product_variants')
+            .update({ stock_quantity: Math.max(0, (v.stock_quantity || 0) - 1) })
+            .eq('id', exchangeFromItem.variantId);
+        }
+      }
+      for (const vid of deductedVariantIds) {
+        const { data: v } = await supabase
+          .from('product_variants').select('stock_quantity').eq('id', vid).single();
+        if (v) {
+          await supabase.from('product_variants')
+            .update({ stock_quantity: (v.stock_quantity || 0) + 1 })
+            .eq('id', vid);
+        }
+      }
+      setError(pastPointOfNoReturn
+        ? 'Exchange failed partway. Do NOT retry. Check this transaction and stock first.'
+        : err instanceof Error ? err.message : 'Error processing exchange');
     } finally {
       setProcessing(false);
     }
   };
 
-  const generateExchangeReceipt = () => {
-    if (!transaction || !exchangeFromItem || !exchangeToVariant) return;
+  const generateExchangeReceipt = (invoiceNumber: string, scCardNumber?: string | null) => {
+    if (!transaction || !exchangeFromItem || exchangeCartItems.length === 0) return;
 
-    const newProduct = exchangeToVariant.products;
     const customerName = transaction.customers
       ? `${transaction.customers.first_name} ${transaction.customers.last_name}`
       : 'Walk-in';
 
+    const netPreTax = parseFloat(
+      (exchangeCartItems.reduce((s, item) => s + item.price, 0) - returnedItemCreditValue).toFixed(2)
+    );
+    const netTax = transaction.isTaxExempt ? 0 : parseFloat((netPreTax * 0.13).toFixed(2));
+
+    const receiptItems = [
+      {
+        name: `${exchangeFromItem.name} (Returned)`,
+        quantity: 1,
+        price: -returnedItemCreditValue,
+        size: exchangeFromItem.size,
+      },
+      ...exchangeCartItems.map(item => ({
+        name: `${item.productName} (Exchange)`,
+        quantity: 1,
+        price: item.price,
+        size: item.size,
+      })),
+    ];
+
+    let paymentMethodLabel: string;
+    if (exchangeDifference === 0) {
+      paymentMethodLabel = 'Even Exchange';
+    } else if (exchangeDifference > 0) {
+      paymentMethodLabel = `Exchange — collected ${exchangePaymentMethod} ${exchangeDifference.toFixed(2)}`;
+    } else if (exchangeRemainderMethod === 'store-credit') {
+      paymentMethodLabel = `Exchange — store credit ${Math.abs(exchangeDifference).toFixed(2)} issued`;
+    } else {
+      paymentMethodLabel = `Exchange — refunded ${exchangeRefundMOP} ${Math.abs(exchangeDifference).toFixed(2)}`;
+    }
+
     const receiptData: any = {
       transactionId: transaction.id,
-      invoiceNumber: 'EXC-' + transaction.id.slice(0, 8),
+      invoiceNumber,
       barcodeValue: transaction.invoice_number,
       customerName,
-      items: [
-        {
-          name: `${exchangeFromItem.name} (Returned)`,
-          quantity: 1,
-          price: -exchangeFromItem.pricePerUnit,
-          size: exchangeFromItem.size,
-        },
-        {
-          name: `${newProduct?.name || 'New Item'} (Exchange)`,
-          quantity: 1,
-          price: newProduct?.price || 0,
-          size: exchangeToVariant.size,
-        },
-      ],
-      subtotal: parseFloat((exchangePriceDiff / 1.13).toFixed(2)),
-      hst: parseFloat((exchangePriceDiff - exchangePriceDiff / 1.13).toFixed(2)),
-      total: exchangePriceDiff,
-      paymentMethod:
-        exchangePriceDiff > 0
-          ? 'Exchange (Difference Owed)'
-          : exchangePriceDiff < 0
-          ? 'Exchange (Difference Refunded)'
-          : 'Even Exchange',
+      items: receiptItems,
+      subtotal: netPreTax,
+      hst: netTax,
+      total: exchangeDifference,
+      paymentMethod: paymentMethodLabel,
       createdAt: new Date(),
       status: 'exchange',
     };
 
     printInIframe(generateThermalReceiptHTML(receiptData));
+
+    if (scCardNumber) {
+      setTimeout(() => {
+        const scReceiptData: any = {
+          customerName,
+          storeCreditCardNumber: scCardNumber,
+          storeCreditAmount: Math.abs(exchangeDifference),
+          storeCreditBalance: Math.abs(exchangeDifference),
+          storeCreditReason: 'Exchange Credit',
+          transactionId: transaction.id,
+          invoiceNumber: undefined,
+          createdAt: new Date(),
+        };
+        printInIframe(generateStoreCreditReceiptHTML(scReceiptData));
+      }, 1500);
+    }
   };
 
   const handleCompleteReturn = async () => {
@@ -891,9 +1058,12 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     setIssuedStoreCreditCardNumber(null);
     setExchangeFromItem(null);
     setExchangeScanInput('');
-    setExchangeToVariant(null);
+    setExchangeCartItems([]);
+    setExchangePaymentMethod(null);
+    setExchangeRemainderMethod(null);
+    setExchangeRefundMOP(null);
+    setReturnedItemCreditValue(0);
     setExchangeError(null);
-    setExchangePriceDiff(0);
     setScanMode('barcode');
     setSearchQuery('');
     setSearchResults([]);
@@ -1314,8 +1484,11 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                       key={item.id}
                       onClick={() => {
                         setExchangeFromItem({ ...item, returnQuantity: 1 });
-                        setExchangeScanInput('');
-                        setExchangeToVariant(null);
+                        setReturnedItemCreditValue(item.pricePerUnit);
+                        setExchangeCartItems([]);
+                        setExchangePaymentMethod(null);
+                        setExchangeRemainderMethod(null);
+                        setExchangeRefundMOP(null);
                         setExchangeError(null);
                         setCurrentStep('exchange-scan');
                       }}
@@ -1450,54 +1623,176 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
             )}
 
             {/* EXCHANGE: STEP 3 — CONFIRM */}
-            {currentStep === 'exchange-confirm' && exchangeFromItem && exchangeToVariant && (
+            {currentStep === 'exchange-confirm' && exchangeFromItem && (
               <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
-                  <h3 className="font-semibold text-gray-900">Exchange Summary</h3>
-
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
-                      <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Returning</p>
-                      <p className="font-bold text-gray-900">{exchangeFromItem.name}</p>
-                      {exchangeFromItem.size && <p className="text-gray-600">Size: {exchangeFromItem.size}</p>}
-                      <p className="text-gray-700 font-semibold mt-1">${(exchangeFromItem.pricePerUnit * 1.13).toFixed(2)}</p>
-                    </div>
-
-                    <ArrowLeftRight size={20} className="text-gray-400 flex-shrink-0" />
-
-                    <div className="flex-1 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
-                      <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Exchanging For</p>
-                      <p className="font-bold text-gray-900">{exchangeToVariant.products?.name || 'Unknown'}</p>
-                      {exchangeToVariant.size && <p className="text-gray-600">Size: {exchangeToVariant.size}</p>}
-                      <p className="text-gray-700 font-semibold mt-1">
-                        ${((exchangeToVariant.products?.price || 0) * 1.13).toFixed(2)}
-                      </p>
+                {/* Returned item */}
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
+                  <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Returning</p>
+                  <p className="font-bold text-gray-900">{exchangeFromItem.name}</p>
+                  {exchangeFromItem.size && <p className="text-gray-600">Size: {exchangeFromItem.size}</p>}
+                  {exchangeFromItemHadDiscountOrOverride && (
+                    <p className="mt-1 text-xs text-amber-700 font-semibold flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      Original sale had a discount or price override — verify credit value
+                    </p>
+                  )}
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Credit value (pre-tax):</span>
+                    <div className="flex items-center border border-red-300 rounded overflow-hidden">
+                      <span className="px-2 py-1 bg-red-100 text-gray-600 text-sm font-bold">$</span>
+                      <input
+                        type="number"
+                        value={returnedItemCreditValue}
+                        onChange={e => setReturnedItemCreditValue(Math.max(0, parseFloat(e.target.value) || 0))}
+                        step="0.01"
+                        min="0"
+                        className="w-20 px-2 py-1 text-sm font-bold text-gray-900 focus:outline-none focus:ring-1 focus:ring-red-400 bg-white"
+                      />
                     </div>
                   </div>
+                  <p className="text-red-700 font-semibold mt-1">${exchangeReturnedTotal.toFixed(2)} incl. tax</p>
+                </div>
 
-                  <div className="border-t border-gray-200 pt-3">
-                    {exchangePriceDiff === 0 && (
-                      <p className="text-center font-bold text-green-700 text-lg">✓ Even Exchange — no payment needed</p>
-                    )}
-                    {exchangePriceDiff > 0 && (
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600">Price difference — collect from customer:</p>
-                        <p className="font-bold text-red-600 text-2xl mt-1">+${exchangePriceDiff.toFixed(2)}</p>
-                      </div>
-                    )}
-                    {exchangePriceDiff < 0 && (
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600">Price difference — refund to customer:</p>
-                        <p className="font-bold text-blue-600 text-2xl mt-1">${Math.abs(exchangePriceDiff).toFixed(2)}</p>
-                      </div>
-                    )}
+                {/* Replacement cart */}
+                <div>
+                  <p className="text-xs text-gray-500 font-semibold uppercase mb-2">Replacement Items</p>
+                  {exchangeCartItems.length === 0 ? (
+                    <p className="text-sm text-gray-400 italic">No replacement items added yet</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {exchangeCartItems.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                          <div>
+                            <p className="font-bold text-gray-900">{item.productName}</p>
+                            {item.size && <p className="text-gray-600">Size: {item.size}</p>}
+                            <p className="text-green-700 font-semibold">${(item.price * taxMult).toFixed(2)} incl. tax</p>
+                          </div>
+                          <button
+                            onClick={() => setExchangeCartItems(prev => prev.filter((_, i) => i !== idx))}
+                            className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      setExchangeScanInput('');
+                      setExchangeError(null);
+                      setScanMode('barcode');
+                      setCurrentStep('exchange-scan');
+                    }}
+                    className="mt-2 w-full py-2 border-2 border-dashed border-purple-300 text-purple-600 rounded-lg text-sm font-medium hover:border-purple-500 hover:bg-purple-50 transition"
+                  >
+                    + Add another item
+                  </button>
+                </div>
+
+                {/* Summary */}
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Returned total</span>
+                    <span className="font-semibold text-red-600">−${exchangeReturnedTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Replacement total</span>
+                    <span className="font-semibold text-green-600">+${exchangeReplacementTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-base">
+                    <span>Difference</span>
+                    <span className={
+                      exchangeDifference > 0 ? 'text-red-600' :
+                      exchangeDifference < 0 ? 'text-blue-600' : 'text-green-700'
+                    }>
+                      {exchangeDifference === 0
+                        ? 'Even Exchange'
+                        : exchangeDifference > 0
+                        ? `+${exchangeDifference.toFixed(2)} collect from customer`
+                        : `−${Math.abs(exchangeDifference).toFixed(2)} owed to customer`}
+                    </span>
                   </div>
                 </div>
 
-                {exchangeToVariant.stock_quantity !== undefined && exchangeToVariant.stock_quantity < 1 && (
+                {/* Collect payment (customer owes) */}
+                {exchangeDifference > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 mb-2">Collect payment via:</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['Cash', 'Visa', 'Mastercard', 'Debit', 'Amex'].map(m => (
+                        <button
+                          key={m}
+                          onClick={() => setExchangePaymentMethod(m)}
+                          className={`py-3 px-2 rounded-lg border-2 font-semibold text-sm transition ${
+                            exchangePaymentMethod === m
+                              ? 'border-purple-500 bg-purple-50 text-purple-700'
+                              : 'border-gray-200 hover:border-purple-400 hover:bg-purple-50 text-gray-700'
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Remainder options (store owes) */}
+                {exchangeDifference < 0 && exchangeCartItems.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 mb-2">
+                      Customer is owed ${Math.abs(exchangeDifference).toFixed(2)} — how to handle?
+                    </p>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => setExchangeRemainderMethod('store-credit')}
+                        className={`w-full p-3 rounded-lg border-2 text-left text-sm font-semibold transition ${
+                          exchangeRemainderMethod === 'store-credit'
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 hover:border-blue-400 text-gray-700'
+                        }`}
+                      >
+                        {exchangeRemainderMethod === 'store-credit' ? '✓ ' : ''}Issue store credit of ${Math.abs(exchangeDifference).toFixed(2)}
+                      </button>
+                      <button
+                        onClick={() => { setExchangeRemainderMethod('refund'); setExchangeRefundMOP(null); }}
+                        className={`w-full p-3 rounded-lg border-2 text-left text-sm font-semibold transition ${
+                          exchangeRemainderMethod === 'refund'
+                            ? 'border-green-500 bg-green-50 text-green-700'
+                            : 'border-gray-200 hover:border-green-400 text-gray-700'
+                        }`}
+                      >
+                        {exchangeRemainderMethod === 'refund' ? '✓ ' : ''}Refund ${Math.abs(exchangeDifference).toFixed(2)} to customer
+                      </button>
+                      {exchangeRemainderMethod === 'refund' && (
+                        <div className="pl-4 pt-1">
+                          <p className="text-xs text-gray-500 mb-2">Select refund method:</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {['Cash', 'Visa', 'Mastercard', 'Debit', 'Amex'].map(m => (
+                              <button
+                                key={m}
+                                onClick={() => setExchangeRefundMOP(m)}
+                                className={`py-2 px-2 rounded-lg border-2 font-semibold text-sm transition ${
+                                  exchangeRefundMOP === m
+                                    ? 'border-green-500 bg-green-50 text-green-700'
+                                    : 'border-gray-200 hover:border-green-400 text-gray-700'
+                                }`}
+                              >
+                                {m}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Out-of-stock warning */}
+                {exchangeCartItems.some(item => item.stock_quantity !== undefined && item.stock_quantity < 1) && (
                   <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg text-sm text-amber-700 flex items-center gap-2">
                     <AlertCircle size={16} />
-                    <span>Warning: replacement item shows 0 stock in inventory</span>
+                    <span>Warning: one or more replacement items shows 0 stock in inventory</span>
                   </div>
                 )}
 
@@ -1522,15 +1817,26 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                 <div>
                   <h3 className="text-2xl font-bold text-gray-900">Exchange Complete</h3>
                   <p className="text-gray-600 mt-2">
-                    {completionData.fromItem.name} → {completionData.toItem.name}
-                    {completionData.toItem.size ? ` (Size ${completionData.toItem.size})` : ''}
+                    {completionData.fromItem.name} →{' '}
+                    {completionData.newItems.map((i: ExchangeCartItem) => i.productName).join(', ')}
                   </p>
-                  {completionData.priceDiff !== 0 && (
-                    <p className={`mt-2 font-bold text-lg ${completionData.priceDiff > 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                      {completionData.priceDiff > 0
-                        ? `Collected $${completionData.priceDiff.toFixed(2)} from customer`
-                        : `Refunded $${Math.abs(completionData.priceDiff).toFixed(2)} to customer`}
+                  {completionData.difference !== 0 && (
+                    <p className={`mt-2 font-bold text-lg ${completionData.difference > 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                      {completionData.difference > 0
+                        ? `Collected ${completionData.difference.toFixed(2)} via ${completionData.paymentMethod}`
+                        : completionData.remainderMethod === 'store-credit'
+                        ? `Issued ${Math.abs(completionData.difference).toFixed(2)} store credit`
+                        : `Refunded ${Math.abs(completionData.difference).toFixed(2)} via ${completionData.paymentMethod}`}
                     </p>
+                  )}
+                  {completionData.scCardNumber && (
+                    <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-500 rounded-lg">
+                      <p className="text-xs text-gray-600 font-semibold mb-2">STORE CREDIT CARD NUMBER</p>
+                      <p className="text-2xl font-mono font-bold text-blue-700 text-center break-all">
+                        {completionData.scCardNumber}
+                      </p>
+                      <p className="text-xs text-gray-600 text-center mt-2">Card printed on receipt below</p>
+                    </div>
                   )}
                 </div>
 
@@ -1538,9 +1844,14 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                   <p className="font-semibold mb-2">What to do next:</p>
                   <ul className="text-left space-y-1">
                     <li>✓ Exchange receipt has been printed</li>
-                    <li>✓ Inventory updated (old item restored, new item deducted)</li>
-                    {completionData.priceDiff > 0 && <li>✓ Collect ${completionData.priceDiff.toFixed(2)} difference from customer</li>}
-                    {completionData.priceDiff < 0 && <li>✓ Return ${Math.abs(completionData.priceDiff).toFixed(2)} difference to customer</li>}
+                    <li>✓ Inventory updated (old item restored, new items deducted)</li>
+                    {completionData.difference > 0 && <li>✓ Collected ${completionData.difference.toFixed(2)}</li>}
+                    {completionData.difference < 0 && completionData.remainderMethod === 'store-credit' && (
+                      <li>✓ Store credit issued — note the card number from the receipt</li>
+                    )}
+                    {completionData.difference < 0 && completionData.remainderMethod === 'refund' && (
+                      <li>✓ Refunded ${Math.abs(completionData.difference).toFixed(2)} to customer</li>
+                    )}
                   </ul>
                 </div>
               </div>
@@ -1698,7 +2009,9 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
             {currentStep === 'exchange-scan' && (
               <button
-                onClick={() => setCurrentStep('exchange-select')}
+                onClick={() => exchangeCartItems.length > 0
+                  ? setCurrentStep('exchange-confirm')
+                  : setCurrentStep('exchange-select')}
                 className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
               >
                 ← Back
@@ -1708,14 +2021,25 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
             {currentStep === 'exchange-confirm' && (
               <div className="flex gap-2">
                 <button
-                  onClick={() => setCurrentStep('exchange-scan')}
+                  onClick={() => {
+                    setExchangeScanInput('');
+                    setExchangeError(null);
+                    setScanMode('barcode');
+                    setCurrentStep('exchange-scan');
+                  }}
                   className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
                 >
                   ← Back
                 </button>
                 <button
                   onClick={handleCompleteExchange}
-                  disabled={processing}
+                  disabled={
+                    processing ||
+                    exchangeCartItems.length === 0 ||
+                    (exchangeDifference > 0 && !exchangePaymentMethod) ||
+                    (exchangeDifference < 0 && !exchangeRemainderMethod) ||
+                    (exchangeDifference < 0 && exchangeRemainderMethod === 'refund' && !exchangeRefundMOP)
+                  }
                   className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition font-semibold"
                 >
                   {processing ? 'Processing...' : 'Complete Exchange'}
