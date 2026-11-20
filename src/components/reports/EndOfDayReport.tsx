@@ -104,9 +104,9 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
     const voided = transactions.filter(t => t.status === 'voided');
     const refunded = transactions.filter(t => t.status === 'refunded');
 
-    const totalCompleted = completed.reduce((sum, t) => sum + Math.abs(Number(t.total_amount)), 0);
-    const totalVoided = voided.reduce((sum, t) => sum + Math.abs(Number(t.total_amount)), 0);
-    const totalRefunded = refunded.reduce((sum, t) => sum + Math.abs(Number(t.total_amount)), 0);
+    const totalCompleted = completed.reduce((sum, t) => sum + Number(t.total_amount), 0);
+    const totalVoided = voided.reduce((sum, t) => sum + Number(t.total_amount), 0);
+    const totalRefunded = refunded.reduce((sum, t) => sum + Number(t.total_amount), 0);
 
     const netSale = totalCompleted / 1.13;
     const hstCollected = totalCompleted - netSale;
@@ -139,7 +139,7 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
         t.payment_splits.forEach(split => {
           const method = split.method || 'Other';
           if (!breakdown[method]) breakdown[method] = { method, count: 0, amount: 0, txIds: new Set() };
-          breakdown[method].amount += Math.abs(Number(split.amount || 0));
+          breakdown[method].amount += Number(split.amount || 0);
           // Increment count only once per transaction (not per split)
           breakdown[method].txIds?.add(t.id);
         });
@@ -148,7 +148,7 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
         const method = t.method || 'Other';
         if (!breakdown[method]) breakdown[method] = { method, count: 0, amount: 0 };
         breakdown[method].count += 1;
-        breakdown[method].amount += Math.abs(Number(t.total_amount));
+        breakdown[method].amount += Number(t.total_amount);
       }
     });
 

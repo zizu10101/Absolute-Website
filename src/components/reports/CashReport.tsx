@@ -115,11 +115,11 @@ export const CashReport: React.FC<CashReportProps> = ({ logo: logoFromProps }) =
         if (t.payment_splits && Array.isArray(t.payment_splits) && t.payment_splits.length > 0) {
           t.payment_splits.forEach(split => {
             const method = split.method || 'Other';
-            breakdown[method] = (breakdown[method] || 0) + Math.abs(Number(split.amount || 0));
+            breakdown[method] = (breakdown[method] || 0) + Number(split.amount || 0);
           });
         } else {
           const method = t.method || 'Other';
-          breakdown[method] = (breakdown[method] || 0) + Math.abs(Number(t.total_amount || 0));
+          breakdown[method] = (breakdown[method] || 0) + Number(t.total_amount || 0);
         }
       });
 
