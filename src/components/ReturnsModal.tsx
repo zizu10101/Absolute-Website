@@ -663,6 +663,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           customer_id: transaction.customer_id || exchangeSCCustomer?.id || null,
           items: excItems,
           invoice_number: excInvoiceNumber,
+          related_transaction_id: transaction.id,
           status: 'completed',
           created_at: new Date().toISOString(),
         });
@@ -841,6 +842,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           customer_id: transaction.customer_id,
           items: Array.isArray(transaction.items) ? transaction.items : [],
           invoice_number: 'RTN-' + transaction.id.slice(0, 8),
+          related_transaction_id: transaction.id,
           status: 'completed',
           created_at: new Date().toISOString(),
         });
@@ -965,6 +967,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           customer_id: transaction.customer_id,
           items: selectedItems,
           invoice_number: 'RTN-' + transaction.id.slice(0, 8),
+          related_transaction_id: transaction.id,
           status: 'completed',
           created_at: new Date().toISOString(),
         });
@@ -984,6 +987,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           customer_id: transaction.customer_id,
           items: selectedItems,
           invoice_number: 'RTN-' + transaction.id.slice(0, 8),
+          related_transaction_id: transaction.id,
           status: 'completed',
           created_at: new Date().toISOString(),
         });

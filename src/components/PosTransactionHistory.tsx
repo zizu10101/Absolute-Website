@@ -29,6 +29,7 @@ interface Transaction {
   refund_amount?: number;
   refunded_items?: any[];
   refunded_at?: string;
+  related_transaction_id?: string | null;
 }
 
 
