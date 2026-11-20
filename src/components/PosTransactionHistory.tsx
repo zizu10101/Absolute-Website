@@ -86,6 +86,9 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ tx, onC
   const [originalSale, setOriginalSale] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [returnScDetails, setReturnScDetails] = useState<Record<string, {
+    cardNumber: string; amount: number; customerName: string; phone?: string;
+  }>>({});
 
   const isChildTx = !!(tx.invoice_number?.startsWith('RTN-') || tx.invoice_number?.startsWith('EXC-'));
 
@@ -112,6 +115,47 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ tx, onC
           .eq('transaction_id', tx.id)
           .order('created_at', { ascending: true });
         setReturns(rData || []);
+
+        // Fetch store credit details for any return that issued an SC
+        const scReturns = (rData || []).filter((r: any) => r.store_credit_id);
+        if (scReturns.length > 0) {
+          const { data: scRows } = await supabase
+            .from('store_credits')
+            .select('id, card_number, amount, customer_id')
+            .in('id', scReturns.map((r: any) => r.store_credit_id));
+          const scCustomerIds = [...new Set(
+            (scRows || []).filter((s: any) => s.customer_id).map((s: any) => s.customer_id as string)
+          )];
+          let scCustMap: Record<string, { name: string; phone?: string }> = {};
+          if (scCustomerIds.length > 0) {
+            const { data: custRows } = await supabase
+              .from('customers')
+              .select('id, first_name, last_name, phone')
+              .in('id', scCustomerIds);
+            (custRows || []).forEach((c: any) => {
+              scCustMap[c.id] = { name: `${c.first_name} ${c.last_name}`, phone: c.phone || undefined };
+            });
+          }
+          const details: typeof returnScDetails = {};
+          for (const r of scReturns) {
+            const sc = (scRows || []).find((s: any) => s.id === r.store_credit_id);
+            if (!sc) continue;
+            let cust = sc.customer_id ? scCustMap[sc.customer_id] : null;
+            if (!cust && txFull?.customers) {
+              cust = {
+                name: `${txFull.customers.first_name} ${txFull.customers.last_name}`,
+                phone: txFull.customers.phone || undefined,
+              };
+            }
+            details[r.id] = {
+              cardNumber: sc.card_number,
+              amount: Number(sc.amount),
+              customerName: cust?.name || 'Unknown',
+              phone: cust?.phone,
+            };
+          }
+          setReturnScDetails(details);
+        }
 
         let origSale: Transaction | null = null;
         let children: Transaction[] = [];
@@ -449,8 +493,41 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ tx, onC
                           <span className="text-zinc-500">Total refunded</span>
                           <span className="text-red-600">-{fmtAmt(r.refund_amount)}</span>
                         </div>
+                        {r.store_credit_id && returnScDetails[r.id] && (
+                          <div className="mt-1.5 bg-emerald-50 border border-emerald-100 rounded-lg px-2.5 py-2 space-y-0.5">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700 mb-1">Store Credit Issued</p>
+                            <p className="text-[10px] font-mono font-bold text-zinc-800">{returnScDetails[r.id].cardNumber}</p>
+                            <p className="text-[10px] text-zinc-700 font-bold">${returnScDetails[r.id].amount.toFixed(2)}</p>
+                            <p className="text-[10px] text-zinc-600">{returnScDetails[r.id].customerName}</p>
+                            {returnScDetails[r.id].phone && (
+                              <p className="text-[10px] text-zinc-500">{returnScDetails[r.id].phone}</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Replaced With (EXC- children items — original sale only) */}
+              {!isChildTx && linkedChildren.some(c => c.invoice_number?.startsWith('EXC-')) && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Replaced With</p>
+                  <div className="space-y-1.5">
+                    {linkedChildren
+                      .filter(c => c.invoice_number?.startsWith('EXC-'))
+                      .flatMap(c =>
+                        (c.items || []).map((item: any, i: number) => (
+                          <div key={`${c.id}-${i}`} className="flex justify-between text-[11px] bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+                            <div>
+                              <p className="font-bold text-zinc-900">{item.name}</p>
+                              {item.size && <p className="text-zinc-400">Size {item.size}</p>}
+                            </div>
+                            <p className="font-black text-emerald-700 shrink-0">${Number(item.price || 0).toFixed(2)}</p>
+                          </div>
+                        ))
+                      )}
                   </div>
                 </div>
               )}
@@ -529,6 +606,8 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
   const [newMOP, setNewMOP] = useState('');
   // Cache of original-sale items fetched for EXC- expanded rows, keyed by EXC- tx id
   const [excOriginalItems, setExcOriginalItems] = useState<Record<string, any[]>>({});
+  // Cache of EXC- replacement items for original sales with refunded_items, keyed by original tx id
+  const [excReplacedItems, setExcReplacedItems] = useState<Record<string, { invoice: string; items: any[] }[]>>({});
 
   // Transaction detail modal
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
@@ -568,6 +647,24 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
   }, []);
 
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
+
+  // When an original sale with refunded_items is expanded, fetch linked EXC- replacement items
+  useEffect(() => {
+    if (!expandedId) return;
+    const tx = transactions.find(t => t.id === expandedId);
+    if (!tx || (tx.refunded_items?.length ?? 0) === 0 || expandedId in excReplacedItems) return;
+    supabase
+      .from('transactions')
+      .select('invoice_number, items, total_amount')
+      .eq('related_transaction_id', expandedId)
+      .ilike('invoice_number', 'EXC-%')
+      .then(({ data }) => {
+        setExcReplacedItems(prev => ({
+          ...prev,
+          [expandedId]: (data || []).map((c: any) => ({ invoice: c.invoice_number || '', items: c.items || [] })),
+        }));
+      });
+  }, [expandedId]);
 
   // When an EXC- row is expanded, fetch the original sale's items (for display in the row)
   useEffect(() => {
@@ -1178,6 +1275,25 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
                           </p>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Replaced With — EXC- replacement items for this original sale */}
+                  {(tx.refunded_items?.length ?? 0) > 0 &&
+                   excReplacedItems[tx.id]?.some(c => c.items.length > 0) && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Replaced With</p>
+                      {excReplacedItems[tx.id].flatMap(({ invoice, items }) =>
+                        items.map((item: any, i: number) => (
+                          <div key={`${invoice}-${i}`} className="flex justify-between text-[11px] bg-emerald-50 rounded px-2 py-1">
+                            <div>
+                              <p className="font-bold text-zinc-900">{item.name}</p>
+                              {item.size && <p className="text-zinc-400">Size {item.size}</p>}
+                            </div>
+                            <p className="font-black text-emerald-700">${Number(item.price || 0).toFixed(2)}</p>
+                          </div>
+                        ))
+                      )}
                     </div>
                   )}
 
