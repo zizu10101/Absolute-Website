@@ -9,7 +9,7 @@ import { ReturnsModal } from './ReturnsModal';
 import { supabase } from '../supabase';
 import {
   Search, ChevronDown, ChevronUp, Printer, FileText,
-  RotateCcw, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Undo2, Gift, X,
+  RotateCcw, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Undo2, Gift, X, Eye,
 } from 'lucide-react';
 
 type DateFilter = 'today' | 'week' | 'month' | 'year' | 'all';
@@ -32,11 +32,465 @@ interface Transaction {
 }
 
 
+interface ReturnRecord {
+  id: string;
+  transaction_id: string;
+  items: any[];
+  refund_amount: number;
+  refund_method: string;
+  refund_payment_method?: string;
+  store_credit_id?: string;
+  created_at: string;
+}
+
 interface PosTransactionHistoryProps {
   // Notifies the parent POS page to sync its local stock state (productVariants/productStockMap)
   // after this component writes a stock_quantity change directly to the DB.
   onStockChange?: (variantId: string, delta: number) => void;
 }
+
+// Returns a [lower, upper] UUID bound pair for prefix queries.
+// Prefix is the first N hex chars (6–8) of a transaction UUID.
+function getUuidPrefixRange(prefix: string): { lower: string; upper: string } | null {
+  if (prefix.length < 6 || prefix.length > 8) return null;
+  const lo = prefix.padEnd(8, '0');
+  const hi = prefix.padEnd(8, 'f');
+  return {
+    lower: `${lo}-0000-0000-0000-000000000000`,
+    upper: `${hi}-ffff-ffff-ffff-ffffffffffff`,
+  };
+}
+
+const statusBadge = (status: string): string => {
+  const map: Record<string, string> = {
+    completed: 'bg-emerald-100 text-emerald-700',
+    voided: 'bg-red-100 text-red-700',
+    refunded: 'bg-amber-100 text-amber-700',
+    returned: 'bg-blue-100 text-blue-700',
+    partial_return: 'bg-purple-100 text-purple-700',
+  };
+  return `inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${map[status] || 'bg-zinc-100 text-zinc-600'}`;
+};
+
+interface TransactionDetailModalProps {
+  tx: Transaction;
+  onClose: () => void;
+}
+
+const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ tx, onClose }) => {
+  const [fullTx, setFullTx] = useState<any>(null);
+  const [returns, setReturns] = useState<ReturnRecord[]>([]);
+  const [originalReturns, setOriginalReturns] = useState<ReturnRecord[]>([]);
+  const [linkedChildren, setLinkedChildren] = useState<Transaction[]>([]);
+  const [originalSale, setOriginalSale] = useState<Transaction | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const isChildTx = !!(tx.invoice_number?.startsWith('RTN-') || tx.invoice_number?.startsWith('EXC-'));
+
+  useEffect(() => {
+    const run = async () => {
+      setIsLoading(true);
+      setFetchError(null);
+      try {
+        // select('*') so related_transaction_id appears if the column exists
+        const { data: txFull, error: txErr } = await supabase
+          .from('transactions')
+          .select('*, customers(first_name, last_name, email, phone)')
+          .eq('id', tx.id)
+          .single();
+        if (txErr) throw txErr;
+        setFullTx(txFull);
+
+        const hasRelatedIdCol = txFull != null && 'related_transaction_id' in txFull;
+
+        // Returns whose transaction_id = this tx (non-EXC-/RTN- original sales)
+        const { data: rData } = await supabase
+          .from('returns')
+          .select('*')
+          .eq('transaction_id', tx.id)
+          .order('created_at', { ascending: true });
+        setReturns(rData || []);
+
+        let origSale: Transaction | null = null;
+        let children: Transaction[] = [];
+
+        if (isChildTx) {
+          // ── Find original sale ───────────────────────────────────────────
+          if (hasRelatedIdCol && txFull.related_transaction_id) {
+            const { data: orig } = await supabase
+              .from('transactions')
+              .select('*, customers(first_name, last_name)')
+              .eq('id', txFull.related_transaction_id)
+              .single();
+            origSale = (orig as Transaction) ?? null;
+          } else if (tx.invoice_number) {
+            // RTN-{8hexchars} or EXC-{6hexchars}-{suffix}
+            const idPrefix = tx.invoice_number.startsWith('RTN-')
+              ? tx.invoice_number.slice(4)
+              : tx.invoice_number.slice(4).split('-')[0];
+            const range = getUuidPrefixRange(idPrefix);
+            if (range) {
+              const { data: candidates } = await supabase
+                .from('transactions')
+                .select('*, customers(first_name, last_name)')
+                .gte('id', range.lower)
+                .lte('id', range.upper)
+                .neq('id', tx.id);
+              if (candidates?.length === 1) origSale = candidates[0] as Transaction;
+            }
+          }
+          setOriginalSale(origSale);
+
+          // Fetch original's returns so we can show which item was returned/exchanged
+          if (origSale) {
+            const { data: origR } = await supabase
+              .from('returns')
+              .select('*')
+              .eq('transaction_id', origSale.id)
+              .order('created_at', { ascending: true });
+            setOriginalReturns(origR || []);
+          }
+        } else {
+          // ── Find child entries (RTN-/EXC- off this original) ────────────
+          let foundChildren = false;
+          if (hasRelatedIdCol) {
+            try {
+              const { data: ch, error: chErr } = await supabase
+                .from('transactions')
+                .select('*, customers(first_name, last_name)')
+                .eq('related_transaction_id', tx.id);
+              if (!chErr && ch && ch.length > 0) {
+                children = ch as Transaction[];
+                foundChildren = true;
+              }
+            } catch {}
+          }
+          if (!foundChildren) {
+            // RTN- children have exact invoice_number RTN-{id8}; EXC- children match EXC-{id6}-*
+            const id8 = tx.id.slice(0, 8);
+            const id6 = tx.id.slice(0, 6);
+            const [rtnRes, excRes] = await Promise.all([
+              supabase
+                .from('transactions')
+                .select('*, customers(first_name, last_name)')
+                .eq('invoice_number', `RTN-${id8}`)
+                .neq('id', tx.id),
+              supabase
+                .from('transactions')
+                .select('*, customers(first_name, last_name)')
+                .ilike('invoice_number', `EXC-${id6}-%`)
+                .neq('id', tx.id),
+            ]);
+            children = [
+              ...((rtnRes.data as Transaction[]) || []),
+              ...((excRes.data as Transaction[]) || []),
+            ];
+          }
+          setLinkedChildren(children);
+        }
+      } catch (e: any) {
+        setFetchError(e.message || 'Failed to load details');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    run();
+  }, [tx.id, isChildTx]);
+
+  // EXC-: exchange return closest in time to this EXC- tx
+  const excReturnEntry = useMemo((): ReturnRecord | null => {
+    if (!tx.invoice_number?.startsWith('EXC-')) return null;
+    const exchReturns = originalReturns.filter(r => r.refund_method === 'exchange');
+    if (!exchReturns.length) return null;
+    if (exchReturns.length === 1) return exchReturns[0];
+    const target = new Date(tx.created_at).getTime();
+    return exchReturns.reduce((prev, curr) =>
+      Math.abs(new Date(curr.created_at).getTime() - target) <
+      Math.abs(new Date(prev.created_at).getTime() - target) ? curr : prev
+    );
+  }, [tx.invoice_number, tx.created_at, originalReturns]);
+
+  // RTN-: non-exchange return closest in time to this RTN- tx
+  const rtnReturnEntry = useMemo((): ReturnRecord | null => {
+    if (!tx.invoice_number?.startsWith('RTN-')) return null;
+    const nonExch = originalReturns.filter(r => r.refund_method !== 'exchange');
+    if (!nonExch.length) return null;
+    if (nonExch.length === 1) return nonExch[0];
+    const target = new Date(tx.created_at).getTime();
+    return nonExch.reduce((prev, curr) =>
+      Math.abs(new Date(curr.created_at).getTime() - target) <
+      Math.abs(new Date(prev.created_at).getTime() - target) ? curr : prev
+    );
+  }, [tx.invoice_number, tx.created_at, originalReturns]);
+
+  // Net totals — only for original (non-child) transactions with return events
+  const netTotals = useMemo(() => {
+    if (isChildTx || returns.length === 0) return null;
+    const originalTotal = Number(tx.total_amount);
+    const totalReturned = returns.reduce((s, r) => s + Number(r.refund_amount || 0), 0);
+    const scIssued = returns
+      .filter(r => r.refund_method === 'store_credit' || !!r.store_credit_id)
+      .reduce((s, r) => s + Number(r.refund_amount || 0), 0);
+    return { originalTotal, totalReturned, net: originalTotal - totalReturned, scIssued };
+  }, [isChildTx, tx.total_amount, returns]);
+
+  const customerName = fullTx?.customers
+    ? `${fullTx.customers.first_name} ${fullTx.customers.last_name}`
+    : (tx.customer_id ? 'Unknown' : 'Walk-in');
+
+  const fmtDate = (d: string) => new Date(d).toLocaleString();
+  const fmtAmt = (n: number) => `$${Math.abs(n).toFixed(2)}`;
+
+  const refundMethodLabel = (m: string): string =>
+    ({ store_credit: 'Store Credit', original_payment: 'Original Payment', exchange: 'Exchange' } as Record<string, string>)[m] ?? m;
+
+  const itemReturnedAmt = (item: any) =>
+    ((item.pricePerUnit || item.price || 0) * (item.returnQuantity || item.quantity || 1) * 1.13).toFixed(2);
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-4 border-b border-zinc-200 flex items-center justify-between shrink-0">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">Transaction Details</h3>
+            <p className="text-[10px] font-mono font-bold text-zinc-500 mt-0.5">
+              {tx.invoice_number || tx.id.slice(0, 8).toUpperCase()}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="w-7 h-7 border-2 border-zinc-200 border-t-zinc-800 rounded-full animate-spin" />
+            </div>
+          ) : fetchError ? (
+            <div className="text-center py-8 text-red-500 text-xs font-bold">{fetchError}</div>
+          ) : (
+            <>
+              {/* Meta */}
+              <div className="bg-zinc-50 rounded-lg p-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Status</span>
+                  <span className={statusBadge(tx.status || 'completed')}>{tx.status || 'completed'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Date</span>
+                  <span className="text-[11px] font-bold text-zinc-900">{fmtDate(tx.created_at)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Customer</span>
+                  <span className="text-[11px] font-bold text-zinc-900">{customerName}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Payment</span>
+                  <span className="text-[11px] font-bold text-zinc-900">{tx.method}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Total</span>
+                  <span className={`text-[11px] font-black ${Number(tx.total_amount) < 0 ? 'text-red-600' : 'text-zinc-900'}`}>
+                    {Number(tx.total_amount) < 0 ? '-' : ''}{fmtAmt(tx.total_amount)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Items sold */}
+              {(tx.items || []).length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Items</p>
+                  <div className="space-y-1.5">
+                    {(tx.items || []).map((item: any, i: number) => (
+                      <div key={i} className="flex justify-between text-[11px] bg-zinc-50 rounded-lg px-3 py-2">
+                        <div>
+                          <p className="font-bold text-zinc-900">{item.name}</p>
+                          {(item.size || item.ageGroup) && (
+                            <p className="text-zinc-400">{item.ageGroup ? `${item.ageGroup} · ` : ''}Size {item.size}</p>
+                          )}
+                          <p className="text-zinc-400">Qty {item.quantity || 1} × ${Number(item.price).toFixed(2)}</p>
+                        </div>
+                        <p className="font-black text-zinc-900 shrink-0">${(Number(item.price) * (item.quantity || 1)).toFixed(2)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Original sale reference (RTN-/EXC- only) */}
+              {isChildTx && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Original Sale</p>
+                  {originalSale ? (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono font-bold text-blue-800">
+                          {originalSale.invoice_number || originalSale.id.slice(0, 8).toUpperCase()}
+                        </span>
+                        <span className={statusBadge(originalSale.status || 'completed')}>{originalSale.status}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-zinc-500">{fmtDate(originalSale.created_at)}</span>
+                        <span className="text-[11px] font-black text-zinc-900">${Number(originalSale.total_amount).toFixed(2)}</span>
+                      </div>
+                      {originalSale.customers && (
+                        <p className="text-[10px] text-zinc-500">
+                          {originalSale.customers.first_name} {originalSale.customers.last_name}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-zinc-400 italic">Original sale not found</p>
+                  )}
+                </div>
+              )}
+
+              {/* Item returned in exchange (EXC- only) */}
+              {tx.invoice_number?.startsWith('EXC-') && excReturnEntry && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Item Returned in Exchange</p>
+                  <div className="space-y-1.5">
+                    {(excReturnEntry.items || []).map((item: any, i: number) => (
+                      <div key={i} className="flex justify-between text-[11px] bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                        <div>
+                          <p className="font-bold text-zinc-900">{item.name}</p>
+                          {item.size && <p className="text-zinc-400">Size {item.size}</p>}
+                          <p className="text-zinc-400">Qty {item.returnQuantity || item.quantity || 1}</p>
+                        </div>
+                        <p className="font-black text-amber-700 shrink-0">-${itemReturnedAmt(item)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Items returned (RTN- only) */}
+              {tx.invoice_number?.startsWith('RTN-') && rtnReturnEntry && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Returned Items</p>
+                  <div className="space-y-1.5">
+                    {(rtnReturnEntry.items || []).map((item: any, i: number) => (
+                      <div key={i} className="flex justify-between text-[11px] bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                        <div>
+                          <p className="font-bold text-zinc-900">{item.name}</p>
+                          {item.size && <p className="text-zinc-400">Size {item.size}</p>}
+                          <p className="text-zinc-400">Qty {item.returnQuantity || item.quantity || 1}</p>
+                        </div>
+                        <p className="font-black text-red-600 shrink-0">-${itemReturnedAmt(item)}</p>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-[10px] font-bold text-zinc-600 px-1">
+                      <span>Refund via</span>
+                      <span>
+                        {refundMethodLabel(rtnReturnEntry.refund_method)}
+                        {rtnReturnEntry.refund_payment_method ? ` (${rtnReturnEntry.refund_payment_method})` : ''}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Return events (original sale with returns) */}
+              {!isChildTx && returns.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">
+                    Return Events ({returns.length})
+                  </p>
+                  <div className="space-y-2">
+                    {returns.map(r => (
+                      <div key={r.id} className="border border-zinc-200 rounded-lg p-3 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-zinc-500">{fmtDate(r.created_at)}</span>
+                          <span className="text-[10px] font-bold text-zinc-700">{refundMethodLabel(r.refund_method)}</span>
+                        </div>
+                        {(r.items || []).map((item: any, i: number) => (
+                          <div key={i} className="flex justify-between text-[11px]">
+                            <div>
+                              <p className="font-bold text-zinc-900">{item.name}</p>
+                              {item.size && <p className="text-zinc-400">Size {item.size}</p>}
+                              <p className="text-zinc-400">Qty {item.returnQuantity || item.quantity || 1}</p>
+                            </div>
+                            <p className="font-black text-red-600 shrink-0">-${itemReturnedAmt(item)}</p>
+                          </div>
+                        ))}
+                        <div className="pt-1 border-t border-zinc-100 flex justify-between text-[10px] font-bold">
+                          <span className="text-zinc-500">Total refunded</span>
+                          <span className="text-red-600">-{fmtAmt(r.refund_amount)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Linked RTN-/EXC- entries (original sale) */}
+              {!isChildTx && linkedChildren.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">
+                    Linked Transactions ({linkedChildren.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {linkedChildren.map(child => (
+                      <div key={child.id} className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-mono font-bold text-zinc-900">
+                            {child.invoice_number || child.id.slice(0, 8).toUpperCase()}
+                          </p>
+                          <p className="text-[10px] text-zinc-400">{fmtDate(child.created_at)} · {child.method}</p>
+                        </div>
+                        <div className="text-right shrink-0 ml-2">
+                          <p className={`text-[11px] font-black ${Number(child.total_amount) < 0 ? 'text-red-600' : 'text-zinc-900'}`}>
+                            {Number(child.total_amount) < 0 ? '-' : ''}{fmtAmt(child.total_amount)}
+                          </p>
+                          <span className={statusBadge(child.status || 'completed')}>{child.status}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Net totals (original sale with returns only) */}
+              {netTotals && (
+                <div className="bg-zinc-900 rounded-lg p-3 space-y-1.5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Net Totals</p>
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-zinc-400">Original</span>
+                    <span className="font-bold text-white">{fmtAmt(netTotals.originalTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-zinc-400">Returned</span>
+                    <span className="font-bold text-red-400">-{fmtAmt(netTotals.totalReturned)}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] border-t border-zinc-700 pt-1.5 mt-0.5">
+                    <span className="text-zinc-200 font-black">Net</span>
+                    <span className="font-black text-white">{fmtAmt(netTotals.net)}</span>
+                  </div>
+                  {netTotals.scIssued > 0 && (
+                    <div className="flex justify-between text-[11px] mt-0.5">
+                      <span className="text-zinc-400">Store credit issued</span>
+                      <span className="font-bold text-emerald-400">{fmtAmt(netTotals.scIssued)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ onStockChange }) => {
   const { customers } = useCustomers();
@@ -51,6 +505,9 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
   const [refundTx, setRefundTx] = useState<Transaction | null>(null);
   const [editingMOP, setEditingMOP] = useState<string | null>(null);
   const [newMOP, setNewMOP] = useState('');
+
+  // Transaction detail modal
+  const [detailTx, setDetailTx] = useState<Transaction | null>(null);
 
   // Gift receipt modal
   const [giftTx, setGiftTx] = useState<Transaction | null>(null);
@@ -314,6 +771,56 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
       const subtotal = total / 1.13;
       const hst = total - subtotal;
 
+      // For EXC- receipts: fetch the item that was returned in the exchange
+      let excReturnedItems: Array<{ name: string; size?: string; quantity: number; amount: number }> | undefined;
+      if (fullTx.invoice_number?.startsWith('EXC-')) {
+        let originalTxId: string | null = null;
+
+        if ('related_transaction_id' in fullTx && fullTx.related_transaction_id) {
+          originalTxId = fullTx.related_transaction_id;
+        } else {
+          // EXC- format: EXC-{tx.id.slice(0,6)}-{random}
+          const idPrefix = fullTx.invoice_number.slice(4).split('-')[0];
+          const range = getUuidPrefixRange(idPrefix);
+          if (range) {
+            const { data: origCandidates } = await supabase
+              .from('transactions')
+              .select('id')
+              .gte('id', range.lower)
+              .lte('id', range.upper)
+              .neq('id', fullTx.id);
+            if (origCandidates?.length === 1) originalTxId = origCandidates[0].id;
+          }
+        }
+
+        if (originalTxId) {
+          const { data: exchReturns } = await supabase
+            .from('returns')
+            .select('*')
+            .eq('transaction_id', originalTxId)
+            .eq('refund_method', 'exchange')
+            .order('created_at', { ascending: false });
+
+          if (exchReturns?.length) {
+            const target = new Date(fullTx.created_at).getTime();
+            const best: any = exchReturns.length === 1
+              ? exchReturns[0]
+              : exchReturns.reduce((prev: any, curr: any) =>
+                  Math.abs(new Date(curr.created_at).getTime() - target) <
+                  Math.abs(new Date(prev.created_at).getTime() - target) ? curr : prev
+                );
+            excReturnedItems = (best.items || []).map((item: any) => ({
+              name: item.name || 'Item',
+              size: item.size,
+              quantity: item.returnQuantity || item.quantity || 1,
+              amount: parseFloat(
+                ((item.pricePerUnit || item.price || 0) * (item.returnQuantity || item.quantity || 1) * 1.13).toFixed(2)
+              ),
+            }));
+          }
+        }
+      }
+
       const html = generateThermalReceiptHTML({
         transactionId: fullTx.id,
         invoiceNumber: fullTx.invoice_number,
@@ -335,14 +842,18 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
         logoUrl: logo,
         isReprint: true,
         copies,
-        refundedItems: fullTx.refunded_items && Array.isArray(fullTx.refunded_items)
-          ? fullTx.refunded_items.map((item: any) => ({
-              name: item.name || 'Unknown',
-              size: item.size,
-              quantity: item.returnQuantity || item.quantity || 1,
-              amount: parseFloat(((item.pricePerUnit || item.price || 0) * (item.returnQuantity || item.quantity || 1) * 1.13).toFixed(2)),
-            }))
-          : undefined,
+        refundedItems: excReturnedItems ?? (
+          fullTx.refunded_items && Array.isArray(fullTx.refunded_items)
+            ? fullTx.refunded_items.map((item: any) => ({
+                name: item.name || 'Unknown',
+                size: item.size,
+                quantity: item.returnQuantity || item.quantity || 1,
+                amount: parseFloat(
+                  ((item.pricePerUnit || item.price || 0) * (item.returnQuantity || item.quantity || 1) * 1.13).toFixed(2)
+                ),
+              }))
+            : undefined
+        ),
         refundAmount: fullTx.refund_amount ? Number(fullTx.refund_amount) : undefined,
       });
 
@@ -439,17 +950,6 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
     printInvoice(invoiceHtml);
     setShowInvoiceModal(false);
     setInvoiceTx(null);
-  };
-
-  const statusBadge = (status: string) => {
-    const map: Record<string, string> = {
-      completed: 'bg-emerald-100 text-emerald-700',
-      voided: 'bg-red-100 text-red-700',
-      refunded: 'bg-amber-100 text-amber-700',
-      returned: 'bg-blue-100 text-blue-700',
-      partial_return: 'bg-purple-100 text-purple-700',
-    };
-    return `inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${map[status] || 'bg-zinc-100 text-zinc-600'}`;
   };
 
   const totalRevenue = useMemo(() =>
@@ -600,6 +1100,12 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
                   {/* Action buttons */}
                   <div className="flex gap-2 pt-1 flex-wrap">
                     <button
+                      onClick={() => setDetailTx(tx)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-800 text-white text-[10px] font-black uppercase tracking-wide hover:bg-zinc-900 transition-colors"
+                    >
+                      <Eye size={12} /> Details
+                    </button>
+                    <button
                       onClick={() => handleReprint(tx.id, 1)}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wide hover:bg-indigo-700 transition-colors"
                     >
@@ -720,6 +1226,11 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
           );
         })}
       </div>
+
+      {/* Transaction Detail Modal */}
+      {detailTx && (
+        <TransactionDetailModal tx={detailTx} onClose={() => setDetailTx(null)} />
+      )}
 
       {/* Returns Modal */}
       {returnsTransactionId && (
