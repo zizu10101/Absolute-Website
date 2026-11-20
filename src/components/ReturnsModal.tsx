@@ -606,8 +606,6 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           total_amount: exchangeDifference,
           customer_id: transaction.customer_id,
           items: excItems,
-          subtotal: newNetPreTax,
-          hst: transaction.isTaxExempt ? 0 : parseFloat((newNetPreTax * 0.13).toFixed(2)),
           invoice_number: excInvoiceNumber,
           status: 'completed',
           created_at: new Date().toISOString(),
