@@ -106,6 +106,18 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const exchangeSearchRef = useRef<HTMLInputElement>(null);
 
+  // Customer lookup for walk-in exchange store-credit
+  const [exchangeSCCustomer, setExchangeSCCustomer] = useState<{id: string; first_name: string; last_name: string; email?: string; phone?: string} | null>(null);
+  const [excSCSearchTerm, setExcSCSearchTerm] = useState('');
+  const [excSCSearchResults, setExcSCSearchResults] = useState<any[]>([]);
+  const [excSCIsSearching, setExcSCIsSearching] = useState(false);
+  const [excSCDropdownOpen, setExcSCDropdownOpen] = useState(false);
+  const [excSCShowCreate, setExcSCShowCreate] = useState(false);
+  const [excSCNewName, setExcSCNewName] = useState('');
+  const [excSCNewPhone, setExcSCNewPhone] = useState('');
+  const [excSCCreating, setExcSCCreating] = useState(false);
+  const excSCSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Exchange computed values
   const taxMult = transaction?.isTaxExempt ? 1 : 1.13;
   const exchangeReturnedTotal = exchangeFromItem
@@ -464,12 +476,56 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     setCurrentStep('exchange-confirm');
   };
 
+  // EXCHANGE: customer search/create for walk-in store-credit remainder
+  const searchExcSCCustomers = (value: string) => {
+    setExcSCSearchTerm(value);
+    setExcSCDropdownOpen(true);
+    if (excSCSearchTimeoutRef.current) clearTimeout(excSCSearchTimeoutRef.current);
+    excSCSearchTimeoutRef.current = setTimeout(async () => {
+      if (!value.trim()) { setExcSCSearchResults([]); return; }
+      setExcSCIsSearching(true);
+      try {
+        const { data } = await supabase
+          .from('customers')
+          .select('id, first_name, last_name, email, phone')
+          .or(`first_name.ilike.%${value}%,last_name.ilike.%${value}%`)
+          .limit(5);
+        setExcSCSearchResults(data || []);
+      } catch {}
+      setExcSCIsSearching(false);
+    }, 300);
+  };
+
+  const createExcSCCustomer = async () => {
+    if (!excSCNewName.trim()) return;
+    setExcSCCreating(true);
+    try {
+      const parts = excSCNewName.trim().split(' ');
+      const { data, error } = await supabase
+        .from('customers')
+        .insert([{
+          first_name: parts[0],
+          last_name: parts.slice(1).join(' ') || '',
+          phone: excSCNewPhone.trim() || null,
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      setExchangeSCCustomer(data);
+      setExcSCShowCreate(false);
+      setExcSCNewName('');
+      setExcSCNewPhone('');
+    } catch {}
+    setExcSCCreating(false);
+  };
+
   // EXCHANGE: complete the exchange
   const handleCompleteExchange = async () => {
     if (!transaction || !exchangeFromItem || exchangeCartItems.length === 0) return;
     if (exchangeDifference > 0 && !exchangePaymentMethod) return;
     if (exchangeDifference < 0 && !exchangeRemainderMethod) return;
     if (exchangeDifference < 0 && exchangeRemainderMethod === 'refund' && !exchangeRefundMOP) return;
+    if (exchangeDifference < 0 && exchangeRemainderMethod === 'store-credit' && !transaction.customer_id && !exchangeSCCustomer) return;
 
     setProcessing(true);
     setError(null);
@@ -487,7 +543,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
         const { data: scData, error: scError } = await supabase
           .from('store_credits')
           .insert([{
-            customer_id: transaction.customer_id || null,
+            customer_id: transaction.customer_id || exchangeSCCustomer?.id || null,
             amount: Math.abs(exchangeDifference),
             remaining_balance: Math.abs(exchangeDifference),
             reason: 'Exchange Credit',
@@ -604,7 +660,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
           method: excMethod,
           payment_method: excMethod,
           total_amount: exchangeDifference,
-          customer_id: transaction.customer_id,
+          customer_id: transaction.customer_id || exchangeSCCustomer?.id || null,
           items: excItems,
           invoice_number: excInvoiceNumber,
           status: 'completed',
@@ -1065,6 +1121,14 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
     setScanMode('barcode');
     setSearchQuery('');
     setSearchResults([]);
+    setExchangeSCCustomer(null);
+    setExcSCSearchTerm('');
+    setExcSCSearchResults([]);
+    setExcSCIsSearching(false);
+    setExcSCDropdownOpen(false);
+    setExcSCShowCreate(false);
+    setExcSCNewName('');
+    setExcSCNewPhone('');
   };
 
   const handleClose = () => {
@@ -1752,6 +1816,104 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                       >
                         {exchangeRemainderMethod === 'store-credit' ? '✓ ' : ''}Issue store credit of ${Math.abs(exchangeDifference).toFixed(2)}
                       </button>
+
+                      {exchangeRemainderMethod === 'store-credit' && (
+                        <div className="pl-4 pt-1">
+                          {transaction?.customer_id && transaction.customers ? (
+                            <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800">
+                              <Check size={12} />
+                              <span>Linked to <strong>{transaction.customers.first_name} {transaction.customers.last_name}</strong></span>
+                            </div>
+                          ) : exchangeSCCustomer ? (
+                            <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs">
+                              <span className="text-emerald-800 font-semibold">{exchangeSCCustomer.first_name} {exchangeSCCustomer.last_name}</span>
+                              <button onClick={() => setExchangeSCCustomer(null)} className="text-emerald-600 hover:text-emerald-800 p-0.5">
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : excSCShowCreate ? (
+                            <div className="space-y-2 p-3 bg-zinc-50 border border-zinc-200 rounded-lg">
+                              <p className="text-xs font-semibold text-gray-700">New customer for store credit</p>
+                              <input
+                                type="text"
+                                placeholder="Full name *"
+                                value={excSCNewName}
+                                onChange={e => setExcSCNewName(e.target.value)}
+                                autoFocus
+                                className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                              <input
+                                type="tel"
+                                placeholder="Phone (optional)"
+                                value={excSCNewPhone}
+                                onChange={e => setExcSCNewPhone(e.target.value)}
+                                className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => { setExcSCShowCreate(false); setExcSCNewName(''); setExcSCNewPhone(''); }}
+                                  className="flex-1 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-600 hover:bg-zinc-100"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={createExcSCCustomer}
+                                  disabled={excSCCreating || !excSCNewName.trim()}
+                                  className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  {excSCCreating ? 'Creating...' : 'Create'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <p className="text-xs text-amber-700 font-semibold flex items-center gap-1">
+                                <AlertCircle size={12} />
+                                Walk-in sale — a customer is required to issue store credit
+                              </p>
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  value={excSCSearchTerm}
+                                  onChange={e => searchExcSCCustomers(e.target.value)}
+                                  onFocus={() => setExcSCDropdownOpen(true)}
+                                  onBlur={() => setTimeout(() => setExcSCDropdownOpen(false), 200)}
+                                  placeholder="Search customer by name..."
+                                  className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                {excSCDropdownOpen && (
+                                  <ul className="absolute top-full left-0 right-0 bg-white border border-zinc-200 mt-1 rounded shadow-lg z-50 max-h-36 overflow-y-auto">
+                                    {excSCIsSearching && <li className="p-2 text-xs text-zinc-500 text-center">Searching...</li>}
+                                    {!excSCIsSearching && excSCSearchResults.length === 0 && excSCSearchTerm && (
+                                      <li className="p-2 text-xs text-zinc-500">No customers found</li>
+                                    )}
+                                    {!excSCIsSearching && !excSCSearchTerm && (
+                                      <li className="p-2 text-xs text-zinc-400">Start typing to search…</li>
+                                    )}
+                                    {!excSCIsSearching && excSCSearchResults.map(c => (
+                                      <li
+                                        key={c.id}
+                                        onMouseDown={e => { e.preventDefault(); setExchangeSCCustomer(c); setExcSCSearchTerm(''); setExcSCSearchResults([]); setExcSCDropdownOpen(false); }}
+                                        className="p-2 cursor-pointer hover:bg-zinc-50 border-b border-zinc-100 last:border-0"
+                                      >
+                                        <p className="text-xs font-semibold text-zinc-900">{c.first_name} {c.last_name}</p>
+                                        {(c.email || c.phone) && <p className="text-[9px] text-zinc-400">{c.email}{c.email && c.phone ? ' · ' : ''}{c.phone}</p>}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => setExcSCShowCreate(true)}
+                                className="text-xs font-semibold text-blue-600 hover:underline"
+                              >
+                                + Create new customer
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <button
                         onClick={() => { setExchangeRemainderMethod('refund'); setExchangeRefundMOP(null); }}
                         className={`w-full p-3 rounded-lg border-2 text-left text-sm font-semibold transition ${
@@ -2036,7 +2198,8 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                     exchangeCartItems.length === 0 ||
                     (exchangeDifference > 0 && !exchangePaymentMethod) ||
                     (exchangeDifference < 0 && !exchangeRemainderMethod) ||
-                    (exchangeDifference < 0 && exchangeRemainderMethod === 'refund' && !exchangeRefundMOP)
+                    (exchangeDifference < 0 && exchangeRemainderMethod === 'refund' && !exchangeRefundMOP) ||
+                    (exchangeDifference < 0 && exchangeRemainderMethod === 'store-credit' && !transaction?.customer_id && !exchangeSCCustomer)
                   }
                   className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition font-semibold"
                 >
