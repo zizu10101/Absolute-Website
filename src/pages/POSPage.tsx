@@ -59,6 +59,8 @@ interface Receipt {
   paymentSplits?: Array<{ method: string; amount: number }>; // For split payments
   payLaterAmountPaid?: number; // previously paid on a recalled pay_later
   payLaterNewTotal?: number; // new total (after discount) on a recalled pay_later
+  issuedStoreCreditAmount?: number; // SC issued as exchange refund
+  issuedStoreCreditCardNumber?: string; // card number of SC issued as exchange refund
 }
 
 export function POSPage() {
@@ -1065,6 +1067,13 @@ export function POSPage() {
       method = paymentSplits.map(p => `${p.method} $${p.amount.toFixed(2)}`).join(' + ');
     }
 
+    // In exchange refund mode (grandTotal < 0): bypass Cash calculator and SC modal —
+    // staff is issuing a refund, not collecting payment.
+    if (cartExchangeMode && grandTotal < 0) {
+      await processPayment(method);
+      return;
+    }
+
     // For cash, show calculator instead of confirming immediately
     if (method === 'Cash' && !useSplitPayment) {
       setShowCashCalculator(true);
@@ -1329,6 +1338,10 @@ export function POSPage() {
     const capturedStoreCredit = storeCredit || selectedStoreCredit;
     const capturedGiftCard = giftCard || selectedGiftCard;
     const capturedRecalledPayLater = recalledPayLater;
+    const capturedCartExchangeMode = cartExchangeMode;
+    const capturedOriginalTxId = cartExchangeOriginalTxId;
+    const capturedOriginalTx = cartExchangeOriginalTx;
+    const capturedRefundCustomerId = cartExchangeRefundCustomerId;
 
     // For recalled pay_later: only charge the balance (grandTotal minus what was already paid)
     const effectiveTotal = capturedRecalledPayLater
@@ -1343,6 +1356,81 @@ export function POSPage() {
     }));
 
     try {
+      // ── EXCHANGE: pre-transaction writes ───────────────────────────────────
+      let issuedScId: string | null = null;
+      let issuedScCardNumber: string | null = null;
+      let returnRowIds: string[] = [];
+
+      if (capturedCartExchangeMode) {
+        const returnLines = cart.filter(i => i.isReturnLine);
+        const isRefundDue = grandTotal < 0;
+
+        // STEP 1: Create store credit (inactive) if SC refund path
+        if (isRefundDue && method === 'Store Credit') {
+          const scAmount = Math.abs(grandTotal);
+          const cardNumber = 'SC-' + Math.random().toString(36).substr(2, 12).toUpperCase();
+          const { data: newSC, error: scCreateErr } = await supabase
+            .from('store_credits')
+            .insert([{
+              customer_id: capturedRefundCustomerId,
+              amount: Number(scAmount.toFixed(2)),
+              remaining_balance: Number(scAmount.toFixed(2)),
+              reason: `Exchange refund — ${capturedOriginalTx?.invoice_number || capturedOriginalTxId?.slice(0, 8) || 'unknown'}`,
+              is_active: false,
+              card_number: cardNumber,
+            }])
+            .select()
+            .single();
+          if (scCreateErr || !newSC) {
+            throw new Error('Failed to create store credit: ' + (scCreateErr?.message || 'unknown'));
+          }
+          issuedScId = newSC.id;
+          issuedScCardNumber = cardNumber;
+        }
+
+        // STEP 2: Insert returns record for the returned items
+        if (returnLines.length > 0 && capturedOriginalTxId) {
+          const totalReturnAmount = returnLines.reduce(
+            (sum, i) => sum + Math.abs(getItemDiscountedPrice(i)) * i.quantity, 0
+          );
+          const returnPayload: any = {
+            transaction_id: capturedOriginalTxId,
+            customer_id: selectedCustomerId?.trim() || capturedRefundCustomerId || null,
+            refund_method: 'exchange',
+            refund_payment_method: isRefundDue ? method : null,
+            items: returnLines.map(i => ({
+              name: i.name,
+              variantId: i.variantId,
+              quantity: i.quantity,
+              returnQuantity: i.quantity,
+              price: Math.abs(getItemDiscountedPrice(i)),
+              size: i.size,
+              color: i.color,
+              ageGroup: i.ageGroup,
+              barcode: i.barcode,
+              taxable: i.taxable,
+            })),
+            refund_amount: Number(totalReturnAmount.toFixed(2)),
+            status: 'completed',
+            created_at: new Date().toISOString(),
+            store_credit_id: issuedScId,
+          };
+          const { data: returnsData, error: returnsErr } = await supabase
+            .from('returns')
+            .insert([returnPayload])
+            .select();
+          if (returnsErr) {
+            if (issuedScId) {
+              try { await supabase.from('store_credits').delete().eq('id', issuedScId); } catch (_) {}
+              issuedScId = null;
+            }
+            throw new Error('Failed to record return: ' + returnsErr.message);
+          }
+          returnRowIds = (returnsData || []).map((r: any) => r.id);
+        }
+      }
+      // ── END EXCHANGE pre-transaction writes ─────────────────────────────────
+
       // Calculate actual amount to charge after gift card and store credit are applied
       let amountAfterGiftCard = capturedGiftCard
         ? Math.max(0, effectiveTotal - capturedGiftCard.amount)
@@ -1360,6 +1448,11 @@ export function POSPage() {
         created_at: new Date().toISOString(),
       };
 
+      // For exchange, link back to the original transaction
+      if (capturedCartExchangeMode && capturedOriginalTxId) {
+        payload.related_transaction_id = capturedOriginalTxId;
+      }
+
       // Add cash-specific fields (use amount after gift card and store credit)
       if (method === 'Cash' && tenderedAmount !== undefined) {
         payload.tendered_amount = Number(tenderedAmount.toFixed(2));
@@ -1374,17 +1467,68 @@ export function POSPage() {
         }));
       }
 
-      const { data, error } = await supabase
-        .from('transactions')
-        .insert([payload])
-        .select();
-
-      if (error) throw error;
-
+      let data: any;
+      {
+        const { data: txData, error } = await supabase
+          .from('transactions')
+          .insert([payload])
+          .select();
+        if (error) {
+          if (capturedCartExchangeMode) {
+            if (returnRowIds.length > 0) {
+              try { await supabase.from('returns').delete().in('id', returnRowIds); } catch (_) {}
+            }
+            if (issuedScId) {
+              try { await supabase.from('store_credits').delete().eq('id', issuedScId); } catch (_) {}
+            }
+          }
+          throw error;
+        }
+        data = txData;
+      }
 
       const result = { data };
 
-      // Deduct stock — skip for recalled pay_later (stock was already deducted when the order was created)
+      // ── EXCHANGE STEP 4: Update original transaction (blocking) ─────────────
+      if (capturedCartExchangeMode && capturedOriginalTxId) {
+        const returnLines = cart.filter(i => i.isReturnLine);
+        const existingRefunded = Array.isArray(capturedOriginalTx?.refunded_items)
+          ? capturedOriginalTx.refunded_items : [];
+        const newRefundedEntries = returnLines.map(i => ({
+          name: i.name,
+          variantId: i.variantId,
+          quantity: i.quantity,
+          returnQuantity: i.quantity,
+          exchanged: true,
+        }));
+        const allRefunded = [...existingRefunded, ...newRefundedEntries];
+
+        const allOriginalItems = Array.isArray(capturedOriginalTx?.items)
+          ? capturedOriginalTx.items : [];
+        const totalOriginalQty = allOriginalItems.reduce(
+          (sum: number, i: any) => sum + (i.quantity || 1), 0
+        );
+        const totalReturnedQty = allRefunded.reduce(
+          (sum: number, i: any) => sum + (i.returnQuantity || i.quantity || 1), 0
+        );
+        const newStatus = totalReturnedQty >= totalOriginalQty ? 'returned' : 'partial_return';
+
+        const { error: origTxErr } = await supabase
+          .from('transactions')
+          .update({
+            status: newStatus,
+            refunded_items: allRefunded,
+            refunded_at: new Date().toISOString(),
+          })
+          .eq('id', capturedOriginalTxId);
+        if (origTxErr) {
+          throw new Error('Failed to update original transaction: ' + origTxErr.message);
+        }
+      }
+      // ── END EXCHANGE STEP 4 ──────────────────────────────────────────────────
+
+      // Deduct/restore stock — skip for recalled pay_later (stock was already deducted).
+      // Return lines (isReturnLine=true) restore stock (+qty); sale lines deduct (-qty).
       if (!capturedRecalledPayLater) {
         for (const item of cart) {
           const variantId = item.variantId || (item.id.startsWith('var-') ? item.id.replace('var-', '') : null);
@@ -1396,12 +1540,13 @@ export function POSPage() {
                 .eq('id', variantId)
                 .single();
               if (variant) {
-                const newQty = Math.max(0, (variant.stock_quantity || 0) - (item.quantity || 1));
+                const delta = item.isReturnLine ? (item.quantity || 1) : -(item.quantity || 1);
+                const newQty = Math.max(0, (variant.stock_quantity || 0) + delta);
                 await supabase.from('product_variants').update({ stock_quantity: newQty }).eq('id', variantId);
-                applyLocalStockDelta(variantId, -(item.quantity || 1));
+                applyLocalStockDelta(variantId, delta);
               }
             } catch (err) {
-              console.error('Stock deduction error:', err);
+              console.error('Stock update error:', err);
             }
           }
         }
@@ -1475,6 +1620,29 @@ export function POSPage() {
       } else {
       }
 
+      // ── EXCHANGE STEP 6: Activate issued store credit ────────────────────────
+      if (capturedCartExchangeMode && issuedScId) {
+        try {
+          const { error: activateErr } = await supabase
+            .from('store_credits')
+            .update({ is_active: true })
+            .eq('id', issuedScId);
+          if (activateErr) {
+            console.error('ERROR: Failed to activate exchange SC:', activateErr);
+            // Don't throw — transaction recorded; SC must be activated manually
+          } else {
+            await supabase.from('store_credit_transactions').insert({
+              store_credit_id: issuedScId,
+              amount: Number(Math.abs(grandTotal).toFixed(2)),
+              transaction_type: 'issued',
+            });
+          }
+        } catch (err) {
+          console.error('ERROR: Exception activating exchange SC:', err);
+        }
+      }
+      // ── END EXCHANGE STEP 6 ──────────────────────────────────────────────────
+
       setReceipt({
         transactionId: result?.data?.[0]?.id,
         invoiceNumber: result?.data?.[0]?.invoice_number,
@@ -1496,6 +1664,8 @@ export function POSPage() {
         paymentSplits: useSplitPayment ? paymentSplits : undefined,
         payLaterAmountPaid: capturedRecalledPayLater?.amountPaid,
         payLaterNewTotal: capturedRecalledPayLater ? grandTotal : undefined,
+        issuedStoreCreditAmount: issuedScId ? Number(Math.abs(grandTotal).toFixed(2)) : undefined,
+        issuedStoreCreditCardNumber: issuedScCardNumber || undefined,
       });
 
       // Close cash calculator if it was open
