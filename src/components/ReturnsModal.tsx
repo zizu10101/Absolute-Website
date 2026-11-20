@@ -1882,7 +1882,7 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                                   className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                                 {excSCDropdownOpen && (
-                                  <ul className="absolute top-full left-0 right-0 bg-white border border-zinc-200 mt-1 rounded shadow-lg z-50 max-h-36 overflow-y-auto">
+                                  <ul className="w-full bg-white border border-zinc-200 mt-1 rounded shadow-lg max-h-36 overflow-y-auto">
                                     {excSCIsSearching && <li className="p-2 text-xs text-zinc-500 text-center">Searching...</li>}
                                     {!excSCIsSearching && excSCSearchResults.length === 0 && excSCSearchTerm && (
                                       <li className="p-2 text-xs text-zinc-500">No customers found</li>
@@ -2193,14 +2193,15 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                 </button>
                 <button
                   onClick={handleCompleteExchange}
-                  disabled={
-                    processing ||
-                    exchangeCartItems.length === 0 ||
-                    (exchangeDifference > 0 && !exchangePaymentMethod) ||
-                    (exchangeDifference < 0 && !exchangeRemainderMethod) ||
-                    (exchangeDifference < 0 && exchangeRemainderMethod === 'refund' && !exchangeRefundMOP) ||
-                    (exchangeDifference < 0 && exchangeRemainderMethod === 'store-credit' && !transaction?.customer_id && !exchangeSCCustomer)
-                  }
+                  disabled={(() => {
+                    const d1 = processing;
+                    const d2 = exchangeCartItems.length === 0;
+                    const d3 = exchangeDifference > 0 && !exchangePaymentMethod;
+                    const d4 = exchangeDifference < 0 && !exchangeRemainderMethod;
+                    const d5 = exchangeDifference < 0 && exchangeRemainderMethod === 'refund' && !exchangeRefundMOP;
+                    const d6 = exchangeDifference < 0 && exchangeRemainderMethod === 'store-credit' && !transaction?.customer_id && !exchangeSCCustomer;
+                    return d1 || d2 || d3 || d4 || d5 || d6;
+                  })()}
                   className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition font-semibold"
                 >
                   {processing ? 'Processing...' : 'Complete Exchange'}
