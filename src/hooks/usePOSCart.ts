@@ -25,6 +25,8 @@ export interface CartItem {
   image?: string;
   type?: string; // 'product' | 'gift_card'
   taxable?: boolean; // if false, excluded from HST calculation
+  isReturnLine?: boolean; // true = negative line (returned item); stock restores at checkout
+  originalTransactionId?: string; // source sale ID used for duplicate-return guard
 }
 
 // Per-unit $ amount removed by an item's discount (never exceeds the unit price)
@@ -46,8 +48,12 @@ export const formatItemDiscountLabel = (discount: ItemDiscount): string => {
   return `$${discount.value.toFixed(2)}`;
 };
 
-// Final per-unit price after any override or discount
+// Final per-unit price after any override or discount.
+// Return lines carry a negative price and must not be clamped to 0.
 export const getItemDiscountedPrice = (item: CartItem): number => {
+  if (item.isReturnLine) {
+    return item.priceOverride !== undefined ? item.priceOverride : item.price;
+  }
   if (item.priceOverride !== undefined) return Math.max(0, item.priceOverride);
   return Math.max(0, item.price - getItemUnitDiscount(item));
 };
@@ -122,6 +128,16 @@ export function usePOSCart() {
     setCart(prev => prev.filter(item => item.id !== id));
   };
 
+  // Adds a negative line item (returned item). No stock guard; price is already negative.
+  const addReturnItem = (item: CartItem) => {
+    setCart(prev => [...prev, { ...item, isReturnLine: true }]);
+  };
+
+  // Removes all return lines (called when cancelling exchange mode).
+  const clearReturnLines = () => {
+    setCart(prev => prev.filter(item => !item.isReturnLine));
+  };
+
   const updateItemPrice = (id: string, newPrice: number) => {
     setCart(prev =>
       prev.map(item => (item.id === id ? { ...item, price: Math.max(0, newPrice) } : item))
@@ -194,14 +210,21 @@ export function usePOSCart() {
     [cart]
   );
 
+  // Order-level discount base: sale lines only so a 30% discount doesn't amplify a refund.
+  const positiveSubtotal = useMemo(
+    () => cart.filter(i => !i.isReturnLine)
+              .reduce((sum, i) => sum + getItemDiscountedPrice(i) * i.quantity, 0),
+    [cart]
+  );
+
   const discountAmount = useMemo(() => {
     if (!discount) return 0;
     if (discount.type === 'percentage') {
-      return subtotal * (discount.value / 100);
+      return positiveSubtotal * (discount.value / 100);
     }
     // For custom type: discount.value is the NEW TOTAL price, not the discount amount
-    return Math.max(0, subtotal - discount.value);
-  }, [subtotal, discount]);
+    return Math.max(0, positiveSubtotal - discount.value);
+  }, [positiveSubtotal, discount]);
 
   const subtotalAfterDiscount = subtotal - discountAmount;
 
@@ -220,14 +243,21 @@ export function usePOSCart() {
     [cart]
   );
 
+  // Taxable discount base: positive taxable lines only (same reason as positiveSubtotal).
+  const positiveTaxableSubtotal = useMemo(
+    () => cart.filter(i => !i.isReturnLine && i.taxable !== false)
+              .reduce((sum, i) => sum + getItemDiscountedPrice(i) * i.quantity, 0),
+    [cart]
+  );
+
   // Only apply discount to taxable portion
   const taxableDiscountAmount = useMemo(() => {
-    if (!discount || taxableSubtotal === 0) return 0;
+    if (!discount || positiveTaxableSubtotal === 0) return 0;
     if (discount.type === 'percentage') {
-      return taxableSubtotal * (discount.value / 100);
+      return positiveTaxableSubtotal * (discount.value / 100);
     }
-    return Math.max(0, taxableSubtotal - discount.value);
-  }, [taxableSubtotal, discount]);
+    return Math.max(0, positiveTaxableSubtotal - discount.value);
+  }, [positiveTaxableSubtotal, discount]);
 
   const taxableSubtotalAfterDiscount = taxableSubtotal - taxableDiscountAmount;
   const hst = isTaxExempt ? 0 : taxableSubtotalAfterDiscount * 0.13;
@@ -236,6 +266,8 @@ export function usePOSCart() {
   return {
     cart,
     addItem,
+    addReturnItem,
+    clearReturnLines,
     removeItem,
     updateItemPrice,
     overrideItemPrice,

@@ -4,7 +4,7 @@ import {
   Moon, Sun, LogOut, Search, Users, Percent, FileText, Trash2,
   Barcode as BarcodeIcon, Archive, Home, AlertCircle, X, Check,
   Receipt, RotateCcw, RefreshCw, Plus, Printer, ScanLine, CheckCircle2, BarChart3, Undo2,
-  UserPlus, Gift, Tag, CreditCard, Ticket, Clock, Package, Pencil
+  UserPlus, Gift, Tag, CreditCard, Ticket, Clock, Package, Pencil, ArrowLeftRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Barcode from 'react-barcode';
@@ -172,6 +172,24 @@ export function POSPage() {
   const [returnsLookupError, setReturnsLookupError] = useState<string | null>(null);
   const returnsInvoiceInputRef = useRef<HTMLInputElement>(null);
 
+  // Cart Exchange mode
+  const [cartExchangeMode, setCartExchangeMode] = useState(false);
+  const [cartExchangeOriginalTxId, setCartExchangeOriginalTxId] = useState<string | null>(null);
+  const [showCartExchangePicker, setShowCartExchangePicker] = useState(false);
+  const [cartExchangeOriginalTx, setCartExchangeOriginalTx] = useState<any>(null);
+  const [cartExchangePickerError, setCartExchangePickerError] = useState<string | null>(null);
+  const [cartExchangePickerLoading, setCartExchangePickerLoading] = useState(false);
+  const [cartExchangePickerItems, setCartExchangePickerItems] = useState<Array<{
+    item: any;
+    creditValue: string;
+    selected: boolean;
+    remainingQty: number;
+    hasDiscountOrOverride: boolean;
+  }>>([]);
+  // Customer search specifically for the SC-refund path inside exchange checkout
+  const [cartExchangeCustomerSearch, setCartExchangeCustomerSearch] = useState('');
+  const [cartExchangeCustomerResults, setCartExchangeCustomerResults] = useState<any[]>([]);
+
   // Size selector modal
   const [showSizeSelector, setShowSizeSelector] = useState(false);
   const [selectedProductForSize, setSelectedProductForSize] = useState<any | null>(null);
@@ -184,6 +202,8 @@ export function POSPage() {
   const {
     cart,
     addItem,
+    addReturnItem,
+    clearReturnLines,
     removeItem,
     updateItemQuantity,
     updateItemDiscount,
@@ -1519,7 +1539,33 @@ export function POSPage() {
     setSplitPaymentMethod('');
     setSplitPaymentAmount('');
     setSplitStep('select-method');
+    setCartExchangeMode(false);
+    setCartExchangeOriginalTxId(null);
+    setCartExchangeOriginalTx(null);
+    setShowCartExchangePicker(false);
+    setCartExchangePickerError(null);
+    setCartExchangePickerItems([]);
+    setCartExchangeCustomerSearch('');
+    setCartExchangeCustomerResults([]);
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
+  };
+
+  const handleCancelExchangeMode = () => {
+    clearReturnLines();
+    setCartExchangeMode(false);
+    setCartExchangeOriginalTxId(null);
+    setCartExchangeOriginalTx(null);
+    setShowCartExchangePicker(false);
+    setCartExchangePickerError(null);
+    setCartExchangePickerItems([]);
+  };
+
+  const handleRemoveReturnLine = (itemId: string) => {
+    removeItem(itemId);
+    const remaining = cart.filter(i => i.isReturnLine && i.id !== itemId);
+    if (remaining.length === 0) {
+      setCartExchangeOriginalTxId(null);
+    }
   };
 
   // Handle gift card issuance
@@ -1963,9 +2009,28 @@ export function POSPage() {
                 <span className={`text-xs font-semibold leading-none ${isDarkMode ? 'text-white' : 'text-black'}`}>Returns</span>
               </button>
 
+              {/* Exchange */}
+              <button
+                onClick={() => {
+                  clearReturnLines();
+                  setCartExchangeMode(true);
+                  setCartExchangeOriginalTxId(null);
+                  setCartExchangeOriginalTx(null);
+                  setShowCartExchangePicker(false);
+                  setCartExchangePickerError(null);
+                  setCartExchangePickerItems([]);
+                }}
+                disabled={recalledPayLater !== null}
+                title={recalledPayLater !== null ? 'Exchange unavailable while a Pay Later order is recalled' : 'Start a cart-based exchange'}
+                className={`rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14 disabled:opacity-40 disabled:cursor-not-allowed ${isDarkMode ? 'bg-[#1e2d45] hover:bg-[#2a3954]' : 'bg-gray-200 hover:bg-gray-300'}`}
+              >
+                <ArrowLeftRight size={16} className="text-purple-400" />
+                <span className={`text-xs font-semibold leading-none ${isDarkMode ? 'text-white' : 'text-black'}`}>Exchange</span>
+              </button>
+
               {/* Clear Cart */}
               <button
-                onClick={() => { clearCart(); setRecalledPayLater(null); }}
+                onClick={() => { clearCart(); setRecalledPayLater(null); setCartExchangeOriginalTxId(null); }}
                 className={`rounded p-1.5 flex flex-col items-center gap-1 transition-colors h-14 ${isDarkMode ? 'bg-[#1e2d45] hover:bg-[#2a3954]' : 'bg-gray-200 hover:bg-gray-300'}`}
                 title="Remove all items from cart"
               >
@@ -2065,6 +2130,25 @@ export function POSPage() {
             </div>
           )}
 
+          {/* Cart Exchange Mode Banner */}
+          {cartExchangeMode && (
+            <div className={`px-4 py-2 border-b flex items-center justify-between ${isDarkMode ? 'bg-amber-900/30 border-amber-700' : 'bg-amber-50 border-amber-300'}`}>
+              <div className={`text-[10px] font-bold uppercase flex items-center gap-1.5 ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+                <ArrowLeftRight size={11} />
+                EXCHANGE MODE
+                {cartExchangeOriginalTxId
+                  ? ` · locked to ${cartExchangeOriginalTxId.slice(0, 8).toUpperCase()}`
+                  : ' · scan original receipt'}
+              </div>
+              <button
+                onClick={handleCancelExchangeMode}
+                className={`text-[10px] font-bold uppercase ${isDarkMode ? 'text-amber-400 hover:text-amber-200' : 'text-amber-600 hover:text-amber-900'}`}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
           {/* Cart Items */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
             {cart.length === 0 ? (
@@ -2073,7 +2157,46 @@ export function POSPage() {
                 <p className="text-sm">No items in cart</p>
               </div>
             ) : (
-              cart.map((item) => (
+              cart.map((item) => {
+                // ── Return line (negative, exchange mode) ──────────────────────────
+                if (item.isReturnLine) {
+                  const creditAmt = Math.abs(getItemDiscountedPrice(item) * item.quantity);
+                  const wasAdjusted = item.originalPrice !== undefined && Math.abs(item.price) < item.originalPrice;
+                  return (
+                    <div key={item.id} className={`rounded-lg p-3 border ${isDarkMode ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-300'}`}>
+                      <div className="flex gap-3">
+                        {item.image && <img src={item.image} alt={item.name} className="w-10 h-10 rounded object-contain bg-white opacity-70" />}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start mb-1">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-red-600 text-white shrink-0">RETURN</span>
+                                <p className={`text-sm font-semibold truncate ${isDarkMode ? 'text-white' : 'text-black'}`}>{item.name}</p>
+                              </div>
+                              {(item.color || item.size) && (
+                                <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                  {item.color}{item.color && item.size ? ' - ' : ''}{item.size && `Size ${item.size}`}
+                                </p>
+                              )}
+                            </div>
+                            <button onClick={() => handleRemoveReturnLine(item.id)} className={`hover:text-red-400 p-1 shrink-0 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+                              <X size={14} />
+                            </button>
+                          </div>
+                          <p className="text-sm font-bold text-red-400">−${creditAmt.toFixed(2)}</p>
+                          {wasAdjusted && (
+                            <p className={`text-[9px] mt-0.5 ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`}>
+                              ⚠ Adjusted credit (original: ${item.originalPrice!.toFixed(2)})
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // ── Normal sale line ───────────────────────────────────────────────
+                return (
                 <div key={item.id} className={`rounded-lg p-3 border group ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547]' : 'bg-white border-gray-300'}`}>
                   <div className="flex gap-3">
                     {item.image && <img src={item.image} alt={item.name} className="w-12 h-12 rounded object-contain bg-white" />}
@@ -2269,7 +2392,8 @@ export function POSPage() {
                     </div>
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
 
@@ -2324,16 +2448,35 @@ export function POSPage() {
             </div>
 
             <div className="grid grid-cols-4 gap-2">
-              <button onClick={() => setPosTab('gc')} className={`px-3 py-2 border rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-colors ${isDarkMode ? 'bg-[#2d3547] hover:bg-[#3d4557] border-[#2d3547] text-white' : 'bg-gray-200 hover:bg-gray-300 border-gray-300 text-black'}`}>
+              <button
+                onClick={() => setPosTab('gc')}
+                disabled={cartExchangeMode}
+                title={cartExchangeMode ? 'Gift cards unavailable in exchange mode' : undefined}
+                className={`px-3 py-2 border rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isDarkMode ? 'bg-[#2d3547] hover:bg-[#3d4557] border-[#2d3547] text-white' : 'bg-gray-200 hover:bg-gray-300 border-gray-300 text-black'}`}
+              >
                 <CreditCard size={14} className="inline mr-1" /> GC
               </button>
-              <button onClick={() => setPosTab('sc')} className={`px-3 py-2 border rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-colors ${isDarkMode ? 'bg-[#2d3547] hover:bg-[#3d4557] border-[#2d3547] text-white' : 'bg-gray-200 hover:bg-gray-300 border-gray-300 text-black'}`}>
+              <button
+                onClick={() => setPosTab('sc')}
+                disabled={cartExchangeMode}
+                title={cartExchangeMode ? 'Store credit unavailable in exchange mode' : undefined}
+                className={`px-3 py-2 border rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isDarkMode ? 'bg-[#2d3547] hover:bg-[#3d4557] border-[#2d3547] text-white' : 'bg-gray-200 hover:bg-gray-300 border-gray-300 text-black'}`}
+              >
                 <Ticket size={14} /> SC
               </button>
-              <button onClick={() => setShowDiscountModal(true)} className={`px-3 py-2 border rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-colors ${isDarkMode ? 'bg-[#2d3547] hover:bg-[#3d4557] border-[#2d3547] text-white' : 'bg-gray-200 hover:bg-gray-300 border-gray-300 text-black'}`}>
+              <button
+                onClick={() => setShowDiscountModal(true)}
+                disabled={cartExchangeMode}
+                title={cartExchangeMode ? 'Order discounts unavailable in exchange mode' : undefined}
+                className={`px-3 py-2 border rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isDarkMode ? 'bg-[#2d3547] hover:bg-[#3d4557] border-[#2d3547] text-white' : 'bg-gray-200 hover:bg-gray-300 border-gray-300 text-black'}`}
+              >
                 <Percent size={14} /> Disc
               </button>
-              <button onClick={() => { if (confirm('Clear all items?')) { clearCart(); setRecalledPayLater(null); } }} disabled={cart.length === 0} className={`px-3 py-2 rounded text-[10px] font-bold text-white ${isDarkMode ? 'bg-red-600 hover:bg-red-700 disabled:bg-gray-700' : 'bg-red-500 hover:bg-red-600 disabled:bg-gray-400'}`}>
+              <button
+                onClick={() => { if (confirm('Clear all items?')) { clearCart(); setRecalledPayLater(null); setCartExchangeOriginalTxId(null); } }}
+                disabled={cart.length === 0}
+                className={`px-3 py-2 rounded text-[10px] font-bold text-white ${isDarkMode ? 'bg-red-600 hover:bg-red-700 disabled:bg-gray-700' : 'bg-red-500 hover:bg-red-600 disabled:bg-gray-400'}`}
+              >
                 Clear
               </button>
             </div>
@@ -2354,14 +2497,16 @@ export function POSPage() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={handleStartLayaway}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || cartExchangeMode}
+                title={cartExchangeMode ? 'Layaway unavailable in exchange mode' : undefined}
                 className="py-2 border border-amber-600 text-amber-400 hover:bg-amber-600/10 disabled:opacity-40 disabled:cursor-not-allowed rounded text-[10px] font-bold uppercase flex items-center justify-center gap-1"
               >
                 <Clock size={12} /> Layaway
               </button>
               <button
                 onClick={handleStartPayLater}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || cartExchangeMode}
+                title={cartExchangeMode ? 'Pay Later unavailable in exchange mode' : undefined}
                 className="py-2 border border-blue-500 text-blue-400 hover:bg-blue-500/10 disabled:opacity-40 disabled:cursor-not-allowed rounded text-[10px] font-bold uppercase flex items-center justify-center gap-1"
               >
                 <Package size={12} /> Pay Later
