@@ -184,11 +184,17 @@ export function POSPage() {
     creditValue: string;
     selected: boolean;
     remainingQty: number;
+    returnQty: number;
     hasDiscountOrOverride: boolean;
   }>>([]);
-  // Customer search specifically for the SC-refund path inside exchange checkout
+  // Customer search for picker modal (unused currently, reserved for future)
   const [cartExchangeCustomerSearch, setCartExchangeCustomerSearch] = useState('');
   const [cartExchangeCustomerResults, setCartExchangeCustomerResults] = useState<any[]>([]);
+  // Refund MOP selection when grandTotal < 0 in exchange mode
+  const [cartExchangeRefundMethod, setCartExchangeRefundMethod] = useState<string | null>(null);
+  const [cartExchangeRefundCustomerId, setCartExchangeRefundCustomerId] = useState<string | null>(null);
+  const [cartExchangeRefundCustomerSearch, setCartExchangeRefundCustomerSearch] = useState('');
+  const [cartExchangeRefundCustomerResults, setCartExchangeRefundCustomerResults] = useState<any[]>([]);
 
   // Size selector modal
   const [showSizeSelector, setShowSizeSelector] = useState(false);
@@ -444,6 +450,12 @@ export function POSPage() {
 
       // 2. INVOICE/TRANSACTION BARCODE (INV-XXXXX)
       if (barcode.startsWith('INV-') || /^INV-\d+$/.test(barcode)) {
+
+        // In exchange mode, scan the receipt to open the item picker instead
+        if (cartExchangeMode) {
+          handleCartExchangeInvoiceScan(barcode);
+          return;
+        }
 
         // Open Returns modal with pre-filled invoice number
         setShowReturnsModal(true);
@@ -1547,6 +1559,10 @@ export function POSPage() {
     setCartExchangePickerItems([]);
     setCartExchangeCustomerSearch('');
     setCartExchangeCustomerResults([]);
+    setCartExchangeRefundMethod(null);
+    setCartExchangeRefundCustomerId(null);
+    setCartExchangeRefundCustomerSearch('');
+    setCartExchangeRefundCustomerResults([]);
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
@@ -1558,6 +1574,139 @@ export function POSPage() {
     setShowCartExchangePicker(false);
     setCartExchangePickerError(null);
     setCartExchangePickerItems([]);
+    setCartExchangeRefundMethod(null);
+    setCartExchangeRefundCustomerId(null);
+    setCartExchangeRefundCustomerSearch('');
+    setCartExchangeRefundCustomerResults([]);
+  };
+
+  const handleCartExchangeInvoiceScan = async (rawBarcode: string) => {
+    const barcode = rawBarcode.trim().toUpperCase();
+    setBarcodeInput('');
+    setCartExchangePickerError(null);
+
+    // If already locked to a transaction, re-open picker for that tx
+    if (cartExchangeOriginalTxId) {
+      setShowCartExchangePicker(true);
+      return;
+    }
+
+    setCartExchangePickerLoading(true);
+    try {
+      const normalizedInvoice = barcode.startsWith('INV-')
+        ? barcode
+        : 'INV-' + barcode.padStart(5, '0');
+
+      const { data: tx, error: txErr } = await supabase
+        .from('transactions')
+        .select('*, customers(first_name, last_name)')
+        .eq('invoice_number', normalizedInvoice)
+        .maybeSingle();
+
+      if (txErr || !tx) {
+        setCartExchangePickerError(`Invoice ${normalizedInvoice} not found`);
+        return;
+      }
+      if (tx.status === 'voided') {
+        setCartExchangePickerError('This transaction has been voided and cannot be used for an exchange');
+        return;
+      }
+      if (tx.status === 'refunded') {
+        setCartExchangePickerError('This transaction has already been fully refunded');
+        return;
+      }
+      if (!['completed', 'partial_return'].includes(tx.status)) {
+        setCartExchangePickerError(`Transaction cannot be exchanged (status: ${tx.status})`);
+        return;
+      }
+
+      // Fetch existing returns to determine remaining returnable qty per item
+      const { data: existingReturns } = await supabase
+        .from('returns')
+        .select('items')
+        .eq('transaction_id', tx.id);
+
+      const returnedQtyMap: Record<string, number> = {};
+      if (existingReturns) {
+        for (const ret of existingReturns) {
+          for (const ri of (ret.items || [])) {
+            const key = ri.variantId || ri.variant_id || ri.id || ri.name;
+            returnedQtyMap[key] = (returnedQtyMap[key] || 0) + (ri.quantity || 1);
+          }
+        }
+      }
+
+      const txItems: any[] = Array.isArray(tx.items) ? tx.items : [];
+      const pickerItems = txItems
+        .map((item: any) => {
+          const variantKey = item.variantId || item.variant_id || item.id || item.name;
+          const alreadyReturned = returnedQtyMap[variantKey] || 0;
+          const remainingQty = Math.max(0, (item.quantity || 1) - alreadyReturned);
+          const paidPrice = item.priceOverride !== undefined
+            ? item.priceOverride
+            : getItemDiscountedPrice(item);
+          const hasDiscountOrOverride = !!(
+            item.priceOverride !== undefined || item.discount || item.isOnSale
+          );
+          return {
+            item,
+            creditValue: paidPrice.toFixed(2),
+            selected: false,
+            returnQty: 1,
+            remainingQty,
+            hasDiscountOrOverride,
+          };
+        })
+        .filter((pi) => pi.remainingQty > 0);
+
+      if (pickerItems.length === 0) {
+        setCartExchangePickerError('All items from this transaction have already been returned');
+        return;
+      }
+
+      setCartExchangeOriginalTx(tx);
+      setCartExchangePickerItems(pickerItems);
+      setShowCartExchangePicker(true);
+    } catch (err) {
+      setCartExchangePickerError('Failed to load transaction. Please try again.');
+      console.error(err);
+    } finally {
+      setCartExchangePickerLoading(false);
+    }
+  };
+
+  const handleCartExchangeConfirmItems = () => {
+    const selected = cartExchangePickerItems.filter(pi => pi.selected && pi.returnQty > 0);
+    if (selected.length === 0) {
+      setCartExchangePickerError('Select at least one item to return');
+      return;
+    }
+    for (const pi of selected) {
+      const creditAmt = parseFloat(pi.creditValue);
+      if (isNaN(creditAmt) || creditAmt < 0) continue;
+      const paidPrice = pi.item.priceOverride !== undefined
+        ? pi.item.priceOverride
+        : getItemDiscountedPrice(pi.item);
+      const returnItem: CartItem = {
+        id: `exchange-ret-${pi.item.variantId || pi.item.name}-${Date.now()}`,
+        name: pi.item.name,
+        price: -creditAmt,
+        originalPrice: paidPrice,
+        quantity: pi.returnQty,
+        category: pi.item.category || '',
+        variantId: pi.item.variantId,
+        size: pi.item.size,
+        color: pi.item.color,
+        ageGroup: pi.item.ageGroup,
+        barcode: pi.item.barcode,
+        taxable: pi.item.taxable !== false,
+        isReturnLine: true,
+        originalTransactionId: cartExchangeOriginalTx?.id,
+      };
+      addReturnItem(returnItem);
+    }
+    setCartExchangeOriginalTxId(cartExchangeOriginalTx?.id ?? null);
+    setShowCartExchangePicker(false);
   };
 
   const handleRemoveReturnLine = (itemId: string) => {
@@ -3019,7 +3168,10 @@ export function POSPage() {
                       <div className="flex justify-between"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
                       {discountAmount > 0 && <div className="flex justify-between text-yellow-400"><span>Discount</span><span>−${discountAmount.toFixed(2)}</span></div>}
                       <div className="flex justify-between"><span>HST</span><span>${hst.toFixed(2)}</span></div>
-                      <div className="flex justify-between font-bold text-sm border-t border-[#2d3547] pt-1"><span>Total Due</span><span>${grandTotal.toFixed(2)}</span></div>
+                      <div className={`flex justify-between font-bold text-sm border-t border-[#2d3547] pt-1 ${cartExchangeMode && grandTotal < 0 ? 'text-green-400' : ''}`}>
+                        <span>{cartExchangeMode && grandTotal < 0 ? 'REFUND DUE' : 'Total Due'}</span>
+                        <span>{cartExchangeMode && grandTotal < 0 ? `$${Math.abs(grandTotal).toFixed(2)}` : `$${grandTotal.toFixed(2)}`}</span>
+                      </div>
                       {recalledPayLater && recalledPayLater.amountPaid > 0 && (
                         <div className="flex justify-between text-emerald-400 font-bold"><span>Previously Paid</span><span>−${recalledPayLater.amountPaid.toFixed(2)}</span></div>
                       )}
@@ -3103,8 +3255,121 @@ export function POSPage() {
                       </div>
                     )}
 
-                    {/* If SC fully covers amount, show Complete Sale button instead of payment methods */}
-                    {selectedStoreCredit && scRemainingBalance === 0 ? (
+                    {/* Exchange refund MOP (when grandTotal < 0, refund is due to customer) */}
+                    {cartExchangeMode && grandTotal < 0 ? (
+                      <div className="space-y-3">
+                        <p className="text-[9px] font-bold uppercase text-green-400">Refund Method:</p>
+                        {!cartExchangeRefundMethod ? (
+                          <div className="grid grid-cols-2 gap-2">
+                            {['Cash', 'Debit', 'Visa', 'Mastercard', 'Amex', 'Store Credit'].map(method => (
+                              <button
+                                key={method}
+                                onClick={() => {
+                                  setCartExchangeRefundMethod(method);
+                                  if (method !== 'Store Credit') {
+                                    setCartExchangeRefundCustomerId(null);
+                                    setCartExchangeRefundCustomerSearch('');
+                                    setCartExchangeRefundCustomerResults([]);
+                                  }
+                                }}
+                                className="bg-green-700 hover:bg-green-600 text-white p-2 rounded font-bold text-[9px] uppercase"
+                              >
+                                {method}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-green-400 uppercase">{cartExchangeRefundMethod}</span>
+                              <button
+                                onClick={() => {
+                                  setCartExchangeRefundMethod(null);
+                                  setCartExchangeRefundCustomerId(null);
+                                  setCartExchangeRefundCustomerSearch('');
+                                  setCartExchangeRefundCustomerResults([]);
+                                }}
+                                className="text-[9px] text-gray-400 hover:text-white uppercase font-bold"
+                              >
+                                Change
+                              </button>
+                            </div>
+
+                            {/* SC refund requires a customer */}
+                            {cartExchangeRefundMethod === 'Store Credit' && (
+                              <div className="space-y-2">
+                                {!cartExchangeRefundCustomerId ? (
+                                  <>
+                                    <p className="text-[9px] text-gray-400">Search customer to issue store credit:</p>
+                                    <input
+                                      type="text"
+                                      value={cartExchangeRefundCustomerSearch}
+                                      onChange={e => {
+                                        const q = e.target.value;
+                                        setCartExchangeRefundCustomerSearch(q);
+                                        const trimmed = q.trim().toLowerCase();
+                                        if (trimmed.length >= 2) {
+                                          setCartExchangeRefundCustomerResults(
+                                            safeCustomers.filter(c =>
+                                              `${c.first_name || ''} ${c.last_name || ''} ${c.email || ''} ${c.phone || ''}`
+                                                .toLowerCase()
+                                                .includes(trimmed)
+                                            ).slice(0, 6)
+                                          );
+                                        } else {
+                                          setCartExchangeRefundCustomerResults([]);
+                                        }
+                                      }}
+                                      placeholder="Name, email, or phone..."
+                                      className="w-full text-[10px] p-1.5 rounded border bg-[#0f1117] border-[#2d3547] text-white placeholder-gray-500"
+                                    />
+                                    {cartExchangeRefundCustomerResults.length > 0 && (
+                                      <div className={`rounded border max-h-32 overflow-y-auto ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547]' : 'bg-white border-gray-200'}`}>
+                                        {cartExchangeRefundCustomerResults.map(c => (
+                                          <button
+                                            key={c.id}
+                                            onClick={() => {
+                                              setCartExchangeRefundCustomerId(c.id);
+                                              setCartExchangeRefundCustomerSearch(`${c.first_name} ${c.last_name}`);
+                                              setCartExchangeRefundCustomerResults([]);
+                                            }}
+                                            className={`w-full text-left px-2 py-1.5 text-[9px] border-b last:border-b-0 hover:bg-[#2d3547] ${isDarkMode ? 'text-white border-[#2d3547]' : 'text-black border-gray-100'}`}
+                                          >
+                                            <span className="font-bold">{c.first_name} {c.last_name}</span>
+                                            {c.email && <span className="text-gray-400 ml-1">· {c.email}</span>}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div className="flex items-center justify-between bg-blue-900/20 border border-blue-700 rounded px-2 py-1.5">
+                                    <span className="text-[9px] text-blue-300 font-bold">SC → {cartExchangeRefundCustomerSearch}</span>
+                                    <button
+                                      onClick={() => { setCartExchangeRefundCustomerId(null); setCartExchangeRefundCustomerSearch(''); }}
+                                      className="text-[9px] text-gray-400 hover:text-white font-bold"
+                                    >
+                                      Clear
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <button
+                              onClick={() => handleConfirmSale(cartExchangeRefundMethod)}
+                              disabled={isConfirming || (cartExchangeRefundMethod === 'Store Credit' && !cartExchangeRefundCustomerId)}
+                              className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white p-3 rounded font-bold text-sm uppercase"
+                            >
+                              {isConfirming ? 'Processing...' : 'Complete Exchange'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+
+                    /* If SC fully covers amount, show Complete Sale button instead of payment methods */
+                    selectedStoreCredit && scRemainingBalance === 0 ? (
                       <button
                         onClick={() => handleConfirmSale('Store Credit')}
                         disabled={isConfirming}
@@ -3274,29 +3539,35 @@ export function POSPage() {
                           </div>
                         )}
                       </>
+                    )
+
                     )}
 
-                    <button
-                      onClick={() => {
-                        setShowCheckout(false);
-                        setPosTab('gc');
-                      }}
-                      disabled={isConfirming}
-                      className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
-                    >
-                      <CreditCard size={12} className="inline mr-1" /> Redeem Gift Card
-                    </button>
+                    {!cartExchangeMode && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setShowCheckout(false);
+                            setPosTab('gc');
+                          }}
+                          disabled={isConfirming}
+                          className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
+                        >
+                          <CreditCard size={12} className="inline mr-1" /> Redeem Gift Card
+                        </button>
 
-                    <button
-                      onClick={() => {
-                        setShowCheckout(false);
-                        setPosTab('sc');
-                      }}
-                      disabled={isConfirming}
-                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
-                    >
-                      <Ticket size={12} className="inline mr-1" /> Redeem Store Credit
-                    </button>
+                        <button
+                          onClick={() => {
+                            setShowCheckout(false);
+                            setPosTab('sc');
+                          }}
+                          disabled={isConfirming}
+                          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded font-bold text-[9px] uppercase"
+                        >
+                          <Ticket size={12} className="inline mr-1" /> Redeem Store Credit
+                        </button>
+                      </>
+                    )}
                   </div>
 
                   {/* Cash Calculator Modal */}
@@ -3737,6 +4008,147 @@ export function POSPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Cart Exchange Picker Modal */}
+      {showCartExchangePicker && (
+        <div className="absolute inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-xl shadow-2xl flex flex-col max-h-[90vh] ${isDarkMode ? 'bg-[#1a2236] border border-[#2d3547]' : 'bg-white border border-gray-200'}`}>
+            {/* Header */}
+            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-[#2d3547]' : 'border-gray-200'}`}>
+              <div>
+                <h2 className={`text-sm font-black uppercase flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  <ArrowLeftRight size={15} className="text-purple-400" />
+                  Exchange — Select Items to Return
+                </h2>
+                {cartExchangeOriginalTx && (
+                  <p className={`text-[10px] mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {cartExchangeOriginalTx.invoice_number}
+                    {cartExchangeOriginalTx.customers &&
+                      ` · ${cartExchangeOriginalTx.customers.first_name} ${cartExchangeOriginalTx.customers.last_name}`}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setShowCartExchangePicker(false)}
+                className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-black'}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Item list */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {cartExchangePickerError && (
+                <div className="text-[10px] font-bold text-red-400 bg-red-900/20 border border-red-700 rounded px-3 py-2">
+                  {cartExchangePickerError}
+                </div>
+              )}
+              {cartExchangePickerLoading && (
+                <p className={`text-[10px] text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading...</p>
+              )}
+              {cartExchangePickerItems.map((pi, idx) => (
+                <div
+                  key={idx}
+                  className={`rounded-lg border p-3 space-y-2 transition-colors ${
+                    pi.selected
+                      ? isDarkMode ? 'border-purple-500 bg-purple-900/20' : 'border-purple-400 bg-purple-50'
+                      : isDarkMode ? 'border-[#2d3547] bg-[#0f1117]' : 'border-gray-200 bg-gray-50'
+                  }`}
+                >
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pi.selected}
+                      onChange={() => {
+                        setCartExchangePickerItems(prev =>
+                          prev.map((p, i) => i === idx ? { ...p, selected: !p.selected } : p)
+                        );
+                      }}
+                      className="mt-0.5 accent-purple-500 w-4 h-4"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-[11px] font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                        {pi.item.name}
+                      </p>
+                      {(pi.item.color || pi.item.size || pi.item.ageGroup) && (
+                        <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {[pi.item.color, pi.item.ageGroup, pi.item.size && `Size ${pi.item.size}`].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+                      <p className={`text-[10px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                        Original qty: {pi.item.quantity} · Returnable: {pi.remainingQty}
+                      </p>
+                    </div>
+                  </label>
+
+                  {pi.selected && (
+                    <div className="pl-7 space-y-2">
+                      {/* Return qty */}
+                      {pi.remainingQty > 1 && (
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Return qty:</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setCartExchangePickerItems(prev =>
+                                prev.map((p, i) => i === idx ? { ...p, returnQty: Math.max(1, p.returnQty - 1) } : p)
+                              )}
+                              className={`w-6 h-6 rounded border text-xs font-bold flex items-center justify-center ${isDarkMode ? 'border-[#2d3547] text-white hover:bg-[#2d3547]' : 'border-gray-300 text-black hover:bg-gray-100'}`}
+                            >−</button>
+                            <span className={`text-[11px] font-bold w-5 text-center ${isDarkMode ? 'text-white' : 'text-black'}`}>{pi.returnQty}</span>
+                            <button
+                              onClick={() => setCartExchangePickerItems(prev =>
+                                prev.map((p, i) => i === idx ? { ...p, returnQty: Math.min(p.remainingQty, p.returnQty + 1) } : p)
+                              )}
+                              className={`w-6 h-6 rounded border text-xs font-bold flex items-center justify-center ${isDarkMode ? 'border-[#2d3547] text-white hover:bg-[#2d3547]' : 'border-gray-300 text-black hover:bg-gray-100'}`}
+                            >+</button>
+                          </div>
+                        </div>
+                      )}
+                      {/* Credit value */}
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Credit per unit: $</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={pi.creditValue}
+                          onChange={e => setCartExchangePickerItems(prev =>
+                            prev.map((p, i) => i === idx ? { ...p, creditValue: e.target.value } : p)
+                          )}
+                          className={`w-20 text-[11px] font-bold text-center rounded border p-1 ${isDarkMode ? 'bg-[#0f1117] border-[#2d3547] text-white' : 'bg-white border-gray-300 text-black'}`}
+                        />
+                      </div>
+                      {/* Discount/override warning */}
+                      {pi.hasDiscountOrOverride && (
+                        <p className={`text-[9px] font-bold flex items-center gap-1 ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`}>
+                          ⚠ This item was discounted or had a price override at the time of sale — verify the credit value
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className={`p-4 border-t flex gap-2 ${isDarkMode ? 'border-[#2d3547]' : 'border-gray-200'}`}>
+              <button
+                onClick={() => setShowCartExchangePicker(false)}
+                className={`flex-1 py-2.5 rounded text-[10px] font-black uppercase border ${isDarkMode ? 'border-[#2d3547] text-gray-400 hover:text-white' : 'border-gray-300 text-gray-600 hover:text-black'}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCartExchangeConfirmItems}
+                disabled={!cartExchangePickerItems.some(pi => pi.selected)}
+                className="flex-1 py-2.5 rounded text-[10px] font-black uppercase bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white"
+              >
+                Add to Exchange
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Returns Modal */}
       {showReturnsModal && (
