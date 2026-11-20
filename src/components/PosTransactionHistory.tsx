@@ -356,6 +356,27 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ tx, onC
                 </div>
               )}
 
+              {/* Original sale items expanded (EXC- only) */}
+              {tx.invoice_number?.startsWith('EXC-') && originalSale && (originalSale.items || []).length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Original Sale Items</p>
+                  <div className="space-y-1.5">
+                    {(originalSale.items || []).map((item: any, i: number) => (
+                      <div key={i} className="flex justify-between text-[11px] bg-zinc-50 rounded-lg px-3 py-2">
+                        <div>
+                          <p className="font-bold text-zinc-900">{item.name}</p>
+                          {(item.size || item.ageGroup) && (
+                            <p className="text-zinc-400">{item.ageGroup ? `${item.ageGroup} · ` : ''}Size {item.size}</p>
+                          )}
+                          <p className="text-zinc-400">Qty {item.quantity || 1} × ${Number(item.price || 0).toFixed(2)}</p>
+                        </div>
+                        <p className="font-black text-zinc-500 shrink-0">${(Number(item.price || 0) * (item.quantity || 1)).toFixed(2)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Item returned in exchange (EXC- only) */}
               {tx.invoice_number?.startsWith('EXC-') && excReturnEntry && (
                 <div>
@@ -506,6 +527,8 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
   const [refundTx, setRefundTx] = useState<Transaction | null>(null);
   const [editingMOP, setEditingMOP] = useState<string | null>(null);
   const [newMOP, setNewMOP] = useState('');
+  // Cache of original-sale items fetched for EXC- expanded rows, keyed by EXC- tx id
+  const [excOriginalItems, setExcOriginalItems] = useState<Record<string, any[]>>({});
 
   // Transaction detail modal
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
@@ -545,6 +568,22 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
   }, []);
 
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
+
+  // When an EXC- row is expanded, fetch the original sale's items (for display in the row)
+  useEffect(() => {
+    if (!expandedId) return;
+    const tx = transactions.find(t => t.id === expandedId);
+    if (!tx?.invoice_number?.startsWith('EXC-') || expandedId in excOriginalItems) return;
+    const origId = (tx as any).related_transaction_id;
+    if (!origId) {
+      setExcOriginalItems(prev => ({ ...prev, [expandedId]: [] }));
+      return;
+    }
+    supabase.from('transactions').select('items').eq('id', origId).single()
+      .then(({ data }) => {
+        setExcOriginalItems(prev => ({ ...prev, [expandedId]: data?.items || [] }));
+      });
+  }, [expandedId]);
 
   const customerMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -1079,7 +1118,9 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
 
                   {/* Items */}
                   <div className="space-y-2">
-                    <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Items</p>
+                    <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">
+                      {tx.invoice_number?.startsWith('EXC-') ? 'Replacement Items' : 'Items'}
+                    </p>
                     {(tx.items || []).map((item: any, i: number) => (
                       <div key={i} className="flex justify-between text-[11px]">
                         <div>
@@ -1097,6 +1138,48 @@ export const PosTransactionHistory: React.FC<PosTransactionHistoryProps> = ({ on
                       <span>${Number(tx.total_amount).toFixed(2)}</span>
                     </div>
                   </div>
+
+                  {/* Original sale items (EXC- entries) */}
+                  {tx.invoice_number?.startsWith('EXC-') && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Original Sale Items</p>
+                      {excOriginalItems[tx.id] === undefined ? (
+                        <p className="text-[10px] text-zinc-400 italic">Loading…</p>
+                      ) : excOriginalItems[tx.id].length === 0 ? (
+                        <p className="text-[10px] text-zinc-400 italic">No items found</p>
+                      ) : excOriginalItems[tx.id].map((item: any, i: number) => (
+                        <div key={i} className="flex justify-between text-[11px]">
+                          <div>
+                            <p className="font-bold text-zinc-900">{item.name}</p>
+                            {(item.size || item.ageGroup) && (
+                              <p className="text-zinc-400">{item.ageGroup ? `${item.ageGroup} · ` : ''}Size {item.size}</p>
+                            )}
+                            <p className="text-zinc-400">Qty {item.quantity || 1} × ${Number(item.price || 0).toFixed(2)}</p>
+                          </div>
+                          <p className="font-black text-zinc-500">${(Number(item.price || 0) * (item.quantity || 1)).toFixed(2)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Returned items (original sales with refunded_items) */}
+                  {(tx.refunded_items?.length ?? 0) > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Returned</p>
+                      {(tx.refunded_items || []).map((item: any, i: number) => (
+                        <div key={i} className="flex justify-between text-[11px] bg-red-50 rounded px-2 py-1">
+                          <div>
+                            <p className="font-bold text-zinc-900">{item.name}</p>
+                            {item.size && <p className="text-zinc-400">Size {item.size}</p>}
+                            <p className="text-zinc-400">Qty {item.returnQuantity || item.quantity || 1}</p>
+                          </div>
+                          <p className="font-black text-red-600">
+                            -${((item.pricePerUnit || item.price || 0) * (item.returnQuantity || item.quantity || 1) * 1.13).toFixed(2)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Action buttons */}
                   <div className="flex gap-2 pt-1 flex-wrap">
