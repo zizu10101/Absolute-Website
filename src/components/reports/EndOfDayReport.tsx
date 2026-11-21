@@ -37,6 +37,11 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [giftCardData, setGiftCardData] = useState<any>(null);
   const [originalSaleInvoices, setOriginalSaleInvoices] = useState<Record<string, string>>({});
+  const [storeCreditData, setStoreCreditData] = useState<{
+    issued: Array<{ id: string; card_number: string; amount: number; customerName: string }>;
+    redeemedCount: number;
+    redeemedTotal: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showEODPreview, setShowEODPreview] = useState(false);
   const [eodPreviewHTML, setEODPreviewHTML] = useState<string>('');
@@ -100,6 +105,49 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
           redeemedValue: redeemed.reduce((sum, g) => sum + (g.amount || 0), 0),
         });
       }
+
+      // Fetch store credits issued today (from store_credits.created_at)
+      const { data: scIssuedData } = await supabase
+        .from('store_credits')
+        .select('id, card_number, amount, customer_id')
+        .gte('created_at', start)
+        .lte('created_at', end);
+
+      const customerIds = [...new Set(
+        (scIssuedData || []).filter((s: any) => s.customer_id).map((s: any) => s.customer_id as string)
+      )];
+      const custMap: Record<string, string> = {};
+      if (customerIds.length > 0) {
+        const { data: custs } = await supabase
+          .from('customers')
+          .select('id, first_name, last_name')
+          .in('id', customerIds);
+        (custs || []).forEach((c: any) => {
+          custMap[c.id] = `${c.first_name || ''} ${c.last_name || ''}`.trim();
+        });
+      }
+
+      // Fetch store credit redemptions today (from store_credit_transactions)
+      const { data: scRedeemedData } = await supabase
+        .from('store_credit_transactions')
+        .select('id, amount, transaction_type')
+        .eq('transaction_type', 'redeemed')
+        .gte('created_at', start)
+        .lte('created_at', end);
+
+      setStoreCreditData({
+        issued: (scIssuedData || []).map((s: any) => ({
+          id: s.id,
+          card_number: s.card_number,
+          amount: Number(s.amount),
+          customerName: s.customer_id ? (custMap[s.customer_id] || 'Unknown') : 'Walk-in',
+        })),
+        redeemedCount: (scRedeemedData || []).length,
+        redeemedTotal: (scRedeemedData || []).reduce(
+          (sum: number, r: any) => sum + Math.abs(Number(r.amount)),
+          0
+        ),
+      });
     } catch (error) {
       console.error('Error fetching report data:', error);
     } finally {
@@ -650,6 +698,44 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
               <p className="text-[10px] text-emerald-700 font-bold uppercase mb-2">Redeemed</p>
               <p className="text-2xl font-black text-emerald-900">{giftCardData.redeemed}</p>
               <p className="text-xs text-emerald-700 mt-1">${giftCardData.redeemedValue.toFixed(2)} value</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Store Credits */}
+      {storeCreditData && (storeCreditData.issued.length > 0 || storeCreditData.redeemedCount > 0) && (
+        <div className="bg-indigo-50 rounded-lg border border-indigo-200 p-6">
+          <h3 className="text-sm font-black uppercase tracking-widest text-indigo-900 mb-4">
+            Store Credits
+          </h3>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-[10px] text-indigo-700 font-bold uppercase mb-2">Issued Today</p>
+              <p className="text-2xl font-black text-indigo-900">{storeCreditData.issued.length}</p>
+              <p className="text-xs text-indigo-700 mt-1">
+                ${storeCreditData.issued.reduce((s, i) => s + i.amount, 0).toFixed(2)} total value
+              </p>
+              {storeCreditData.issued.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  {storeCreditData.issued.map(sc => (
+                    <div key={sc.id} className="text-xs flex justify-between gap-2 bg-white rounded px-2 py-1.5 border border-indigo-100">
+                      <div>
+                        <span className="font-mono font-bold text-zinc-900">{sc.card_number}</span>
+                        <span className="text-zinc-500 ml-2">{sc.customerName}</span>
+                      </div>
+                      <span className="font-bold text-indigo-700 shrink-0">${sc.amount.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="text-[10px] text-indigo-700 font-bold uppercase mb-2">Redeemed Today</p>
+              <p className="text-2xl font-black text-indigo-900">{storeCreditData.redeemedCount}</p>
+              <p className="text-xs text-indigo-700 mt-1">
+                ${storeCreditData.redeemedTotal.toFixed(2)} value
+              </p>
             </div>
           </div>
         </div>
