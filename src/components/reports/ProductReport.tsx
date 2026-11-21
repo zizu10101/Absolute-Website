@@ -3,6 +3,7 @@ import { supabase } from '../../supabase';
 import { Download, RefreshCw } from 'lucide-react';
 import { downloadCSV, generatePDF } from '../../utils/reportExport';
 import { getTodayEastern, shiftEasternDate, getEasternRangeUTC } from '../../utils/timezoneUtils';
+import { computeReturnSubtractions } from '../../utils/reportUtils';
 
 interface ProductReportProps {
   logo?: string;
@@ -93,10 +94,6 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
       { name: string; category: string; quantity: number; revenue: number; price: number }
     > = {};
 
-    // sold quantities per transaction per variantId — used to guard and cap returns
-    const soldByTx: Record<string, Record<string, { name: string; category: string; qty: number; price: number }>> = {};
-    const saleTxIds = new Set<string>();
-
     const saleTxs = transactions.filter(
       t =>
         t.status === 'completed' &&
@@ -105,7 +102,6 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
     );
 
     saleTxs.forEach(t => {
-      saleTxIds.add(t.id);
       (t.items || []).forEach((item: any) => {
         const key = `${item.name}`;
         if (!products[key]) {
@@ -122,36 +118,16 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
         products[key].quantity += qty;
         products[key].revenue += price * qty;
         products[key].price = price;
-        if (item.variantId) {
-          if (!soldByTx[t.id]) soldByTx[t.id] = {};
-          if (!soldByTx[t.id][item.variantId]) {
-            soldByTx[t.id][item.variantId] = {
-              name: item.name,
-              category: item.category || 'Uncategorized',
-              qty: 0,
-              price,
-            };
-          }
-          soldByTx[t.id][item.variantId].qty += qty;
-        }
       });
     });
 
-    // Subtract returned items:
-    // - only if the return's transaction_id is an original sale in this date range
-    // - only if variantId matches a sold item in that specific transaction
-    // - capped at that transaction's sold qty (never goes negative)
-    returnsData.forEach(r => {
-      if (!saleTxIds.has(r.transaction_id)) return;
-      const txSold = soldByTx[r.transaction_id] || {};
-      (r.items || []).forEach((item: any) => {
-        if (!item.variantId) return;
-        const sold = txSold[item.variantId];
-        if (!sold) return;
-        const returnQty = Math.min(item.returnQuantity || 1, sold.qty);
-        products[sold.name].quantity -= returnQty;
-        products[sold.name].revenue -= (item.pricePerUnit || sold.price) * returnQty;
-      });
+    // Subtract returns: only when transaction_id is a sale in this range and variantId matches
+    const subtractions = computeReturnSubtractions(saleTxs, returnsData);
+    Object.values(subtractions).forEach(sub => {
+      if (products[sub.name]) {
+        products[sub.name].quantity -= sub.qty;
+        products[sub.name].revenue -= sub.revenue;
+      }
     });
 
     let filtered = Object.values(products).filter(p => p.quantity > 0);

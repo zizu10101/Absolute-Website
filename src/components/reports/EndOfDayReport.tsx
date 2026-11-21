@@ -5,6 +5,7 @@ import { downloadCSV, generatePDF } from '../../utils/reportExport';
 import { useSettings } from '../../context/SettingsContext';
 import { generateThermalReceiptHTML } from '../../utils/thermalReceipt';
 import { getEasternDayRange, getTodayEastern } from '../../utils/timezoneUtils';
+import { computeReturnSubtractions } from '../../utils/reportUtils';
 
 interface EndOfDayReportProps {
   logo?: string;
@@ -42,7 +43,7 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
     redeemedCount: number;
     redeemedTotal: number;
   } | null>(null);
-  const [returnsData, setReturnsData] = useState<Array<{ items: any[] }>>([]);
+  const [returnsData, setReturnsData] = useState<Array<{ transaction_id: string; items: any[] }>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showEODPreview, setShowEODPreview] = useState(false);
   const [eodPreviewHTML, setEODPreviewHTML] = useState<string>('');
@@ -153,7 +154,7 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
       // Fetch returns records created today (items have returnQuantity and pricePerUnit)
       const { data: rtnTableData } = await supabase
         .from('returns')
-        .select('items')
+        .select('transaction_id, items')
         .gte('created_at', start)
         .lte('created_at', end);
       setReturnsData(rtnTableData || []);
@@ -267,37 +268,36 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
       .reduce((s, p) => s + p.amount, 0);
   }, [paymentBreakdown]);
 
-  // Top products: only regular sales (no RTN-/EXC-); subtract today's returns via returns table
+  // Top products: only regular sales (no RTN-/EXC-); subtract returns via shared helper
   const topProducts = useMemo(() => {
     const productSales: Record<string, { name: string; size: string; qty: number; revenue: number }> = {};
 
-    transactions
-      .filter(t =>
+    const saleTxs = transactions.filter(
+      t =>
         t.status === 'completed' &&
         !t.invoice_number?.startsWith('RTN-') &&
         !t.invoice_number?.startsWith('EXC-')
-      )
-      .forEach(t => {
-        (t.items || []).forEach((item: any) => {
-          const key = `${item.name}|${item.size || 'One Size'}`;
-          if (!productSales[key]) {
-            productSales[key] = { name: item.name, size: item.size || 'One Size', qty: 0, revenue: 0 };
-          }
-          productSales[key].qty += item.quantity || 1;
-          productSales[key].revenue += (item.price || 0) * (item.quantity || 1);
-        });
-      });
+    );
 
-    // Subtract items returned today (returns.items use returnQuantity / pricePerUnit)
-    returnsData.forEach(r => {
-      (r.items || []).forEach((item: any) => {
+    saleTxs.forEach(t => {
+      (t.items || []).forEach((item: any) => {
         const key = `${item.name}|${item.size || 'One Size'}`;
         if (!productSales[key]) {
           productSales[key] = { name: item.name, size: item.size || 'One Size', qty: 0, revenue: 0 };
         }
-        productSales[key].qty -= item.returnQuantity || 1;
-        productSales[key].revenue -= (item.pricePerUnit || 0) * (item.returnQuantity || 1);
+        productSales[key].qty += item.quantity || 1;
+        productSales[key].revenue += (item.price || 0) * (item.quantity || 1);
       });
+    });
+
+    // Subtract returns: only when transaction_id is a sale in this range and variantId matches
+    const subtractions = computeReturnSubtractions(saleTxs, returnsData);
+    Object.values(subtractions).forEach(sub => {
+      const key = `${sub.name}|${sub.size}`;
+      if (productSales[key]) {
+        productSales[key].qty -= sub.qty;
+        productSales[key].revenue -= sub.revenue;
+      }
     });
 
     return Object.values(productSales)
