@@ -12,6 +12,8 @@ interface EndOfDayReportProps {
 
 interface Transaction {
   id: string;
+  invoice_number?: string;
+  related_transaction_id?: string;
   total_amount: number;
   method: string;
   status: string;
@@ -34,6 +36,7 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
   const [selectedDate, setSelectedDate] = useState<string>(getTodayEastern());
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [giftCardData, setGiftCardData] = useState<any>(null);
+  const [originalSaleInvoices, setOriginalSaleInvoices] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showEODPreview, setShowEODPreview] = useState(false);
   const [eodPreviewHTML, setEODPreviewHTML] = useState<string>('');
@@ -58,6 +61,27 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
 
       if (txError) throw txError;
       setTransactions(txData || []);
+
+      // For RTN-/EXC- entries, fetch the original sale's invoice number for the Returns section
+      const refundEntries = (txData || []).filter((t: any) =>
+        t.invoice_number?.startsWith('RTN-') || t.invoice_number?.startsWith('EXC-')
+      );
+      const origIds = [...new Set(
+        refundEntries.map((t: any) => t.related_transaction_id).filter(Boolean) as string[]
+      )];
+      if (origIds.length > 0) {
+        const { data: origTxs } = await supabase
+          .from('transactions')
+          .select('id, invoice_number')
+          .in('id', origIds);
+        const map: Record<string, string> = {};
+        (origTxs || []).forEach((t: any) => {
+          map[t.id] = t.invoice_number || t.id.slice(0, 8).toUpperCase();
+        });
+        setOriginalSaleInvoices(map);
+      } else {
+        setOriginalSaleInvoices({});
+      }
 
       // Fetch gift card data in Eastern day range (converted to UTC)
       const { data: gcData, error: gcError } = await supabase
@@ -104,22 +128,35 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
     const voided = transactions.filter(t => t.status === 'voided');
     const refunded = transactions.filter(t => t.status === 'refunded');
 
-    const totalCompleted = completed.reduce((sum, t) => sum + Math.abs(Number(t.total_amount)), 0);
-    const totalVoided = voided.reduce((sum, t) => sum + Math.abs(Number(t.total_amount)), 0);
-    const totalRefunded = refunded.reduce((sum, t) => sum + Math.abs(Number(t.total_amount)), 0);
+    // RTN- and EXC- entries are excluded from "Total Sales" and transaction count
+    const saleTxs = completed.filter(t =>
+      !t.invoice_number?.startsWith('RTN-') && !t.invoice_number?.startsWith('EXC-')
+    );
+    const refundTxs = completed.filter(t =>
+      t.invoice_number?.startsWith('RTN-') || t.invoice_number?.startsWith('EXC-')
+    );
 
-    const netSale = totalCompleted / 1.13;
-    const hstCollected = totalCompleted - netSale;
+    const grossSales = saleTxs.reduce((sum, t) => sum + Number(t.total_amount), 0);
+    const totalRefundsCredits = refundTxs.reduce((sum, t) => sum + Math.abs(Number(t.total_amount)), 0);
+    const netTotal = grossSales - totalRefundsCredits;
+
+    const totalVoided = voided.reduce((sum, t) => sum + Number(t.total_amount), 0);
+    const totalRefunded = refunded.reduce((sum, t) => sum + Number(t.total_amount), 0);
+
+    const netSaleBeforeTax = grossSales / 1.13;
+    const hstCollected = grossSales - netSaleBeforeTax;
 
     return {
-      totalSales: totalCompleted,
-      totalTransactions: completed.length,
+      totalSales: grossSales,
+      totalTransactions: saleTxs.length,
+      totalRefundsCredits,
+      netTotal,
       hstCollected,
-      netSales: netSale,
+      netSales: netSaleBeforeTax,
       voidedCount: voided.length,
-      voidedAmount: totalVoided,
+      voidedAmount: Math.abs(totalVoided),
       refundedCount: refunded.length,
-      refundedAmount: totalRefunded,
+      refundedAmount: Math.abs(totalRefunded),
     };
   }, [transactions]);
 
@@ -139,7 +176,7 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
         t.payment_splits.forEach(split => {
           const method = split.method || 'Other';
           if (!breakdown[method]) breakdown[method] = { method, count: 0, amount: 0, txIds: new Set() };
-          breakdown[method].amount += Math.abs(Number(split.amount || 0));
+          breakdown[method].amount += Number(split.amount || 0);
           // Increment count only once per transaction (not per split)
           breakdown[method].txIds?.add(t.id);
         });
@@ -148,7 +185,7 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
         const method = t.method || 'Other';
         if (!breakdown[method]) breakdown[method] = { method, count: 0, amount: 0 };
         breakdown[method].count += 1;
-        breakdown[method].amount += Math.abs(Number(t.total_amount));
+        breakdown[method].amount += Number(t.total_amount);
       }
     });
 
@@ -161,18 +198,19 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
 
     // Filter to only include methods with amount > 0, sorted by amount descending
     return Object.values(breakdown)
-      .filter(item => item.amount > 0)
+      .filter(item => item.amount !== 0)
       .map(({ txIds, ...item }) => item) // Remove txIds before returning
       .sort((a, b) => b.amount - a.amount);
   }, [transactions]);
 
-  // Top products
+  // Top products (RTN- items subtract; EXC- replacement items count as normal sales)
   const topProducts = useMemo(() => {
     const productSales: Record<string, { name: string; size: string; qty: number; revenue: number }> = {};
 
     transactions
       .filter(t => t.status === 'completed')
       .forEach(t => {
+        const sign = t.invoice_number?.startsWith('RTN-') ? -1 : 1;
         (t.items || []).forEach((item: any) => {
           const key = `${item.name}|${item.size || 'One Size'}`;
           if (!productSales[key]) {
@@ -183,15 +221,24 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
               revenue: 0,
             };
           }
-          productSales[key].qty += item.quantity || 1;
-          productSales[key].revenue += (item.price || 0) * (item.quantity || 1);
+          productSales[key].qty += sign * (item.quantity || 1);
+          productSales[key].revenue += sign * (item.price || 0) * (item.quantity || 1);
         });
       });
 
     return Object.values(productSales)
+      .filter(p => p.qty > 0)
       .sort((a, b) => b.qty - a.qty)
       .slice(0, 10);
   }, [transactions]);
+
+  const refundTransactions = useMemo(() =>
+    transactions.filter(t =>
+      t.status === 'completed' &&
+      (t.invoice_number?.startsWith('RTN-') || t.invoice_number?.startsWith('EXC-'))
+    ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    [transactions]
+  );
 
   // Generate clean EOD receipt HTML
   const generateEODReceiptHTML = () => {
@@ -316,14 +363,18 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
   };
 
   const handleExportCSV = () => {
-    const data = [
+    const data: (string | number)[][] = [
       ['End of Day Report', selectedDate],
       [],
       ['Summary'],
-      ['Total Sales', `$${metrics.totalSales.toFixed(2)}`],
+      ['Total Sales (Gross)', `$${metrics.totalSales.toFixed(2)}`],
       ['Total Transactions', metrics.totalTransactions],
       ['Net Sales (before tax)', `$${metrics.netSales.toFixed(2)}`],
       ['HST Collected (13%)', `$${metrics.hstCollected.toFixed(2)}`],
+      ...(refundTransactions.length > 0 ? [
+        ['Refunds / Credits Issued', `-$${metrics.totalRefundsCredits.toFixed(2)}`],
+        ['Net (after returns)', `$${metrics.netTotal.toFixed(2)}`],
+      ] : []),
       [],
       ['Payment Breakdown'],
       ['Payment Method', 'Transactions', 'Amount'],
@@ -332,6 +383,17 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
       ['Voids & Refunds'],
       ['Voided Transactions', metrics.voidedCount, `$${metrics.voidedAmount.toFixed(2)}`],
       ['Refunded Transactions', metrics.refundedCount, `$${metrics.refundedAmount.toFixed(2)}`],
+      ...(refundTransactions.length > 0 ? [
+        [],
+        ['Returns & Exchanges'],
+        ['Invoice', 'Original Sale', 'Method', 'Amount'],
+        ...refundTransactions.map(t => [
+          t.invoice_number || '—',
+          t.related_transaction_id ? (originalSaleInvoices[t.related_transaction_id] || '—') : '—',
+          t.method,
+          `-$${Math.abs(Number(t.total_amount)).toFixed(2)}`,
+        ]),
+      ] : []),
       [],
       ['Top 10 Products Sold'],
       ['Product', 'Size', 'Quantity', 'Revenue'],
@@ -445,6 +507,20 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
         <SummaryCard label="HST Collected" value={`$${metrics.hstCollected.toFixed(2)}`} icon="🧮" />
       </div>
 
+      {/* Refunds / Credits issued + Net (only shown when returns exist) */}
+      {refundTransactions.length > 0 && (
+        <div className="flex gap-4 flex-wrap">
+          <div className="bg-red-50 rounded-lg border border-red-200 px-5 py-3 flex items-center gap-4">
+            <p className="text-[10px] font-bold uppercase text-red-600 whitespace-nowrap">Refunds / Credits Issued</p>
+            <p className="text-xl font-black text-red-700">-${metrics.totalRefundsCredits.toFixed(2)}</p>
+          </div>
+          <div className="bg-emerald-50 rounded-lg border border-emerald-200 px-5 py-3 flex items-center gap-4">
+            <p className="text-[10px] font-bold uppercase text-emerald-700 whitespace-nowrap">Net (after returns)</p>
+            <p className="text-xl font-black text-emerald-900">${metrics.netTotal.toFixed(2)}</p>
+          </div>
+        </div>
+      )}
+
       {/* Payment Breakdown Table */}
       <div className="bg-white rounded-lg border border-zinc-200 p-6">
         <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 mb-4">
@@ -476,6 +552,52 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
           </table>
         </div>
       </div>
+
+      {/* Returns & Exchanges */}
+      {refundTransactions.length > 0 && (
+        <div className="bg-red-50 rounded-lg border border-red-200 p-6">
+          <h3 className="text-sm font-black uppercase tracking-widest text-red-900 mb-4">
+            Returns & Exchanges ({refundTransactions.length})
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-red-200">
+                  <th className="text-left py-2 px-3 font-bold text-red-700">Invoice</th>
+                  <th className="text-left py-2 px-3 font-bold text-red-700">Original Sale</th>
+                  <th className="text-left py-2 px-3 font-bold text-red-700">Method</th>
+                  <th className="text-right py-2 px-3 font-bold text-red-700">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {refundTransactions.map((t, idx) => {
+                  const origInvoice = t.related_transaction_id
+                    ? (originalSaleInvoices[t.related_transaction_id] || '—')
+                    : '—';
+                  return (
+                    <tr key={t.id} className={idx % 2 === 0 ? 'bg-red-50' : 'bg-white'}>
+                      <td className="py-2 px-3 font-mono font-bold text-xs text-zinc-900">{t.invoice_number || '—'}</td>
+                      <td className="py-2 px-3 text-zinc-600 text-xs">{origInvoice}</td>
+                      <td className="py-2 px-3 text-zinc-700">{t.method}</td>
+                      <td className="py-2 px-3 text-right font-bold text-red-700">
+                        -${Math.abs(Number(t.total_amount)).toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-red-200">
+                  <td colSpan={3} className="py-2 px-3 font-bold text-red-900">Total</td>
+                  <td className="py-2 px-3 text-right font-bold text-red-900">
+                    -${refundTransactions.reduce((s, t) => s + Math.abs(Number(t.total_amount)), 0).toFixed(2)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Voids & Refunds */}
       <div className="grid md:grid-cols-2 gap-4">

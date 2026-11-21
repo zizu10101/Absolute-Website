@@ -34,6 +34,8 @@ const emptyCounts = (): DenomCounts =>
 
 interface Transaction {
   id: string;
+  invoice_number?: string;
+  related_transaction_id?: string;
   total_amount: number;
   method: string;
   status: string;
@@ -93,6 +95,8 @@ export const CashReport: React.FC<CashReportProps> = ({ logo: logoFromProps }) =
   const [recentReports, setRecentReports] = useState<any[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCreatingNewMonth, setIsCreatingNewMonth] = useState(false);
+  const [cashRefundTxs, setCashRefundTxs] = useState<Transaction[]>([]);
+  const [cashOriginalInvoices, setCashOriginalInvoices] = useState<Record<string, string>>({});
 
   const [showPreview, setShowPreview] = useState(false);
   const [previewHTML, setPreviewHTML] = useState('');
@@ -103,7 +107,7 @@ export const CashReport: React.FC<CashReportProps> = ({ logo: logoFromProps }) =
       const { start, end } = getEasternDayRange(selectedDate);
       const { data, error } = await supabase
         .from('transactions')
-        .select('id, total_amount, method, status, payment_splits')
+        .select('id, invoice_number, related_transaction_id, total_amount, method, status, payment_splits')
         .gte('created_at', start)
         .lte('created_at', end)
         .eq('status', 'completed');
@@ -115,11 +119,11 @@ export const CashReport: React.FC<CashReportProps> = ({ logo: logoFromProps }) =
         if (t.payment_splits && Array.isArray(t.payment_splits) && t.payment_splits.length > 0) {
           t.payment_splits.forEach(split => {
             const method = split.method || 'Other';
-            breakdown[method] = (breakdown[method] || 0) + Math.abs(Number(split.amount || 0));
+            breakdown[method] = (breakdown[method] || 0) + Number(split.amount || 0);
           });
         } else {
           const method = t.method || 'Other';
-          breakdown[method] = (breakdown[method] || 0) + Math.abs(Number(t.total_amount || 0));
+          breakdown[method] = (breakdown[method] || 0) + Number(t.total_amount || 0);
         }
       });
 
@@ -131,11 +135,33 @@ export const CashReport: React.FC<CashReportProps> = ({ logo: logoFromProps }) =
 
       setPaymentBreakdown(
         Object.entries(breakdown)
-          .filter(([, amount]) => amount > 0)
+          .filter(([, amount]) => amount !== 0)
           .map(([method, amount]) => ({ method, amount }))
           .sort((a, b) => b.amount - a.amount)
       );
       setAutoOtherFromPOS(otherFromPOS);
+
+      // Track RTN-/EXC- entries for the Returns & Exchanges section
+      const refundList = (data || []).filter((t: Transaction) =>
+        t.invoice_number?.startsWith('RTN-') || t.invoice_number?.startsWith('EXC-')
+      );
+      setCashRefundTxs(refundList);
+      const origIds = [...new Set(
+        refundList.map((t: Transaction) => t.related_transaction_id).filter(Boolean) as string[]
+      )];
+      if (origIds.length > 0) {
+        const { data: origTxs } = await supabase
+          .from('transactions')
+          .select('id, invoice_number')
+          .in('id', origIds);
+        const map: Record<string, string> = {};
+        (origTxs || []).forEach((t: any) => {
+          map[t.id] = t.invoice_number || t.id.slice(0, 8).toUpperCase();
+        });
+        setCashOriginalInvoices(map);
+      } else {
+        setCashOriginalInvoices({});
+      }
     } catch (err) {
       console.error('Error fetching sales for cash report:', err);
     } finally {
@@ -706,6 +732,52 @@ export const CashReport: React.FC<CashReportProps> = ({ logo: logoFromProps }) =
           </table>
         </div>
       </div>
+
+      {/* Returns & Exchanges */}
+      {cashRefundTxs.length > 0 && (
+        <div className="bg-red-50 rounded-lg border border-red-200 p-6">
+          <h3 className="text-sm font-black uppercase tracking-widest text-red-900 mb-4">
+            Returns & Exchanges ({cashRefundTxs.length})
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-red-200">
+                  <th className="text-left py-2 px-3 font-bold text-red-700">Invoice</th>
+                  <th className="text-left py-2 px-3 font-bold text-red-700">Original Sale</th>
+                  <th className="text-left py-2 px-3 font-bold text-red-700">Method</th>
+                  <th className="text-right py-2 px-3 font-bold text-red-700">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cashRefundTxs.map((t, idx) => {
+                  const origInvoice = t.related_transaction_id
+                    ? (cashOriginalInvoices[t.related_transaction_id] || '—')
+                    : '—';
+                  return (
+                    <tr key={t.id} className={idx % 2 === 0 ? 'bg-red-50' : 'bg-white'}>
+                      <td className="py-2 px-3 font-mono font-bold text-xs text-zinc-900">{t.invoice_number || '—'}</td>
+                      <td className="py-2 px-3 text-zinc-600 text-xs">{origInvoice}</td>
+                      <td className="py-2 px-3 text-zinc-700">{t.method}</td>
+                      <td className="py-2 px-3 text-right font-bold text-red-700">
+                        -${Math.abs(Number(t.total_amount)).toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-red-200">
+                  <td colSpan={3} className="py-2 px-3 font-bold text-red-900">Total</td>
+                  <td className="py-2 px-3 text-right font-bold text-red-900">
+                    -${cashRefundTxs.reduce((s, t) => s + Math.abs(Number(t.total_amount)), 0).toFixed(2)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Actual Cash + Reconciliation */}
       <div className="grid md:grid-cols-2 gap-4">
