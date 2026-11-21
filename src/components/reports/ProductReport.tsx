@@ -16,7 +16,7 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<SortBy>('revenue');
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [returnsData, setReturnsData] = useState<Array<{ items: any[] }>>([]);
+  const [returnsData, setReturnsData] = useState<Array<{ transaction_id: string; items: any[] }>>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Fallback categories - combine with dynamic ones
@@ -51,7 +51,7 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
 
       const { data: rtnTableData } = await supabase
         .from('returns')
-        .select('items')
+        .select('transaction_id, items')
         .gte('created_at', start)
         .lte('created_at', end);
       setReturnsData(rtnTableData || []);
@@ -93,59 +93,64 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
       { name: string; category: string; quantity: number; revenue: number; price: number }
     > = {};
 
-    // variantId → {name, category} lookup for accurate returns matching
-    const variantInfo: Record<string, { name: string; category: string }> = {};
+    // sold quantities per transaction per variantId — used to guard and cap returns
+    const soldByTx: Record<string, Record<string, { name: string; category: string; qty: number; price: number }>> = {};
+    const saleTxIds = new Set<string>();
 
-    // Count items from completed non-RTN-/EXC- transactions only
-    transactions
-      .filter(t =>
+    const saleTxs = transactions.filter(
+      t =>
         t.status === 'completed' &&
         !t.invoice_number?.startsWith('RTN-') &&
         !t.invoice_number?.startsWith('EXC-')
-      )
-      .forEach(t => {
-        (t.items || []).forEach((item: any) => {
-          const key = `${item.name}`;
-          if (!products[key]) {
-            products[key] = {
-              name: item.name,
-              category: item.category || 'Uncategorized',
-              quantity: 0,
-              revenue: 0,
-              price: 0,
-            };
-          }
-          const qty = item.quantity || 1;
-          const price = item.price || 0;
-          products[key].quantity += qty;
-          products[key].revenue += price * qty;
-          products[key].price = price;
-          if (item.variantId) {
-            variantInfo[item.variantId] = {
-              name: item.name,
-              category: item.category || 'Uncategorized',
-            };
-          }
-        });
-      });
+    );
 
-    // Subtract returned items (matched by variantId → product name, fallback to item.name)
-    returnsData.forEach(r => {
-      (r.items || []).forEach((item: any) => {
-        const info = item.variantId ? variantInfo[item.variantId] : null;
-        const productName = info?.name ?? item.name;
-        if (!productName) return;
-        if (!products[productName]) {
-          products[productName] = {
-            name: productName,
-            category: info?.category ?? 'Uncategorized',
+    saleTxs.forEach(t => {
+      saleTxIds.add(t.id);
+      (t.items || []).forEach((item: any) => {
+        const key = `${item.name}`;
+        if (!products[key]) {
+          products[key] = {
+            name: item.name,
+            category: item.category || 'Uncategorized',
             quantity: 0,
             revenue: 0,
             price: 0,
           };
         }
-        products[productName].quantity -= item.returnQuantity || 1;
-        products[productName].revenue -= (item.pricePerUnit || 0) * (item.returnQuantity || 1);
+        const qty = item.quantity || 1;
+        const price = item.price || 0;
+        products[key].quantity += qty;
+        products[key].revenue += price * qty;
+        products[key].price = price;
+        if (item.variantId) {
+          if (!soldByTx[t.id]) soldByTx[t.id] = {};
+          if (!soldByTx[t.id][item.variantId]) {
+            soldByTx[t.id][item.variantId] = {
+              name: item.name,
+              category: item.category || 'Uncategorized',
+              qty: 0,
+              price,
+            };
+          }
+          soldByTx[t.id][item.variantId].qty += qty;
+        }
+      });
+    });
+
+    // Subtract returned items:
+    // - only if the return's transaction_id is an original sale in this date range
+    // - only if variantId matches a sold item in that specific transaction
+    // - capped at that transaction's sold qty (never goes negative)
+    returnsData.forEach(r => {
+      if (!saleTxIds.has(r.transaction_id)) return;
+      const txSold = soldByTx[r.transaction_id] || {};
+      (r.items || []).forEach((item: any) => {
+        if (!item.variantId) return;
+        const sold = txSold[item.variantId];
+        if (!sold) return;
+        const returnQty = Math.min(item.returnQuantity || 1, sold.qty);
+        products[sold.name].quantity -= returnQty;
+        products[sold.name].revenue -= (item.pricePerUnit || sold.price) * returnQty;
       });
     });
 
