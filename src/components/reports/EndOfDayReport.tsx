@@ -42,6 +42,7 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
     redeemedCount: number;
     redeemedTotal: number;
   } | null>(null);
+  const [returnsData, setReturnsData] = useState<Array<{ items: any[] }>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showEODPreview, setShowEODPreview] = useState(false);
   const [eodPreviewHTML, setEODPreviewHTML] = useState<string>('');
@@ -148,6 +149,14 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
           0
         ),
       });
+
+      // Fetch returns records created today (items have returnQuantity and pricePerUnit)
+      const { data: rtnTableData } = await supabase
+        .from('returns')
+        .select('items')
+        .gte('created_at', start)
+        .lte('created_at', end);
+      setReturnsData(rtnTableData || []);
     } catch (error) {
       console.error('Error fetching report data:', error);
     } finally {
@@ -244,41 +253,58 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
       }
     });
 
-    // Filter to only include methods with amount > 0, sorted by amount descending
+    // Only real payment methods; Exchange (even-swap) and Store Credit move to Returns section
     return Object.values(breakdown)
-      .filter(item => item.amount !== 0)
+      .filter(item => item.amount !== 0 && item.method !== 'Exchange' && item.method !== 'Store Credit')
       .map(({ txIds, ...item }) => item) // Remove txIds before returning
       .sort((a, b) => b.amount - a.amount);
   }, [transactions]);
 
-  // Top products (RTN- items subtract; EXC- replacement items count as normal sales)
+  const moneyCollected = useMemo(() => {
+    const realMethods = new Set(['Cash', 'Debit', 'Visa', 'Mastercard', 'MC', 'Amex', 'Cheque']);
+    return paymentBreakdown
+      .filter(p => realMethods.has(p.method))
+      .reduce((s, p) => s + p.amount, 0);
+  }, [paymentBreakdown]);
+
+  // Top products: only regular sales (no RTN-/EXC-); subtract today's returns via returns table
   const topProducts = useMemo(() => {
     const productSales: Record<string, { name: string; size: string; qty: number; revenue: number }> = {};
 
     transactions
-      .filter(t => t.status === 'completed')
+      .filter(t =>
+        t.status === 'completed' &&
+        !t.invoice_number?.startsWith('RTN-') &&
+        !t.invoice_number?.startsWith('EXC-')
+      )
       .forEach(t => {
-        const sign = t.invoice_number?.startsWith('RTN-') ? -1 : 1;
         (t.items || []).forEach((item: any) => {
           const key = `${item.name}|${item.size || 'One Size'}`;
           if (!productSales[key]) {
-            productSales[key] = {
-              name: item.name,
-              size: item.size || 'One Size',
-              qty: 0,
-              revenue: 0,
-            };
+            productSales[key] = { name: item.name, size: item.size || 'One Size', qty: 0, revenue: 0 };
           }
-          productSales[key].qty += sign * (item.quantity || 1);
-          productSales[key].revenue += sign * (item.price || 0) * (item.quantity || 1);
+          productSales[key].qty += item.quantity || 1;
+          productSales[key].revenue += (item.price || 0) * (item.quantity || 1);
         });
       });
+
+    // Subtract items returned today (returns.items use returnQuantity / pricePerUnit)
+    returnsData.forEach(r => {
+      (r.items || []).forEach((item: any) => {
+        const key = `${item.name}|${item.size || 'One Size'}`;
+        if (!productSales[key]) {
+          productSales[key] = { name: item.name, size: item.size || 'One Size', qty: 0, revenue: 0 };
+        }
+        productSales[key].qty -= item.returnQuantity || 1;
+        productSales[key].revenue -= (item.pricePerUnit || 0) * (item.returnQuantity || 1);
+      });
+    });
 
     return Object.values(productSales)
       .filter(p => p.qty > 0)
       .sort((a, b) => b.qty - a.qty)
       .slice(0, 10);
-  }, [transactions]);
+  }, [transactions, returnsData]);
 
   const refundTransactions = useMemo(() =>
     transactions.filter(t =>
@@ -421,8 +447,9 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
       ['HST Collected (13%)', `$${metrics.hstCollected.toFixed(2)}`],
       ...(refundTransactions.length > 0 ? [
         ['Refunds / Credits Issued', `-$${metrics.totalRefundsCredits.toFixed(2)}`],
-        ['Net (after returns)', `$${metrics.netTotal.toFixed(2)}`],
+        ['Net sales after returns', `$${metrics.netTotal.toFixed(2)}`],
       ] : []),
+      ['Money collected (Cash/Debit/Card)', `$${moneyCollected.toFixed(2)}`],
       [],
       ['Payment Breakdown'],
       ['Payment Method', 'Transactions', 'Amount'],
@@ -555,16 +582,24 @@ export const EndOfDayReport: React.FC<EndOfDayReportProps> = ({ logo: logoFromPr
         <SummaryCard label="HST Collected" value={`$${metrics.hstCollected.toFixed(2)}`} icon="🧮" />
       </div>
 
-      {/* Refunds / Credits issued + Net (only shown when returns exist) */}
-      {refundTransactions.length > 0 && (
+      {/* Returns / Net / Money collected */}
+      {(refundTransactions.length > 0 || metrics.totalTransactions > 0) && (
         <div className="flex gap-4 flex-wrap">
-          <div className="bg-red-50 rounded-lg border border-red-200 px-5 py-3 flex items-center gap-4">
-            <p className="text-[10px] font-bold uppercase text-red-600 whitespace-nowrap">Refunds / Credits Issued</p>
-            <p className="text-xl font-black text-red-700">-${metrics.totalRefundsCredits.toFixed(2)}</p>
-          </div>
-          <div className="bg-emerald-50 rounded-lg border border-emerald-200 px-5 py-3 flex items-center gap-4">
-            <p className="text-[10px] font-bold uppercase text-emerald-700 whitespace-nowrap">Net (after returns)</p>
-            <p className="text-xl font-black text-emerald-900">${metrics.netTotal.toFixed(2)}</p>
+          {refundTransactions.length > 0 && (
+            <div className="bg-red-50 rounded-lg border border-red-200 px-5 py-3 flex items-center gap-4">
+              <p className="text-[10px] font-bold uppercase text-red-600 whitespace-nowrap">Refunds / Credits Issued</p>
+              <p className="text-xl font-black text-red-700">-${metrics.totalRefundsCredits.toFixed(2)}</p>
+            </div>
+          )}
+          {refundTransactions.length > 0 && (
+            <div className="bg-emerald-50 rounded-lg border border-emerald-200 px-5 py-3 flex items-center gap-4">
+              <p className="text-[10px] font-bold uppercase text-emerald-700 whitespace-nowrap">Net sales after returns</p>
+              <p className="text-xl font-black text-emerald-900">${metrics.netTotal.toFixed(2)}</p>
+            </div>
+          )}
+          <div className="bg-blue-50 rounded-lg border border-blue-200 px-5 py-3 flex items-center gap-4">
+            <p className="text-[10px] font-bold uppercase text-blue-700 whitespace-nowrap">Money collected</p>
+            <p className="text-xl font-black text-blue-900">${moneyCollected.toFixed(2)}</p>
           </div>
         </div>
       )}
