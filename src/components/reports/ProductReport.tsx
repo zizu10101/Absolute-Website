@@ -16,6 +16,7 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<SortBy>('revenue');
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [returnsData, setReturnsData] = useState<Array<{ items: any[] }>>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Fallback categories - combine with dynamic ones
@@ -47,6 +48,13 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
 
       if (error) throw error;
       setTransactions(data || []);
+
+      const { data: rtnTableData } = await supabase
+        .from('returns')
+        .select('items')
+        .gte('created_at', start)
+        .lte('created_at', end);
+      setReturnsData(rtnTableData || []);
     } catch (error) {
       console.error('Error fetching product data:', error);
     } finally {
@@ -85,33 +93,68 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
       { name: string; category: string; quantity: number; revenue: number; price: number }
     > = {};
 
-    transactions.forEach(t => {
-      (t.items || []).forEach((item: any) => {
-        const key = `${item.name}`;
-        if (!products[key]) {
-          products[key] = {
-            name: item.name,
-            category: item.category || 'Uncategorized',
+    // variantId → {name, category} lookup for accurate returns matching
+    const variantInfo: Record<string, { name: string; category: string }> = {};
+
+    // Count items from completed non-RTN-/EXC- transactions only
+    transactions
+      .filter(t =>
+        t.status === 'completed' &&
+        !t.invoice_number?.startsWith('RTN-') &&
+        !t.invoice_number?.startsWith('EXC-')
+      )
+      .forEach(t => {
+        (t.items || []).forEach((item: any) => {
+          const key = `${item.name}`;
+          if (!products[key]) {
+            products[key] = {
+              name: item.name,
+              category: item.category || 'Uncategorized',
+              quantity: 0,
+              revenue: 0,
+              price: 0,
+            };
+          }
+          const qty = item.quantity || 1;
+          const price = item.price || 0;
+          products[key].quantity += qty;
+          products[key].revenue += price * qty;
+          products[key].price = price;
+          if (item.variantId) {
+            variantInfo[item.variantId] = {
+              name: item.name,
+              category: item.category || 'Uncategorized',
+            };
+          }
+        });
+      });
+
+    // Subtract returned items (matched by variantId → product name, fallback to item.name)
+    returnsData.forEach(r => {
+      (r.items || []).forEach((item: any) => {
+        const info = item.variantId ? variantInfo[item.variantId] : null;
+        const productName = info?.name ?? item.name;
+        if (!productName) return;
+        if (!products[productName]) {
+          products[productName] = {
+            name: productName,
+            category: info?.category ?? 'Uncategorized',
             quantity: 0,
             revenue: 0,
             price: 0,
           };
         }
-        const qty = item.quantity || 1;
-        const price = item.price || 0;
-        products[key].quantity += qty;
-        products[key].revenue += price * qty;
-        products[key].price = price;
+        products[productName].quantity -= item.returnQuantity || 1;
+        products[productName].revenue -= (item.pricePerUnit || 0) * (item.returnQuantity || 1);
       });
     });
 
-    let filtered = Object.values(products);
+    let filtered = Object.values(products).filter(p => p.quantity > 0);
 
     if (categoryFilter !== 'All') {
       filtered = filtered.filter(p => p.category === categoryFilter);
     }
 
-    // Sort
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'revenue':
@@ -124,7 +167,7 @@ export const ProductReport: React.FC<ProductReportProps> = ({ logo }) => {
     });
 
     return filtered;
-  }, [transactions, categoryFilter, sortBy]);
+  }, [transactions, categoryFilter, sortBy, returnsData]);
 
   const handleExportCSV = () => {
     const data = [

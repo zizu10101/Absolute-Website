@@ -75,13 +75,17 @@ export const CustomerReport: React.FC<CustomerReportProps> = ({ logo }) => {
       (transactionsData || []).forEach(t => {
         if (t.customer_id && customerMap[t.customer_id]) {
           const customer = customerMap[t.customer_id];
-          customer.totalPurchases += 1;
-          customer.totalSpent += Math.abs(Number(t.total_amount));
+          const isRefund =
+            t.invoice_number?.startsWith('RTN-') || t.invoice_number?.startsWith('EXC-');
+          // RTN-/EXC- entries reduce totalSpent via signed amount but excluded from purchase count
+          if (!isRefund) customer.totalPurchases += 1;
+          customer.totalSpent += Number(t.total_amount);
           customer.lastVisit = new Date(t.created_at) > new Date(customer.lastVisit || 0)
             ? t.created_at
             : customer.lastVisit;
 
-          if (t.method) {
+          // Don't skew preferred payment with return/exchange methods
+          if (t.method && !isRefund) {
             if (!paymentMethods[t.customer_id]) paymentMethods[t.customer_id] = [];
             paymentMethods[t.customer_id].push(t.method);
           }

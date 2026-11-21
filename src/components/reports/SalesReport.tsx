@@ -10,6 +10,7 @@ interface SalesReportProps {
 
 interface Transaction {
   id: string;
+  invoice_number?: string;
   total_amount: number;
   method: string;
   status: string;
@@ -95,18 +96,21 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
   const metrics = useMemo(() => {
     // Exclude $0 transactions (personal use / gifts); use signed amounts so returns reduce tax
     const completed = transactions.filter(t => t.status === 'completed' && Number(t.total_amount) !== 0);
+    // RTN-/EXC- entries contribute to revenue via signed amounts but excluded from counts
+    const saleTxs = completed.filter(
+      t => !t.invoice_number?.startsWith('RTN-') && !t.invoice_number?.startsWith('EXC-')
+    );
     const signedTotal = completed.reduce((sum, t) => sum + Number(t.total_amount), 0);
     const netSales = signedTotal / 1.13;
     const hstCollected = signedTotal - netSales;
-    const positiveOnly = completed.filter(t => Number(t.total_amount) > 0);
-    const grossSales = positiveOnly.reduce((sum, t) => sum + Number(t.total_amount), 0);
+    const grossSales = saleTxs.reduce((sum, t) => sum + Number(t.total_amount), 0);
 
     return {
       totalRevenue: signedTotal,
-      totalTransactions: completed.length,
+      totalTransactions: saleTxs.length,
       hstCollected,
       netSales,
-      avgTransaction: positiveOnly.length > 0 ? grossSales / positiveOnly.length : 0,
+      avgTransaction: saleTxs.length > 0 ? grossSales / saleTxs.length : 0,
       voidedCount: transactions.filter(t => t.status === 'voided').length,
       voidedAmount: transactions
         .filter(t => t.status === 'voided')
@@ -131,6 +135,10 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
       data.percentage = total > 0 ? (data.amount / total) * 100 : 0;
     });
 
+    // Exchange ($0 swaps) and Store Credit rows belong in the Returns section, not here
+    delete breakdown['Exchange'];
+    delete breakdown['Store Credit'];
+
     return breakdown;
   }, [transactions]) as Record<string, PaymentMethodData>;
 
@@ -151,10 +159,16 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
           methods.forEach(m => (breakdown[date][m] = 0));
         }
         const amount = Number(t.total_amount);
-        breakdown[date].transactions += 1;
+        const isRefund =
+          t.invoice_number?.startsWith('RTN-') || t.invoice_number?.startsWith('EXC-');
+        // RTN-/EXC- entries reduce daily total via signed amount but excluded from tx count
+        if (!isRefund) breakdown[date].transactions += 1;
         breakdown[date].total += amount;
         const method = t.method || 'Other';
-        breakdown[date][method] = (breakdown[date][method] || 0) + amount;
+        // Exchange and Store Credit rows belong in the Returns section
+        if (method !== 'Exchange' && method !== 'Store Credit') {
+          breakdown[date][method] = (breakdown[date][method] || 0) + amount;
+        }
       });
 
     return Object.entries(breakdown)
@@ -169,7 +183,7 @@ export const SalesReport: React.FC<SalesReportProps> = ({ logo }) => {
       .filter(t => t.status === 'completed')
       .forEach(t => {
         const date = formatEasternDate(t.created_at);
-        data[date] = (data[date] || 0) + Math.abs(Number(t.total_amount));
+        data[date] = (data[date] || 0) + Number(t.total_amount);
       });
 
     return Object.entries(data)
