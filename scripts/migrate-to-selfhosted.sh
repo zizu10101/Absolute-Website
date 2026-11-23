@@ -179,6 +179,10 @@ done_
 # ═══════════════════════════════════════════════════════════════════════════════
 step "Step 4 — Storage bucket migration (${BUCKET})"
 # ═══════════════════════════════════════════════════════════════════════════════
+if [[ -n "${SKIP_STORAGE:-}" ]]; then
+  log "SKIP_STORAGE=1 set — skipping Step 4 entirely."
+  done_
+else
 
 # Ensure destination bucket exists as public (409 if already exists — ignore)
 curl -sf -X POST \
@@ -308,13 +312,23 @@ done < "$WORK/files.txt"
 log "Storage result: source=$SRC_N  uploaded=$UPLOADED  failed=$FAILED"
 (( FAILED > 0 )) && die "$FAILED file(s) failed to transfer."
 
-log "Verifying destination bucket object count..."
+log "Verifying destination bucket file list..."
 list_bucket "$DST_SUPABASE_URL" "$DST_SERVICE_KEY" "$WORK/dst_files.txt"
-DST_BUCKET_N=$(wc -l < "$WORK/dst_files.txt" | tr -d ' ')
-log "Bucket object counts: source=$SRC_N  destination=$DST_BUCKET_N"
-[[ "$SRC_N" != "$DST_BUCKET_N" ]] && \
-  die "Bucket count mismatch: source=$SRC_N destination=$DST_BUCKET_N."
+sort "$WORK/files.txt"     > "$WORK/src_sorted.txt"
+sort "$WORK/dst_files.txt" > "$WORK/dst_sorted.txt"
+# Files in source but missing from destination — fatal
+comm -23 "$WORK/src_sorted.txt" "$WORK/dst_sorted.txt" > "$WORK/missing.txt"
+# Files in destination but not in source — warn only
+comm -13 "$WORK/src_sorted.txt" "$WORK/dst_sorted.txt" > "$WORK/extra.txt"
+MISSING_N=$(wc -l < "$WORK/missing.txt" | tr -d ' ')
+EXTRA_N=$(wc -l   < "$WORK/extra.txt"   | tr -d ' ')
+log "Bucket file counts: source=$SRC_N  destination=$(wc -l < "$WORK/dst_files.txt" | tr -d ' ')  missing=$MISSING_N  extra=$EXTRA_N"
+if (( EXTRA_N > 0 )); then
+  while IFS= read -r f; do log "  WARN: destination-only file: $f"; done < "$WORK/extra.txt"
+fi
+(( MISSING_N > 0 )) && die "$MISSING_N source file(s) missing from destination. Check WARN lines above."
 done_
+fi  # end SKIP_STORAGE
 
 # ═══════════════════════════════════════════════════════════════════════════════
 step "Step 5 — Rewrite stored image URLs in destination"
