@@ -588,6 +588,9 @@ export function ProductGridPage({ title, category, submenu }: Props) {
     <Helmet>
       <title>{title} | Soccer Store Mississauga | Absolute Soccer</title>
       <meta name="description" content={`Shop our wide collection of ${title} at Absolute Soccer in Mississauga. Premium selections from Nike, Adidas, PUMA and more available online or in store.`} />
+      {!isLoading && filteredProducts.length === 0 && !hasActiveFilters && !localSearch && !urlQuery && shouldShowGrid
+        ? <meta name="robots" content="noindex" />
+        : null}
     </Helmet>
     <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-12">
 
@@ -853,21 +856,45 @@ export function ProductGridPage({ title, category, submenu }: Props) {
           )}
 
           {filteredProducts.length === 0 && !isLoading && (
-            <div className="text-center py-32 bg-zinc-50 rounded-3xl border border-dashed border-zinc-200">
-              <div className="max-w-xs mx-auto space-y-4">
-                <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto">
-                  <Search className="text-zinc-700" size={32} />
+            hasActiveFilters || localSearch || urlQuery ? (
+              <div className="text-center py-32 bg-zinc-50 rounded-3xl border border-dashed border-zinc-200">
+                <div className="max-w-xs mx-auto space-y-4">
+                  <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto">
+                    <Search className="text-zinc-700" size={32} />
+                  </div>
+                  <h3 className="text-xl font-bold text-zinc-900">No products found</h3>
+                  <p className="text-zinc-500 text-sm">Try adjusting your search or filters.</p>
+                  <button
+                    onClick={() => { setLocalSearch(''); clearAllFilters(); }}
+                    className="text-[var(--primary-color)] font-bold uppercase tracking-widest text-[10px] hover:underline"
+                  >
+                    Clear Filters
+                  </button>
                 </div>
-                <h3 className="text-xl font-bold text-zinc-900">No products found</h3>
-                <p className="text-zinc-500 text-sm">Try adjusting your search or filters.</p>
-                <button
-                  onClick={() => { setLocalSearch(''); clearAllFilters(); }}
-                  className="text-[var(--primary-color)] font-bold uppercase tracking-widest text-[10px] hover:underline"
-                >
-                  Clear Filters
-                </button>
               </div>
-            </div>
+            ) : (
+              <div className="text-center py-32 bg-zinc-50 rounded-3xl border border-dashed border-zinc-200">
+                <div className="max-w-sm mx-auto space-y-6">
+                  <h3 className="text-xl font-bold text-zinc-900">No products in this category right now</h3>
+                  <p className="text-zinc-500 text-sm">Check back soon, or browse another category.</p>
+                  <div className="flex flex-wrap justify-center gap-3 pt-2">
+                    {navigationMenus
+                      .filter(m => m.label.toLowerCase() !== (category || title || '').toLowerCase())
+                      .slice(0, 5)
+                      .map(m => (
+                        <Link
+                          key={m.path}
+                          to={m.path}
+                          className="px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-[10px] bg-white border border-zinc-200 text-zinc-900 hover:border-[var(--primary-color)] hover:text-[var(--primary-color)] transition-all"
+                        >
+                          {m.label}
+                        </Link>
+                      ))
+                    }
+                  </div>
+                </div>
+              </div>
+            )
           )}
 
           {hasMore && (

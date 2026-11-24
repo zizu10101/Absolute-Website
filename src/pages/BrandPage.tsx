@@ -1,4 +1,5 @@
-﻿import { useParams } from 'react-router-dom';
+﻿import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { useProducts } from '../context/ProductContext';
 import { useSettings } from '../context/SettingsContext';
 import { ProductCard } from '../components/ProductCard';
@@ -87,6 +88,12 @@ export function BrandPage() {
   };
 
   return (
+    <>
+    <Helmet>
+      {!isLoading && filteredProducts.length === 0 && !localSearch && !selectedCategory
+        ? <meta name="robots" content="noindex" />
+        : null}
+    </Helmet>
     <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
         <div className="space-y-2">
@@ -211,12 +218,34 @@ export function BrandPage() {
           <div className="w-10 h-10 border-4 border-[var(--primary-color)] border-t-transparent rounded-full animate-spin mb-4" />
           <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs">Loading products...</p>
         </div>
-      ) : (
+      ) : localSearch || selectedCategory ? (
         <div className="flex flex-col items-center justify-center py-24 bg-zinc-50 rounded-xl">
           <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs mb-2">No products found</p>
           <p className="text-zinc-500 text-sm">Try adjusting your filters or search term.</p>
         </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-24 bg-zinc-50 rounded-xl space-y-6">
+          <div className="text-center space-y-2">
+            <p className="text-zinc-900 font-bold uppercase tracking-widest text-xs">No {displayBrand} products right now</p>
+            <p className="text-zinc-500 text-sm">Check back soon, or browse another category.</p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-3">
+            {navigationMenus
+              .slice(0, 5)
+              .map(m => (
+                <Link
+                  key={m.path}
+                  to={m.path}
+                  className="px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-[10px] bg-white border border-zinc-200 text-zinc-900 hover:border-[var(--primary-color)] hover:text-[var(--primary-color)] transition-all"
+                >
+                  {m.label}
+                </Link>
+              ))
+            }
+          </div>
+        </div>
       )}
     </div>
+    </>
   );
 }
