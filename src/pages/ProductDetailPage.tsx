@@ -416,6 +416,22 @@ export function ProductDetailPage() {
       : null;
     const skuCode = selectedColorCode || product.product_code || '';
 
+    const toTorontoISO = (d: Date): string => {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Toronto',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false,
+        timeZoneName: 'shortOffset'
+      }).formatToParts(d);
+      const v = (t: string) => parts.find(p => p.type === t)?.value ?? '00';
+      const tzRaw = parts.find(p => p.type === 'timeZoneName')?.value ?? 'GMT-5';
+      const m = tzRaw.match(/GMT([+-])(\d+)(?::(\d+))?/);
+      const off = m ? `${m[1]}${m[2].padStart(2, '0')}:${(m[3] ?? '00').padStart(2, '0')}` : '-05:00';
+      return `${v('year')}-${v('month')}-${v('day')}T${v('hour') === '24' ? '00' : v('hour')}:${v('minute')}:${v('second')}${off}`;
+    };
+    const validFrom = toTorontoISO(product.created_at ? new Date(product.created_at) : new Date());
+
     const schema: any = {
       "@context": "https://schema.org/",
       "@type": "Product",
@@ -434,6 +450,7 @@ export function ProductDetailPage() {
         "priceCurrency": "CAD",
         "price": price,
         "priceValidUntil": "2027-12-31",
+        "validFrom": validFrom,
         "availability": "https://schema.org/InStock",
         "seller": {
           "@type": "Organization",
